@@ -11,7 +11,7 @@ const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [step, setStep] = useState<"email" | "password" | "not-found">("email");
+  const [step, setStep] = useState<"email" | "password" | "signup" | "not-found">("email");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -40,7 +40,7 @@ const Auth = () => {
       // Check if user exists in admins table
       const { data: admin, error: adminError } = await supabase
         .from("admins")
-        .select("email")
+        .select("email, user_id")
         .eq("email", emailOrPhone)
         .maybeSingle();
 
@@ -55,12 +55,74 @@ const Auth = () => {
       }
 
       if (admin) {
-        // User exists, show password field
-        setStep("password");
+        // Admin record exists, check if auth user exists
+        if (admin.user_id) {
+          // User has already signed up, show password field for login
+          setStep("password");
+        } else {
+          // Admin exists but hasn't signed up yet, show signup
+          setStep("signup");
+        }
       } else {
-        // User doesn't exist, show contact admin message
+        // User doesn't exist in admins table, show contact admin message
         setStep("not-found");
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async () => {
+    if (!password.trim() || password.length < 6) {
+      toast({
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 6 caractères",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      const { error } = await supabase.auth.signUp({
+        email: emailOrPhone,
+        password: password,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur d'inscription",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Compte créé",
+        description: "Bienvenue ! Connexion en cours...",
+      });
+      
+      // After signup, sign in immediately
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: emailOrPhone,
+        password: password,
+      });
+
+      if (signInError) {
+        toast({
+          title: "Compte créé",
+          description: "Veuillez vous connecter",
+        });
+        setStep("password");
+        return;
+      }
+
+      navigate("/");
     } finally {
       setIsLoading(false);
     }
@@ -200,6 +262,44 @@ const Auth = () => {
             >
               {isLoading ? "Chargement..." : "Suivant"}
             </Button>
+          </div>
+        )}
+
+        {step === "signup" && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Créer un compte pour <span className="font-medium text-foreground">{emailOrPhone}</span>
+              </p>
+              <Input
+                type="password"
+                placeholder="Créer un mot de passe (min. 6 caractères)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full h-12 text-base"
+                onKeyDown={(e) => e.key === "Enter" && handleSignup()}
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleBack}
+                disabled={isLoading}
+                variant="outline"
+                className="flex-1 h-14 text-base font-medium rounded-xl"
+              >
+                Retour
+              </Button>
+              <Button
+                onClick={handleSignup}
+                disabled={isLoading}
+                className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
+              >
+                {isLoading ? "Création..." : "Créer le compte"}
+              </Button>
+            </div>
           </div>
         )}
 
