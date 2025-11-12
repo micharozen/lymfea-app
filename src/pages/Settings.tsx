@@ -47,14 +47,12 @@ export default function Settings() {
             <TableHeader>
               <TableRow className="border-b border-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground font-normal py-4">
-                  <div className="flex items-center gap-2">
-                    Nom
+                  <div className="flex items-center gap-3">
+                    <span>Nom</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted">
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
-                </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4 w-[60px]">
-                  <Button variant="ghost" size="icon" className="h-6 w-6">
-                    <Plus className="h-4 w-4" />
-                  </Button>
                 </TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">
                   <div className="flex items-center gap-2">
@@ -75,8 +73,8 @@ export default function Settings() {
             </TableHeader>
             <TableBody>
               {admins.map((admin) => (
-                <TableRow key={admin.id} className="border-0">
-                  <TableCell className="py-4">
+                <TableRow key={admin.id} className="border-0 hover:bg-transparent">
+                  <TableCell className="py-5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                         <User className="h-5 w-5 text-muted-foreground" />
@@ -84,14 +82,13 @@ export default function Settings() {
                       <span className="font-medium">{admin.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="py-4"></TableCell>
-                  <TableCell className="py-4">
+                  <TableCell className="py-5">
                     <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
                       {admin.email}
                     </a>
                   </TableCell>
-                  <TableCell className="py-4">{admin.phone}</TableCell>
-                  <TableCell className="py-4">
+                  <TableCell className="py-5">{admin.phone}</TableCell>
+                  <TableCell className="py-5">
                     <span className="text-success font-medium">
                       {admin.status}
                     </span>
