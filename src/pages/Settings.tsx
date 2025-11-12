@@ -1,4 +1,4 @@
-import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown } from "lucide-react";
+import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -143,6 +153,8 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
 
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<any>(null);
+  const [deleteAdminId, setDeleteAdminId] = useState<string | null>(null);
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
   const queryClient = useQueryClient();
 
@@ -205,6 +217,65 @@ export default function Settings() {
     },
   });
 
+  // Update admin mutation
+  const updateAdminMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof adminFormSchema> }) => {
+      const { error } = await supabase
+        .from("admins")
+        .update({
+          first_name: data.firstName,
+          last_name: data.lastName,
+          email: data.email,
+          phone: data.phone,
+          country_code: data.countryCode,
+          profile_image: data.profileImage,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      toast({
+        title: "Succès",
+        description: "L'administrateur a été modifié avec succès",
+      });
+      form.reset();
+      setEditingAdmin(null);
+      setIsAddAdminOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de la modification",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete admin mutation
+  const deleteAdminMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("admins").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      toast({
+        title: "Succès",
+        description: "L'administrateur a été supprimé avec succès",
+      });
+      setDeleteAdminId(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de la suppression",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -217,7 +288,30 @@ export default function Settings() {
   };
 
   const onSubmit = (data: z.infer<typeof adminFormSchema>) => {
-    createAdminMutation.mutate(data);
+    if (editingAdmin) {
+      updateAdminMutation.mutate({ id: editingAdmin.id, data });
+    } else {
+      createAdminMutation.mutate(data);
+    }
+  };
+
+  const handleEditAdmin = (admin: any) => {
+    setEditingAdmin(admin);
+    form.reset({
+      firstName: admin.first_name,
+      lastName: admin.last_name,
+      email: admin.email,
+      phone: admin.phone,
+      countryCode: admin.country_code,
+      profileImage: admin.profile_image,
+    });
+    setIsAddAdminOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    form.reset();
+    setEditingAdmin(null);
+    setIsAddAdminOpen(false);
   };
 
 
@@ -272,18 +366,21 @@ export default function Settings() {
                 <TableHead className="text-muted-foreground font-normal py-4">
                   Statut
                 </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4 w-[100px]">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Chargement...
                   </TableCell>
                 </TableRow>
               ) : admins.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Aucun administrateur trouvé
                   </TableCell>
                 </TableRow>
@@ -313,6 +410,26 @@ export default function Settings() {
                         {admin.status}
                       </span>
                     </TableCell>
+                    <TableCell className="py-5">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-muted"
+                          onClick={() => handleEditAdmin(admin)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setDeleteAdminId(admin.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -321,10 +438,12 @@ export default function Settings() {
         </div>
       </div>
 
-      <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
+      <Dialog open={isAddAdminOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Ajouter un admin</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              {editingAdmin ? "Modifier l'admin" : "Ajouter un admin"}
+            </DialogTitle>
           </DialogHeader>
           
           <Form {...form}>
@@ -472,28 +591,50 @@ export default function Settings() {
               <div className="flex justify-end gap-3 pt-2">
                 <Button 
                   variant="outline" 
-                  onClick={() => {
-                    form.reset();
-                    setIsAddAdminOpen(false);
-                  }}
+                  onClick={handleCloseDialog}
                   className="px-5"
                   type="button"
-                  disabled={createAdminMutation.isPending}
+                  disabled={createAdminMutation.isPending || updateAdminMutation.isPending}
                 >
                   Annuler
                 </Button>
                 <Button 
                   type="submit"
                   className="px-5 bg-foreground text-background hover:bg-foreground/90"
-                  disabled={createAdminMutation.isPending}
+                  disabled={createAdminMutation.isPending || updateAdminMutation.isPending}
                 >
-                  {createAdminMutation.isPending ? "Enregistrement..." : "Suivant"}
+                  {createAdminMutation.isPending || updateAdminMutation.isPending
+                    ? "Enregistrement..."
+                    : "Suivant"}
                 </Button>
               </div>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteAdminId} onOpenChange={() => setDeleteAdminId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Cet administrateur sera définitivement supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteAdminMutation.isPending}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAdminId && deleteAdminMutation.mutate(deleteAdminId)}
+              disabled={deleteAdminMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteAdminMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
