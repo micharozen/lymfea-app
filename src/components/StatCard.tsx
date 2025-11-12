@@ -15,7 +15,7 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
     <Card className="border border-border bg-card shadow-sm">
       <CardContent className="p-5 flex flex-col h-full">
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-sm font-semibold text-muted-foreground mb-3">
           {title}
         </p>
         <p className="text-3xl font-semibold text-foreground mb-3 tracking-tight">
