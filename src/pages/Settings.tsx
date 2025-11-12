@@ -240,10 +240,10 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg">
+        <div className="bg-card rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-border hover:bg-transparent">
+              <TableRow className="border-b border-border">
                 <TableHead className="text-muted-foreground font-normal py-4">
                   <div className="flex items-center gap-3">
                     <span>Nom</span>
@@ -289,7 +289,7 @@ export default function Settings() {
                 </TableRow>
               ) : (
                 admins.map((admin) => (
-                  <TableRow key={admin.id} className="border-0 hover:bg-transparent">
+                  <TableRow key={admin.id} className="border-0">
                     <TableCell className="py-5">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
