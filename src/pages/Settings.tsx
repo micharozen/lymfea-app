@@ -1,5 +1,8 @@
 import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,7 +35,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { cn } from "@/lib/utils";
+
+const adminFormSchema = z.object({
+  firstName: z.string().min(1, "Le prénom est requis"),
+  lastName: z.string().min(1, "Le nom est requis"),
+  email: z.string().min(1, "L'email est requis").email("Format d'email invalide"),
+  phone: z.string().min(1, "Le téléphone est requis"),
+  countryCode: z.string(),
+  profileImage: z.string().nullable(),
+});
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -120,23 +140,36 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
 
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [countryCode, setCountryCode] = useState("+33");
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  const form = useForm<z.infer<typeof adminFormSchema>>({
+    resolver: zodResolver(adminFormSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      countryCode: "+33",
+      profileImage: null,
+    },
+  });
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setProfileImage(reader.result as string);
+        form.setValue("profileImage", reader.result as string);
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const onSubmit = (data: z.infer<typeof adminFormSchema>) => {
+    console.log("Form data:", data);
+    // TODO: Integrate with backend
+    form.reset();
+    setIsAddAdminOpen(false);
   };
 
   const admins = [
@@ -237,157 +270,169 @@ export default function Settings() {
             <DialogTitle className="text-xl font-semibold">Ajouter un admin</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
-            <div>
-              <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                  {profileImage ? (
-                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="h-6 w-6 text-muted-foreground" />
-                  )}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+              <div>
+                <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                    {form.watch("profileImage") ? (
+                      <img src={form.watch("profileImage")!} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    id="profile-image"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-border"
+                    onClick={() => document.getElementById('profile-image')?.click()}
+                    type="button"
+                  >
+                    Télécharger l'image
+                  </Button>
                 </div>
-                <input
-                  type="file"
-                  id="profile-image"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-normal">Prénom</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Prénom" {...field} className="h-10" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-normal">Nom</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nom" {...field} className="h-10" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-normal">Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="Saisir l'adresse e-mail" {...field} className="h-10" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-normal">Téléphone</FormLabel>
+                    <div className="flex gap-2">
+                      <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={openCountrySelect}
+                            className="w-[160px] h-10 justify-between"
+                            type="button"
+                          >
+                            {form.watch("countryCode")
+                              ? `${countries.find((country) => country.code === form.watch("countryCode"))?.flag} ${countries.find((country) => country.code === form.watch("countryCode"))?.label} (${form.watch("countryCode")})`
+                              : "Sélectionner..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0">
+                          <Command>
+                            <CommandInput placeholder="Rechercher pays..." />
+                            <CommandList>
+                              <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                              <CommandGroup>
+                                {countries.map((country) => (
+                                  <CommandItem
+                                    key={country.code}
+                                    value={`${country.label} ${country.code}`}
+                                    keywords={[country.code.replace('+', ''), country.label]}
+                                    onSelect={() => {
+                                      form.setValue("countryCode", country.code);
+                                      setOpenCountrySelect(false);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        form.watch("countryCode") === country.code ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {country.flag} {country.label} ({country.code})
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormControl>
+                        <Input
+                          type="tel"
+                          {...field}
+                          onChange={(e) => {
+                            const formatted = formatPhoneNumber(e.target.value, form.watch("countryCode"));
+                            field.onChange(formatted);
+                          }}
+                          className="h-10 flex-1"
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-3 pt-2">
                 <Button 
                   variant="outline" 
-                  size="sm" 
-                  className="border-border"
-                  onClick={() => document.getElementById('profile-image')?.click()}
+                  onClick={() => {
+                    form.reset();
+                    setIsAddAdminOpen(false);
+                  }}
+                  className="px-5"
                   type="button"
                 >
-                  Télécharger l'image
+                  Annuler
+                </Button>
+                <Button 
+                  type="submit"
+                  className="px-5 bg-foreground text-background hover:bg-foreground/90"
+                >
+                  Suivant
                 </Button>
               </div>
-            </div>
-
-            <div>
-              <Label htmlFor="firstName" className="text-sm font-normal mb-1.5 block">
-                Prénom
-              </Label>
-              <Input
-                id="firstName"
-                placeholder="Prénom"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="lastName" className="text-sm font-normal mb-1.5 block">
-                Nom
-              </Label>
-              <Input
-                id="lastName"
-                placeholder="Nom"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="email" className="text-sm font-normal mb-1.5 block">
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Saisir l'adresse e-mail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-10"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="phone" className="text-sm font-normal mb-1.5 block">
-                Téléphone
-              </Label>
-              <div className="flex gap-2">
-                <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openCountrySelect}
-                      className="w-[160px] h-10 justify-between"
-                    >
-                      {countryCode
-                        ? `${countries.find((country) => country.code === countryCode)?.flag} ${countries.find((country) => country.code === countryCode)?.label} (${countryCode})`
-                        : "Sélectionner..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Rechercher pays..." />
-                      <CommandList>
-                        <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
-                        <CommandGroup>
-                          {countries.map((country) => (
-                            <CommandItem
-                              key={country.code}
-                              value={`${country.label} ${country.code}`}
-                              keywords={[country.code.replace('+', ''), country.label]}
-                              onSelect={() => {
-                                setCountryCode(country.code);
-                                setOpenCountrySelect(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  countryCode === country.code ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {country.flag} {country.label} ({country.code})
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => {
-                    const formatted = formatPhoneNumber(e.target.value, countryCode);
-                    setPhone(formatted);
-                  }}
-                  className="h-10 flex-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setIsAddAdminOpen(false)}
-              className="px-5"
-            >
-              Annuler
-            </Button>
-            <Button 
-              onClick={() => {
-                // Handle form submission
-                setIsAddAdminOpen(false);
-              }}
-              className="px-5 bg-foreground text-background hover:bg-foreground/90"
-            >
-              Suivant
-            </Button>
-          </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>
