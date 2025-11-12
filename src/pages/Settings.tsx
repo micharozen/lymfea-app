@@ -309,9 +309,29 @@ export default function Settings() {
   };
 
   const handleCloseDialog = () => {
-    form.reset();
+    form.reset({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      countryCode: "+33",
+      profileImage: null,
+    });
     setEditingAdmin(null);
     setIsAddAdminOpen(false);
+  };
+
+  const handleOpenAddDialog = () => {
+    form.reset({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      countryCode: "+33",
+      profileImage: null,
+    });
+    setEditingAdmin(null);
+    setIsAddAdminOpen(true);
   };
 
 
@@ -345,7 +365,7 @@ export default function Settings() {
                       variant="ghost" 
                       size="icon" 
                       className="h-6 w-6 hover:bg-muted"
-                      onClick={() => setIsAddAdminOpen(true)}
+                      onClick={handleOpenAddDialog}
                     >
                       <Plus className="h-4 w-4 text-foreground" />
                     </Button>
