@@ -47,17 +47,8 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
-      <SidebarContent>
-        <div className="flex items-center justify-center p-4 border-b border-sidebar-border">
-          {!isCollapsed && (
-            <img src={oomLogo} alt="OOM" className="h-12 w-auto" />
-          )}
-          {isCollapsed && (
-            <img src={oomLogo} alt="OOM" className="h-8 w-auto" />
-          )}
-        </div>
-
-        {/* Profil utilisateur */}
+      <SidebarContent className="flex flex-col h-full">
+        {/* Profil utilisateur en haut */}
         <div className="px-3 py-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-accent-foreground font-medium flex-shrink-0">
@@ -66,7 +57,10 @@ export function AppSidebar() {
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-sidebar-foreground truncate">Tom Uzan</p>
-                <p className="text-xs text-sidebar-foreground/60">Admin</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs text-sidebar-foreground/60">Admin</p>
+                  <Settings className="h-3.5 w-3.5 text-sidebar-foreground/60" />
+                </div>
               </div>
             )}
           </div>
@@ -101,6 +95,18 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Logo en bas */}
+        <div className="mt-auto border-t border-sidebar-border">
+          <div className="flex items-center justify-center p-4">
+            {!isCollapsed && (
+              <img src={oomLogo} alt="OOM" className="h-10 w-auto" />
+            )}
+            {isCollapsed && (
+              <img src={oomLogo} alt="OOM" className="h-6 w-auto" />
+            )}
+          </div>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
