@@ -6,7 +6,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-4xl">
-        <h1 className="text-3xl font-bold text-foreground mb-8">Profile</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-8">Profil</h1>
 
         <Card className="border border-border bg-card shadow-sm">
           <CardContent className="p-8">
@@ -16,7 +16,7 @@ export default function Profile() {
                 <User className="w-12 h-12 text-muted-foreground" />
               </div>
               <Button variant="outline" size="sm">
-                Upload Image
+                Télécharger une image
               </Button>
             </div>
 
@@ -24,21 +24,21 @@ export default function Profile() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">
-                  First name
+                  Prénom
                 </label>
                 <p className="text-base font-medium text-foreground">Tom Uzan</p>
               </div>
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">
-                  Role
+                  Rôle
                 </label>
                 <p className="text-base font-medium text-foreground">Admin</p>
               </div>
 
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">
-                  Phone
+                  Téléphone
                 </label>
                 <p className="text-base font-medium text-foreground">+33614216442</p>
               </div>
