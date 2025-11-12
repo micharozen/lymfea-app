@@ -50,36 +50,63 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
   const numbers = value.replace(/\D/g, '');
   
   switch (countryCode) {
-    case "+33": // France: XX XX XX XX XX
-      return numbers.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
-    case "+1": // USA: (XXX) XXX-XXXX
-      if (numbers.length <= 3) return numbers;
-      if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
-      return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
-    case "+44": // UK: XXXX XXX XXXX
-      if (numbers.length <= 4) return numbers;
-      if (numbers.length <= 7) return `${numbers.slice(0, 4)} ${numbers.slice(4)}`;
-      return `${numbers.slice(0, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 11)}`;
-    case "+39": // Italie: XXX XXX XXXX
-      if (numbers.length <= 3) return numbers;
-      if (numbers.length <= 6) return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
-      return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6, 10)}`;
-    case "+49": // Allemagne: XXX XXXXXXX
-      if (numbers.length <= 3) return numbers;
-      return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
-    case "+34": // Espagne: XXX XX XX XX
-      if (numbers.length <= 3) return numbers;
-      return numbers.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4').trim();
-    case "+41": // Suisse: XX XXX XX XX
-      if (numbers.length <= 2) return numbers;
-      if (numbers.length <= 5) return `${numbers.slice(0, 2)} ${numbers.slice(2)}`;
-      if (numbers.length <= 7) return `${numbers.slice(0, 2)} ${numbers.slice(2, 5)} ${numbers.slice(5)}`;
-      return `${numbers.slice(0, 2)} ${numbers.slice(2, 5)} ${numbers.slice(5, 7)} ${numbers.slice(7, 9)}`;
-    case "+32": // Belgique: XXX XX XX XX
-      if (numbers.length <= 3) return numbers;
-      return numbers.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4').trim();
+    case "+33": // France: 6 14 21 64 42 (10 digits)
+      const fr = numbers.slice(0, 10);
+      if (fr.length <= 1) return fr;
+      if (fr.length <= 3) return `${fr.slice(0, 1)} ${fr.slice(1)}`;
+      if (fr.length <= 5) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3)}`;
+      if (fr.length <= 7) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5)}`;
+      if (fr.length <= 9) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5, 7)} ${fr.slice(7)}`;
+      return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5, 7)} ${fr.slice(7, 9)} ${fr.slice(9, 10)}`;
+      
+    case "+1": // USA: (555) 123-4567 (10 digits)
+      const us = numbers.slice(0, 10);
+      if (us.length <= 3) return us;
+      if (us.length <= 6) return `(${us.slice(0, 3)}) ${us.slice(3)}`;
+      return `(${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}`;
+      
+    case "+44": // UK: 1234 567 890 (10 digits)
+      const uk = numbers.slice(0, 10);
+      if (uk.length <= 4) return uk;
+      if (uk.length <= 7) return `${uk.slice(0, 4)} ${uk.slice(4)}`;
+      return `${uk.slice(0, 4)} ${uk.slice(4, 7)} ${uk.slice(7)}`;
+      
+    case "+39": // Italie: 123 456 7890 (10 digits)
+      const it = numbers.slice(0, 10);
+      if (it.length <= 3) return it;
+      if (it.length <= 6) return `${it.slice(0, 3)} ${it.slice(3)}`;
+      return `${it.slice(0, 3)} ${it.slice(3, 6)} ${it.slice(6)}`;
+      
+    case "+49": // Allemagne: 123 45678901 (11 digits)
+      const de = numbers.slice(0, 11);
+      if (de.length <= 3) return de;
+      return `${de.slice(0, 3)} ${de.slice(3)}`;
+      
+    case "+34": // Espagne: 612 34 56 78 (9 digits)
+      const es = numbers.slice(0, 9);
+      if (es.length <= 3) return es;
+      if (es.length <= 5) return `${es.slice(0, 3)} ${es.slice(3)}`;
+      if (es.length <= 7) return `${es.slice(0, 3)} ${es.slice(3, 5)} ${es.slice(5)}`;
+      return `${es.slice(0, 3)} ${es.slice(3, 5)} ${es.slice(5, 7)} ${es.slice(7)}`;
+      
+    case "+41": // Suisse: 12 345 67 89 (9 digits)
+      const ch = numbers.slice(0, 9);
+      if (ch.length <= 2) return ch;
+      if (ch.length <= 5) return `${ch.slice(0, 2)} ${ch.slice(2)}`;
+      if (ch.length <= 7) return `${ch.slice(0, 2)} ${ch.slice(2, 5)} ${ch.slice(5)}`;
+      return `${ch.slice(0, 2)} ${ch.slice(2, 5)} ${ch.slice(5, 7)} ${ch.slice(7)}`;
+      
+    case "+32": // Belgique: 123 45 67 89 (9 digits)
+      const be = numbers.slice(0, 9);
+      if (be.length <= 3) return be;
+      if (be.length <= 5) return `${be.slice(0, 3)} ${be.slice(3)}`;
+      if (be.length <= 7) return `${be.slice(0, 3)} ${be.slice(3, 5)} ${be.slice(5)}`;
+      return `${be.slice(0, 3)} ${be.slice(3, 5)} ${be.slice(5, 7)} ${be.slice(7)}`;
+      
     default:
-      return numbers.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+      const def = numbers.slice(0, 10);
+      if (def.length <= 2) return def;
+      return def.match(/.{1,2}/g)?.join(' ') || def;
   }
 };
 
