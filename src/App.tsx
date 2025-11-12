@@ -3,7 +3,17 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import Dashboard from "./pages/Dashboard";
+import Booking from "./pages/Booking";
+import HairDresser from "./pages/HairDresser";
+import Hotels from "./pages/Hotels";
+import TreatmentMenus from "./pages/TreatmentMenus";
+import Boxes from "./pages/Boxes";
+import Concierges from "./pages/Concierges";
+import OomProducts from "./pages/OomProducts";
+import OomOrders from "./pages/OomOrders";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -14,11 +24,30 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col">
+              <header className="h-14 border-b border-border bg-card flex items-center px-4 sticky top-0 z-10">
+                <SidebarTrigger />
+              </header>
+              <main className="flex-1">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/booking" element={<Booking />} />
+                  <Route path="/hair-dresser" element={<HairDresser />} />
+                  <Route path="/hotels" element={<Hotels />} />
+                  <Route path="/treatment-menus" element={<TreatmentMenus />} />
+                  <Route path="/boxes" element={<Boxes />} />
+                  <Route path="/concierges" element={<Concierges />} />
+                  <Route path="/oom-products" element={<OomProducts />} />
+                  <Route path="/oom-orders" element={<OomOrders />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+            </div>
+          </div>
+        </SidebarProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
