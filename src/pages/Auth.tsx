@@ -71,8 +71,8 @@ const Auth = () => {
 
         {/* Title */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Sign in with OOM</h1>
-          <p className="text-muted-foreground">Enter your phone number or email</p>
+          <h1 className="text-3xl font-semibold text-foreground">Connexion avec OOM</h1>
+          <p className="text-muted-foreground">Entrez votre numéro de téléphone ou email</p>
         </div>
 
         {/* Tabs */}
@@ -86,7 +86,7 @@ const Auth = () => {
             }`}
             disabled={isLoading}
           >
-            Phone number
+            Numéro de téléphone
           </button>
           <button
             onClick={() => setLoginMethod("email")}
@@ -116,9 +116,9 @@ const Auth = () => {
           <Button
             onClick={handleNext}
             disabled={isLoading}
-            className="w-full h-12 text-base bg-muted hover:bg-muted/80 text-muted-foreground"
+            className="w-full h-14 text-base font-medium rounded-xl bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/90 text-foreground disabled:opacity-50"
           >
-            {isLoading ? "Chargement..." : "Next"}
+            {isLoading ? "Chargement..." : "Suivant"}
           </Button>
         </div>
       </div>
