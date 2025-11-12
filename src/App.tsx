@@ -17,11 +17,8 @@ import OomOrders from "./pages/OomOrders";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -30,9 +27,7 @@ const App = () => (
           <div className="flex min-h-screen w-full">
             <AppSidebar />
             <div className="flex-1 flex flex-col">
-              <header className="h-14 border-b border-border bg-card flex items-center px-4 sticky top-0 z-10">
-                {/* Header vide - pas de bouton toggle */}
-              </header>
+              
               <main className="flex-1">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
@@ -54,7 +49,5 @@ const App = () => (
         </SidebarProvider>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
-
+  </QueryClientProvider>;
 export default App;
