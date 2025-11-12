@@ -45,6 +45,44 @@ const countries = [
   { code: "+32", label: "Belgique", flag: "🇧🇪" },
 ];
 
+const formatPhoneNumber = (value: string, countryCode: string): string => {
+  // Remove all non-numeric characters
+  const numbers = value.replace(/\D/g, '');
+  
+  switch (countryCode) {
+    case "+33": // France: XX XX XX XX XX
+      return numbers.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+    case "+1": // USA: (XXX) XXX-XXXX
+      if (numbers.length <= 3) return numbers;
+      if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
+      return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+    case "+44": // UK: XXXX XXX XXXX
+      if (numbers.length <= 4) return numbers;
+      if (numbers.length <= 7) return `${numbers.slice(0, 4)} ${numbers.slice(4)}`;
+      return `${numbers.slice(0, 4)} ${numbers.slice(4, 7)} ${numbers.slice(7, 11)}`;
+    case "+39": // Italie: XXX XXX XXXX
+      if (numbers.length <= 3) return numbers;
+      if (numbers.length <= 6) return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
+      return `${numbers.slice(0, 3)} ${numbers.slice(3, 6)} ${numbers.slice(6, 10)}`;
+    case "+49": // Allemagne: XXX XXXXXXX
+      if (numbers.length <= 3) return numbers;
+      return `${numbers.slice(0, 3)} ${numbers.slice(3)}`;
+    case "+34": // Espagne: XXX XX XX XX
+      if (numbers.length <= 3) return numbers;
+      return numbers.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4').trim();
+    case "+41": // Suisse: XX XXX XX XX
+      if (numbers.length <= 2) return numbers;
+      if (numbers.length <= 5) return `${numbers.slice(0, 2)} ${numbers.slice(2)}`;
+      if (numbers.length <= 7) return `${numbers.slice(0, 2)} ${numbers.slice(2, 5)} ${numbers.slice(5)}`;
+      return `${numbers.slice(0, 2)} ${numbers.slice(2, 5)} ${numbers.slice(5, 7)} ${numbers.slice(7, 9)}`;
+    case "+32": // Belgique: XXX XX XX XX
+      if (numbers.length <= 3) return numbers;
+      return numbers.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4').trim();
+    default:
+      return numbers.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  }
+};
+
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [firstName, setFirstName] = useState("");
@@ -200,7 +238,7 @@ export default function Settings() {
               </Label>
               <Input
                 id="firstName"
-                placeholder="John"
+                placeholder="Prénom"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 className="h-10"
@@ -213,7 +251,7 @@ export default function Settings() {
               </Label>
               <Input
                 id="lastName"
-                placeholder="Doe"
+                placeholder="Nom"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="h-10"
@@ -286,7 +324,10 @@ export default function Settings() {
                   id="phone"
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const formatted = formatPhoneNumber(e.target.value, countryCode);
+                    setPhone(formatted);
+                  }}
                   className="h-10 flex-1"
                 />
               </div>
