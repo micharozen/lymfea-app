@@ -116,7 +116,7 @@ const Auth = () => {
           <Button
             onClick={handleNext}
             disabled={isLoading}
-            className="w-full h-14 text-base font-medium rounded-xl bg-[hsl(var(--muted))] hover:bg-[hsl(var(--muted))]/90 text-foreground disabled:opacity-50"
+            className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
           >
             {isLoading ? "Chargement..." : "Suivant"}
           </Button>
