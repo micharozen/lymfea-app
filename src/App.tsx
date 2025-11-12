@@ -15,6 +15,7 @@ import Concierges from "./pages/Concierges";
 import OomProducts from "./pages/OomProducts";
 import OomOrders from "./pages/OomOrders";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                   <Route path="/oom-products" element={<OomProducts />} />
                   <Route path="/oom-orders" element={<OomOrders />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route path="/profile" element={<Profile />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
