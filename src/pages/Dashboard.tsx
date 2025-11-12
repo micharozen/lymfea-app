@@ -49,9 +49,9 @@ export default function Dashboard() {
       upcomingBookings: Math.floor(Math.random() * 50 * baseMultiplier),
       totalBookings: Math.floor(Math.random() * 100 * baseMultiplier),
       totalSessions: Math.floor(Math.random() * 150 * baseMultiplier),
-      salesTrend: ((Math.random() - 0.5) * 20).toFixed(2),
-      bookingsTrend: ((Math.random() - 0.5) * 20).toFixed(2),
-      sessionsTrend: ((Math.random() - 0.5) * 20).toFixed(2),
+      salesTrend: ((Math.random() - 0.5) * 20).toFixed(1),
+      bookingsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
+      sessionsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
     };
   };
 

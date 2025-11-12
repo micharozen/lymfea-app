@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CalendarIcon, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, addWeeks, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -23,6 +23,16 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   const [customEndDate, setCustomEndDate] = useState<Date>();
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+
+  // Initialiser avec la période par défaut au montage
+  useEffect(() => {
+    const today = new Date();
+    const startDate = subDays(today, 30);
+    const endDate = today;
+    if (onPeriodChange) {
+      onPeriodChange(startDate, endDate);
+    }
+  }, []);
 
   const getPeriodLabel = () => {
     switch (periodType) {
