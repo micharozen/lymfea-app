@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function Profile() {
+  const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("Tom");
   const [lastName, setLastName] = useState("Uzan");
@@ -27,6 +28,7 @@ export default function Profile() {
   const handleSave = () => {
     // Save profile logic here
     toast.success("Profil mis à jour avec succès");
+    setIsEditing(false);
   };
 
   return (
@@ -57,6 +59,7 @@ export default function Profile() {
                 size="sm"
                 onClick={() => document.getElementById('profile-upload')?.click()}
                 type="button"
+                disabled={!isEditing}
               >
                 Télécharger une image
               </Button>
@@ -73,6 +76,7 @@ export default function Profile() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   className="h-10"
+                  disabled={!isEditing}
                 />
               </div>
 
@@ -85,6 +89,7 @@ export default function Profile() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   className="h-10"
+                  disabled={!isEditing}
                 />
               </div>
 
@@ -109,6 +114,7 @@ export default function Profile() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="h-10"
+                  disabled={!isEditing}
                 />
               </div>
 
@@ -122,17 +128,35 @@ export default function Profile() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-10"
+                  disabled={!isEditing}
                 />
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleSave}
-                className="bg-foreground text-background hover:bg-foreground/90"
-              >
-                Enregistrer les modifications
-              </Button>
+            <div className="flex justify-end gap-3">
+              {!isEditing ? (
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  Modifier le profil
+                </Button>
+              ) : (
+                <>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setIsEditing(false)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    onClick={handleSave}
+                    className="bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    Enregistrer les modifications
+                  </Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
