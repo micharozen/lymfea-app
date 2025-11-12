@@ -40,7 +40,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
         }
         return "Date personnalisée";
       default:
-        return "Sélectionner période";
+        return "30 derniers jours";
     }
   };
 
@@ -112,13 +112,13 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="min-w-[200px] justify-between text-sm font-normal"
         >
-          {getPeriodLabel()}
-          <ChevronDown className="ml-2 h-4 w-4" />
+          <span className="text-muted-foreground">{getPeriodLabel()}</span>
+          <ChevronDown className="ml-2 h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-card" align="end">
+      <PopoverContent className="w-[240px] p-0 bg-card border border-border" align="end">
         {!showCustomCalendar ? (
           <div className="p-2">
             {periods.map((period) => (
@@ -126,13 +126,13 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                 key={period.value}
                 onClick={() => handlePeriodTypeChange(period.value)}
                 className={cn(
-                  "w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors flex items-center justify-between",
-                  periodType === period.value && "bg-muted"
+                  "w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors flex items-center justify-between text-sm",
+                  periodType === period.value && "bg-muted font-medium"
                 )}
               >
-                <span className="text-sm">{period.label}</span>
+                <span>{period.label}</span>
                 {periodType === period.value && (
-                  <Check className="h-4 w-4 text-foreground" />
+                  <Check className="h-4 w-4" />
                 )}
               </button>
             ))}
@@ -140,75 +140,83 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
         ) : (
           <div className="p-4 space-y-3">
             <div>
-              <label className="text-sm font-medium mb-2 block">Date de début</label>
+              <label className="text-xs font-medium mb-2 block text-muted-foreground">Date de début</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    size="sm"
                     className={cn(
                       "w-full justify-start text-left font-normal",
                       !customStartDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {customStartDate ? format(customStartDate, "PPP", { locale: fr }) : "Sélectionner"}
+                    <span className="text-xs">
+                      {customStartDate ? format(customStartDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-card" align="start">
+                <PopoverContent className="w-auto p-0 bg-card border border-border" align="start">
                   <Calendar
                     mode="single"
                     selected={customStartDate}
                     onSelect={setCustomStartDate}
                     initialFocus
-                    className={cn("p-3 pointer-events-auto")}
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Date de fin</label>
+              <label className="text-xs font-medium mb-2 block text-muted-foreground">Date de fin</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
+                    size="sm"
                     className={cn(
                       "w-full justify-start text-left font-normal",
                       !customEndDate && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {customEndDate ? format(customEndDate, "PPP", { locale: fr }) : "Sélectionner"}
+                    <span className="text-xs">
+                      {customEndDate ? format(customEndDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-card" align="start">
+                <PopoverContent className="w-auto p-0 bg-card border border-border" align="start">
                   <Calendar
                     mode="single"
                     selected={customEndDate}
                     onSelect={setCustomEndDate}
                     disabled={(date) => customStartDate ? date < customStartDate : false}
                     initialFocus
-                    className={cn("p-3 pointer-events-auto")}
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => {
                   setShowCustomCalendar(false);
                   setPeriodType("last-30-days");
                 }}
-                className="flex-1"
+                className="flex-1 text-xs"
               >
                 Annuler
               </Button>
               <Button
+                size="sm"
                 onClick={handleCustomDateConfirm}
                 disabled={!customStartDate || !customEndDate}
-                className="flex-1"
+                className="flex-1 text-xs"
               >
                 Confirmer
               </Button>
