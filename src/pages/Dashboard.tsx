@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { StatCard } from "@/components/StatCard";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,27 +11,63 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-
-const salesData = [
-  { date: "10 octobre", sales: 0 },
-  { date: "20 octobre", sales: 0 },
-  { date: "25 octobre", sales: 0 },
-  { date: "30 octobre", sales: 0 },
-  { date: "5 novembre", sales: 0 },
-  { date: "10 novembre", sales: 0 },
-];
-
-const hotelData = [
-  {
-    name: "Hôtel Sofitel Paris le Faubourg",
-    totalSales: "0.00 €",
-    totalBookings: 0,
-    totalSessions: 0,
-    totalCancelled: 0,
-  },
-];
+import { format, differenceInDays, addDays } from "date-fns";
+import { fr } from "date-fns/locale";
 
 export default function Dashboard() {
+  const [startDate, setStartDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() - 30)));
+  const [endDate, setEndDate] = useState<Date>(new Date());
+
+  const handlePeriodChange = (start: Date, end: Date) => {
+    setStartDate(start);
+    setEndDate(end);
+  };
+
+  // Générer des données de ventes basées sur la période
+  const generateSalesData = () => {
+    const days = differenceInDays(endDate, startDate);
+    const dataPoints = Math.min(days, 10); // Maximum 10 points sur le graphique
+    const interval = Math.max(1, Math.floor(days / dataPoints));
+    
+    return Array.from({ length: dataPoints }, (_, i) => {
+      const date = addDays(startDate, i * interval);
+      const randomSales = Math.floor(Math.random() * 500) + 100;
+      return {
+        date: format(date, "dd MMM", { locale: fr }),
+        sales: randomSales,
+      };
+    });
+  };
+
+  // Calculer les statistiques basées sur la période
+  const calculateStats = () => {
+    const days = differenceInDays(endDate, startDate);
+    const baseMultiplier = days / 30; // Normaliser par rapport à 30 jours
+    
+    return {
+      totalSales: (Math.random() * 5000 * baseMultiplier).toFixed(2),
+      upcomingBookings: Math.floor(Math.random() * 50 * baseMultiplier),
+      totalBookings: Math.floor(Math.random() * 100 * baseMultiplier),
+      totalSessions: Math.floor(Math.random() * 150 * baseMultiplier),
+      salesTrend: ((Math.random() - 0.5) * 20).toFixed(2),
+      bookingsTrend: ((Math.random() - 0.5) * 20).toFixed(2),
+      sessionsTrend: ((Math.random() - 0.5) * 20).toFixed(2),
+    };
+  };
+
+  const salesData = generateSalesData();
+  const stats = calculateStats();
+
+  const hotelData = [
+    {
+      name: "Hôtel Sofitel Paris le Faubourg",
+      totalSales: `${stats.totalSales} €`,
+      totalBookings: stats.totalBookings,
+      totalSessions: stats.totalSessions,
+      totalCancelled: Math.floor(stats.totalBookings * 0.1),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="mb-6">
@@ -39,29 +76,32 @@ export default function Dashboard() {
             <span className="text-2xl">🏠</span>
             <h1 className="text-3xl font-bold text-foreground">Accueil</h1>
           </div>
-          <PeriodSelector />
+          <PeriodSelector onPeriodChange={handlePeriodChange} />
         </div>
+        <p className="text-sm text-muted-foreground mt-2">
+          Période : {format(startDate, "dd MMM yyyy", { locale: fr })} - {format(endDate, "dd MMM yyyy", { locale: fr })}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title="Ventes totales"
-          value="0.00 €"
-          trend={{ value: "0.00%", isPositive: true }}
+          value={`${stats.totalSales} €`}
+          trend={{ value: `${Math.abs(parseFloat(stats.salesTrend))}%`, isPositive: parseFloat(stats.salesTrend) > 0 }}
         />
         <StatCard
           title="Réservations à venir"
-          value={0}
+          value={stats.upcomingBookings}
         />
         <StatCard
           title="Réservations totales"
-          value={0}
-          trend={{ value: "0.00%", isPositive: true }}
+          value={stats.totalBookings}
+          trend={{ value: `${Math.abs(parseFloat(stats.bookingsTrend))}%`, isPositive: parseFloat(stats.bookingsTrend) > 0 }}
         />
         <StatCard
           title="Sessions totales"
-          value={0}
-          trend={{ value: "0.00%", isPositive: true }}
+          value={stats.totalSessions}
+          trend={{ value: `${Math.abs(parseFloat(stats.sessionsTrend))}%`, isPositive: parseFloat(stats.sessionsTrend) > 0 }}
         />
       </div>
 
@@ -81,8 +121,6 @@ export default function Dashboard() {
               <YAxis 
                 tick={{ fontSize: 12 }}
                 stroke="#666"
-                domain={[0, 800]}
-                ticks={[0, 100, 200, 300, 400, 500, 600, 700, 800]}
                 tickFormatter={(value) => `${value} €`}
               />
               <Line
