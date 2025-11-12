@@ -1,4 +1,5 @@
 import { StatCard } from "@/components/StatCard";
+import { PeriodSelector } from "@/components/PeriodSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -33,12 +34,12 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-2xl">🏠</span>
-          <h1 className="text-3xl font-bold text-foreground">Accueil</h1>
-        </div>
-        <div className="flex justify-end">
-          <span className="text-sm text-muted-foreground">30 derniers jours</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🏠</span>
+            <h1 className="text-3xl font-bold text-foreground">Accueil</h1>
+          </div>
+          <PeriodSelector />
         </div>
       </div>
 

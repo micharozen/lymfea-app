@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
+import oomLogo from "@/assets/oom-logo.svg";
 import {
   Home,
   Calendar,
@@ -44,12 +45,12 @@ export function AppSidebar() {
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
       <SidebarContent>
-        <div className="flex items-center justify-center p-6 border-b border-sidebar-border">
+        <div className="flex items-center justify-center p-4 border-b border-sidebar-border">
           {!isCollapsed && (
-            <h1 className="text-2xl font-bold text-sidebar-foreground">OOM Panel</h1>
+            <img src={oomLogo} alt="OOM" className="h-12 w-auto" />
           )}
           {isCollapsed && (
-            <span className="text-2xl font-bold text-sidebar-foreground">O</span>
+            <img src={oomLogo} alt="OOM" className="h-8 w-auto" />
           )}
         </div>
 
