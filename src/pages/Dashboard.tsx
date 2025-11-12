@@ -54,14 +54,14 @@ export default function Dashboard() {
 
   // Calculer les statistiques basées sur la période
   const calculateStats = () => {
-    const days = differenceInDays(endDate, startDate);
+    const days = Math.max(1, differenceInDays(endDate, startDate)); // Au minimum 1 jour
     const baseMultiplier = days / 30; // Normaliser par rapport à 30 jours
     
     return {
-      totalSales: (Math.random() * 5000 * baseMultiplier).toFixed(2),
-      upcomingBookings: Math.floor(Math.random() * 50 * baseMultiplier),
-      totalBookings: Math.floor(Math.random() * 100 * baseMultiplier),
-      totalSessions: Math.floor(Math.random() * 150 * baseMultiplier),
+      totalSales: (Math.random() * 5000 * baseMultiplier + 100).toFixed(2),
+      upcomingBookings: Math.floor(Math.random() * 50 * baseMultiplier + 5),
+      totalBookings: Math.floor(Math.random() * 100 * baseMultiplier + 10),
+      totalSessions: Math.floor(Math.random() * 150 * baseMultiplier + 15),
       salesTrend: ((Math.random() - 0.5) * 20).toFixed(1),
       bookingsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
       sessionsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
