@@ -41,14 +41,14 @@ const menuItems = [
 ];
 
 const subMenuItems = [
-  { title: "Réservations", url: "/booking", icon: Calendar },
-  { title: "Coiffeurs", url: "/hair-dresser", icon: Scissors },
-  { title: "Hôtels", url: "/hotels", icon: Building2 },
-  { title: "Menus de soins", url: "/treatment-menus", icon: Sparkles },
-  { title: "Box", url: "/boxes", icon: Package },
-  { title: "Concierges", url: "/concierges", icon: Users },
-  { title: "Produits OOM", url: "/oom-products", icon: ShoppingBag },
-  { title: "Commandes", url: "/oom-orders", icon: ShoppingCart },
+  { title: "Réservations", url: "/booking", icon: Calendar, color: "text-blue-500" },
+  { title: "Coiffeurs", url: "/hair-dresser", icon: Scissors, color: "text-orange-500" },
+  { title: "Hôtels", url: "/hotels", icon: Building2, color: "text-pink-500" },
+  { title: "Menus de soins", url: "/treatment-menus", icon: Sparkles, color: "text-purple-500" },
+  { title: "Box", url: "/boxes", icon: Package, color: "text-amber-600" },
+  { title: "Concierges", url: "/concierges", icon: Users, color: "text-yellow-600" },
+  { title: "Produits OOM", url: "/oom-products", icon: ShoppingBag, color: "text-purple-400" },
+  { title: "Commandes", url: "/oom-orders", icon: ShoppingCart, color: "text-orange-400" },
 ];
 
 export function AppSidebar() {
@@ -141,7 +141,7 @@ export function AppSidebar() {
                             : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                         }`}
                       >
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <item.icon className={`h-5 w-5 flex-shrink-0 ${item.color}`} />
                         {!isCollapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
