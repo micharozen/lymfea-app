@@ -112,7 +112,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           {getPeriodLabel()}
           <ChevronDown className="ml-2 h-4 w-4" />
