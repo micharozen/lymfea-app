@@ -26,6 +26,19 @@ export default function Dashboard() {
   // Générer des données de ventes basées sur la période
   const generateSalesData = () => {
     const days = differenceInDays(endDate, startDate);
+    
+    // Pour "Aujourd'hui", générer des points horaires
+    if (days === 0) {
+      return Array.from({ length: 8 }, (_, i) => {
+        const hour = 9 + i * 2; // De 9h à 23h
+        const randomSales = Math.floor(Math.random() * 300) + 50;
+        return {
+          date: `${hour}h`,
+          sales: randomSales,
+        };
+      });
+    }
+    
     const dataPoints = Math.min(days, 10); // Maximum 10 points sur le graphique
     const interval = Math.max(1, Math.floor(days / dataPoints));
     
