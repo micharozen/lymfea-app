@@ -18,7 +18,7 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
         <p className="text-sm font-semibold text-muted-foreground mb-3">
           {title}
         </p>
-        <p className="text-3xl font-semibold text-foreground mb-3 tracking-tight">
+        <p className="text-3xl font-semibold text-foreground mb-3 tracking-tight whitespace-nowrap">
           {value}
         </p>
         <div className="mt-auto">
