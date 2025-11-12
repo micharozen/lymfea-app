@@ -13,6 +13,8 @@ import {
   ShoppingCart,
   Settings,
   ChevronDown,
+  User,
+  LogOut,
 } from "lucide-react";
 
 import {
@@ -26,6 +28,12 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const menuItems = [
   { title: "Accueil", url: "/", icon: Home },
@@ -51,22 +59,36 @@ export function AppSidebar() {
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
       <SidebarContent className="flex flex-col h-full">
-        {/* Profil utilisateur en haut */}
+        {/* Profil utilisateur en haut avec dropdown */}
         <div className="px-3 py-4 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0">
-              TU
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <p className="text-sm font-medium text-sidebar-foreground">Tom Uzan</p>
-                  <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent/50 p-1 rounded-lg transition-colors">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0">
+                  TU
                 </div>
-                <p className="text-xs text-sidebar-foreground/60">Admin</p>
-              </div>
-            )}
-          </div>
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium text-sidebar-foreground">Tom Uzan</p>
+                      <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+                    </div>
+                    <p className="text-xs text-sidebar-foreground/60">Admin</p>
+                  </div>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Home et Paramètres */}
