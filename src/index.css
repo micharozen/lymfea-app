@@ -8,103 +8,93 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 200 30% 15%;
+    --background: 0 0% 97%;
+    --foreground: 0 0% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 30% 15%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 30% 15%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 200 85% 38%;
+    --primary: 0 0% 10%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 200 30% 95%;
-    --secondary-foreground: 200 30% 15%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 10%;
 
-    --muted: 200 20% 96%;
-    --muted-foreground: 200 15% 45%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 45 100% 55%;
-    --accent-foreground: 200 30% 15%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
 
-    --success: 160 70% 45%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 88%;
-    --input: 200 20% 88%;
-    --ring: 200 85% 38%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 10%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 200 85% 38%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 200 90% 45%;
+    --sidebar-background: 0 0% 97%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 0 0% 10%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 80% 42%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 200 70% 35%;
-    --sidebar-ring: 45 100% 55%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(200, 85%, 38%), hsl(200, 90%, 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(45, 100%, 55%), hsl(35, 100%, 50%));
+    --sidebar-accent: 0 0% 93%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 0 0% 10%;
     
-    --shadow-elegant: 0 4px 20px -4px hsl(200 85% 38% / 0.15);
-    --shadow-card: 0 2px 8px -2px hsl(200 30% 15% / 0.08);
-    
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.05);
   }
 
   .dark {
-    --background: 200 30% 8%;
+    --background: 0 0% 10%;
     --foreground: 0 0% 95%;
 
-    --card: 200 25% 12%;
+    --card: 0 0% 12%;
     --card-foreground: 0 0% 95%;
 
-    --popover: 200 25% 12%;
+    --popover: 0 0% 12%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 200 85% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 0 0% 95%;
+    --primary-foreground: 0 0% 10%;
 
-    --secondary: 200 25% 18%;
+    --secondary: 0 0% 18%;
     --secondary-foreground: 0 0% 95%;
 
-    --muted: 200 20% 16%;
-    --muted-foreground: 200 15% 65%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 45 100% 60%;
-    --accent-foreground: 200 30% 8%;
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 10%;
 
-    --success: 160 70% 50%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 20%;
-    --input: 200 20% 20%;
-    --ring: 200 85% 45%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 95%;
 
-    --sidebar-background: 200 30% 10%;
+    --sidebar-background: 0 0% 10%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 200 85% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 200 30% 15%;
+    --sidebar-primary: 0 0% 95%;
+    --sidebar-primary-foreground: 0 0% 10%;
+    --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 200 25% 18%;
-    --sidebar-ring: 45 100% 60%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(200, 85%, 45%), hsl(200, 90%, 50%));
-    --gradient-accent: linear-gradient(135deg, hsl(45, 100%, 60%), hsl(35, 100%, 55%));
+    --sidebar-border: 0 0% 18%;
+    --sidebar-ring: 0 0% 95%;
     
-    --shadow-elegant: 0 4px 20px -4px hsl(200 85% 45% / 0.25);
-    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.3);
   }
 }
 

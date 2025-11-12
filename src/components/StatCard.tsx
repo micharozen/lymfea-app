@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   trend?: {
     value: string;
     isPositive: boolean;
@@ -13,23 +13,22 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
-    <Card className="hover:shadow-lg transition-all duration-300">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+    <Card className="border border-border bg-card shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-xs font-normal text-muted-foreground uppercase tracking-wide">
           {title}
         </CardTitle>
-        <Icon className="h-5 w-5 text-primary" />
       </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold text-foreground">{value}</div>
+      <CardContent className="pt-0">
+        <div className="text-2xl font-bold text-foreground mb-1">{value}</div>
         {trend && (
-          <p
-            className={`text-xs mt-1 ${
-              trend.isPositive ? "text-success" : "text-destructive"
-            }`}
-          >
-            {trend.isPositive ? "+" : ""}{trend.value} vs mois dernier
+          <p className={`text-xs flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
+            <span>{trend.isPositive ? "↑" : "↓"}</span>
+            <span>{trend.value} Compared to last 30 days</span>
           </p>
+        )}
+        {!trend && (
+          <p className="text-xs text-muted-foreground">Click here to see booking list</p>
         )}
       </CardContent>
     </Card>
