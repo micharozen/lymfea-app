@@ -1,1 +1,7 @@
 project_id = "xbkvmrqanoqdqvqwldio"
+
+[functions.check-admin-exists]
+verify_jwt = false
+
+[functions.contact-admin]
+verify_jwt = false

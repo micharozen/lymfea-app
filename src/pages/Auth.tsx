@@ -37,15 +37,16 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      // Check if user exists in admins table
-      const { data: admin, error: adminError } = await supabase
-        .from("admins")
-        .select("email, user_id")
-        .eq("email", emailOrPhone)
-        .maybeSingle();
+      // Use edge function to check if admin exists (bypasses RLS)
+      const { data: checkResult, error: checkError } = await supabase.functions.invoke(
+        "check-admin-exists",
+        {
+          body: { email: emailOrPhone },
+        }
+      );
 
-      if (adminError && adminError.code !== "PGRST116") {
-        console.error("Error checking admin:", adminError);
+      if (checkError) {
+        console.error("Error checking admin:", checkError);
         toast({
           title: "Erreur",
           description: "Erreur lors de la vérification",
@@ -54,9 +55,9 @@ const Auth = () => {
         return;
       }
 
-      if (admin) {
-        // Admin record exists, check if auth user exists
-        if (admin.user_id) {
+      if (checkResult.exists) {
+        // Admin record exists, check if they have an account
+        if (checkResult.hasAccount) {
           // User has already signed up, show password field for login
           setStep("password");
         } else {
