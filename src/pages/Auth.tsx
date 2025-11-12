@@ -11,6 +11,7 @@ const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [foundEmail, setFoundEmail] = useState<string>("");
   const [step, setStep] = useState<"email" | "password" | "signup" | "not-found">("email");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const Auth = () => {
       const { data: checkResult, error: checkError } = await supabase.functions.invoke(
         "check-admin-exists",
         {
-          body: { email: emailOrPhone },
+          body: { emailOrPhone: emailOrPhone },
         }
       );
 
@@ -56,6 +57,9 @@ const Auth = () => {
       }
 
       if (checkResult.exists) {
+        // Store the email for authentication (even if user entered phone)
+        setFoundEmail(checkResult.email);
+        
         // Admin record exists, check if they have an account
         if (checkResult.hasAccount) {
           // User has already signed up, show password field for login
@@ -86,8 +90,11 @@ const Auth = () => {
     setIsLoading(true);
     try {
       const redirectUrl = `${window.location.origin}/`;
+      // Use the found email for signup (even if user entered phone)
+      const emailToUse = foundEmail || emailOrPhone;
+      
       const { error } = await supabase.auth.signUp({
-        email: emailOrPhone,
+        email: emailToUse,
         password: password,
         options: {
           emailRedirectTo: redirectUrl,
@@ -110,7 +117,7 @@ const Auth = () => {
       
       // After signup, sign in immediately
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: emailOrPhone,
+        email: emailToUse,
         password: password,
       });
 
@@ -141,8 +148,11 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
+      // Use the found email for login (even if user entered phone)
+      const emailToUse = foundEmail || emailOrPhone;
+      
       const { error } = await supabase.auth.signInWithPassword({
-        email: emailOrPhone,
+        email: emailToUse,
         password: password,
       });
 
@@ -201,6 +211,7 @@ const Auth = () => {
   const handleBack = () => {
     setStep("email");
     setPassword("");
+    setFoundEmail("");
   };
 
   return (

@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface CheckAdminRequest {
-  email: string;
+  emailOrPhone: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -18,11 +18,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email }: CheckAdminRequest = await req.json();
+    const { emailOrPhone }: CheckAdminRequest = await req.json();
 
-    if (!email) {
+    if (!emailOrPhone) {
       return new Response(
-        JSON.stringify({ error: "Email is required" }),
+        JSON.stringify({ error: "Email or phone is required" }),
         {
           status: 400,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -36,14 +36,26 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    console.log("Checking if admin exists:", email);
+    console.log("Checking if admin exists:", emailOrPhone);
 
-    // Check if admin exists in the admins table
-    const { data: admin, error: adminError } = await supabaseAdmin
+    // Remove spaces from phone input for comparison
+    const cleanedInput = emailOrPhone.replace(/\s+/g, '');
+    
+    // Check if input is email or phone
+    const isEmail = cleanedInput.includes('@');
+    
+    let query = supabaseAdmin
       .from("admins")
-      .select("email, user_id")
-      .eq("email", email)
-      .maybeSingle();
+      .select("email, user_id");
+    
+    if (isEmail) {
+      query = query.eq("email", cleanedInput);
+    } else {
+      // Search by phone number (remove spaces for comparison)
+      query = query.or(`phone.eq.${cleanedInput}`);
+    }
+    
+    const { data: admin, error: adminError } = await query.maybeSingle();
 
     if (adminError) {
       console.error("Error checking admin:", adminError);
@@ -56,6 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({
         exists: !!admin,
         hasAccount: admin ? !!admin.user_id : false,
+        email: admin ? admin.email : null, // Return email for phone-based login
       }),
       {
         status: 200,
