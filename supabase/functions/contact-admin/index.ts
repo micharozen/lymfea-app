@@ -31,13 +31,13 @@ const handler = async (req: Request): Promise<Response> => {
       },
       body: JSON.stringify({
         from: "OOM Panel <onboarding@resend.dev>",
-        to: ["booking@oomworld.com"],
+        to: ["tom@oomworld.com"], // Temporaire : changez pour booking@oomworld.com après vérification du domaine sur resend.com/domains
         subject: "Demande d'accès au panel OOM",
         html: `
           <h2>Nouvelle demande d'accès au panel</h2>
           <p><strong>Email ou téléphone :</strong> ${emailOrPhone}</p>
           <p>Cette personne a tenté de se connecter au panel OOM mais n'a pas de compte.</p>
-          <p>Veuillez créer un compte si nécessaire.</p>
+          <p><strong>Note :</strong> Cet email est envoyé à tom@oomworld.com. Pour recevoir les emails sur booking@oomworld.com, veuillez vérifier votre domaine sur resend.com/domains.</p>
         `,
       }),
     });
