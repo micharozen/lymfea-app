@@ -12,6 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,6 +33,7 @@ export default function Settings() {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+33");
 
   const admins = [
     {
@@ -120,26 +128,26 @@ export default function Settings() {
       </div>
 
       <Dialog open={isAddAdminOpen} onOpenChange={setIsAddAdminOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold">Ajouter un admin</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">Ajouter un admin</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-6 py-4">
+          <div className="space-y-4 py-2">
             <div>
-              <Label className="text-base font-normal mb-3 block">Photo de profil</Label>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                  <User className="h-8 w-8 text-muted-foreground" />
+              <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                  <User className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <Button variant="outline" className="border-border">
+                <Button variant="outline" size="sm" className="border-border">
                   Télécharger l'image
                 </Button>
               </div>
             </div>
 
             <div>
-              <Label htmlFor="firstName" className="text-base font-normal mb-2 block">
+              <Label htmlFor="firstName" className="text-sm font-normal mb-1.5 block">
                 Prénom
               </Label>
               <Input
@@ -147,12 +155,12 @@ export default function Settings() {
                 placeholder="John"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="h-12"
+                className="h-10"
               />
             </div>
 
             <div>
-              <Label htmlFor="lastName" className="text-base font-normal mb-2 block">
+              <Label htmlFor="lastName" className="text-sm font-normal mb-1.5 block">
                 Nom
               </Label>
               <Input
@@ -160,12 +168,12 @@ export default function Settings() {
                 placeholder="Doe"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="h-12"
+                className="h-10"
               />
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-base font-normal mb-2 block">
+              <Label htmlFor="email" className="text-sm font-normal mb-1.5 block">
                 Email
               </Label>
               <Input
@@ -174,36 +182,46 @@ export default function Settings() {
                 placeholder="Saisir l'adresse e-mail"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-12"
+                className="h-10"
               />
             </div>
 
             <div>
-              <Label htmlFor="phone" className="text-base font-normal mb-2 block">
+              <Label htmlFor="phone" className="text-sm font-normal mb-1.5 block">
                 Téléphone
               </Label>
               <div className="flex gap-2">
-                <select className="h-12 px-3 border border-input rounded-md bg-background">
-                  <option>+39</option>
-                  <option>+33</option>
-                  <option>+1</option>
-                </select>
+                <Select value={countryCode} onValueChange={setCountryCode}>
+                  <SelectTrigger className="w-[140px] h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="+33">🇫🇷 France (+33)</SelectItem>
+                    <SelectItem value="+39">🇮🇹 Italie (+39)</SelectItem>
+                    <SelectItem value="+1">🇺🇸 USA (+1)</SelectItem>
+                    <SelectItem value="+44">🇬🇧 UK (+44)</SelectItem>
+                    <SelectItem value="+49">🇩🇪 Allemagne (+49)</SelectItem>
+                    <SelectItem value="+34">🇪🇸 Espagne (+34)</SelectItem>
+                    <SelectItem value="+41">🇨🇭 Suisse (+41)</SelectItem>
+                    <SelectItem value="+32">🇧🇪 Belgique (+32)</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="h-12 flex-1"
+                  className="h-10 flex-1"
                 />
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-2">
             <Button 
               variant="outline" 
               onClick={() => setIsAddAdminOpen(false)}
-              className="px-6"
+              className="px-5"
             >
               Annuler
             </Button>
@@ -212,7 +230,7 @@ export default function Settings() {
                 // Handle form submission
                 setIsAddAdminOpen(false);
               }}
-              className="px-6 bg-foreground text-background hover:bg-foreground/90"
+              className="px-5 bg-foreground text-background hover:bg-foreground/90"
             >
               Suivant
             </Button>
