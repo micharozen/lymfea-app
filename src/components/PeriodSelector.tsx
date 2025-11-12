@@ -162,8 +162,8 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "w-full justify-start text-left font-normal hover:bg-card hover:border-border",
-                      !customStartDate && "text-muted-foreground"
+                      "w-full justify-start text-left font-normal data-[state=open]:bg-card data-[state=open]:text-foreground data-[state=open]:border-border",
+                      !customStartDate && "text-foreground/80"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -192,8 +192,8 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "w-full justify-start text-left font-normal hover:bg-card hover:border-border",
-                      !customEndDate && "text-muted-foreground"
+                      "w-full justify-start text-left font-normal data-[state=open]:bg-card data-[state=open]:text-foreground data-[state=open]:border-border",
+                      !customEndDate && "text-foreground/80"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
