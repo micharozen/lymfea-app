@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,21 +23,35 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending access request email for:", emailOrPhone);
 
-    const emailResponse = await resend.emails.send({
-      from: "OOM Panel <onboarding@resend.dev>",
-      to: ["booking@oomworld.com"],
-      subject: "Demande d'accès au panel OOM",
-      html: `
-        <h2>Nouvelle demande d'accès au panel</h2>
-        <p><strong>Email ou téléphone :</strong> ${emailOrPhone}</p>
-        <p>Cette personne a tenté de se connecter au panel OOM mais n'a pas de compte.</p>
-        <p>Veuillez créer un compte si nécessaire.</p>
-      `,
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "OOM Panel <onboarding@resend.dev>",
+        to: ["booking@oomworld.com"],
+        subject: "Demande d'accès au panel OOM",
+        html: `
+          <h2>Nouvelle demande d'accès au panel</h2>
+          <p><strong>Email ou téléphone :</strong> ${emailOrPhone}</p>
+          <p>Cette personne a tenté de se connecter au panel OOM mais n'a pas de compte.</p>
+          <p>Veuillez créer un compte si nécessaire.</p>
+        `,
+      }),
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error:", error);
+      throw new Error(`Resend API error: ${error}`);
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
+    const data = await response.json();
+    console.log("Email sent successfully:", data);
+
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
