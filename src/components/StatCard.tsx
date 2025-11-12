@@ -24,11 +24,11 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
         {trend && (
           <p className={`text-xs flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
             <span>{trend.isPositive ? "↑" : "↓"}</span>
-            <span>{trend.value} Compared to last 30 days</span>
+            <span>{trend.value} Comparé aux 30 derniers jours</span>
           </p>
         )}
         {!trend && (
-          <p className="text-xs text-muted-foreground">Click here to see booking list</p>
+          <p className="text-xs text-muted-foreground">Cliquez ici pour voir la liste des réservations</p>
         )}
       </CardContent>
     </Card>
