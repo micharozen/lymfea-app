@@ -162,7 +162,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal hover:bg-card hover:border-border",
                       !customStartDate && "text-muted-foreground"
                     )}
                   >
@@ -178,7 +178,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     selected={customStartDate}
                     onSelect={setCustomStartDate}
                     initialFocus
-                    className="p-3 pointer-events-auto [&_button]:hover:bg-transparent [&_button[aria-selected='false']]:hover:bg-transparent"
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
@@ -192,7 +192,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     variant="outline"
                     size="sm"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal hover:bg-card hover:border-border",
                       !customEndDate && "text-muted-foreground"
                     )}
                   >
@@ -209,7 +209,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     onSelect={setCustomEndDate}
                     disabled={(date) => customStartDate ? date < customStartDate : false}
                     initialFocus
-                    className="p-3 pointer-events-auto [&_button]:hover:bg-transparent [&_button[aria-selected='false']]:hover:bg-transparent"
+                    className="p-3 pointer-events-auto"
                   />
                 </PopoverContent>
               </Popover>
