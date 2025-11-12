@@ -178,7 +178,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     selected={customStartDate}
                     onSelect={setCustomStartDate}
                     initialFocus
-                    className="p-3 pointer-events-auto"
+                    className="p-3 pointer-events-auto [&_button]:hover:bg-transparent [&_button[aria-selected='false']]:hover:bg-transparent"
                   />
                 </PopoverContent>
               </Popover>
@@ -209,7 +209,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                     onSelect={setCustomEndDate}
                     disabled={(date) => customStartDate ? date < customStartDate : false}
                     initialFocus
-                    className="p-3 pointer-events-auto"
+                    className="p-3 pointer-events-auto [&_button]:hover:bg-transparent [&_button[aria-selected='false']]:hover:bg-transparent"
                   />
                 </PopoverContent>
               </Popover>
