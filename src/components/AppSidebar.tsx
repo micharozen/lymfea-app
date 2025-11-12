@@ -11,6 +11,8 @@ import {
   Users,
   ShoppingBag,
   ShoppingCart,
+  Settings,
+  ChevronDown,
 } from "lucide-react";
 
 import {
@@ -26,7 +28,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Tableau de bord", url: "/", icon: Home },
+  { title: "Accueil", url: "/", icon: Home },
   { title: "Réservations", url: "/booking", icon: Calendar },
   { title: "Coiffeurs", url: "/hair-dresser", icon: Scissors },
   { title: "Hôtels", url: "/hotels", icon: Building2 },
@@ -35,6 +37,7 @@ const menuItems = [
   { title: "Concierges", url: "/concierges", icon: Users },
   { title: "Produits OOM", url: "/oom-products", icon: ShoppingBag },
   { title: "Commandes", url: "/oom-orders", icon: ShoppingCart },
+  { title: "Paramètres & Accès", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -52,6 +55,21 @@ export function AppSidebar() {
           {isCollapsed && (
             <img src={oomLogo} alt="OOM" className="h-8 w-auto" />
           )}
+        </div>
+
+        {/* Profil utilisateur */}
+        <div className="px-3 py-4 border-b border-sidebar-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-sidebar-accent-foreground font-medium flex-shrink-0">
+              TU
+            </div>
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">Tom Uzan</p>
+                <p className="text-xs text-sidebar-foreground/60">Admin</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <SidebarGroup>
