@@ -43,6 +43,7 @@ const countries = [
   { code: "+34", label: "Espagne", flag: "🇪🇸" },
   { code: "+41", label: "Suisse", flag: "🇨🇭" },
   { code: "+32", label: "Belgique", flag: "🇧🇪" },
+  { code: "+971", label: "EAU", flag: "🇦🇪" },
 ];
 
 const formatPhoneNumber = (value: string, countryCode: string): string => {
@@ -102,6 +103,13 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
       if (be.length <= 5) return `${be.slice(0, 3)} ${be.slice(3)}`;
       if (be.length <= 7) return `${be.slice(0, 3)} ${be.slice(3, 5)} ${be.slice(5)}`;
       return `${be.slice(0, 3)} ${be.slice(3, 5)} ${be.slice(5, 7)} ${be.slice(7)}`;
+      
+    case "+971": // EAU: 50 123 4567 (9 digits)
+      const ae = numbers.slice(0, 9);
+      if (ae.length <= 2) return ae;
+      if (ae.length <= 5) return `${ae.slice(0, 2)} ${ae.slice(2)}`;
+      if (ae.length <= 9) return `${ae.slice(0, 2)} ${ae.slice(2, 5)} ${ae.slice(5)}`;
+      return ae;
       
     default:
       const def = numbers.slice(0, 10);
@@ -327,7 +335,8 @@ export default function Settings() {
                           {countries.map((country) => (
                             <CommandItem
                               key={country.code}
-                              value={country.label}
+                              value={`${country.label} ${country.code}`}
+                              keywords={[country.code.replace('+', ''), country.label]}
                               onSelect={() => {
                                 setCountryCode(country.code);
                                 setOpenCountrySelect(false);
