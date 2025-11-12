@@ -1,4 +1,4 @@
-import { Search, Plus, User, Mail, Phone, X } from "lucide-react";
+import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,18 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Table,
   TableBody,
@@ -26,6 +32,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+
+const countries = [
+  { code: "+33", label: "France", flag: "🇫🇷" },
+  { code: "+39", label: "Italie", flag: "🇮🇹" },
+  { code: "+1", label: "USA", flag: "🇺🇸" },
+  { code: "+44", label: "UK", flag: "🇬🇧" },
+  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+  { code: "+34", label: "Espagne", flag: "🇪🇸" },
+  { code: "+41", label: "Suisse", flag: "🇨🇭" },
+  { code: "+32", label: "Belgique", flag: "🇧🇪" },
+];
 
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
@@ -34,6 +52,7 @@ export default function Settings() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
+  const [openCountrySelect, setOpenCountrySelect] = useState(false);
 
   const admins = [
     {
@@ -191,21 +210,49 @@ export default function Settings() {
                 Téléphone
               </Label>
               <div className="flex gap-2">
-                <Select value={countryCode} onValueChange={setCountryCode}>
-                  <SelectTrigger className="w-[140px] h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="+33">🇫🇷 France (+33)</SelectItem>
-                    <SelectItem value="+39">🇮🇹 Italie (+39)</SelectItem>
-                    <SelectItem value="+1">🇺🇸 USA (+1)</SelectItem>
-                    <SelectItem value="+44">🇬🇧 UK (+44)</SelectItem>
-                    <SelectItem value="+49">🇩🇪 Allemagne (+49)</SelectItem>
-                    <SelectItem value="+34">🇪🇸 Espagne (+34)</SelectItem>
-                    <SelectItem value="+41">🇨🇭 Suisse (+41)</SelectItem>
-                    <SelectItem value="+32">🇧🇪 Belgique (+32)</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openCountrySelect}
+                      className="w-[160px] h-10 justify-between"
+                    >
+                      {countryCode
+                        ? `${countries.find((country) => country.code === countryCode)?.flag} ${countries.find((country) => country.code === countryCode)?.label} (${countryCode})`
+                        : "Sélectionner..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Rechercher pays..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                        <CommandGroup>
+                          {countries.map((country) => (
+                            <CommandItem
+                              key={country.code}
+                              value={country.label}
+                              onSelect={() => {
+                                setCountryCode(country.code);
+                                setOpenCountrySelect(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  countryCode === country.code ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {country.flag} {country.label} ({country.code})
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <Input
                   id="phone"
                   type="tel"
