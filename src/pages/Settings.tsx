@@ -3,6 +3,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -141,6 +144,7 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof adminFormSchema>>({
     resolver: zodResolver(adminFormSchema),
@@ -151,6 +155,53 @@ export default function Settings() {
       phone: "",
       countryCode: "+33",
       profileImage: null,
+    },
+  });
+
+  // Fetch admins from database
+  const { data: admins = [], isLoading } = useQuery({
+    queryKey: ["admins"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("admins")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Create admin mutation
+  const createAdminMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof adminFormSchema>) => {
+      const { error } = await supabase.from("admins").insert({
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        country_code: data.countryCode,
+        profile_image: data.profileImage,
+        status: "Actif",
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admins"] });
+      toast({
+        title: "Succès",
+        description: "L'administrateur a été ajouté avec succès",
+      });
+      form.reset();
+      setIsAddAdminOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de l'ajout de l'administrateur",
+        variant: "destructive",
+      });
     },
   });
 
@@ -166,21 +217,9 @@ export default function Settings() {
   };
 
   const onSubmit = (data: z.infer<typeof adminFormSchema>) => {
-    console.log("Form data:", data);
-    // TODO: Integrate with backend
-    form.reset();
-    setIsAddAdminOpen(false);
+    createAdminMutation.mutate(data);
   };
 
-  const admins = [
-    {
-      id: 1,
-      name: "Tom Uzan",
-      email: "tom@oomworld.com",
-      phone: "+33 6 14 21 64 42",
-      status: "Actif",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -236,29 +275,47 @@ export default function Settings() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {admins.map((admin) => (
-                <TableRow key={admin.id} className="border-0 hover:bg-transparent">
-                  <TableCell className="py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                        <User className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                      <span className="font-medium">{admin.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-5">
-                    <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
-                      {admin.email}
-                    </a>
-                  </TableCell>
-                  <TableCell className="py-5">{admin.phone}</TableCell>
-                  <TableCell className="py-5">
-                    <span className="text-success font-medium">
-                      {admin.status}
-                    </span>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    Chargement...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : admins.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    Aucun administrateur trouvé
+                  </TableCell>
+                </TableRow>
+              ) : (
+                admins.map((admin) => (
+                  <TableRow key={admin.id} className="border-0 hover:bg-transparent">
+                    <TableCell className="py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                          {admin.profile_image ? (
+                            <img src={admin.profile_image} alt={`${admin.first_name} ${admin.last_name}`} className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span className="font-medium">{admin.first_name} {admin.last_name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-5">
+                      <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
+                        {admin.email}
+                      </a>
+                    </TableCell>
+                    <TableCell className="py-5">{admin.country_code} {admin.phone}</TableCell>
+                    <TableCell className="py-5">
+                      <span className="text-success font-medium">
+                        {admin.status}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
@@ -421,14 +478,16 @@ export default function Settings() {
                   }}
                   className="px-5"
                   type="button"
+                  disabled={createAdminMutation.isPending}
                 >
                   Annuler
                 </Button>
                 <Button 
                   type="submit"
                   className="px-5 bg-foreground text-background hover:bg-foreground/90"
+                  disabled={createAdminMutation.isPending}
                 >
-                  Suivant
+                  {createAdminMutation.isPending ? "Enregistrement..." : "Suivant"}
                 </Button>
               </div>
             </form>
