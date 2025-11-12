@@ -39,45 +39,78 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Checking if admin exists:", emailOrPhone);
 
     // Remove spaces from phone input for comparison
-    const cleanedInput = emailOrPhone.replace(/\s+/g, '');
+    let cleanedInput = emailOrPhone.replace(/\s+/g, '');
     
     // Check if input is email or phone
     const isEmail = cleanedInput.includes('@');
     
     let query = supabaseAdmin
       .from("admins")
-      .select("email, user_id");
+      .select("email, user_id, phone");
     
     if (isEmail) {
       query = query.eq("email", cleanedInput);
-    } else {
-      // Search by phone number (remove spaces for comparison)
-      query = query.or(`phone.eq.${cleanedInput}`);
-    }
-    
-    const { data: admin, error: adminError } = await query.maybeSingle();
-
-    if (adminError) {
-      console.error("Error checking admin:", adminError);
-      throw adminError;
-    }
-
-    console.log("Admin check result:", admin);
-
-    return new Response(
-      JSON.stringify({
-        exists: !!admin,
-        hasAccount: admin ? !!admin.user_id : false,
-        email: admin ? admin.email : null, // Return email for phone-based login
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          ...corsHeaders,
-        },
+      const { data: admin, error: adminError } = await query.maybeSingle();
+      
+      if (adminError) {
+        console.error("Error checking admin:", adminError);
+        throw adminError;
       }
-    );
+      
+      console.log("Admin check result:", admin);
+
+      return new Response(
+        JSON.stringify({
+          exists: !!admin,
+          hasAccount: admin ? !!admin.user_id : false,
+          email: admin ? admin.email : null,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
+    } else {
+      // Phone search: remove leading 0 and spaces for comparison
+      const phoneToSearch = cleanedInput.replace(/^0+/, '');
+      console.log("Searching for phone:", phoneToSearch);
+      
+      // Get all admins and search by phone (manual comparison due to formatting)
+      const { data: allAdmins, error: adminError } = await supabaseAdmin
+        .from("admins")
+        .select("email, user_id, phone");
+      
+      if (adminError) {
+        console.error("Error checking admin:", adminError);
+        throw adminError;
+      }
+      
+      // Find admin by comparing cleaned phone numbers
+      const admin = allAdmins?.find(a => {
+        const dbPhone = a.phone.replace(/\s+/g, '').replace(/^0+/, '');
+        return dbPhone === phoneToSearch;
+      });
+      
+      console.log("Admin check result:", admin);
+
+      return new Response(
+        JSON.stringify({
+          exists: !!admin,
+          hasAccount: admin ? !!admin.user_id : false,
+          email: admin ? admin.email : null,
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders,
+          },
+        }
+      );
+    }
   } catch (error: any) {
     console.error("Error in check-admin-exists function:", error);
     return new Response(
