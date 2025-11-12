@@ -15,21 +15,21 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
     <Card className="border border-border bg-card shadow-sm">
       <CardContent className="p-6 flex flex-col h-full">
-        <p className="text-sm font-medium text-muted-foreground mb-3">
+        <p className="text-sm text-muted-foreground mb-4">
           {title}
         </p>
-        <p className="text-3xl font-semibold text-foreground mb-3 tracking-tight">
+        <p className="text-4xl font-semibold text-foreground mb-4 tracking-tight">
           {value}
         </p>
         <div className="mt-auto">
           {trend && (
-            <p className={`text-xs font-medium flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
+            <p className={`text-sm font-medium flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
               <span>{trend.isPositive ? "↑" : "↓"}</span>
-              <span>{trend.value} vs 30 derniers jours</span>
+              <span>{trend.value} Comparé aux 30 derniers jours</span>
             </p>
           )}
           {!trend && (
-            <p className="text-xs text-muted-foreground">Cliquez pour voir la liste</p>
+            <p className="text-sm text-muted-foreground">Cliquez pour voir la liste</p>
           )}
         </div>
       </CardContent>
