@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarIcon, ChevronDown, Check } from "lucide-react";
+import { CalendarIcon, ChevronDown, Check, ArrowLeft } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek, addWeeks, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -99,6 +99,13 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
     }
   };
 
+  const handleBack = () => {
+    setShowCustomCalendar(false);
+    if (periodType === "custom" && !customStartDate && !customEndDate) {
+      setPeriodType("last-30-days");
+    }
+  };
+
   const periods = [
     { value: "today" as PeriodType, label: "Aujourd'hui" },
     { value: "last-week" as PeriodType, label: "Semaine dernière" },
@@ -112,7 +119,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="min-w-[200px] justify-between text-sm font-normal"
+          className="min-w-[200px] justify-between text-sm font-normal bg-card border-border hover:bg-card hover:border-foreground/20 transition-colors"
         >
           <span className="text-muted-foreground">{getPeriodLabel()}</span>
           <ChevronDown className="ml-2 h-4 w-4 text-muted-foreground" />
@@ -126,8 +133,8 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                 key={period.value}
                 onClick={() => handlePeriodTypeChange(period.value)}
                 className={cn(
-                  "w-full text-left px-3 py-2 rounded-md hover:bg-muted transition-colors flex items-center justify-between text-sm",
-                  periodType === period.value && "bg-muted font-medium"
+                  "w-full text-left px-3 py-2 rounded-md hover:bg-secondary/50 transition-colors flex items-center justify-between text-sm",
+                  periodType === period.value && "bg-secondary font-medium"
                 )}
               >
                 <span>{period.label}</span>
@@ -139,6 +146,14 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
           </div>
         ) : (
           <div className="p-4 space-y-3">
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour
+            </button>
+
             <div>
               <label className="text-xs font-medium mb-2 block text-muted-foreground">Date de début</label>
               <Popover>
@@ -200,27 +215,14 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
               </Popover>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowCustomCalendar(false);
-                  setPeriodType("last-30-days");
-                }}
-                className="flex-1 text-xs"
-              >
-                Annuler
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleCustomDateConfirm}
-                disabled={!customStartDate || !customEndDate}
-                className="flex-1 text-xs"
-              >
-                Confirmer
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              onClick={handleCustomDateConfirm}
+              disabled={!customStartDate || !customEndDate}
+              className="w-full text-xs"
+            >
+              Confirmer
+            </Button>
           </div>
         )}
       </PopoverContent>
