@@ -53,6 +53,18 @@ export default function Settings() {
   const [phone, setPhone] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const admins = [
     {
@@ -157,9 +169,26 @@ export default function Settings() {
               <Label className="text-sm font-normal mb-2 block">Photo de profil</Label>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                  <User className="h-6 w-6 text-muted-foreground" />
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="h-6 w-6 text-muted-foreground" />
+                  )}
                 </div>
-                <Button variant="outline" size="sm" className="border-border">
+                <input
+                  type="file"
+                  id="profile-image"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-border"
+                  onClick={() => document.getElementById('profile-image')?.click()}
+                  type="button"
+                >
                   Télécharger l'image
                 </Button>
               </div>
