@@ -69,7 +69,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-6">
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         <StatCard
           title="Ventes totales"
           value={`${stats.totalSales} €`}
@@ -105,7 +105,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <Card className="mb-8 border border-border bg-card shadow-sm">
+      <Card className="mb-6 border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl font-bold text-foreground">Ventes totales</CardTitle>
         </CardHeader>
