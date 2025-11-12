@@ -42,65 +42,65 @@ export default function Settings() {
           </div>
         </div>
 
-        <Card className="border border-border bg-card shadow-sm">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-muted-foreground font-normal w-[40px]">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-normal">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      Nom
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-normal">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4" />
-                      Email
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-normal">
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      Numéro de téléphone
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-muted-foreground font-normal">
-                    Statut
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {admins.map((admin) => (
-                  <TableRow key={admin.id}>
-                    <TableCell>
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                        <User className="h-4 w-4 text-muted-foreground" />
+        <div className="bg-card rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground font-normal py-4">
+                  <div className="flex items-center gap-2">
+                    Nom
+                  </div>
+                </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4 w-[60px]">
+                  <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </div>
+                </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    Numéro de téléphone
+                  </div>
+                </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">
+                  Statut
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {admins.map((admin) => (
+                <TableRow key={admin.id} className="border-0">
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                        <User className="h-5 w-5 text-muted-foreground" />
                       </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{admin.name}</TableCell>
-                    <TableCell>
-                      <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
-                        {admin.email}
-                      </a>
-                    </TableCell>
-                    <TableCell>{admin.phone}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-success/10 text-success hover:bg-success/20 border-0">
-                        {admin.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      <span className="font-medium">{admin.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-4"></TableCell>
+                  <TableCell className="py-4">
+                    <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
+                      {admin.email}
+                    </a>
+                  </TableCell>
+                  <TableCell className="py-4">{admin.phone}</TableCell>
+                  <TableCell className="py-4">
+                    <span className="text-success font-medium">
+                      {admin.status}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
