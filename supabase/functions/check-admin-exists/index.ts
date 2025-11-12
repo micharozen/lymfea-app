@@ -11,116 +11,95 @@ interface CheckAdminRequest {
   emailOrPhone: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
+serve(async (req) => {
+  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { emailOrPhone }: CheckAdminRequest = await req.json();
-
     if (!emailOrPhone) {
-      return new Response(
-        JSON.stringify({ error: "Email or phone is required" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ error: "Email or phone is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    // Create Supabase client with service role key to bypass RLS
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    console.log("Checking if admin exists:", emailOrPhone);
+    const cleaned = emailOrPhone.replace(/\s+/g, "");
+    const isEmail = cleaned.includes("@");
 
-    // Remove spaces from phone input for comparison
-    let cleanedInput = emailOrPhone.replace(/\s+/g, '');
-    
-    // Check if input is email or phone
-    const isEmail = cleanedInput.includes('@');
-    
-    let query = supabaseAdmin
-      .from("admins")
-      .select("email, user_id, phone");
-    
+    // 1) Resolve admin by email or phone
+    let adminEmail: string | null = null;
     if (isEmail) {
-      query = query.eq("email", cleanedInput);
-      const { data: admin, error: adminError } = await query.maybeSingle();
-      
-      if (adminError) {
-        console.error("Error checking admin:", adminError);
-        throw adminError;
-      }
-      
-      console.log("Admin check result:", admin);
-
-      return new Response(
-        JSON.stringify({
-          exists: !!admin,
-          hasAccount: admin ? !!admin.user_id : false,
-          email: admin ? admin.email : null,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders,
-          },
-        }
-      );
+      const { data, error } = await supabaseAdmin
+        .from("admins")
+        .select("email, user_id")
+        .eq("email", cleaned)
+        .maybeSingle();
+      if (error) throw error;
+      adminEmail = data?.email ?? null;
     } else {
-      // Phone search: remove leading 0 and spaces for comparison
-      const phoneToSearch = cleanedInput.replace(/^0+/, '');
-      console.log("Searching for phone:", phoneToSearch);
-      
-      // Get all admins and search by phone (manual comparison due to formatting)
-      const { data: allAdmins, error: adminError } = await supabaseAdmin
+      // Normalize phone: remove spaces and leading 0s
+      const phoneToSearch = cleaned.replace(/^0+/, "");
+      const { data, error } = await supabaseAdmin
         .from("admins")
         .select("email, user_id, phone");
-      
-      if (adminError) {
-        console.error("Error checking admin:", adminError);
-        throw adminError;
-      }
-      
-      // Find admin by comparing cleaned phone numbers
-      const admin = allAdmins?.find(a => {
-        const dbPhone = a.phone.replace(/\s+/g, '').replace(/^0+/, '');
-        return dbPhone === phoneToSearch;
-      });
-      
-      console.log("Admin check result:", admin);
-
-      return new Response(
-        JSON.stringify({
-          exists: !!admin,
-          hasAccount: admin ? !!admin.user_id : false,
-          email: admin ? admin.email : null,
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...corsHeaders,
-          },
-        }
-      );
+      if (error) throw error;
+      const match = data?.find((a) => a.phone?.replace(/\s+/g, "").replace(/^0+/, "") === phoneToSearch);
+      adminEmail = match?.email ?? null;
     }
-  } catch (error: any) {
-    console.error("Error in check-admin-exists function:", error);
+
+    if (!adminEmail) {
+      return new Response(JSON.stringify({ exists: false, hasAccount: false, email: null }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // 2) Check if an auth user already exists for this email (iterate through pages)
+    let hasAccount = false;
+    let foundUserId: string | null = null;
+    let page = 1;
+    while (page <= 10) { // safety cap
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listErr) throw listErr;
+      const match = list?.users?.find((u: any) => u.email?.toLowerCase() === adminEmail!.toLowerCase());
+      if (match) {
+        hasAccount = true;
+        foundUserId = match.id;
+        break;
+      }
+      if (!list || !list.users || list.users.length === 0) break;
+      page++;
+    }
+
+    // 3) If account exists but admins.user_id is null, sync it
+    if (hasAccount && foundUserId) {
+      await supabaseAdmin
+        .from("admins")
+        .update({ user_id: foundUserId })
+        .eq("email", adminEmail)
+        .is("user_id", null);
+    }
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ exists: true, hasAccount, email: adminEmail }),
       {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
+  } catch (error: any) {
+    console.error("Error in check-admin-exists:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
-};
-
-serve(handler);
+});

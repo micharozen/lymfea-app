@@ -102,6 +102,14 @@ const Auth = () => {
       });
 
       if (error) {
+        if ((error.message || "").includes("User already registered")) {
+          toast({
+            title: "Compte existant",
+            description: "Un compte existe déjà. Veuillez vous connecter.",
+          });
+          setStep("password");
+          return;
+        }
         toast({
           title: "Erreur d'inscription",
           description: error.message,
