@@ -13,23 +13,27 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
-    <Card className="border border-border bg-card shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-xs font-normal text-muted-foreground uppercase tracking-wide">
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="text-2xl font-bold text-foreground mb-1">{value}</div>
-        {trend && (
-          <p className={`text-xs flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
-            <span>{trend.isPositive ? "↑" : "↓"}</span>
-            <span>{trend.value} Comparé aux 30 derniers jours</span>
+    <Card className="border border-border bg-card shadow-sm h-full">
+      <CardContent className="p-6">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium text-muted-foreground">
+            {title}
           </p>
-        )}
-        {!trend && (
-          <p className="text-xs text-muted-foreground">Cliquez ici pour voir la liste des réservations</p>
-        )}
+          <p className="text-3xl font-semibold text-foreground tracking-tight">
+            {value}
+          </p>
+          <div className="min-h-[20px]">
+            {trend && (
+              <p className={`text-xs font-medium flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
+                <span>{trend.isPositive ? "↑" : "↓"}</span>
+                <span>{trend.value} vs 30 derniers jours</span>
+              </p>
+            )}
+            {!trend && (
+              <p className="text-xs text-muted-foreground">Cliquez pour voir la liste</p>
+            )}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
