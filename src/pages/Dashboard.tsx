@@ -23,7 +23,7 @@ const salesData = [
 const hotelData = [
   {
     name: "Hôtel Sofitel Paris le Faubourg",
-    totalSales: "€0.00",
+    totalSales: "0.00 €",
     totalBookings: 0,
     totalSessions: 0,
     totalCancelled: 0,
@@ -46,7 +46,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard
           title="Ventes totales"
-          value="€0.00"
+          value="0.00 €"
           trend={{ value: "0.00%", isPositive: true }}
         />
         <StatCard
@@ -83,7 +83,7 @@ export default function Dashboard() {
                 stroke="#666"
                 domain={[0, 800]}
                 ticks={[0, 100, 200, 300, 400, 500, 600, 700, 800]}
-                tickFormatter={(value) => `€ ${value}`}
+                tickFormatter={(value) => `${value} €`}
               />
               <Line
                 type="monotone"
