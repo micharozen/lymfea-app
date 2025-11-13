@@ -247,7 +247,7 @@ const Auth = () => {
         {/* Tabs */}
         <div className="flex justify-center gap-8 border-b border-border">
           <button
-            onClick={() => setLoginMethod("phone")}
+            onClick={() => handleTabChange("phone")}
             className={`pb-3 text-sm font-medium transition-colors ${
               loginMethod === "phone"
                 ? "text-foreground border-b-2 border-foreground"
@@ -258,7 +258,7 @@ const Auth = () => {
             Numéro de téléphone
           </button>
           <button
-            onClick={() => setLoginMethod("email")}
+            onClick={() => handleTabChange("email")}
             className={`pb-3 text-sm font-medium transition-colors ${
               loginMethod === "email"
                 ? "text-foreground border-b-2 border-foreground"
