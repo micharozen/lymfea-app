@@ -72,7 +72,6 @@ const adminFormSchema = z.object({
   phone: z.string().min(1, "Le téléphone est requis"),
   countryCode: z.string(),
   profileImage: z.string().nullable(),
-  status: z.enum(["Actif", "En attente", "Inactif"]),
 });
 
 const countries = [
@@ -202,7 +201,7 @@ export default function Settings() {
         phone: data.phone,
         country_code: data.countryCode,
         profile_image: data.profileImage,
-        status: data.status,
+        status: "En attente", // Statut automatique à la création
       });
 
       if (error) throw error;
@@ -237,7 +236,7 @@ export default function Settings() {
           phone: data.phone,
           country_code: data.countryCode,
           profile_image: data.profileImage,
-          status: data.status,
+          // Le statut n'est pas modifiable manuellement
         })
         .eq("id", id);
 
@@ -338,7 +337,6 @@ export default function Settings() {
       phone: admin.phone,
       countryCode: admin.country_code,
       profileImage: admin.profile_image,
-      status: admin.status || "Actif",
     });
     setIsAddAdminOpen(true);
   };
@@ -351,7 +349,6 @@ export default function Settings() {
       phone: "",
       countryCode: "+33",
       profileImage: null,
-      status: "Actif",
     });
     setEditingAdmin(null);
     setIsAddAdminOpen(false);
@@ -365,7 +362,6 @@ export default function Settings() {
       phone: "",
       countryCode: "+33",
       profileImage: null,
-      status: "Actif",
     });
     setEditingAdmin(null);
     setIsAddAdminOpen(true);
@@ -466,8 +462,7 @@ export default function Settings() {
                       <span className={cn(
                         "font-medium text-sm",
                         admin.status === "Actif" && "text-success",
-                        admin.status === "En attente" && "text-orange-500",
-                        admin.status === "Inactif" && "text-destructive"
+                        admin.status === "En attente" && "text-orange-500"
                       )}>
                         {admin.status}
                       </span>
@@ -645,29 +640,6 @@ export default function Settings() {
                         />
                       </FormControl>
                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-normal">Statut</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-10">
-                          <SelectValue placeholder="Sélectionner un statut" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Actif">Actif</SelectItem>
-                        <SelectItem value="En attente">En attente</SelectItem>
-                        <SelectItem value="Inactif">Inactif</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
