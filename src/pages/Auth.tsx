@@ -9,6 +9,14 @@ import oomLogo from "@/assets/oom-logo.svg";
 
 const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
+
+  const handleTabChange = (value: string) => {
+    setLoginMethod(value as "email" | "phone");
+    // Reset form when changing tabs
+    setStep("email");
+    setEmailOrPhone("");
+    setPassword("");
+  };
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [foundEmail, setFoundEmail] = useState<string>("");
