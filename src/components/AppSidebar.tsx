@@ -60,7 +60,7 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isCollapsed = state === "collapsed";
-  const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string } | null>(null);
+  const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
@@ -68,17 +68,41 @@ export function AppSidebar() {
       if (user) {
         const { data: admin } = await supabase
           .from('admins')
-          .select('first_name, last_name')
+          .select('first_name, last_name, profile_image')
           .eq('user_id', user.id)
           .single();
         
         if (admin) {
-          setAdminInfo({ firstName: admin.first_name, lastName: admin.last_name });
+          setAdminInfo({ 
+            firstName: admin.first_name, 
+            lastName: admin.last_name,
+            profileImage: admin.profile_image 
+          });
         }
       }
     };
     
     fetchAdminInfo();
+
+    // Écouter les changements en temps réel
+    const channel = supabase
+      .channel('admin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'admins',
+        },
+        () => {
+          fetchAdminInfo();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -106,8 +130,16 @@ export function AppSidebar() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent/50 p-1 rounded-lg transition-colors">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0">
-                  {adminInfo ? `${adminInfo.firstName.charAt(0)}${adminInfo.lastName.charAt(0)}` : 'TU'}
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0 overflow-hidden">
+                  {adminInfo?.profileImage ? (
+                    <img 
+                      src={`${adminInfo.profileImage}?t=${Date.now()}`} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <span>{adminInfo ? `${adminInfo.firstName.charAt(0)}${adminInfo.lastName.charAt(0)}` : 'TU'}</span>
+                  )}
                 </div>
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0 text-left">
