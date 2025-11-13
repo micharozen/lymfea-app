@@ -179,7 +179,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
                 mode="range"
                 selected={customDateRange}
                 onSelect={setCustomDateRange}
-                numberOfMonths={2}
+                numberOfMonths={1}
                 initialFocus
                 className="p-3 pointer-events-auto"
                 locale={fr}
