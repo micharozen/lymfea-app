@@ -41,27 +41,25 @@ const handler = async (req: Request): Promise<Response> => {
     // Get the app URL for the redirect
     const appUrl = Deno.env.get("SUPABASE_URL")?.replace("xbkvmrqanoqdqvqwldio.supabase.co", "app.oomhotel.com") || "http://localhost:8080";
 
-    // Try to create auth user and send invite email using Supabase's built-in invite
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
-      email,
-      {
+    // Generate an invite link without sending Supabase's default email
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email,
+      options: {
         redirectTo: `${appUrl}/auth`,
       }
-    );
+    });
 
-    // If user already exists, that's okay - we'll just send the welcome email
-    if (authError) {
-      if (authError.status === 422 && authError.message?.includes("already been registered")) {
-        console.log("User already exists, skipping invitation and sending welcome email only");
-      } else {
-        console.error("Error inviting user:", authError);
-        throw authError;
-      }
-    } else {
-      console.log("User invited successfully:", authData);
+    if (linkError) {
+      console.error("Error generating invite link:", linkError);
+      throw linkError;
     }
 
-    // Send custom welcome email with Resend
+    console.log("Invite link generated successfully");
+
+    const inviteLink = linkData.properties.action_link;
+
+    // Send custom email with the invite link
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -92,19 +90,26 @@ const handler = async (req: Request): Promise<Response> => {
                   Votre compte administrateur a été créé avec succès sur OOM App. 
                 </p>
 
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  Vous avez reçu un email d'invitation séparé avec un lien pour configurer votre mot de passe. 
-                  Veuillez vérifier votre boîte de réception (et vos spams) pour cet email d'invitation.
-                </p>
-
                 <div style="background: #f8f8f8; padding: 20px; border-radius: 8px; margin: 30px 0;">
                   <p style="margin: 0 0 10px 0; font-weight: 600; color: #000000;">Vos informations de connexion :</p>
                   <p style="margin: 5px 0;"><strong>Email :</strong> ${email}</p>
-                  <p style="margin: 5px 0; font-size: 14px; color: #666;">Le mot de passe sera défini via le lien d'invitation</p>
                 </div>
 
                 <p style="font-size: 16px; margin-bottom: 20px;">
-                  Une fois votre mot de passe configuré, vous pourrez accéder à toutes les fonctionnalités de la plateforme OOM.
+                  Pour activer votre compte et définir votre mot de passe, cliquez sur le bouton ci-dessous :
+                </p>
+
+                <div style="text-align: center; margin: 35px 0;">
+                  <a href="${inviteLink}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Définir mon mot de passe</a>
+                </div>
+
+                <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                  Ou copiez et collez ce lien dans votre navigateur :<br>
+                  <a href="${inviteLink}" style="color: #0066cc; word-break: break-all;">${inviteLink}</a>
+                </p>
+
+                <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+                  Ce lien est valable pendant 24 heures. Si vous n'avez pas demandé la création de ce compte, vous pouvez ignorer cet email.
                 </p>
 
                 <p style="font-size: 16px; margin-top: 40px; color: #666;">
@@ -129,13 +134,12 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailData = await resendResponse.json();
-    console.log("Welcome email sent successfully:", emailData);
+    console.log("Invitation email sent successfully:", emailData);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Admin invité avec succès",
-        authData,
         emailData 
       }), {
       status: 200,
@@ -157,3 +161,4 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 serve(handler);
+
