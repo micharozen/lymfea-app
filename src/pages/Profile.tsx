@@ -53,6 +53,8 @@ export default function Profile() {
     if (!file || !adminId) return;
 
     try {
+      toast.info("Upload de l'image en cours...");
+      
       // Upload vers Supabase Storage
       const fileExt = file.name.split('.').pop();
       const filePath = `${adminId}.${fileExt}`;
@@ -63,12 +65,23 @@ export default function Profile() {
 
       if (uploadError) throw uploadError;
 
-      // Récupérer l'URL publique
+      // Récupérer l'URL publique avec timestamp pour éviter le cache
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
+      
+      const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
 
-      setProfileImage(publicUrl);
+      // Mettre à jour immédiatement la base de données
+      const { error: updateError } = await supabase
+        .from('admins')
+        .update({ profile_image: publicUrl })
+        .eq('id', adminId);
+
+      if (updateError) throw updateError;
+
+      // Mettre à jour l'état local pour affichage immédiat
+      setProfileImage(urlWithTimestamp);
       toast.success("Image uploadée avec succès");
     } catch (error) {
       console.error("Error uploading image:", error);
