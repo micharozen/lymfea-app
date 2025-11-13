@@ -48,14 +48,31 @@ export default function Profile() {
     fetchProfile();
   }, []);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file || !adminId) return;
+
+    try {
+      // Upload vers Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${adminId}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Récupérer l'URL publique
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfileImage(publicUrl);
+      toast.success("Image uploadée avec succès");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
     }
   };
 
