@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 import oomLogo from "@/assets/oom-logo.svg";
 import {
   Home,
@@ -59,6 +60,26 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isCollapsed = state === "collapsed";
+  const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string } | null>(null);
+
+  useEffect(() => {
+    const fetchAdminInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: admin } = await supabase
+          .from('admins')
+          .select('first_name, last_name')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (admin) {
+          setAdminInfo({ firstName: admin.first_name, lastName: admin.last_name });
+        }
+      }
+    };
+    
+    fetchAdminInfo();
+  }, []);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -86,12 +107,14 @@ export function AppSidebar() {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent/50 p-1 rounded-lg transition-colors">
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0">
-                  TU
+                  {adminInfo ? `${adminInfo.firstName.charAt(0)}${adminInfo.lastName.charAt(0)}` : 'TU'}
                 </div>
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-1">
-                      <p className="text-sm font-medium text-sidebar-foreground">Tom Uzan</p>
+                      <p className="text-sm font-medium text-sidebar-foreground">
+                        {adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : 'Tom Uzan'}
+                      </p>
                       <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                     </div>
                     <p className="text-xs text-sidebar-foreground/60">Admin</p>
