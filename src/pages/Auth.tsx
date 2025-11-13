@@ -34,6 +34,10 @@ const Auth = () => {
       const error = hashParams.get('error');
       const errorCode = hashParams.get('error_code');
       const accessToken = hashParams.get('access_token');
+
+      // Also check URL search params for explicit flow marker from our invite email
+      const searchParams = new URLSearchParams(window.location.search);
+      const flow = searchParams.get('flow'); // 'invite' | 'recovery'
       
       // Handle expired or invalid links
       if (error === 'access_denied' && errorCode === 'otp_expired') {
@@ -48,10 +52,16 @@ const Auth = () => {
         return;
       }
       
-      // If there's an access token and type is invite/recovery, show password form
-      if (accessToken && (type === 'invite' || type === 'recovery')) {
-        // User clicked on invitation/recovery link - force them to set password
-        console.log('Invitation/recovery link detected, showing password form');
+      // If there's an access token and type is invite/recovery/signup, show password form
+      if (accessToken && (type === 'invite' || type === 'recovery' || type === 'signup')) {
+        console.log('Invitation/recovery/signup link detected, showing password form');
+        setStep('set-password');
+        return;
+      }
+
+      // If we were redirected with a flow marker, force the password step
+      if (flow === 'invite' || flow === 'recovery') {
+        console.log('Flow marker detected in query params, showing password form');
         setStep('set-password');
         return;
       }

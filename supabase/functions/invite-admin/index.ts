@@ -50,7 +50,7 @@ serve(async (req: Request): Promise<Response> => {
       type: "invite",
       email,
       options: { 
-        redirectTo: `${appUrl}/auth`
+        redirectTo: `${appUrl}/auth?flow=invite`
       },
     });
 
@@ -63,7 +63,7 @@ serve(async (req: Request): Promise<Response> => {
         type: "recovery",
         email,
         options: { 
-          redirectTo: `${appUrl}/auth`
+          redirectTo: `${appUrl}/auth?flow=recovery`
         },
       });
 
