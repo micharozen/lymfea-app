@@ -15,7 +15,7 @@ interface InviteAdminRequest {
   lastName: string;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -38,28 +38,44 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-    // Get the app URL for the redirect
-    const appUrl = Deno.env.get("SUPABASE_URL")?.replace("xbkvmrqanoqdqvqwldio.supabase.co", "app.oomhotel.com") || "http://localhost:8080";
+    // Build redirect URL (fallback to localhost in dev)
+    const appUrl = (Deno.env.get("SITE_URL") || "http://localhost:8080").replace(/\/$/, "");
 
-    // Generate an invite link without sending Supabase's default email
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email,
-      options: {
-        redirectTo: `${appUrl}/auth`,
-      }
+    // Generate an activation link:
+    // - For new emails: use "invite"
+    // - If the email already has an Auth user: fallback to "recovery" (password set/reset)
+    let actionLink = "";
+
+    const inviteRes = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { redirectTo: `${appUrl}/auth` },
     });
 
-    if (linkError) {
-      console.error("Error generating invite link:", linkError);
-      throw linkError;
+    if (inviteRes.error) {
+      const e: any = inviteRes.error;
+      console.warn("Invite link error, will try recovery:", { status: e?.status, code: e?.code, message: e?.message });
+
+      // Fallback for existing users: generate a recovery link
+      const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: `${appUrl}/auth` },
+      });
+
+      if (recoveryRes.error) {
+        console.error("Error generating recovery link:", recoveryRes.error);
+        throw recoveryRes.error;
+      }
+
+      actionLink = recoveryRes.data.properties.action_link;
+      console.log("Recovery link generated successfully");
+    } else {
+      actionLink = inviteRes.data.properties.action_link;
+      console.log("Invite link generated successfully");
     }
 
-    console.log("Invite link generated successfully");
-
-    const inviteLink = linkData.properties.action_link;
-
-    // Send custom email with the invite link
+    // Send custom email with the action link (single email that does everything)
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -100,12 +116,12 @@ const handler = async (req: Request): Promise<Response> => {
                 </p>
 
                 <div style="text-align: center; margin: 35px 0;">
-                  <a href="${inviteLink}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Définir mon mot de passe</a>
+                  <a href="${actionLink}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Définir mon mot de passe</a>
                 </div>
 
                 <p style="font-size: 14px; color: #666; margin-top: 30px;">
                   Ou copiez et collez ce lien dans votre navigateur :<br>
-                  <a href="${inviteLink}" style="color: #0066cc; word-break: break-all;">${inviteLink}</a>
+                  <a href="${actionLink}" style="color: #0066cc; word-break: break-all;">${actionLink}</a>
                 </p>
 
                 <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
@@ -128,37 +144,23 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!resendResponse.ok) {
-      const error = await resendResponse.text();
-      console.error("Resend API error:", error);
-      throw new Error(`Resend API error: ${error}`);
+      const errorText = await resendResponse.text();
+      console.error("Resend API error:", errorText);
+      throw new Error(`Resend API error: ${errorText}`);
     }
 
     const emailData = await resendResponse.json();
     console.log("Invitation email sent successfully:", emailData);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Admin invité avec succès",
-        emailData 
-      }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
   } catch (error: any) {
     console.error("Error in invite-admin function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
+      JSON.stringify({ error: error?.message || "unknown_error" }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
-};
-
-serve(handler);
-
+});
