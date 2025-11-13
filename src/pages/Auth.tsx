@@ -27,37 +27,43 @@ const Auth = () => {
 
   // Redirect if already authenticated OR check for invitation/recovery link
   useEffect(() => {
-    // Check for auth token in URL hash (from email link)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get('type');
-    const error = hashParams.get('error');
-    const errorCode = hashParams.get('error_code');
-    
-    // Handle expired or invalid links
-    if (error === 'access_denied' && errorCode === 'otp_expired') {
-      toast({
-        title: "Lien expiré",
-        description: "Le lien d'invitation a expiré. Veuillez contacter un administrateur pour obtenir un nouveau lien.",
-        variant: "destructive",
-      });
-      // Clear the error from URL
-      window.history.replaceState({}, '', '/auth');
-      setStep('email');
-      return;
-    }
-    
-    if (type === 'invite' || type === 'recovery') {
-      // User clicked on invitation/recovery link
-      setStep('set-password');
-      return;
-    }
+    const checkAuthStatus = async () => {
+      // Check for auth token in URL hash (from email link)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get('type');
+      const error = hashParams.get('error');
+      const errorCode = hashParams.get('error_code');
+      const accessToken = hashParams.get('access_token');
+      
+      // Handle expired or invalid links
+      if (error === 'access_denied' && errorCode === 'otp_expired') {
+        toast({
+          title: "Lien expiré",
+          description: "Le lien d'invitation a expiré. Veuillez contacter un administrateur pour obtenir un nouveau lien.",
+          variant: "destructive",
+        });
+        // Clear the error from URL
+        window.history.replaceState({}, '', '/auth');
+        setStep('email');
+        return;
+      }
+      
+      // If there's an access token and type is invite/recovery, show password form
+      if (accessToken && (type === 'invite' || type === 'recovery')) {
+        // User clicked on invitation/recovery link - force them to set password
+        console.log('Invitation/recovery link detected, showing password form');
+        setStep('set-password');
+        return;
+      }
 
-    // Otherwise check if already authenticated
-    supabase.auth.getSession().then(({ data: { session } }) => {
+      // Otherwise check if already authenticated
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         navigate("/", { replace: true });
       }
-    });
+    };
+
+    checkAuthStatus();
   }, [navigate, toast]);
 
   const handleNext = async () => {
