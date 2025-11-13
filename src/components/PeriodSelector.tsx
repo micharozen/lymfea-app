@@ -24,6 +24,23 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
 
+  // Gérer la sélection de dates pour permettre de cliquer deux fois sur le même jour
+  const handleDateSelect = (range: DateRange | undefined) => {
+    if (!range) {
+      setCustomDateRange(undefined);
+      return;
+    }
+
+    // Si on a déjà une date de début mais pas de fin, et qu'on clique sur la même date
+    if (range.from && !range.to && customDateRange?.from && 
+        format(range.from, 'yyyy-MM-dd') === format(customDateRange.from, 'yyyy-MM-dd')) {
+      // Définir la même date comme début et fin
+      setCustomDateRange({ from: range.from, to: range.from });
+    } else {
+      setCustomDateRange(range);
+    }
+  };
+
   // Initialiser avec la période par défaut au montage
   useEffect(() => {
     const today = new Date();
@@ -178,7 +195,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
               <Calendar
                 mode="range"
                 selected={customDateRange}
-                onSelect={setCustomDateRange}
+                onSelect={handleDateSelect}
                 numberOfMonths={1}
                 initialFocus
                 className="p-3 pointer-events-auto"
