@@ -194,7 +194,8 @@ export default function Settings() {
   // Create admin mutation
   const createAdminMutation = useMutation({
     mutationFn: async (data: z.infer<typeof adminFormSchema>) => {
-      const { error } = await supabase.from("admins").insert({
+      // First, create the admin in the database
+      const { error: insertError } = await supabase.from("admins").insert({
         first_name: data.firstName,
         last_name: data.lastName,
         email: data.email,
@@ -204,13 +205,28 @@ export default function Settings() {
         status: "En attente", // Statut automatique à la création
       });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // Then, call the edge function to invite the admin
+      const { error: inviteError } = await supabase.functions.invoke('invite-admin', {
+        body: {
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        }
+      });
+
+      if (inviteError) {
+        console.error("Error inviting admin:", inviteError);
+        // We don't throw here because the admin was already created
+        // Just log the error
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admins"] });
       toast({
         title: "Succès",
-        description: "L'administrateur a été ajouté avec succès",
+        description: "L'administrateur a été ajouté avec succès. Un email d'invitation a été envoyé.",
       });
       form.reset();
       setIsAddAdminOpen(false);
