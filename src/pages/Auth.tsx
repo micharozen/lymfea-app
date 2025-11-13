@@ -30,6 +30,21 @@ const Auth = () => {
     // Check for auth token in URL hash (from email link)
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const type = hashParams.get('type');
+    const error = hashParams.get('error');
+    const errorCode = hashParams.get('error_code');
+    
+    // Handle expired or invalid links
+    if (error === 'access_denied' && errorCode === 'otp_expired') {
+      toast({
+        title: "Lien expiré",
+        description: "Le lien d'invitation a expiré. Veuillez contacter un administrateur pour obtenir un nouveau lien.",
+        variant: "destructive",
+      });
+      // Clear the error from URL
+      window.history.replaceState({}, '', '/auth');
+      setStep('email');
+      return;
+    }
     
     if (type === 'invite' || type === 'recovery') {
       // User clicked on invitation/recovery link
@@ -43,7 +58,7 @@ const Auth = () => {
         navigate("/", { replace: true });
       }
     });
-  }, [navigate]);
+  }, [navigate, toast]);
 
   const handleNext = async () => {
     if (!emailOrPhone.trim()) {
