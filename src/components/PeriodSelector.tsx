@@ -174,70 +174,22 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
             </button>
 
             <div>
-              <label className="text-xs font-medium mb-2 block text-muted-foreground">Date de début</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "w-full justify-start text-left font-normal data-[state=open]:bg-card data-[state=open]:text-foreground data-[state=open]:border-border",
-                      !customStartDate && "text-foreground/80"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    <span className="text-xs">
-                      {customStartDate ? format(customStartDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-card border border-border" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customStartDate}
-                    onSelect={setCustomStartDate}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium mb-2 block text-muted-foreground">Date de fin</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "w-full justify-start text-left font-normal data-[state=open]:bg-card data-[state=open]:text-foreground data-[state=open]:border-border",
-                      !customEndDate && "text-foreground/80"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    <span className="text-xs">
-                      {customEndDate ? format(customEndDate, "dd MMM yyyy", { locale: fr }) : "Sélectionner"}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-card border border-border" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={customEndDate}
-                    onSelect={setCustomEndDate}
-                    disabled={(date) => customStartDate ? date < customStartDate : false}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <label className="text-xs font-medium mb-2 block text-muted-foreground">Sélectionnez une période</label>
+              <Calendar
+                mode="range"
+                selected={customDateRange}
+                onSelect={setCustomDateRange}
+                numberOfMonths={2}
+                initialFocus
+                className="p-3 pointer-events-auto"
+                locale={fr}
+              />
             </div>
 
             <Button
               size="sm"
               onClick={handleCustomDateConfirm}
-              disabled={!customStartDate || !customEndDate}
+              disabled={!customDateRange?.from || !customDateRange?.to}
               className="w-full text-xs"
             >
               Confirmer
