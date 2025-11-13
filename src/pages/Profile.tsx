@@ -1,18 +1,52 @@
 import { User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [firstName, setFirstName] = useState("Tom");
-  const [lastName, setLastName] = useState("Uzan");
-  const [phone, setPhone] = useState("+33614216442");
-  const [email, setEmail] = useState("tom@oomworld.com");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [adminId, setAdminId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: admin } = await supabase
+            .from('admins')
+            .select('*')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (admin) {
+            setAdminId(admin.id);
+            setFirstName(admin.first_name || "");
+            setLastName(admin.last_name || "");
+            setPhone(admin.phone || "");
+            setEmail(admin.email || "");
+            setProfileImage(admin.profile_image || null);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        toast.error("Erreur lors du chargement du profil");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProfile();
+  }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -25,11 +59,47 @@ export default function Profile() {
     }
   };
 
-  const handleSave = () => {
-    // Save profile logic here
-    toast.success("Profil mis à jour avec succès");
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!adminId) {
+      toast.error("Impossible de sauvegarder le profil");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('admins')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+          profile_image: profileImage,
+        })
+        .eq('id', adminId);
+
+      if (error) throw error;
+
+      toast.success("Profil mis à jour avec succès");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Erreur lors de la mise à jour du profil");
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <div className="max-w-4xl">
+          <h1 className="text-3xl font-bold text-foreground mb-8">Profil</h1>
+          <Card className="border border-border bg-card shadow-sm">
+            <CardContent className="p-8">
+              <p className="text-muted-foreground">Chargement...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
