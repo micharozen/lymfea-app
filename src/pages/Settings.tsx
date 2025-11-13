@@ -467,7 +467,7 @@ export default function Settings() {
                         "font-medium text-sm",
                         admin.status === "Actif" && "text-success",
                         admin.status === "En attente" && "text-orange-500",
-                        admin.status === "Inactif" && "text-muted-foreground"
+                        admin.status === "Inactif" && "text-destructive"
                       )}>
                         {admin.status}
                       </span>
