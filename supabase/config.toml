@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.invite-admin]
 verify_jwt = false
+
+[functions.delete-admin]
+verify_jwt = false
