@@ -18,6 +18,7 @@ import OomOrders from "./pages/OomOrders";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import SetPassword from "./pages/SetPassword";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
@@ -27,6 +28,7 @@ const App = () => <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/set-password" element={<SetPassword />} />
           <Route
             path="/*"
             element={
