@@ -1,4 +1,4 @@
-import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2, MailPlus } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -304,6 +304,30 @@ export default function Settings() {
     },
   });
 
+  // Resend invitation mutation
+  const resendInviteMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const { error } = await supabase.functions.invoke('resend-invite', {
+        body: { email }
+      });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Succès",
+        description: "L'invitation a été renvoyée avec succès",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de l'envoi",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -489,6 +513,18 @@ export default function Settings() {
                     </TableCell>
                     <TableCell className="py-5">
                       <div className="flex items-center gap-2">
+                        {admin.status === "En attente" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-muted"
+                            onClick={() => resendInviteMutation.mutate(admin.email)}
+                            disabled={resendInviteMutation.isPending}
+                            title="Renvoyer l'invitation"
+                          >
+                            <MailPlus className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
