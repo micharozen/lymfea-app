@@ -80,6 +80,9 @@ export default function Profile() {
 
       toast.success("Profil mis à jour avec succès");
       setIsEditing(false);
+      
+      // Rafraîchir la page pour mettre à jour la sidebar
+      window.location.reload();
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Erreur lors de la mise à jour du profil");
