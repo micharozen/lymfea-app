@@ -30,7 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "OOM Panel <contact@oomworld.com>",
+        from: "OOM Panel <contact@send.oomworld.com>",
         to: ["tom@oomworld.com"],
         subject: "Demande d'accès au panel OOM",
         html: `
