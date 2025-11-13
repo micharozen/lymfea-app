@@ -5,6 +5,7 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 import {
   Popover,
   PopoverContent,
@@ -19,8 +20,7 @@ interface PeriodSelectorProps {
 
 export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   const [periodType, setPeriodType] = useState<PeriodType>("last-30-days");
-  const [customStartDate, setCustomStartDate] = useState<Date>();
-  const [customEndDate, setCustomEndDate] = useState<Date>();
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [isOpen, setIsOpen] = useState(false);
   const [showCustomCalendar, setShowCustomCalendar] = useState(false);
 
@@ -45,8 +45,8 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
       case "next-week":
         return "Semaine prochaine";
       case "custom":
-        if (customStartDate && customEndDate) {
-          return `${format(customStartDate, "dd MMM", { locale: fr })} - ${format(customEndDate, "dd MMM", { locale: fr })}`;
+        if (customDateRange?.from && customDateRange?.to) {
+          return `${format(customDateRange.from, "dd MMM", { locale: fr })} - ${format(customDateRange.to, "dd MMM", { locale: fr })}`;
         }
         return "Date personnalisée";
       default:
@@ -102,14 +102,14 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
   };
 
   const handleCustomDateConfirm = () => {
-    if (customStartDate && customEndDate && onPeriodChange) {
+    if (customDateRange?.from && customDateRange?.to && onPeriodChange) {
       // Si même jour, appliquer startOfDay et endOfDay
-      let start = customStartDate;
-      let end = customEndDate;
+      let start = customDateRange.from;
+      let end = customDateRange.to;
       
-      if (format(customStartDate, 'yyyy-MM-dd') === format(customEndDate, 'yyyy-MM-dd')) {
-        start = startOfDay(customStartDate);
-        end = endOfDay(customEndDate);
+      if (format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
+        start = startOfDay(start);
+        end = endOfDay(end);
       }
       
       onPeriodChange(start, end);
@@ -120,7 +120,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
 
   const handleBack = () => {
     setShowCustomCalendar(false);
-    if (periodType === "custom" && !customStartDate && !customEndDate) {
+    if (periodType === "custom" && !customDateRange?.from && !customDateRange?.to) {
       setPeriodType("last-30-days");
     }
   };
