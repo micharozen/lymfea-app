@@ -199,7 +199,7 @@ const Auth = () => {
       // Use the found email for login (even if user entered phone)
       const emailToUse = foundEmail || emailOrPhone;
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: emailToUse,
         password: password,
       });
@@ -219,6 +219,14 @@ const Auth = () => {
           });
         }
         return;
+      }
+
+      // Update admin status to "Actif" on first login
+      if (data.user) {
+        await supabase
+          .from("admins")
+          .update({ status: "Actif" })
+          .eq("user_id", data.user.id);
       }
 
       toast({
@@ -275,7 +283,7 @@ const Auth = () => {
     setIsLoading(true);
     try {
       // Update user password (works for both invite and recovery)
-      const { error } = await supabase.auth.updateUser({
+      const { data, error } = await supabase.auth.updateUser({
         password: password,
       });
 
@@ -286,6 +294,14 @@ const Auth = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Update admin status to "Actif" after password is set
+      if (data.user) {
+        await supabase
+          .from("admins")
+          .update({ status: "Actif" })
+          .eq("user_id", data.user.id);
       }
 
       toast({

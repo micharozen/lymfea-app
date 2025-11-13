@@ -49,7 +49,9 @@ serve(async (req: Request): Promise<Response> => {
     const inviteRes = await supabaseAdmin.auth.admin.generateLink({
       type: "invite",
       email,
-      options: { redirectTo: `${appUrl}/auth` },
+      options: { 
+        redirectTo: `${appUrl}/auth`
+      },
     });
 
     if (inviteRes.error) {
@@ -60,7 +62,9 @@ serve(async (req: Request): Promise<Response> => {
       const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
-        options: { redirectTo: `${appUrl}/auth` },
+        options: { 
+          redirectTo: `${appUrl}/auth`
+        },
       });
 
       if (recoveryRes.error) {
