@@ -137,15 +137,17 @@ export function AppSidebar() {
                       alt="Profile" 
                       className="w-full h-full object-cover" 
                     />
+                  ) : adminInfo ? (
+                    <span>{`${adminInfo.firstName.charAt(0)}${adminInfo.lastName.charAt(0)}`}</span>
                   ) : (
-                    <span>{adminInfo ? `${adminInfo.firstName.charAt(0)}${adminInfo.lastName.charAt(0)}` : 'TU'}</span>
+                    <span className="text-xs">...</span>
                   )}
                 </div>
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-1">
                       <p className="text-sm font-medium text-sidebar-foreground">
-                        {adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : 'Tom Uzan'}
+                        {adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : '...'}
                       </p>
                       <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                     </div>
