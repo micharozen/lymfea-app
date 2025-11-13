@@ -1,4 +1,4 @@
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StatCardProps {
@@ -23,10 +23,17 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
         </p>
         <div className="mt-auto">
           {trend && (
-            <p className={`text-xs flex items-center gap-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
-              <span>{trend.isPositive ? "↑" : "↓"}</span>
-              <span>{trend.value} Comparé aux 30 derniers jours</span>
-            </p>
+            <div className={`flex items-center gap-2 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
+              {trend.isPositive ? (
+                <TrendingUp className="h-5 w-5 flex-shrink-0" strokeWidth={2.5} />
+              ) : (
+                <TrendingDown className="h-5 w-5 flex-shrink-0" strokeWidth={2.5} />
+              )}
+              <p className="text-xs">
+                <span className="font-semibold">{trend.value}</span>
+                <span className="text-muted-foreground ml-1">Comparé aux 30 derniers jours</span>
+              </p>
+            </div>
           )}
           {!trend && (
             <p className="text-xs text-muted-foreground">Cliquez pour voir la liste</p>
