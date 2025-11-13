@@ -280,7 +280,11 @@ export default function Settings() {
   // Delete admin mutation
   const deleteAdminMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("admins").delete().eq("id", id);
+      // Call edge function to delete both admin record and auth user
+      const { error } = await supabase.functions.invoke('delete-admin', {
+        body: { adminId: id }
+      });
+      
       if (error) throw error;
     },
     onSuccess: () => {
