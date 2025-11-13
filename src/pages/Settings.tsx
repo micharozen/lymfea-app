@@ -493,7 +493,7 @@ export default function Settings() {
                             <User className="h-5 w-5 text-muted-foreground" />
                           )}
                         </div>
-                        <span className="font-medium">{admin.first_name} {admin.last_name}</span>
+                        <span className="font-medium whitespace-nowrap">{admin.first_name} {admin.last_name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-5">
