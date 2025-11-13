@@ -41,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get the app URL for the redirect
     const appUrl = Deno.env.get("SUPABASE_URL")?.replace("xbkvmrqanoqdqvqwldio.supabase.co", "app.oomhotel.com") || "http://localhost:8080";
 
-    // Create auth user and send invite email using Supabase's built-in invite
+    // Try to create auth user and send invite email using Supabase's built-in invite
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
@@ -49,12 +49,17 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
+    // If user already exists, that's okay - we'll just send the welcome email
     if (authError) {
-      console.error("Error inviting user:", authError);
-      throw authError;
+      if (authError.status === 422 && authError.message?.includes("already been registered")) {
+        console.log("User already exists, skipping invitation and sending welcome email only");
+      } else {
+        console.error("Error inviting user:", authError);
+        throw authError;
+      }
+    } else {
+      console.log("User invited successfully:", authData);
     }
-
-    console.log("User invited successfully:", authData);
 
     // Send custom welcome email with Resend
     const resendResponse = await fetch("https://api.resend.com/emails", {
