@@ -27,11 +27,18 @@ export default function Dashboard() {
   const generateSalesData = () => {
     const days = differenceInDays(endDate, startDate);
     
+    // Seed basé sur les dates pour cohérence
+    const seed = startDate.getTime() + endDate.getTime();
+    const seededRandom = (index: number) => {
+      const x = Math.sin(seed + index * 100) * 10000;
+      return x - Math.floor(x);
+    };
+    
     // Pour "Aujourd'hui", générer des points horaires
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
         const hour = 9 + i * 2; // De 9h à 23h
-        const randomSales = Math.floor(Math.random() * 300) + 50;
+        const randomSales = Math.floor(seededRandom(i) * 300) + 50;
         return {
           date: `${hour}h`,
           sales: randomSales,
@@ -44,7 +51,7 @@ export default function Dashboard() {
     
     return Array.from({ length: dataPoints }, (_, i) => {
       const date = addDays(startDate, i * interval);
-      const randomSales = Math.floor(Math.random() * 500) + 100;
+      const randomSales = Math.floor(seededRandom(i + 10) * 500) + 100;
       return {
         date: format(date, "dd MMM", { locale: fr }),
         sales: randomSales,
@@ -52,19 +59,26 @@ export default function Dashboard() {
     });
   };
 
-  // Calculer les statistiques basées sur la période
+  // Calculer les statistiques basées sur la période (utilisé useMemo pour éviter la regénération aléatoire)
   const calculateStats = () => {
     const days = Math.max(1, differenceInDays(endDate, startDate)); // Au minimum 1 jour
     const baseMultiplier = days / 30; // Normaliser par rapport à 30 jours
     
+    // Utiliser les dates comme seed pour générer des nombres cohérents
+    const seed = startDate.getTime() + endDate.getTime();
+    const seededRandom = (index: number) => {
+      const x = Math.sin(seed + index) * 10000;
+      return x - Math.floor(x);
+    };
+    
     return {
-      totalSales: (Math.random() * 5000 * baseMultiplier + 100).toFixed(2),
-      upcomingBookings: Math.floor(Math.random() * 50 * baseMultiplier + 5),
-      totalBookings: Math.floor(Math.random() * 100 * baseMultiplier + 10),
-      totalSessions: Math.floor(Math.random() * 150 * baseMultiplier + 15),
-      salesTrend: ((Math.random() - 0.5) * 20).toFixed(1),
-      bookingsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
-      sessionsTrend: ((Math.random() - 0.5) * 20).toFixed(1),
+      totalSales: (seededRandom(1) * 5000 * baseMultiplier + 100).toFixed(2),
+      upcomingBookings: Math.floor(seededRandom(2) * 50 * baseMultiplier + 5),
+      totalBookings: Math.floor(seededRandom(3) * 100 * baseMultiplier + 10),
+      totalSessions: Math.floor(seededRandom(4) * 150 * baseMultiplier + 15),
+      salesTrend: ((seededRandom(5) - 0.5) * 20).toFixed(1),
+      bookingsTrend: ((seededRandom(6) - 0.5) * 20).toFixed(1),
+      sessionsTrend: ((seededRandom(7) - 0.5) * 20).toFixed(1),
     };
   };
 

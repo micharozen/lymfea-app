@@ -103,7 +103,16 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
 
   const handleCustomDateConfirm = () => {
     if (customStartDate && customEndDate && onPeriodChange) {
-      onPeriodChange(customStartDate, customEndDate);
+      // Si même jour, appliquer startOfDay et endOfDay
+      let start = customStartDate;
+      let end = customEndDate;
+      
+      if (format(customStartDate, 'yyyy-MM-dd') === format(customEndDate, 'yyyy-MM-dd')) {
+        start = startOfDay(customStartDate);
+        end = endOfDay(customEndDate);
+      }
+      
+      onPeriodChange(start, end);
       setIsOpen(false);
       setShowCustomCalendar(false);
     }
