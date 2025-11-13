@@ -20,13 +20,24 @@ const Auth = () => {
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [foundEmail, setFoundEmail] = useState<string>("");
-  const [step, setStep] = useState<"email" | "password" | "signup" | "not-found">("email");
+  const [step, setStep] = useState<"email" | "password" | "signup" | "not-found" | "set-password">("email");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated OR check for invitation/recovery link
   useEffect(() => {
+    // Check for auth token in URL hash (from email link)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    
+    if (type === 'invite' || type === 'recovery') {
+      // User clicked on invitation/recovery link
+      setStep('set-password');
+      return;
+    }
+
+    // Otherwise check if already authenticated
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/", { replace: true });
@@ -230,6 +241,44 @@ const Auth = () => {
     setFoundEmail("");
   };
 
+  const handleSetPassword = async () => {
+    if (!password.trim() || password.length < 6) {
+      toast({
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 6 caractères",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Update user password (works for both invite and recovery)
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) {
+        toast({
+          title: "Erreur",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Mot de passe défini",
+        description: "Votre compte est maintenant actif. Connexion en cours...",
+      });
+
+      // User is automatically logged in after password update
+      navigate("/");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
@@ -400,6 +449,35 @@ const Auth = () => {
                 {isLoading ? "Envoi..." : "Contacter l'admin"}
               </Button>
             </div>
+          </div>
+        )}
+
+        {step === "set-password" && (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-center">Définissez votre mot de passe</h2>
+              <p className="text-sm text-muted-foreground text-center">
+                Choisissez un mot de passe sécurisé pour votre compte
+              </p>
+              <Input
+                type="password"
+                placeholder="Nouveau mot de passe (min. 6 caractères)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full h-12 text-base mt-4"
+                onKeyDown={(e) => e.key === "Enter" && handleSetPassword()}
+                autoFocus
+              />
+            </div>
+
+            <Button
+              onClick={handleSetPassword}
+              disabled={isLoading}
+              className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
+            >
+              {isLoading ? "Configuration..." : "Définir le mot de passe"}
+            </Button>
           </div>
         )}
       </div>
