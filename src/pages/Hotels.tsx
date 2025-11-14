@@ -174,41 +174,41 @@ export default function Hotels() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold w-[250px]">
-                  Hotel name
+                <TableHead className="font-semibold w-[250px] whitespace-nowrap">
+                  Nom de l&apos;hôtel
                 </TableHead>
-                <TableHead className="font-semibold w-[300px]">
+                <TableHead className="font-semibold w-[300px] whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
-                    Location
+                    Localisation
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center">
+                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
                   <div className="flex items-center justify-center gap-2">
                     <Users className="h-4 w-4" />
                     Concierges
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center">
+                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
                   <div className="flex items-center justify-center gap-2">
                     <Package className="h-4 w-4" />
-                    Boxes list
+                    Liste de boxes
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[100px] text-center">Status</TableHead>
-                <TableHead className="font-semibold w-[120px] text-center">
+                <TableHead className="font-semibold w-[100px] text-center whitespace-nowrap">Statut</TableHead>
+                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
                   <div className="flex items-center justify-center gap-2">
                     <DollarSign className="h-4 w-4" />
-                    Total sales
+                    Ventes totales
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center">
+                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
                   <div className="flex items-center justify-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    Total bookings
+                    Réservations
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[100px] text-right">Actions</TableHead>
+                <TableHead className="font-semibold w-[100px] text-right whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
