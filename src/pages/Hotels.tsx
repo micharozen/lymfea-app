@@ -29,6 +29,13 @@ import { AddHotelDialog } from "@/components/AddHotelDialog";
 import { EditHotelDialog } from "@/components/EditHotelDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+interface Concierge {
+  id: string;
+  first_name: string;
+  last_name: string;
+  profile_image: string | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -45,6 +52,7 @@ interface Hotel {
   status: string;
   created_at: string;
   updated_at: string;
+  concierges?: Concierge[];
 }
 
 export default function Hotels() {
@@ -67,13 +75,44 @@ export default function Hotels() {
 
   const fetchHotels = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch hotels
+      const { data: hotelsData, error: hotelsError } = await supabase
         .from("hotels")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setHotels(data || []);
+      if (hotelsError) throw hotelsError;
+
+      // Fetch concierges with their hotel associations
+      const { data: conciergeMappings, error: mappingsError } = await supabase
+        .from("concierge_hotels")
+        .select("hotel_id, concierge_id");
+
+      if (mappingsError) throw mappingsError;
+
+      // Fetch all concierges
+      const { data: conciergesData, error: conciergesError } = await supabase
+        .from("concierges")
+        .select("id, first_name, last_name, profile_image");
+
+      if (conciergesError) throw conciergesError;
+
+      // Map concierges to hotels
+      const hotelsWithConcierges = (hotelsData || []).map((hotel) => {
+        const hotelConcierges = (conciergeMappings || [])
+          .filter((mapping) => mapping.hotel_id === hotel.id)
+          .map((mapping) => {
+            return (conciergesData || []).find((c) => c.id === mapping.concierge_id);
+          })
+          .filter((c): c is Concierge => c !== undefined);
+
+        return {
+          ...hotel,
+          concierges: hotelConcierges,
+        };
+      });
+
+      setHotels(hotelsWithConcierges);
     } catch (error: any) {
       toast.error("Erreur lors du chargement des hôtels");
       console.error(error);
@@ -183,8 +222,8 @@ export default function Hotels() {
                     Localisation
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
-                  <div className="flex items-center justify-center gap-2">
+                <TableHead className="font-semibold w-[250px] whitespace-nowrap">
+                  <div className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Concierges
                   </div>
@@ -237,13 +276,26 @@ export default function Hotels() {
                         {hotel.address} {hotel.postal_code || ''} {hotel.city} {hotel.country}
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="bg-muted text-xs">C</AvatarFallback>
-                        </Avatar>
+                    <TableCell className="align-middle">
+                      {hotel.concierges && hotel.concierges.length > 0 ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {hotel.concierges.map((concierge) => (
+                            <div key={concierge.id} className="flex items-center gap-2">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={concierge.profile_image || ""} />
+                                <AvatarFallback className="bg-muted text-xs">
+                                  {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm whitespace-nowrap">
+                                {concierge.first_name} {concierge.last_name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
                         <span className="text-sm text-muted-foreground">-</span>
-                      </div>
+                      )}
                     </TableCell>
                     <TableCell className="align-middle text-center">
                       <span className="text-sm text-muted-foreground">-</span>
