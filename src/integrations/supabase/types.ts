@@ -56,6 +56,51 @@ export type Database = {
         }
         Relationships: []
       }
+      concierges: {
+        Row: {
+          country_code: string
+          created_at: string
+          email: string
+          first_name: string
+          hotel_id: string | null
+          id: string
+          last_name: string
+          phone: string
+          profile_image: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          country_code?: string
+          created_at?: string
+          email: string
+          first_name: string
+          hotel_id?: string | null
+          id?: string
+          last_name: string
+          phone: string
+          profile_image?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          email?: string
+          first_name?: string
+          hotel_id?: string | null
+          id?: string
+          last_name?: string
+          phone?: string
+          profile_image?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
