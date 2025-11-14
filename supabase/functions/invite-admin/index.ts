@@ -63,11 +63,11 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // Build login URL using the production URL
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    // Extract the project reference from the Supabase URL to build the app URL
-    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
-    const appUrl = `https://${projectRef}.lovableproject.com`;
+    // Build login URL from SITE_URL secret
+    const appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
+    if (!appUrl) {
+      console.warn("SITE_URL not configured. Please set SITE_URL secret to your app URL.");
+    }
     const loginUrl = `${appUrl}/login`;
 
     // Generate a secure password
