@@ -29,11 +29,10 @@ interface EditHairDresserDialogProps {
     email: string;
     country_code: string;
     phone: string;
-    hotel_id: string | null;
-    boxes_list: string | null;
+    boxes: string | null;
     status: string;
     skills: string[];
-    rating: number | null;
+    hairdresser_hotels?: { hotel_id: string }[];
   };
   onSuccess: () => void;
 }
@@ -43,6 +42,13 @@ interface Hotel {
   name: string;
 }
 
+const SKILLS_OPTIONS = [
+  { value: "men", label: "👨 Hommes" },
+  { value: "women", label: "👩 Femmes" },
+  { value: "barber", label: "💈 Barbier" },
+  { value: "beauty", label: "💅 Beauté" },
+];
+
 export default function EditHairDresserDialog({
   open,
   onOpenChange,
@@ -50,22 +56,20 @@ export default function EditHairDresserDialog({
   onSuccess,
 }: EditHairDresserDialogProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [selectedHotels, setSelectedHotels] = useState<string[]>(
+    hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
+  );
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(
+    hairdresser.skills || []
+  );
   const [formData, setFormData] = useState({
     first_name: hairdresser.first_name,
     last_name: hairdresser.last_name,
     email: hairdresser.email,
     country_code: hairdresser.country_code,
     phone: hairdresser.phone,
-    hotel_id: hairdresser.hotel_id || "",
-    boxes_list: hairdresser.boxes_list || "",
+    boxes: hairdresser.boxes || "",
     status: hairdresser.status,
-    rating: hairdresser.rating?.toString() || "",
-  });
-  const [skills, setSkills] = useState({
-    men: hairdresser.skills?.includes("men") || false,
-    women: hairdresser.skills?.includes("women") || false,
-    barber: hairdresser.skills?.includes("barber") || false,
-    beauty: hairdresser.skills?.includes("beauty") || false,
   });
 
   useEffect(() => {
@@ -77,17 +81,13 @@ export default function EditHairDresserDialog({
         email: hairdresser.email,
         country_code: hairdresser.country_code,
         phone: hairdresser.phone,
-        hotel_id: hairdresser.hotel_id || "",
-        boxes_list: hairdresser.boxes_list || "",
+        boxes: hairdresser.boxes || "",
         status: hairdresser.status,
-        rating: hairdresser.rating?.toString() || "",
       });
-      setSkills({
-        men: hairdresser.skills?.includes("men") || false,
-        women: hairdresser.skills?.includes("women") || false,
-        barber: hairdresser.skills?.includes("barber") || false,
-        beauty: hairdresser.skills?.includes("beauty") || false,
-      });
+      setSelectedHotels(
+        hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
+      );
+      setSelectedSkills(hairdresser.skills || []);
     }
   }, [open, hairdresser]);
 
@@ -108,10 +108,6 @@ export default function EditHairDresserDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const selectedSkills = Object.entries(skills)
-      .filter(([_, value]) => value)
-      .map(([key, _]) => key);
-
     const { error } = await supabase
       .from("hairdressers")
       .update({
@@ -120,17 +116,38 @@ export default function EditHairDresserDialog({
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        hotel_id: formData.hotel_id || null,
-        boxes_list: formData.boxes_list || null,
+        boxes: formData.boxes || null,
         status: formData.status,
         skills: selectedSkills,
-        rating: formData.rating ? parseInt(formData.rating) : null,
       })
       .eq("id", hairdresser.id);
 
     if (error) {
       toast.error("Erreur lors de la modification du coiffeur");
       return;
+    }
+
+    // Delete existing hotel relationships
+    await supabase
+      .from("hairdresser_hotels")
+      .delete()
+      .eq("hairdresser_id", hairdresser.id);
+
+    // Insert new hotel relationships
+    if (selectedHotels.length > 0) {
+      const hotelRelations = selectedHotels.map((hotelId) => ({
+        hairdresser_id: hairdresser.id,
+        hotel_id: hotelId,
+      }));
+
+      const { error: relationError } = await supabase
+        .from("hairdresser_hotels")
+        .insert(hotelRelations);
+
+      if (relationError) {
+        toast.error("Erreur lors de l'association des hôtels");
+        return;
+      }
     }
 
     toast.success("Coiffeur modifié avec succès");
@@ -208,91 +225,85 @@ export default function EditHairDresserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="hotel_id">Hôtel</Label>
-            <Select
-              value={formData.hotel_id}
-              onValueChange={(value) =>
-                setFormData({ ...formData, hotel_id: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un hôtel" />
-              </SelectTrigger>
-              <SelectContent>
-                {hotels.map((hotel) => (
-                  <SelectItem key={hotel.id} value={hotel.id}>
-                    {hotel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="boxes_list">Liste de boxes</Label>
-            <Input
-              id="boxes_list"
-              value={formData.boxes_list}
-              onChange={(e) =>
-                setFormData({ ...formData, boxes_list: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Compétences</Label>
-            <div className="flex flex-wrap gap-4">
-              {Object.entries(skills).map(([skill, checked]) => (
-                <div key={skill} className="flex items-center space-x-2">
+            <Label>Hôtels</Label>
+            <div className="border rounded-md p-3 space-y-2">
+              {hotels.map((hotel) => (
+                <div key={hotel.id} className="flex items-center space-x-2">
                   <Checkbox
-                    id={skill}
-                    checked={checked}
-                    onCheckedChange={(checked) =>
-                      setSkills({ ...skills, [skill]: checked === true })
-                    }
+                    id={`hotel-${hotel.id}`}
+                    checked={selectedHotels.includes(hotel.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedHotels([...selectedHotels, hotel.id]);
+                      } else {
+                        setSelectedHotels(
+                          selectedHotels.filter((id) => id !== hotel.id)
+                        );
+                      }
+                    }}
                   />
-                  <Label htmlFor={skill} className="cursor-pointer">
-                    {skill === "men" && "👨 Hommes"}
-                    {skill === "women" && "👩 Femmes"}
-                    {skill === "barber" && "💈 Barbier"}
-                    {skill === "beauty" && "💅 Beauté"}
+                  <Label htmlFor={`hotel-${hotel.id}`} className="cursor-pointer">
+                    {hotel.name}
                   </Label>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="status">Statut *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Actif">Actif</SelectItem>
-                  <SelectItem value="En attente">En attente</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="space-y-2">
+            <Label htmlFor="boxes">Box</Label>
+            <Input
+              id="boxes"
+              value={formData.boxes}
+              onChange={(e) =>
+                setFormData({ ...formData, boxes: e.target.value })
+              }
+              placeholder="Ex: Box 1, Box 2"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Compétences</Label>
+            <div className="border rounded-md p-3 space-y-2">
+              {SKILLS_OPTIONS.map((skill) => (
+                <div key={skill.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`skill-${skill.value}`}
+                    checked={selectedSkills.includes(skill.value)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedSkills([...selectedSkills, skill.value]);
+                      } else {
+                        setSelectedSkills(
+                          selectedSkills.filter((s) => s !== skill.value)
+                        );
+                      }
+                    }}
+                  />
+                  <Label htmlFor={`skill-${skill.value}`} className="cursor-pointer">
+                    {skill.label}
+                  </Label>
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="rating">Note</Label>
-              <Input
-                id="rating"
-                type="number"
-                min="1"
-                max="5"
-                value={formData.rating}
-                onChange={(e) =>
-                  setFormData({ ...formData, rating: e.target.value })
-                }
-              />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Statut *</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value) =>
+                setFormData({ ...formData, status: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Actif">Actif</SelectItem>
+                <SelectItem value="En attente">En attente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex justify-end gap-4 pt-4">

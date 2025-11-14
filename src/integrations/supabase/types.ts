@@ -130,53 +130,83 @@ export type Database = {
         }
         Relationships: []
       }
+      hairdresser_hotels: {
+        Row: {
+          created_at: string | null
+          hairdresser_id: string
+          hotel_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          hairdresser_id: string
+          hotel_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          hairdresser_id?: string
+          hotel_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hairdresser_hotels_hairdresser_id_fkey"
+            columns: ["hairdresser_id"]
+            isOneToOne: false
+            referencedRelation: "hairdressers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hairdresser_hotels_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hairdressers: {
         Row: {
-          boxes_list: string | null
+          boxes: string | null
           country_code: string
           created_at: string
           email: string
           first_name: string
-          hotel_id: string | null
           id: string
           last_name: string
           phone: string
           profile_image: string | null
-          rating: number | null
           skills: string[] | null
           status: string
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          boxes_list?: string | null
+          boxes?: string | null
           country_code?: string
           created_at?: string
           email: string
           first_name: string
-          hotel_id?: string | null
           id?: string
           last_name: string
           phone: string
           profile_image?: string | null
-          rating?: number | null
           skills?: string[] | null
           status?: string
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          boxes_list?: string | null
+          boxes?: string | null
           country_code?: string
           created_at?: string
           email?: string
           first_name?: string
-          hotel_id?: string | null
           id?: string
           last_name?: string
           phone?: string
           profile_image?: string | null
-          rating?: number | null
           skills?: string[] | null
           status?: string
           updated_at?: string
