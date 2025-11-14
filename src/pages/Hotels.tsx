@@ -175,10 +175,7 @@ export default function Hotels() {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold w-[250px]">
-                  <div className="flex items-center gap-2">
-                    Hotel name
-                    <Plus className="h-4 w-4" />
-                  </div>
+                  Hotel name
                 </TableHead>
                 <TableHead className="font-semibold w-[300px]">
                   <div className="flex items-center gap-2">
