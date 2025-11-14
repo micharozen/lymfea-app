@@ -507,11 +507,11 @@ export default function Settings() {
                       </span>
                     </TableCell>
                     <TableCell className="py-5">
-                      <div className="flex items-center gap-2">
+                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-muted"
+                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
                           onClick={() => handleEditAdmin(admin)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -519,7 +519,7 @@ export default function Settings() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
                           onClick={() => setDeleteAdminId(admin.id)}
                         >
                           <Trash2 className="h-4 w-4" />

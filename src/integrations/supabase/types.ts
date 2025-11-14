@@ -56,6 +56,35 @@ export type Database = {
         }
         Relationships: []
       }
+      concierge_hotels: {
+        Row: {
+          concierge_id: string
+          created_at: string | null
+          hotel_id: string
+          id: string
+        }
+        Insert: {
+          concierge_id: string
+          created_at?: string | null
+          hotel_id: string
+          id?: string
+        }
+        Update: {
+          concierge_id?: string
+          created_at?: string | null
+          hotel_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concierge_hotels_concierge_id_fkey"
+            columns: ["concierge_id"]
+            isOneToOne: false
+            referencedRelation: "concierges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       concierges: {
         Row: {
           country_code: string
