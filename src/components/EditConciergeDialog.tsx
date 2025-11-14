@@ -47,30 +47,18 @@ const formSchema = z.object({
   profile_image: z.string().optional(),
 });
 
+interface Hotel {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 interface EditConciergeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   conciergeId: string;
 }
-
-const hotels = [
-  {
-    id: "sofitel-paris",
-    name: "Hôtel Sofitel Paris le Faubourg",
-    image: "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=100&h=100&fit=crop",
-  },
-  {
-    id: "mandarin-london",
-    name: "Mandarin Oriental Hyde Park, London",
-    image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=100&h=100&fit=crop",
-  },
-  {
-    id: "test",
-    name: "TEST",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=100&h=100&fit=crop",
-  },
-];
 
 const countryCodes = [
   { code: "+33", country: "FR" },
@@ -83,6 +71,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
   const [loading, setLoading] = useState(true);
   const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -100,9 +89,25 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
 
   useEffect(() => {
     if (open && conciergeId) {
+      fetchHotels();
       loadConcierge();
     }
   }, [open, conciergeId]);
+
+  const fetchHotels = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("id, name, image")
+        .order("name");
+
+      if (error) throw error;
+      setHotels(data || []);
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement des hôtels");
+      console.error(error);
+    }
+  };
 
   const loadConcierge = async () => {
     try {
