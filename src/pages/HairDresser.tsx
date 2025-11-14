@@ -49,11 +49,9 @@ interface HairDresser {
   phone: string;
   profile_image: string | null;
   status: string;
-  hotel_id: string | null;
-  boxes_list: string | null;
+  boxes: string | null;
   skills: string[];
-  rating: number | null;
-  hotel?: Hotel;
+  hairdresser_hotels?: { hotel_id: string }[];
 }
 
 export default function HairDresser() {
@@ -99,11 +97,7 @@ export default function HairDresser() {
       .from("hairdressers")
       .select(`
         *,
-        hotels (
-          id,
-          name,
-          image
-        )
+        hairdresser_hotels(hotel_id)
       `)
       .order("created_at", { ascending: false });
 
@@ -113,12 +107,7 @@ export default function HairDresser() {
       return;
     }
 
-    const formattedData = (data || []).map((item: any) => ({
-      ...item,
-      hotel: item.hotels,
-    }));
-
-    setHairdressers(formattedData);
+    setHairdressers(data || []);
     setLoading(false);
   };
 
@@ -136,7 +125,9 @@ export default function HairDresser() {
     }
 
     if (hotelFilter !== "all") {
-      filtered = filtered.filter((hd) => hd.hotel_id === hotelFilter);
+      filtered = filtered.filter((hd) =>
+        hd.hairdresser_hotels?.some((hh) => hh.hotel_id === hotelFilter)
+      );
     }
 
     if (statusFilter !== "all") {
@@ -239,10 +230,9 @@ export default function HairDresser() {
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Numéro de téléphone</TableHead>
                 <TableHead className="font-semibold">Hôtels</TableHead>
-                <TableHead className="font-semibold">Liste de boxes</TableHead>
+                <TableHead className="font-semibold">Box</TableHead>
                 <TableHead className="font-semibold">Compétences</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
-                <TableHead className="font-semibold">Note</TableHead>
                 <TableHead className="font-semibold">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -275,18 +265,25 @@ export default function HairDresser() {
                     {hairdresser.country_code} {hairdresser.phone}
                   </TableCell>
                   <TableCell className="align-middle">
-                    {hairdresser.hotel && (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={hairdresser.hotel.image || ""} />
-                          <AvatarFallback>{hairdresser.hotel.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm">{hairdresser.hotel.name}</span>
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {hairdresser.hairdresser_hotels?.map((hh) => {
+                        const hotel = hotels.find((h) => h.id === hh.hotel_id);
+                        if (!hotel) return null;
+                        return (
+                          <div key={hotel.id} className="flex items-center gap-2">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={hotel.image || ""} />
+                              <AvatarFallback>{hotel.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{hotel.name}</span>
+                          </div>
+                        );
+                      })}
+                      {(!hairdresser.hairdresser_hotels || hairdresser.hairdresser_hotels.length === 0) && "-"}
+                    </div>
                   </TableCell>
                   <TableCell className="align-middle">
-                    {hairdresser.boxes_list || "-"}
+                    {hairdresser.boxes || "-"}
                   </TableCell>
                   <TableCell className="align-middle">
                     <div className="flex gap-1">
@@ -312,9 +309,6 @@ export default function HairDresser() {
                     >
                       {hairdresser.status}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="align-middle">
-                    {hairdresser.rating || "-"}
                   </TableCell>
                   <TableCell className="align-middle">
                     <div className="flex gap-2">
