@@ -194,7 +194,25 @@ export default function Settings() {
   // Create admin mutation
   const createAdminMutation = useMutation({
     mutationFn: async (data: z.infer<typeof adminFormSchema>) => {
-      // First, create the admin in the database
+      // First, check if an admin with this email or phone already exists
+      const { data: existingAdmins, error: checkError } = await supabase
+        .from("admins")
+        .select("email, phone")
+        .or(`email.eq.${data.email},phone.eq.${data.phone}`);
+
+      if (checkError) throw checkError;
+
+      if (existingAdmins && existingAdmins.length > 0) {
+        const existingAdmin = existingAdmins[0];
+        if (existingAdmin.email === data.email) {
+          throw new Error("Un administrateur avec cet email existe déjà");
+        }
+        if (existingAdmin.phone === data.phone) {
+          throw new Error("Un administrateur avec ce numéro de téléphone existe déjà");
+        }
+      }
+
+      // Then, create the admin in the database
       const { error: insertError } = await supabase.from("admins").insert({
         first_name: data.firstName,
         last_name: data.lastName,
