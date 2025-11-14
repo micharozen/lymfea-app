@@ -130,6 +130,60 @@ export type Database = {
         }
         Relationships: []
       }
+      hairdressers: {
+        Row: {
+          boxes_list: string | null
+          country_code: string
+          created_at: string
+          email: string
+          first_name: string
+          hotel_id: string | null
+          id: string
+          last_name: string
+          phone: string
+          profile_image: string | null
+          rating: number | null
+          skills: string[] | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          boxes_list?: string | null
+          country_code?: string
+          created_at?: string
+          email: string
+          first_name: string
+          hotel_id?: string | null
+          id?: string
+          last_name: string
+          phone: string
+          profile_image?: string | null
+          rating?: number | null
+          skills?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          boxes_list?: string | null
+          country_code?: string
+          created_at?: string
+          email?: string
+          first_name?: string
+          hotel_id?: string | null
+          id?: string
+          last_name?: string
+          phone?: string
+          profile_image?: string | null
+          rating?: number | null
+          skills?: string[] | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       hotels: {
         Row: {
           address: string | null
