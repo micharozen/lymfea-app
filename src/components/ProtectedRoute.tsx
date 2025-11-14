@@ -32,6 +32,22 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Validate session with backend to avoid ghost sessions (e.g., user deleted)
+  useEffect(() => {
+    if (!loading && session) {
+      setTimeout(() => {
+        supabase.auth.getUser().then(({ error }) => {
+          if (error) {
+            console.warn("Session invalide, déconnexion:", error.message);
+            supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+          }
+        }).catch(() => {});
+      }, 0);
+    }
+  }, [loading, session]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
