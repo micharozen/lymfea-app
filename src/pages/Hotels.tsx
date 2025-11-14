@@ -174,44 +174,44 @@ export default function Hotels() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">
+                <TableHead className="font-semibold w-[250px]">
                   <div className="flex items-center gap-2">
                     Hotel name
                     <Plus className="h-4 w-4" />
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">
+                <TableHead className="font-semibold w-[300px]">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4" />
                     Location
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
+                <TableHead className="font-semibold w-[120px] text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <Users className="h-4 w-4" />
                     Concierges
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
+                <TableHead className="font-semibold w-[120px] text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <Package className="h-4 w-4" />
                     Boxes list
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
+                <TableHead className="font-semibold w-[100px] text-center">Status</TableHead>
+                <TableHead className="font-semibold w-[120px] text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <DollarSign className="h-4 w-4" />
                     Total sales
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
+                <TableHead className="font-semibold w-[120px] text-center">
+                  <div className="flex items-center justify-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Total bookings
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold text-right">Actions</TableHead>
+                <TableHead className="font-semibold w-[100px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -224,7 +224,7 @@ export default function Hotels() {
               ) : (
                 filteredHotels.map((hotel) => (
                   <TableRow key={hotel.id}>
-                    <TableCell>
+                    <TableCell className="align-middle">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 rounded-md">
                           <AvatarImage src={hotel.image || ""} />
@@ -235,23 +235,23 @@ export default function Hotels() {
                         <div className="font-medium">{hotel.name}</div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle">
                       <div className="text-sm">
                         {hotel.address} {hotel.postal_code || ''} {hotel.city} {hotel.country}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
+                    <TableCell className="align-middle text-center">
+                      <div className="flex items-center justify-center gap-1">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="bg-muted text-xs">C</AvatarFallback>
                         </Avatar>
                         <span className="text-sm text-muted-foreground">-</span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle text-center">
                       <span className="text-sm text-muted-foreground">-</span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle text-center">
                       <Badge 
                         variant={hotel.status === "Active" ? "default" : "secondary"}
                         className={cn(
@@ -262,13 +262,13 @@ export default function Hotels() {
                         {hotel.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle text-center">
                       <span className="font-medium">€0.00</span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle text-center">
                       <span className="text-muted-foreground">0</span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="align-middle">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
