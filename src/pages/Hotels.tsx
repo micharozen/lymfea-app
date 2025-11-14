@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, MapPin, Users, Package, DollarSign, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -12,14 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddHotelDialog } from "@/components/AddHotelDialog";
 import { EditHotelDialog } from "@/components/EditHotelDialog";
@@ -39,9 +33,16 @@ interface Hotel {
   id: string;
   name: string;
   image: string | null;
+  cover_image: string | null;
   address: string;
   city: string;
   country: string;
+  postal_code: string | null;
+  currency: string;
+  vat: number;
+  hotel_commission: number;
+  hairdresser_commission: number;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -51,11 +52,10 @@ export default function Hotels() {
   const [filteredHotels, setFilteredHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editHotelId, setEditHotelId] = useState<string | null>(null);
   const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchHotels();
@@ -63,8 +63,7 @@ export default function Hotels() {
 
   useEffect(() => {
     filterHotels();
-    setCurrentPage(1);
-  }, [hotels, searchQuery]);
+  }, [hotels, searchQuery, statusFilter]);
 
   const fetchHotels = async () => {
     try {
@@ -96,6 +95,10 @@ export default function Hotels() {
       );
     }
 
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((h) => h.status === statusFilter);
+    }
+
     setFilteredHotels(filtered);
   };
 
@@ -119,17 +122,6 @@ export default function Hotels() {
     }
   };
 
-  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
-  const paginatedHotels = filteredHotels.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -140,52 +132,97 @@ export default function Hotels() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8">🏨 Hôtels</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+            🏨 Hotels
+          </h1>
         </div>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-4">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Button 
-              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={() => setShowAddDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un hôtel
-            </Button>
+        <div className="mb-6 flex items-center gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
+
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="Active">Actif</SelectItem>
+              <SelectItem value="Inactive">Inactif</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button 
+            className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+            onClick={() => setShowAddDialog(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter un hôtel
+          </Button>
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Hôtel</TableHead>
-                <TableHead className="font-semibold">Localisation</TableHead>
-                <TableHead className="font-semibold">Adresse</TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    Hotel name
+                    <Plus className="h-4 w-4" />
+                  </div>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Location
+                  </div>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Concierges
+                  </div>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    Boxes list
+                  </div>
+                </TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Total sales
+                  </div>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Total bookings
+                  </div>
+                </TableHead>
                 <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedHotels.length === 0 ? (
+              {filteredHotels.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Aucun hôtel trouvé
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedHotels.map((hotel) => (
+                filteredHotels.map((hotel) => (
                   <TableRow key={hotel.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -200,12 +237,36 @@ export default function Hotels() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div className="font-medium">{hotel.city}</div>
-                        <div className="text-muted-foreground">{hotel.country}</div>
+                        {hotel.address} {hotel.postal_code || ''} {hotel.city} {hotel.country}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-muted-foreground">{hotel.address}</div>
+                      <div className="flex items-center gap-1">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="bg-muted text-xs">C</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-muted-foreground">-</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">-</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={hotel.status === "Active" ? "default" : "secondary"}
+                        className={cn(
+                          "font-medium",
+                          hotel.status === "Active" && "bg-green-500/10 text-green-700 hover:bg-green-500/20"
+                        )}
+                      >
+                        {hotel.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">€0.00</span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-muted-foreground">0</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">
@@ -234,44 +295,6 @@ export default function Hotels() {
           </Table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                    className={cn(
-                      currentPage === 1 && "pointer-events-none opacity-50",
-                      "cursor-pointer"
-                    )}
-                  />
-                </PaginationItem>
-                {[...Array(totalPages)].map((_, i) => (
-                  <PaginationItem key={i + 1}>
-                    <PaginationLink
-                      onClick={() => handlePageChange(i + 1)}
-                      isActive={currentPage === i + 1}
-                      className="cursor-pointer"
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                    className={cn(
-                      currentPage === totalPages && "pointer-events-none opacity-50",
-                      "cursor-pointer"
-                    )}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
-
         <AddHotelDialog
           open={showAddDialog}
           onOpenChange={setShowAddDialog}
@@ -296,10 +319,10 @@ export default function Hotels() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteHotel}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-foreground text-background hover:bg-foreground/90"
               >
                 Supprimer
               </AlertDialogAction>

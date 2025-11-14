@@ -135,31 +135,52 @@ export type Database = {
           address: string | null
           city: string | null
           country: string | null
+          cover_image: string | null
           created_at: string
+          currency: string | null
+          hairdresser_commission: number | null
+          hotel_commission: number | null
           id: string
           image: string | null
           name: string
+          postal_code: string | null
+          status: string | null
           updated_at: string
+          vat: number | null
         }
         Insert: {
           address?: string | null
           city?: string | null
           country?: string | null
+          cover_image?: string | null
           created_at?: string
+          currency?: string | null
+          hairdresser_commission?: number | null
+          hotel_commission?: number | null
           id: string
           image?: string | null
           name: string
+          postal_code?: string | null
+          status?: string | null
           updated_at?: string
+          vat?: number | null
         }
         Update: {
           address?: string | null
           city?: string | null
           country?: string | null
+          cover_image?: string | null
           created_at?: string
+          currency?: string | null
+          hairdresser_commission?: number | null
+          hotel_commission?: number | null
           id?: string
           image?: string | null
           name?: string
+          postal_code?: string | null
+          status?: string | null
           updated_at?: string
+          vat?: number | null
         }
         Relationships: []
       }
