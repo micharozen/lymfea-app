@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 
 interface Concierge {
   id: string;
@@ -34,6 +35,7 @@ export default function Concierges() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   useEffect(() => {
     fetchConcierges();
@@ -161,6 +163,7 @@ export default function Concierges() {
                       variant="ghost" 
                       size="icon" 
                       className="h-6 w-6 hover:bg-muted"
+                      onClick={() => setShowAddDialog(true)}
                     >
                       <Plus className="h-4 w-4 text-foreground" />
                     </Button>
@@ -243,6 +246,12 @@ export default function Concierges() {
             </TableBody>
           </Table>
         </div>
+
+        <AddConciergeDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          onSuccess={fetchConcierges}
+        />
       </div>
     </div>
   );
