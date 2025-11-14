@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 interface EditHairDresserDialogProps {
@@ -40,6 +41,7 @@ interface EditHairDresserDialogProps {
 interface Hotel {
   id: string;
   name: string;
+  image: string | null;
 }
 
 const SKILLS_OPTIONS = [
@@ -94,7 +96,7 @@ export default function EditHairDresserDialog({
   const fetchHotels = async () => {
     const { data, error } = await supabase
       .from("hotels")
-      .select("id, name")
+      .select("id, name, image")
       .order("name");
 
     if (error) {
@@ -226,9 +228,19 @@ export default function EditHairDresserDialog({
 
           <div className="space-y-2">
             <Label>Hôtels</Label>
-            <div className="border rounded-md p-3 space-y-2">
+            <div className="border rounded-lg p-3 space-y-2 max-h-64 overflow-y-auto">
               {hotels.map((hotel) => (
-                <div key={hotel.id} className="flex items-center space-x-2">
+                <div
+                  key={hotel.id}
+                  className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={hotel.image || ""} alt={hotel.name} />
+                    <AvatarFallback>{hotel.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <Label htmlFor={`hotel-${hotel.id}`} className="flex-1 cursor-pointer font-normal">
+                    {hotel.name}
+                  </Label>
                   <Checkbox
                     id={`hotel-${hotel.id}`}
                     checked={selectedHotels.includes(hotel.id)}
@@ -242,11 +254,11 @@ export default function EditHairDresserDialog({
                       }
                     }}
                   />
-                  <Label htmlFor={`hotel-${hotel.id}`} className="cursor-pointer">
-                    {hotel.name}
-                  </Label>
                 </div>
               ))}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {selectedHotels.length} hôtel(s) sélectionné(s)
             </div>
           </div>
 
@@ -264,9 +276,16 @@ export default function EditHairDresserDialog({
 
           <div className="space-y-2">
             <Label>Compétences</Label>
-            <div className="border rounded-md p-3 space-y-2">
+            <div className="border rounded-lg p-3 space-y-2">
               {SKILLS_OPTIONS.map((skill) => (
-                <div key={skill.value} className="flex items-center space-x-2">
+                <div
+                  key={skill.value}
+                  className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                >
+                  <div className="text-2xl">{skill.label.split(" ")[0]}</div>
+                  <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal">
+                    {skill.label.split(" ").slice(1).join(" ")}
+                  </Label>
                   <Checkbox
                     id={`skill-${skill.value}`}
                     checked={selectedSkills.includes(skill.value)}
@@ -280,11 +299,11 @@ export default function EditHairDresserDialog({
                       }
                     }}
                   />
-                  <Label htmlFor={`skill-${skill.value}`} className="cursor-pointer">
-                    {skill.label}
-                  </Label>
                 </div>
               ))}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {selectedSkills.length} compétence(s) sélectionnée(s)
             </div>
           </div>
 
