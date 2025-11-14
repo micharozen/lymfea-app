@@ -235,23 +235,14 @@ export default function HairDresser() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Person</TableHead>
-                <TableHead className="font-semibold">
-                  <Mail className="h-4 w-4 inline mr-2" />
-                  Email
-                </TableHead>
-                <TableHead className="font-semibold">
-                  <Phone className="h-4 w-4 inline mr-2" />
-                  Phone number
-                </TableHead>
-                <TableHead className="font-semibold">Hotels</TableHead>
-                <TableHead className="font-semibold">Boxes list</TableHead>
-                <TableHead className="font-semibold">Skills</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">
-                  <Star className="h-4 w-4 inline mr-2" />
-                  Rating
-                </TableHead>
+                <TableHead className="font-semibold">Personne</TableHead>
+                <TableHead className="font-semibold">Email</TableHead>
+                <TableHead className="font-semibold">Numéro de téléphone</TableHead>
+                <TableHead className="font-semibold">Hôtels</TableHead>
+                <TableHead className="font-semibold">Liste de boxes</TableHead>
+                <TableHead className="font-semibold">Compétences</TableHead>
+                <TableHead className="font-semibold">Statut</TableHead>
+                <TableHead className="font-semibold">Note</TableHead>
                 <TableHead className="font-semibold">Actions</TableHead>
               </TableRow>
             </TableHeader>

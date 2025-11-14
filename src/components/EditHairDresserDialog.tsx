@@ -229,7 +229,7 @@ export default function EditHairDresserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="boxes_list">Boxes list</Label>
+            <Label htmlFor="boxes_list">Liste de boxes</Label>
             <Input
               id="boxes_list"
               value={formData.boxes_list}
@@ -252,10 +252,10 @@ export default function EditHairDresserDialog({
                     }
                   />
                   <Label htmlFor={skill} className="cursor-pointer">
-                    {skill === "men" && "👨 Men"}
-                    {skill === "women" && "👩 Women"}
-                    {skill === "barber" && "💈 Barber"}
-                    {skill === "beauty" && "💅 Beauty"}
+                    {skill === "men" && "👨 Hommes"}
+                    {skill === "women" && "👩 Femmes"}
+                    {skill === "barber" && "💈 Barbier"}
+                    {skill === "beauty" && "💅 Beauté"}
                   </Label>
                 </div>
               ))}
