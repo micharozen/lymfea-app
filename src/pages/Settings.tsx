@@ -438,29 +438,23 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-border">
-                <TableHead className="text-muted-foreground font-normal py-4">
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">
                   Nom
                 </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    Email
-                  </div>
+                <TableHead className="font-semibold">
+                  Email
                 </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4" />
-                    Numéro de téléphone
-                  </div>
+                <TableHead className="font-semibold">
+                  Numéro de téléphone
                 </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">
+                <TableHead className="font-semibold">
                   Statut
                 </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4 w-[100px]">
+                <TableHead className="font-semibold text-right">
                   Actions
                 </TableHead>
               </TableRow>
@@ -480,8 +474,8 @@ export default function Settings() {
                 </TableRow>
               ) : (
                 admins.map((admin) => (
-                  <TableRow key={admin.id} className="border-0">
-                    <TableCell className="py-5">
+                  <TableRow key={admin.id}>
+                    <TableCell className="align-middle">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                           {admin.profile_image ? (
@@ -493,31 +487,36 @@ export default function Settings() {
                         <span className="font-medium whitespace-nowrap">{admin.first_name} {admin.last_name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-5">
-                      <a href={`mailto:${admin.email}`} className="text-primary hover:underline">
+                    <TableCell className="align-middle">
+                      <a href={`mailto:${admin.email}`} className="text-sm hover:underline">
                         {admin.email}
                       </a>
                     </TableCell>
-                    <TableCell className="py-5">{admin.country_code} {admin.phone}</TableCell>
-                    <TableCell className="py-5">
-                      <span className={cn(
-                        "font-medium text-sm",
-                        admin.status === "Actif" && "text-success",
-                        admin.status === "En attente" && "text-orange-500"
-                      )}>
-                        {admin.status}
-                      </span>
+                    <TableCell className="align-middle">
+                      <span className="text-sm">{admin.country_code} {admin.phone}</span>
                     </TableCell>
-                    <TableCell className="py-5">
-                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-                          onClick={() => handleEditAdmin(admin)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                    <TableCell className="align-middle">
+                      <Badge 
+                        variant={admin.status === "Actif" ? "default" : "secondary"}
+                        className={cn(
+                          "font-medium",
+                          admin.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                          admin.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
+                        )}
+                      >
+                        {admin.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="align-middle">
+                      <div className="flex items-center justify-end gap-2">
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                         onClick={() => handleEditAdmin(admin)}
+                       >
+                         <Pencil className="h-4 w-4" />
+                       </Button>
                         <Button
                           variant="ghost"
                           size="icon"
