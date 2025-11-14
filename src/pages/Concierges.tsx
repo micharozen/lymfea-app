@@ -14,6 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -50,6 +58,8 @@ export default function Concierges() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editConciergeId, setEditConciergeId] = useState<string | null>(null);
   const [deleteConciergeId, setDeleteConciergeId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchConcierges();
@@ -57,6 +67,7 @@ export default function Concierges() {
 
   useEffect(() => {
     filterConcierges();
+    setCurrentPage(1);
   }, [concierges, searchQuery, hotelFilter, statusFilter]);
 
   const fetchConcierges = async () => {
@@ -142,6 +153,17 @@ export default function Concierges() {
     }
   };
 
+  const totalPages = Math.ceil(filteredConcierges.length / itemsPerPage);
+  const paginatedConcierges = filteredConcierges.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -219,14 +241,14 @@ export default function Concierges() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredConcierges.length === 0 ? (
+              {paginatedConcierges.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     Aucun concierge trouvé
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredConcierges.map((concierge) => (
+                paginatedConcierges.map((concierge) => (
                   <TableRow key={concierge.id} className="border-b border-border">
                     <TableCell className="py-5">
                       <div className="flex items-center gap-3">
@@ -290,6 +312,44 @@ export default function Concierges() {
             </TableBody>
           </Table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                    className={cn(
+                      currentPage === 1 && "pointer-events-none opacity-50",
+                      "cursor-pointer"
+                    )}
+                  />
+                </PaginationItem>
+                {[...Array(totalPages)].map((_, i) => (
+                  <PaginationItem key={i + 1}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(i + 1)}
+                      isActive={currentPage === i + 1}
+                      className="cursor-pointer"
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                    className={cn(
+                      currentPage === totalPages && "pointer-events-none opacity-50",
+                      "cursor-pointer"
+                    )}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
 
         <AddConciergeDialog
           open={showAddDialog}
