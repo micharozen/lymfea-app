@@ -26,6 +26,7 @@ interface Concierge {
   hotel_id: string | null;
   profile_image: string | null;
   status: string;
+  hotels?: { hotel_id: string }[];
 }
 
 export default function Concierges() {
@@ -49,7 +50,10 @@ export default function Concierges() {
     try {
       const { data, error } = await supabase
         .from("concierges")
-        .select("*")
+        .select(`
+          *,
+          hotels:concierge_hotels(hotel_id)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -98,6 +102,11 @@ export default function Concierges() {
       "test": "TEST",
     };
     return hotelMap[hotelId] || hotelId;
+  };
+
+  const getHotelNames = (hotels?: { hotel_id: string }[]) => {
+    if (!hotels || hotels.length === 0) return "Non assigné";
+    return hotels.map((h) => getHotelName(h.hotel_id)).join(", ");
   };
 
   if (loading) {
@@ -211,7 +220,7 @@ export default function Concierges() {
                       </span>
                     </TableCell>
                     <TableCell className="py-5">
-                      <span className="text-sm text-foreground">{getHotelName(concierge.hotel_id)}</span>
+                      <span className="text-sm text-foreground">{getHotelNames(concierge.hotels)}</span>
                     </TableCell>
                     <TableCell className="py-5">
                       <span className={cn(
@@ -227,14 +236,14 @@ export default function Concierges() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-muted"
+                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

@@ -36,7 +36,7 @@ const formSchema = z.object({
   email: z.string().email("Email invalide"),
   phone: z.string().min(1, "Le numéro de téléphone est requis"),
   country_code: z.string().default("+33"),
-  hotel_id: z.string().min(1, "L'hôtel est requis"),
+  hotel_ids: z.array(z.string()).min(1, "Au moins un hôtel doit être sélectionné"),
   profile_image: z.string().optional(),
 });
 
@@ -71,8 +71,6 @@ const countryCodes = [
 ];
 
 export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConciergeDialogProps) {
-  const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
-  const [showHotelList, setShowHotelList] = useState(false);
   const [profileImage, setProfileImage] = useState<string>("");
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -83,30 +81,45 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
       email: "",
       phone: "",
       country_code: "+33",
-      hotel_id: "",
+      hotel_ids: [],
       profile_image: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const { error } = await supabase.from("concierges").insert({
-        first_name: values.first_name,
-        last_name: values.last_name,
-        email: values.email,
-        phone: values.phone,
-        country_code: values.country_code,
-        hotel_id: values.hotel_id,
-        profile_image: profileImage || null,
-        status: "En attente",
-      });
+      // Créer d'abord le concierge
+      const { data: concierge, error: conciergeError } = await supabase
+        .from("concierges")
+        .insert({
+          first_name: values.first_name,
+          last_name: values.last_name,
+          email: values.email,
+          phone: values.phone,
+          country_code: values.country_code,
+          profile_image: profileImage || null,
+          status: "En attente",
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (conciergeError) throw conciergeError;
+
+      // Ensuite, créer les associations avec les hôtels
+      const hotelAssociations = values.hotel_ids.map((hotel_id) => ({
+        concierge_id: concierge.id,
+        hotel_id,
+      }));
+
+      const { error: hotelsError } = await supabase
+        .from("concierge_hotels")
+        .insert(hotelAssociations);
+
+      if (hotelsError) throw hotelsError;
 
       toast.success("Concierge ajouté avec succès");
       form.reset();
       setProfileImage("");
-      setSelectedHotels([]);
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -116,14 +129,11 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
   };
 
   const toggleHotel = (hotelId: string) => {
-    setSelectedHotels((prev) =>
-      prev.includes(hotelId)
-        ? prev.filter((id) => id !== hotelId)
-        : [...prev, hotelId]
-    );
-    if (!selectedHotels.includes(hotelId)) {
-      form.setValue("hotel_id", hotelId);
-    }
+    const currentHotels = form.watch("hotel_ids");
+    const newHotels = currentHotels.includes(hotelId)
+      ? currentHotels.filter((id) => id !== hotelId)
+      : [...currentHotels, hotelId];
+    form.setValue("hotel_ids", newHotels);
   };
 
   return (
@@ -230,48 +240,31 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
             <FormField
               control={form.control}
-              name="hotel_id"
+              name="hotel_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      setShowHotelList(!showHotelList);
-                    }}
-                    open={showHotelList}
-                    onOpenChange={setShowHotelList}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="space-y-2 p-2">
-                        {hotels.map((hotel) => (
-                          <div
-                            key={hotel.id}
-                            className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer"
-                            onClick={() => {
-                              field.onChange(hotel.id);
-                              setShowHotelList(false);
-                            }}
-                          >
-                            <img
-                              src={hotel.image}
-                              alt={hotel.name}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                            <span className="flex-1 text-sm">{hotel.name}</span>
-                            <Checkbox
-                              checked={field.value === hotel.id}
-                              className="pointer-events-none"
-                            />
-                          </div>
-                        ))}
+                  <FormLabel>Hôtel(s)</FormLabel>
+                  <div className="space-y-2">
+                    {hotels.map((hotel) => (
+                      <div
+                        key={hotel.id}
+                        className="flex items-center gap-3 p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => toggleHotel(hotel.id)}
+                      >
+                        <img
+                          src={hotel.image}
+                          alt={hotel.name}
+                          className="w-10 h-10 rounded object-cover"
+                        />
+                        <span className="flex-1 text-sm">{hotel.name}</span>
+                        <Checkbox
+                          checked={field.value.includes(hotel.id)}
+                          onCheckedChange={() => toggleHotel(hotel.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </div>
-                    </SelectContent>
-                  </Select>
+                    ))}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
