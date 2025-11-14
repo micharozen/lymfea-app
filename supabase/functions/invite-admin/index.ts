@@ -63,14 +63,14 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // Build login URL from the request origin (most reliable), with fallbacks
-    let appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
+    // Build login URL preferring explicit SITE_URL (production), then origin/referer, then projectRef
+    let appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
+    if (!appUrl) {
+      appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
+    }
     if (!appUrl) {
       const ref = req.headers.get("referer") || "";
       try { appUrl = new URL(ref).origin; } catch (_) { /* ignore */ }
-    }
-    if (!appUrl) {
-      appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
     }
     if (!appUrl) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
