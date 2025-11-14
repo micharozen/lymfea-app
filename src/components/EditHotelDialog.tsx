@@ -18,16 +18,29 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ImageIcon } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   address: z.string().min(1, "L'adresse est requise"),
+  postal_code: z.string().optional(),
   city: z.string().min(1, "La ville est requise"),
   country: z.string().min(1, "Le pays est requis"),
-  image: z.string().optional(),
+  currency: z.string().default("EUR"),
+  vat: z.string().default("20"),
+  hotel_commission: z.string().default("0"),
+  hairdresser_commission: z.string().default("0"),
+  status: z.string().default("Active"),
 });
 
 interface EditHotelDialogProps {
@@ -39,18 +52,25 @@ interface EditHotelDialogProps {
 
 export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: EditHotelDialogProps) {
   const [hotelImage, setHotelImage] = useState<string>("");
+  const [coverImage, setCoverImage] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hotelImageRef = useRef<HTMLInputElement>(null);
+  const coverImageRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       address: "",
+      postal_code: "",
       city: "",
       country: "",
-      image: "",
+      currency: "EUR",
+      vat: "20",
+      hotel_commission: "0",
+      hairdresser_commission: "0",
+      status: "Active",
     },
   });
 
@@ -74,12 +94,18 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       form.reset({
         name: hotel.name,
         address: hotel.address,
+        postal_code: hotel.postal_code || "",
         city: hotel.city,
         country: hotel.country,
-        image: hotel.image || "",
+        currency: hotel.currency || "EUR",
+        vat: hotel.vat?.toString() || "20",
+        hotel_commission: hotel.hotel_commission?.toString() || "0",
+        hairdresser_commission: hotel.hairdresser_commission?.toString() || "0",
+        status: hotel.status || "Active",
       });
       
       setHotelImage(hotel.image || "");
+      setCoverImage(hotel.cover_image || "");
     } catch (error: any) {
       toast.error("Erreur lors du chargement de l'hôtel");
       console.error(error);
@@ -88,7 +114,10 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    type: 'hotel' | 'cover'
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -118,7 +147,12 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
         .from('avatars')
         .getPublicUrl(filePath);
 
-      setHotelImage(publicUrl);
+      if (type === 'hotel') {
+        setHotelImage(publicUrl);
+      } else {
+        setCoverImage(publicUrl);
+      }
+      
       toast.success("Image téléchargée avec succès");
     } catch (error: any) {
       toast.error("Erreur lors du téléchargement de l'image");
@@ -135,9 +169,16 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
         .update({
           name: values.name,
           address: values.address,
+          postal_code: values.postal_code || null,
           city: values.city,
           country: values.country,
+          currency: values.currency,
+          vat: parseFloat(values.vat),
+          hotel_commission: parseFloat(values.hotel_commission),
+          hairdresser_commission: parseFloat(values.hairdresser_commission),
+          status: values.status,
           image: hotelImage || null,
+          cover_image: coverImage || null,
         })
         .eq("id", hotelId);
 
@@ -164,40 +205,68 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Modifier l'hôtel</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Image de l'hôtel</label>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-16 w-16 rounded-md">
-                  <AvatarImage src={hotelImage} />
-                  <AvatarFallback className="bg-muted rounded-md">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
-                      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
-                    </svg>
-                  </AvatarFallback>
-                </Avatar>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? "Téléchargement..." : "Télécharger une image"}
-                </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Hotel picture</label>
+                <div className="flex flex-col items-center gap-3 p-4 border rounded-md bg-muted/20">
+                  <Avatar className="h-16 w-16 rounded-md">
+                    <AvatarImage src={hotelImage} />
+                    <AvatarFallback className="bg-muted rounded-md">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <input
+                    ref={hotelImageRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e, 'hotel')}
+                    className="hidden"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => hotelImageRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    Upload Image
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Cover picture</label>
+                <div className="flex flex-col items-center gap-3 p-4 border rounded-md bg-muted/20">
+                  <Avatar className="h-16 w-16 rounded-md">
+                    <AvatarImage src={coverImage} />
+                    <AvatarFallback className="bg-muted rounded-md">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <input
+                    ref={coverImageRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e, 'cover')}
+                    className="hidden"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => coverImageRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    Upload Image
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -206,9 +275,9 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom de l'hôtel</FormLabel>
+                  <FormLabel>Hotel name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Hôtel Sofitel Paris le Faubourg" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -220,38 +289,160 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Adresse</FormLabel>
+                  <FormLabel>Address</FormLabel>
                   <FormControl>
-                    <Input placeholder="15 Rue Boissy d'Anglas" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="postal_code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Postal code</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>City</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="USD">USD</SelectItem>
+                        <SelectItem value="GBP">GBP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="city"
+              name="vat"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Ville</FormLabel>
+                  <FormLabel>VAT</FormLabel>
                   <FormControl>
-                    <Input placeholder="Paris" {...field} />
+                    <div className="relative">
+                      <Input type="number" step="0.01" {...field} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="hotel_commission"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hotel commission</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input type="number" step="0.01" {...field} />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="hairdresser_commission"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Hairdresser commission</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input type="number" step="0.01" {...field} />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="country"
+              name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Pays</FormLabel>
-                  <FormControl>
-                    <Input placeholder="France" {...field} />
-                  </FormControl>
+                  <FormLabel>Status</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          Active
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Inactive">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-gray-500" />
+                          Inactive
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -263,7 +454,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Annuler
+                Cancel
               </Button>
               <Button type="submit" className="bg-foreground text-background hover:bg-foreground/90">
                 Enregistrer
