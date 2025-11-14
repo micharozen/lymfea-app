@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 import { EditConciergeDialog } from "@/components/EditConciergeDialog";
@@ -226,18 +227,18 @@ export default function Concierges() {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-b border-border">
-                <TableHead className="text-muted-foreground font-normal py-4">
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">
                   Nom
                 </TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">Email</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">Numéro de téléphone</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">Hôtel</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">Statut</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4 text-right">Actions</TableHead>
+                <TableHead className="font-semibold">Email</TableHead>
+                <TableHead className="font-semibold">Numéro de téléphone</TableHead>
+                <TableHead className="font-semibold">Hôtel</TableHead>
+                <TableHead className="font-semibold">Statut</TableHead>
+                <TableHead className="font-semibold text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -249,50 +250,53 @@ export default function Concierges() {
                 </TableRow>
               ) : (
                 paginatedConcierges.map((concierge) => (
-                  <TableRow key={concierge.id} className="border-b border-border">
-                    <TableCell className="py-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                          {concierge.profile_image ? (
-                            <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {getInitials(concierge.first_name, concierge.last_name)}
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-medium text-sm">
-                          {concierge.first_name} {concierge.last_name}
-                        </span>
+                <TableRow key={concierge.id}>
+                  <TableCell className="align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                        {concierge.profile_image ? (
+                          <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {getInitials(concierge.first_name, concierge.last_name)}
+                          </span>
+                        )}
                       </div>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <span className="text-sm text-foreground">{concierge.email}</span>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <span className="text-sm text-foreground">
-                        {concierge.country_code} {concierge.phone}
+                      <span className="font-medium">
+                        {concierge.first_name} {concierge.last_name}
                       </span>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <span className="text-sm text-foreground">{getHotelNames(concierge.hotels)}</span>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <span className={cn(
-                        "font-medium text-sm",
-                        concierge.status === "Actif" && "text-success",
-                        concierge.status === "En attente" && "text-orange-500"
-                      )}>
-                        {concierge.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-5">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-                          onClick={() => setEditConciergeId(concierge.id)}
+                    </div>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <span className="text-sm">{concierge.email}</span>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <span className="text-sm">
+                      {concierge.country_code} {concierge.phone}
+                    </span>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <span className="text-sm">{getHotelNames(concierge.hotels)}</span>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <Badge 
+                      variant={concierge.status === "Actif" ? "default" : "secondary"}
+                      className={cn(
+                        "font-medium",
+                        concierge.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                        concierge.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
+                      )}
+                    >
+                      {concierge.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="align-middle">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => setEditConciergeId(concierge.id)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
