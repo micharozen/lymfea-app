@@ -409,11 +409,13 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-8">Paramètres & Accès</h1>
-      </div>
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+            ⚙️ Paramètres & Accès
+          </h1>
+        </div>
 
-      <div className="max-w-6xl">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-foreground mb-4">Admin</h2>
           

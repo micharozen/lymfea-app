@@ -97,18 +97,18 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🏠</span>
-            <h1 className="text-3xl font-bold text-foreground">Accueil</h1>
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+            🏠 Accueil
+          </h1>
+          <div className="flex items-center justify-between mb-2">
+            <PeriodSelector onPeriodChange={handlePeriodChange} />
           </div>
-          <PeriodSelector onPeriodChange={handlePeriodChange} />
+          <p className="text-sm text-muted-foreground">
+            Période : {format(startDate, "dd MMM yyyy", { locale: fr })} - {format(endDate, "dd MMM yyyy", { locale: fr })}
+          </p>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          Période : {format(startDate, "dd MMM yyyy", { locale: fr })} - {format(endDate, "dd MMM yyyy", { locale: fr })}
-        </p>
-      </div>
 
       <div className="grid grid-cols-4 gap-3 mb-6">
         <StatCard
@@ -164,13 +164,13 @@ export default function Dashboard() {
 
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-bold text-foreground">Vue d'ensemble</CardTitle>
+          <CardTitle className="text-xl font-bold text-foreground">Vue d&apos;ensemble</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-muted-foreground font-normal">Nom de l'hôtel</TableHead>
+                <TableHead className="text-muted-foreground font-normal">Nom de l&apos;hôtel</TableHead>
                 <TableHead className="text-muted-foreground font-normal">Ventes totales</TableHead>
                 <TableHead className="text-muted-foreground font-normal">Réservations totales</TableHead>
                 <TableHead className="text-muted-foreground font-normal">Sessions totales</TableHead>
@@ -196,6 +196,7 @@ export default function Dashboard() {
           </Table>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
