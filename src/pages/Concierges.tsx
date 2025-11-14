@@ -2,11 +2,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Bell } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 interface Concierge {
   id: string;
@@ -100,25 +107,25 @@ export default function Concierges() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="container mx-auto max-w-7xl">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
-            <Bell className="w-6 h-6 text-orange-500" />
-          </div>
-          <h1 className="text-4xl font-bold text-foreground">Concierges</h1>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-8">🛎️ Concierges</h1>
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-6">
-          <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="mb-6">
+          <div className="relative w-64 mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search"
+              placeholder="Rechercher"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
+          
+          <div className="flex gap-4 mb-6">
+        </div>
 
           <Select value={hotelFilter} onValueChange={setHotelFilter}>
             <SelectTrigger className="w-[200px]">
@@ -144,90 +151,79 @@ export default function Concierges() {
           </Select>
         </div>
 
-        <div className="bg-card rounded-lg border border-border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="border-b border-border">
-                <tr className="text-left">
-                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Plus className="w-4 h-4" />
-                      Name
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground">@ Email</th>
-                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground">📞 Phone number</th>
-                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground">🏨 Hotels</th>
-                  <th className="px-6 py-4 text-sm font-medium text-muted-foreground text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredConcierges.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
-                      Aucun concierge trouvé
-                    </td>
-                  </tr>
-                ) : (
-                  filteredConcierges.map((concierge) => (
-                    <tr
-                      key={concierge.id}
-                      className="border-b border-border last:border-0 hover:bg-muted/5 transition-colors"
+        <div className="bg-card rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-border">
+                <TableHead className="text-muted-foreground font-normal py-4">
+                  <div className="flex items-center gap-3">
+                    <span>Nom</span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 hover:bg-muted"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10">
-                            <AvatarImage src={concierge.profile_image || undefined} />
-                            <AvatarFallback className="bg-muted">
+                      <Plus className="h-4 w-4 text-foreground" />
+                    </Button>
+                  </div>
+                </TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">Email</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">Téléphone</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">Hôtel</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4 text-right">Statut</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredConcierges.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Aucun concierge trouvé
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredConcierges.map((concierge) => (
+                  <TableRow key={concierge.id} className="border-b border-border">
+                    <TableCell className="py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                          {concierge.profile_image ? (
+                            <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-medium text-muted-foreground">
                               {getInitials(concierge.first_name, concierge.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium text-foreground">
-                            {concierge.first_name} {concierge.last_name}
-                          </span>
+                            </span>
+                          )}
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <a href={`mailto:${concierge.email}`} className="text-primary hover:underline">
-                          {concierge.email}
-                        </a>
-                      </td>
-                      <td className="px-6 py-4 text-foreground">
+                        <span className="font-medium text-sm">
+                          {concierge.first_name} {concierge.last_name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-5">
+                      <span className="text-sm text-foreground">{concierge.email}</span>
+                    </TableCell>
+                    <TableCell className="py-5">
+                      <span className="text-sm text-foreground">
                         {concierge.country_code} {concierge.phone}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-xs">
-                            🏨
-                          </div>
-                          <span className="text-foreground">{getHotelName(concierge.hotel_id)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Badge
-                          variant={concierge.status === "Actif" ? "default" : "secondary"}
-                          className={
-                            concierge.status === "Actif"
-                              ? "bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20"
-                              : "bg-muted text-muted-foreground"
-                          }
-                        >
-                          {concierge.status === "Actif" ? "Active" : "Pending"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="mt-6 flex justify-center">
-          <Button size="lg" className="gap-2">
-            <Plus className="w-5 h-5" />
-            Ajouter un concierge
-          </Button>
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-5">
+                      <span className="text-sm text-foreground">{getHotelName(concierge.hotel_id)}</span>
+                    </TableCell>
+                    <TableCell className="py-5 text-right">
+                      <span className={cn(
+                        "font-medium text-sm",
+                        concierge.status === "Actif" && "text-success",
+                        concierge.status === "En attente" && "text-orange-500"
+                      )}>
+                        {concierge.status}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>
