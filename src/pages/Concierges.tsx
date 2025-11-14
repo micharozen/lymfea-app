@@ -213,6 +213,14 @@ export default function Concierges() {
                 <SelectItem value="En attente">En attente</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button 
+              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un concierge
+            </Button>
           </div>
         </div>
 
@@ -221,17 +229,7 @@ export default function Concierges() {
             <TableHeader>
               <TableRow className="border-b border-border">
                 <TableHead className="text-muted-foreground font-normal py-4">
-                  <div className="flex items-center gap-3">
-                    <span>Nom</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 hover:bg-muted"
-                      onClick={() => setShowAddDialog(true)}
-                    >
-                      <Plus className="h-4 w-4 text-foreground" />
-                    </Button>
-                  </div>
+                  Nom
                 </TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">Email</TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">Numéro de téléphone</TableHead>
