@@ -15,6 +15,31 @@ interface InviteAdminRequest {
   lastName: string;
 }
 
+// Generate a secure random password
+function generatePassword(): string {
+  const length = 12;
+  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+  const numbers = '0123456789';
+  const special = '!@#$%&*';
+  const all = uppercase + lowercase + numbers + special;
+  
+  let password = '';
+  // Ensure at least one of each type
+  password += uppercase[Math.floor(Math.random() * uppercase.length)];
+  password += lowercase[Math.floor(Math.random() * lowercase.length)];
+  password += numbers[Math.floor(Math.random() * numbers.length)];
+  password += special[Math.floor(Math.random() * special.length)];
+  
+  // Fill the rest randomly
+  for (let i = password.length; i < length; i++) {
+    password += all[Math.floor(Math.random() * all.length)];
+  }
+  
+  // Shuffle the password
+  return password.split('').sort(() => Math.random() - 0.5).join('');
+}
+
 serve(async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -38,48 +63,29 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // Build redirect URL (fallback to localhost in dev)
+    // Build login URL (fallback to localhost in dev)
     const appUrl = (Deno.env.get("SITE_URL") || "http://localhost:8080").replace(/\/$/, "");
+    const loginUrl = `${appUrl}/login`;
 
-    // Generate an activation link:
-    // - For new emails: use "invite"
-    // - If the email already has an Auth user: fallback to "recovery" (password set/reset)
-    let actionLink = "";
+    // Generate a secure password
+    const generatedPassword = generatePassword();
+    console.log(`Generated password for ${email}`);
 
-    const inviteRes = await supabaseAdmin.auth.admin.generateLink({
-      type: "invite",
+    // Create the user with the generated password
+    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      options: { 
-        redirectTo: `${appUrl}/set-password?flow=invite`
-      },
+      password: generatedPassword,
+      email_confirm: true, // Auto-confirm email
     });
 
-    if (inviteRes.error) {
-      const e: any = inviteRes.error;
-      console.warn("Invite link error, will try recovery:", { status: e?.status, code: e?.code, message: e?.message });
-
-      // Fallback for existing users: generate a recovery link
-      const recoveryRes = await supabaseAdmin.auth.admin.generateLink({
-        type: "recovery",
-        email,
-        options: { 
-          redirectTo: `${appUrl}/set-password?flow=recovery`
-        },
-      });
-
-      if (recoveryRes.error) {
-        console.error("Error generating recovery link:", recoveryRes.error);
-        throw recoveryRes.error;
-      }
-
-      actionLink = recoveryRes.data.properties.action_link;
-      console.log("Recovery link generated successfully");
-    } else {
-      actionLink = inviteRes.data.properties.action_link;
-      console.log("Invite link generated successfully");
+    if (createError) {
+      console.error("Error creating user:", createError);
+      throw createError;
     }
 
-    // Send custom email with the action link (single email that does everything)
+    console.log("User created successfully:", userData.user?.id);
+
+    // Send email with login credentials
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -89,7 +95,7 @@ serve(async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "OOM App <booking@oomworld.com>",
         to: [email],
-        subject: "Bienvenue sur OOM App - Configurez votre compte",
+        subject: "Bienvenue sur OOM App - Vos identifiants de connexion",
         html: `
           <!DOCTYPE html>
           <html>
@@ -100,36 +106,22 @@ serve(async (req: Request): Promise<Response> => {
             </head>
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
               <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur OOM App</h1>
+                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to OOM, here is your login details</h1>
               </div>
               
               <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-                <p style="font-size: 16px; margin-bottom: 20px;">Bonjour ${firstName} ${lastName},</p>
-                
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  Votre compte administrateur a été créé avec succès sur OOM App. 
-                </p>
-
-                <div style="background: #f8f8f8; padding: 20px; border-radius: 8px; margin: 30px 0;">
-                  <p style="margin: 0 0 10px 0; font-weight: 600; color: #000000;">Vos informations de connexion :</p>
-                  <p style="margin: 5px 0;"><strong>Email :</strong> ${email}</p>
+                <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
+                  <p style="margin: 0 0 15px 0;"><strong>URL:</strong> <a href="${loginUrl}" style="color: #0066cc;">${loginUrl}</a></p>
+                  <p style="margin: 0 0 15px 0;"><strong>Email:</strong> ${email}</p>
+                  <p style="margin: 0;"><strong>Password:</strong> ${generatedPassword}</p>
                 </div>
-
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                  Pour activer votre compte et définir votre mot de passe, cliquez sur le bouton ci-dessous :
-                </p>
 
                 <div style="text-align: center; margin: 35px 0;">
-                  <a href="${actionLink}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Définir mon mot de passe</a>
+                  <a href="${loginUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Se connecter</a>
                 </div>
 
-                <p style="font-size: 14px; color: #666; margin-top: 30px;">
-                  Ou copiez et collez ce lien dans votre navigateur :<br>
-                  <a href="${actionLink}" style="color: #0066cc; word-break: break-all;">${actionLink}</a>
-                </p>
-
                 <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                  Ce lien est valable pendant 24 heures. Si vous n'avez pas demandé la création de ce compte, vous pouvez ignorer cet email.
+                  Pour des raisons de sécurité, nous vous recommandons de changer votre mot de passe après votre première connexion.
                 </p>
 
                 <p style="font-size: 16px; margin-top: 40px; color: #666;">
