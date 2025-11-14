@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -114,41 +114,40 @@ export default function Concierges() {
         </div>
 
         <div className="mb-6">
-          <div className="relative w-64 mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center gap-4">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <Select value={hotelFilter} onValueChange={setHotelFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous les hôtels" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les hôtels</SelectItem>
+                <SelectItem value="mandarin-london">Mandarin Oriental</SelectItem>
+                <SelectItem value="sofitel-paris">Hôtel Sofitel</SelectItem>
+                <SelectItem value="test">TEST</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="Actif">Actif</SelectItem>
+                <SelectItem value="En attente">En attente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          
-          <div className="flex gap-4 mb-6">
-        </div>
-
-          <Select value={hotelFilter} onValueChange={setHotelFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by hotel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les hôtels</SelectItem>
-              <SelectItem value="mandarin-london">Mandarin Oriental</SelectItem>
-              <SelectItem value="sofitel-paris">Hôtel Sofitel</SelectItem>
-              <SelectItem value="test">TEST</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="Actif">Active</SelectItem>
-              <SelectItem value="En attente">Pending</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <div className="bg-card rounded-lg overflow-hidden">
@@ -168,15 +167,16 @@ export default function Concierges() {
                   </div>
                 </TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">Email</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4">Téléphone</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">Numéro de téléphone</TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">Hôtel</TableHead>
-                <TableHead className="text-muted-foreground font-normal py-4 text-right">Statut</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4">Statut</TableHead>
+                <TableHead className="text-muted-foreground font-normal py-4 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredConcierges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                     Aucun concierge trouvé
                   </TableCell>
                 </TableRow>
@@ -210,7 +210,7 @@ export default function Concierges() {
                     <TableCell className="py-5">
                       <span className="text-sm text-foreground">{getHotelName(concierge.hotel_id)}</span>
                     </TableCell>
-                    <TableCell className="py-5 text-right">
+                    <TableCell className="py-5">
                       <span className={cn(
                         "font-medium text-sm",
                         concierge.status === "Actif" && "text-success",
@@ -218,6 +218,24 @@ export default function Concierges() {
                       )}>
                         {concierge.status}
                       </span>
+                    </TableCell>
+                    <TableCell className="py-5">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-muted"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
