@@ -39,6 +39,7 @@ interface EditHairDresserDialogProps {
     boxes: string | null;
     status: string;
     skills: string[];
+    profile_image: string | null;
     hairdresser_hotels?: { hotel_id: string }[];
   };
   onSuccess: () => void;
@@ -84,6 +85,8 @@ export default function EditHairDresserDialog({
       return boxMatch ? `box${boxMatch[1]}` : b;
     }) : []
   );
+  const [uploading, setUploading] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(hairdresser.profile_image);
   const [formData, setFormData] = useState({
     first_name: hairdresser.first_name,
     last_name: hairdresser.last_name,
@@ -114,6 +117,7 @@ export default function EditHairDresserDialog({
           return boxMatch ? `box${boxMatch[1]}` : b;
         }) : []
       );
+      setProfileImage(hairdresser.profile_image);
     }
   }, [open, hairdresser]);
 
@@ -131,6 +135,41 @@ export default function EditHairDresserDialog({
     setHotels(data || []);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Veuillez sélectionner une image");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      setProfileImage(publicUrl);
+      toast.success("Image téléchargée avec succès");
+    } catch (error) {
+      toast.error("Erreur lors du téléchargement de l'image");
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -145,6 +184,7 @@ export default function EditHairDresserDialog({
         boxes: selectedBoxes.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
+        profile_image: profileImage,
       })
       .eq("id", hairdresser.id);
 
@@ -188,6 +228,32 @@ export default function EditHairDresserDialog({
           <DialogTitle>Modifier le coiffeur</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Photo de profil</Label>
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                {profileImage ? (
+                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <Avatar className="w-full h-full">
+                    <AvatarFallback>
+                      {formData.first_name[0]}{formData.last_name[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+              <div className="flex-1">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                />
+                {uploading && <p className="text-sm text-muted-foreground mt-1">Téléchargement...</p>}
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">Prénom *</Label>
