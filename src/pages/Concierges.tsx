@@ -13,8 +13,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
+import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 
 interface Concierge {
   id: string;
@@ -37,6 +48,8 @@ export default function Concierges() {
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [editConciergeId, setEditConciergeId] = useState<string | null>(null);
+  const [deleteConciergeId, setDeleteConciergeId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchConcierges();
@@ -107,6 +120,26 @@ export default function Concierges() {
   const getHotelNames = (hotels?: { hotel_id: string }[]) => {
     if (!hotels || hotels.length === 0) return "Non assigné";
     return hotels.map((h) => getHotelName(h.hotel_id)).join(", ");
+  };
+
+  const handleDeleteConcierge = async () => {
+    if (!deleteConciergeId) return;
+
+    try {
+      const { error } = await supabase
+        .from("concierges")
+        .delete()
+        .eq("id", deleteConciergeId);
+
+      if (error) throw error;
+
+      toast.success("Concierge supprimé avec succès");
+      setDeleteConciergeId(null);
+      fetchConcierges();
+    } catch (error: any) {
+      toast.error("Erreur lors de la suppression du concierge");
+      console.error(error);
+    }
   };
 
   if (loading) {
@@ -237,6 +270,7 @@ export default function Concierges() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                          onClick={() => setEditConciergeId(concierge.id)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -244,6 +278,7 @@ export default function Concierges() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                          onClick={() => setDeleteConciergeId(concierge.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -261,6 +296,35 @@ export default function Concierges() {
           onOpenChange={setShowAddDialog}
           onSuccess={fetchConcierges}
         />
+
+        {editConciergeId && (
+          <EditConciergeDialog
+            open={!!editConciergeId}
+            onOpenChange={(open) => !open && setEditConciergeId(null)}
+            onSuccess={fetchConcierges}
+            conciergeId={editConciergeId}
+          />
+        )}
+
+        <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && setDeleteConciergeId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+              <AlertDialogDescription>
+                Êtes-vous sûr de vouloir supprimer ce concierge ? Cette action est irréversible.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConcierge}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

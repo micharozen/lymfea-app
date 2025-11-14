@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,7 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
@@ -47,10 +47,11 @@ const formSchema = z.object({
   profile_image: z.string().optional(),
 });
 
-interface AddConciergeDialogProps {
+interface EditConciergeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  conciergeId: string;
 }
 
 const hotels = [
@@ -77,8 +78,9 @@ const countryCodes = [
   { code: "+1", country: "US" },
 ];
 
-export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConciergeDialogProps) {
+export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId }: EditConciergeDialogProps) {
   const [profileImage, setProfileImage] = useState<string>("");
+  const [loading, setLoading] = useState(true);
   const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -94,28 +96,75 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     },
   });
 
+  useEffect(() => {
+    if (open && conciergeId) {
+      loadConcierge();
+    }
+  }, [open, conciergeId]);
+
+  const loadConcierge = async () => {
+    try {
+      setLoading(true);
+      const { data: concierge, error } = await supabase
+        .from("concierges")
+        .select(`
+          *,
+          hotels:concierge_hotels(hotel_id)
+        `)
+        .eq("id", conciergeId)
+        .single();
+
+      if (error) throw error;
+
+      const hotelIds = concierge.hotels?.map((h: any) => h.hotel_id) || [];
+      
+      form.reset({
+        first_name: concierge.first_name,
+        last_name: concierge.last_name,
+        email: concierge.email,
+        phone: concierge.phone,
+        country_code: concierge.country_code,
+        hotel_ids: hotelIds,
+        profile_image: concierge.profile_image || "",
+      });
+      
+      setProfileImage(concierge.profile_image || "");
+    } catch (error: any) {
+      toast.error("Erreur lors du chargement du concierge");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Créer d'abord le concierge
-      const { data: concierge, error: conciergeError } = await supabase
+      // Mettre à jour le concierge
+      const { error: conciergeError } = await supabase
         .from("concierges")
-        .insert({
+        .update({
           first_name: values.first_name,
           last_name: values.last_name,
           email: values.email,
           phone: values.phone,
           country_code: values.country_code,
           profile_image: profileImage || null,
-          status: "En attente",
         })
-        .select()
-        .single();
+        .eq("id", conciergeId);
 
       if (conciergeError) throw conciergeError;
 
-      // Ensuite, créer les associations avec les hôtels
+      // Supprimer les anciennes associations
+      const { error: deleteError } = await supabase
+        .from("concierge_hotels")
+        .delete()
+        .eq("concierge_id", conciergeId);
+
+      if (deleteError) throw deleteError;
+
+      // Créer les nouvelles associations
       const hotelAssociations = values.hotel_ids.map((hotel_id) => ({
-        concierge_id: concierge.id,
+        concierge_id: conciergeId,
         hotel_id,
       }));
 
@@ -125,13 +174,11 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
       if (hotelsError) throw hotelsError;
 
-      toast.success("Concierge ajouté avec succès");
-      form.reset();
-      setProfileImage("");
+      toast.success("Concierge modifié avec succès");
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Erreur lors de l'ajout du concierge");
+      toast.error("Erreur lors de la modification du concierge");
       console.error(error);
     }
   };
@@ -152,11 +199,21 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     return `${selectedIds.length} hôtels sélectionnés`;
   };
 
+  if (loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <p className="text-center py-8">Chargement...</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Ajouter un concierge</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Modifier le concierge</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -314,7 +371,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                 Annuler
               </Button>
               <Button type="submit" className="bg-foreground text-background hover:bg-foreground/90">
-                Suivant
+                Enregistrer
               </Button>
             </div>
           </form>
