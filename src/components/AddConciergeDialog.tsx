@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -80,6 +80,8 @@ const countryCodes = [
 export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConciergeDialogProps) {
   const [profileImage, setProfileImage] = useState<string>("");
   const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -136,6 +138,46 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Le fichier doit être une image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 5MB");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      setProfileImage(publicUrl);
+      toast.success("Image téléchargée avec succès");
+    } catch (error: any) {
+      toast.error("Erreur lors du téléchargement de l'image");
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const toggleHotel = (hotelId: string, currentValue: string[]) => {
     const newHotels = currentValue.includes(hotelId)
       ? currentValue.filter((id) => id !== hotelId)
@@ -172,8 +214,21 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                     </svg>
                   </AvatarFallback>
                 </Avatar>
-                <Button type="button" variant="outline" size="sm">
-                  Télécharger une image
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? "Téléchargement..." : "Télécharger une image"}
                 </Button>
               </div>
             </div>
