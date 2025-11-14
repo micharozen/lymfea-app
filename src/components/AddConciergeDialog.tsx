@@ -128,12 +128,11 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     }
   };
 
-  const toggleHotel = (hotelId: string) => {
-    const currentHotels = form.watch("hotel_ids");
-    const newHotels = currentHotels.includes(hotelId)
-      ? currentHotels.filter((id) => id !== hotelId)
-      : [...currentHotels, hotelId];
-    form.setValue("hotel_ids", newHotels);
+  const toggleHotel = (hotelId: string, currentValue: string[]) => {
+    const newHotels = currentValue.includes(hotelId)
+      ? currentValue.filter((id) => id !== hotelId)
+      : [...currentValue, hotelId];
+    return newHotels;
   };
 
   return (
@@ -249,7 +248,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                       <div
                         key={hotel.id}
                         className="flex items-center gap-3 p-3 border rounded-md hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => toggleHotel(hotel.id)}
+                        onClick={() => field.onChange(toggleHotel(hotel.id, field.value))}
                       >
                         <img
                           src={hotel.image}
@@ -259,7 +258,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                         <span className="flex-1 text-sm">{hotel.name}</span>
                         <Checkbox
                           checked={field.value.includes(hotel.id)}
-                          onCheckedChange={() => toggleHotel(hotel.id)}
+                          onCheckedChange={() => field.onChange(toggleHotel(hotel.id, field.value))}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </div>
