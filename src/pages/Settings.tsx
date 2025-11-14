@@ -417,12 +417,22 @@ export default function Settings() {
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-foreground mb-4">Admin</h2>
           
-          <div className="relative w-64 mb-6">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher"
-              className="pl-10"
-            />
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher"
+                className="pl-10"
+              />
+            </div>
+
+            <Button 
+              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+              onClick={handleOpenAddDialog}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un admin
+            </Button>
           </div>
         </div>
 
@@ -431,17 +441,7 @@ export default function Settings() {
             <TableHeader>
               <TableRow className="border-b border-border">
                 <TableHead className="text-muted-foreground font-normal py-4">
-                  <div className="flex items-center gap-3">
-                    <span>Nom</span>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 hover:bg-muted"
-                      onClick={handleOpenAddDialog}
-                    >
-                      <Plus className="h-4 w-4 text-foreground" />
-                    </Button>
-                  </div>
+                  Nom
                 </TableHead>
                 <TableHead className="text-muted-foreground font-normal py-4">
                   <div className="flex items-center gap-2">
