@@ -57,6 +57,14 @@ const SKILLS_OPTIONS = [
   { value: "beauty", label: "💅 Beauté" },
 ];
 
+const BOXES_OPTIONS = [
+  { value: "box1", label: "Box 1" },
+  { value: "box2", label: "Box 2" },
+  { value: "box3", label: "Box 3" },
+  { value: "box4", label: "Box 4" },
+  { value: "box5", label: "Box 5" },
+];
+
 export default function EditHairDresserDialog({
   open,
   onOpenChange,
@@ -70,13 +78,18 @@ export default function EditHairDresserDialog({
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     hairdresser.skills || []
   );
+  const [selectedBoxes, setSelectedBoxes] = useState<string[]>(
+    hairdresser.boxes ? hairdresser.boxes.split(", ").map(b => {
+      const boxMatch = b.match(/box(\d+)/i);
+      return boxMatch ? `box${boxMatch[1]}` : b;
+    }) : []
+  );
   const [formData, setFormData] = useState({
     first_name: hairdresser.first_name,
     last_name: hairdresser.last_name,
     email: hairdresser.email,
     country_code: hairdresser.country_code,
     phone: hairdresser.phone,
-    boxes: hairdresser.boxes || "",
     status: hairdresser.status,
   });
 
@@ -89,13 +102,18 @@ export default function EditHairDresserDialog({
         email: hairdresser.email,
         country_code: hairdresser.country_code,
         phone: hairdresser.phone,
-        boxes: hairdresser.boxes || "",
         status: hairdresser.status,
       });
       setSelectedHotels(
         hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
       );
       setSelectedSkills(hairdresser.skills || []);
+      setSelectedBoxes(
+        hairdresser.boxes ? hairdresser.boxes.split(", ").map(b => {
+          const boxMatch = b.match(/box(\d+)/i);
+          return boxMatch ? `box${boxMatch[1]}` : b;
+        }) : []
+      );
     }
   }, [open, hairdresser]);
 
@@ -124,7 +142,7 @@ export default function EditHairDresserDialog({
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        boxes: formData.boxes || null,
+        boxes: selectedBoxes.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
       })
@@ -283,15 +301,49 @@ export default function EditHairDresserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="boxes">Box</Label>
-            <Input
-              id="boxes"
-              value={formData.boxes}
-              onChange={(e) =>
-                setFormData({ ...formData, boxes: e.target.value })
-              }
-              placeholder="Ex: Box 1, Box 2"
-            />
+            <Label>Box</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between font-normal"
+                >
+                  <span>
+                    {selectedBoxes.length === 0
+                      ? "Sélectionner des boxes"
+                      : `${selectedBoxes.length} box(es) sélectionnée(s)`}
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[350px] p-0" align="start">
+                <div className="p-3 space-y-2">
+                  {BOXES_OPTIONS.map((box) => (
+                    <div
+                      key={box.value}
+                      className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                    >
+                      <Label htmlFor={`box-${box.value}`} className="flex-1 cursor-pointer font-normal">
+                        {box.label}
+                      </Label>
+                      <Checkbox
+                        id={`box-${box.value}`}
+                        checked={selectedBoxes.includes(box.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedBoxes([...selectedBoxes, box.value]);
+                          } else {
+                            setSelectedBoxes(
+                              selectedBoxes.filter((b) => b !== box.value)
+                            );
+                          }
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
