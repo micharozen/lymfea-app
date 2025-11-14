@@ -63,8 +63,11 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
 
-    // Build login URL (fallback to localhost in dev)
-    const appUrl = (Deno.env.get("SITE_URL") || "http://localhost:8080").replace(/\/$/, "");
+    // Build login URL using the production URL
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    // Extract the project reference from the Supabase URL to build the app URL
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
+    const appUrl = `https://${projectRef}.lovableproject.com`;
     const loginUrl = `${appUrl}/login`;
 
     // Generate a secure password
