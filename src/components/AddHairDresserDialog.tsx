@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +64,7 @@ export default function AddHairDresserDialog({
   const [selectedBoxes, setSelectedBoxes] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -98,14 +99,19 @@ export default function AddHairDresserDialog({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Veuillez sélectionner une image");
+      toast.error("Le fichier doit être une image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("L'image ne doit pas dépasser 5MB");
       return;
     }
 
     setUploading(true);
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -199,27 +205,31 @@ export default function AddHairDresserDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Photo de profil</Label>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                {profileImage ? (
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <Avatar className="w-full h-full">
-                    <AvatarFallback>
-                      {formData.first_name[0]}{formData.last_name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-              <div className="flex-1">
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={uploading}
-                />
-                {uploading && <p className="text-sm text-muted-foreground mt-1">Téléchargement...</p>}
-              </div>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={profileImage || ""} />
+                <AvatarFallback className="bg-muted">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                  </svg>
+                </AvatarFallback>
+              </Avatar>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? "Téléchargement..." : "Télécharger une image"}
+              </Button>
             </div>
           </div>
 
