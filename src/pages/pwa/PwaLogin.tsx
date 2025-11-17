@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Command,
   CommandEmpty,
@@ -72,13 +73,21 @@ const PwaLogin = () => {
 
     setLoading(true);
     try {
-      // TODO: Implement OTP sending logic with Twilio
+      const { error } = await supabase.functions.invoke('send-otp', {
+        body: { 
+          phoneNumber: phone,
+          countryCode: countryCode 
+        }
+      });
+      
+      if (error) throw error;
+      
       setStep("otp");
       setTimer(91);
       setCanResend(false);
       toast.success("Un code de vérification a été envoyé");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Erreur lors de l'envoi du code");
     } finally {
       setLoading(false);
     }
@@ -89,13 +98,22 @@ const PwaLogin = () => {
     
     setLoading(true);
     try {
-      // TODO: Implement OTP resending logic
+      const { error } = await supabase.functions.invoke('send-otp', {
+        body: { 
+          phoneNumber: phone,
+          countryCode: countryCode 
+        }
+      });
+      
+      if (error) throw error;
+      
       setTimer(91);
       setCanResend(false);
       setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
       toast.success("Un nouveau code a été envoyé");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Erreur lors de l'envoi du code");
     } finally {
       setLoading(false);
     }
@@ -110,10 +128,39 @@ const PwaLogin = () => {
 
     setLoading(true);
     try {
-      // TODO: Implement OTP verification
-      navigate("/pwa/onboarding");
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: { 
+          phoneNumber: phone,
+          countryCode: countryCode,
+          code: fullOtp 
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (!data.success) {
+        toast.error("Code invalide ou expiré");
+        return;
+      }
+
+      // Sign in with the session
+      const { error: signInError } = await supabase.auth.setSession({
+        access_token: data.session.properties.access_token,
+        refresh_token: data.session.properties.refresh_token,
+      });
+
+      if (signInError) throw signInError;
+
+      toast.success("Connexion réussie");
+      
+      // Redirect based on hairdresser status
+      if (data.hairdresser.status === "En attente") {
+        navigate("/pwa/onboarding");
+      } else {
+        navigate("/pwa/dashboard");
+      }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Code invalide");
     } finally {
       setLoading(false);
     }
