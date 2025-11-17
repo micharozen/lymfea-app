@@ -104,9 +104,10 @@ export default function EditBookingDialog({
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("En attente");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [activeTab, setActiveTab] = useState("info");
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -297,7 +298,7 @@ export default function EditBookingDialog({
           <DialogTitle>Modifier la réservation</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <Tabs defaultValue="info" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full grid grid-cols-2">
               <TabsTrigger value="info">Informations</TabsTrigger>
               <TabsTrigger value="prestations">Prestations</TabsTrigger>
@@ -323,15 +324,16 @@ export default function EditBookingDialog({
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-status">Statut *</Label>
-                  <Select value={status} onValueChange={setStatus}>
+                  <Select value={status} onValueChange={setStatus} disabled>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Assigned">Assigned</SelectItem>
-                      <SelectItem value="Ongoing">Ongoing</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                      <SelectItem value="Canceled">Canceled</SelectItem>
+                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="Assigné">Assigné</SelectItem>
+                      <SelectItem value="En cours">En cours</SelectItem>
+                      <SelectItem value="Terminé">Terminé</SelectItem>
+                      <SelectItem value="Annulé">Annulé</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -444,6 +446,15 @@ export default function EditBookingDialog({
                   onChange={(e) => setRoomNumber(e.target.value)}
                   placeholder="1002"
                 />
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  type="button" 
+                  onClick={() => setActiveTab("prestations")}
+                >
+                  Suivant
+                </Button>
               </div>
             </TabsContent>
 
