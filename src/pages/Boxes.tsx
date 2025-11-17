@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import { Search, Pencil, Trash2, Plus } from "lucide-react";
 import { AddBoxDialog } from "@/components/AddBoxDialog";
 import { EditBoxDialog } from "@/components/EditBoxDialog";
 import {
@@ -96,6 +96,7 @@ export default function Boxes() {
             📦 Boxes
           </h1>
           <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
             Ajouter une box
           </Button>
         </div>
