@@ -92,6 +92,9 @@ export default function Booking() {
     return Array.from({ length: 24 }, (_, i) => i); // 0 to 23
   }, []);
 
+  // Generate 15-minute slots within each hour for calendar display
+  const quarterHours = ['00', '15', '30', '45'];
+
   // Generate 15-minute time slots for booking selection (24h)
   const timeSlots = useMemo(() => {
     const slots = [];
@@ -338,21 +341,31 @@ export default function Booking() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative h-[40px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
-                                  bookingsInHour.length > 0
-                                    ? "bg-primary/5 hover:bg-primary/10"
-                                    : isToday
-                                    ? "bg-primary/[0.02] hover:bg-muted/30"
-                                    : "hover:bg-muted/30"
+                                className={`relative h-[40px] border-r border-border last:border-r-0 ${
+                                  isToday ? "bg-primary/[0.02]" : ""
                                 }`}
-                                onClick={() => handleCalendarClick(day, hourStr)}
                               >
+                                {/* Diviser en 4 créneaux de 15 minutes */}
+                                <div className="flex flex-col h-full">
+                                  {quarterHours.map((quarter) => {
+                                    const timeStr = `${hour.toString().padStart(2, '0')}:${quarter}`;
+                                    return (
+                                      <div
+                                        key={quarter}
+                                        className="flex-1 cursor-pointer transition-colors hover:bg-muted/30 border-b border-border/30 last:border-b-0"
+                                        onClick={() => handleCalendarClick(day, timeStr)}
+                                      />
+                                    );
+                                  })}
+                                </div>
+
+                                {/* Réservations affichées par-dessus les créneaux */}
                                 {bookingsInHour.length > 0 && (
-                                  <div className="space-y-0.5 h-full overflow-y-auto">
+                                  <div className="absolute inset-0 p-1 space-y-0.5 overflow-y-auto pointer-events-none">
                                     {bookingsInHour.map((booking) => (
                                       <div
                                         key={booking.id}
-                                        className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                        className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors pointer-events-auto"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setSelectedBooking(booking);
