@@ -24,8 +24,9 @@ serve(async (req) => {
 
     const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
     const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const TWILIO_VERIFY_SERVICE_SID = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
     
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
+    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_VERIFY_SERVICE_SID) {
       console.error('Twilio credentials not configured');
       return new Response(
         JSON.stringify({ error: 'Service configuration error' }),
@@ -39,9 +40,8 @@ serve(async (req) => {
     console.log('Verifying OTP for:', fullPhoneNumber);
 
     // Use Twilio Verify API to check OTP
-    const verifyServiceSid = 'VA8c17021b322ef165a13c200849748d2e';
     const response = await fetch(
-      `https://verify.twilio.com/v2/Services/${verifyServiceSid}/VerificationCheck`,
+      `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`,
       {
         method: 'POST',
         headers: {
