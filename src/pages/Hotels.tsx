@@ -195,8 +195,8 @@ export default function Hotels() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="Active">Actif</SelectItem>
-              <SelectItem value="Inactive">Inactif</SelectItem>
+              <SelectItem value="Actif">Actif</SelectItem>
+              <SelectItem value="En attente">En attente</SelectItem>
             </SelectContent>
           </Select>
 
@@ -302,10 +302,11 @@ export default function Hotels() {
                     </TableCell>
                     <TableCell className="align-middle text-center">
                       <Badge 
-                        variant={hotel.status === "Active" ? "default" : "secondary"}
+                        variant={hotel.status === "Actif" ? "default" : "secondary"}
                         className={cn(
                           "font-medium",
-                          hotel.status === "Active" && "bg-green-500/10 text-green-700 hover:bg-green-500/20"
+                          hotel.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                          hotel.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
                         )}
                       >
                         {hotel.status}

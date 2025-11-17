@@ -41,7 +41,7 @@ const formSchema = z.object({
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
   hairdresser_commission: z.string().default("0"),
-  status: z.string().default("Active"),
+  status: z.string().default("Actif"),
 });
 
 interface AddHotelDialogProps {
@@ -70,7 +70,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
       vat: "20",
       hotel_commission: "0",
       hairdresser_commission: "0",
-      status: "Active",
+      status: "Actif",
     },
   });
 
@@ -400,16 +400,16 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Active">
+                      <SelectItem value="Actif">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                          Active
+                          Actif
                         </div>
                       </SelectItem>
-                      <SelectItem value="Inactive">
+                      <SelectItem value="En attente">
                         <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-gray-500" />
-                          Inactive
+                          <div className="h-2 w-2 rounded-full bg-orange-500" />
+                          En attente
                         </div>
                       </SelectItem>
                     </SelectContent>
