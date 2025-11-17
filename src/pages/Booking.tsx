@@ -348,7 +348,7 @@ export default function Booking() {
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
-                                  <div className="space-y-0.5 h-full overflow-y-auto">
+                                  <div className="space-y-0.5 h-full">
                                     {bookingsInHour.map((booking) => (
                                       <div
                                         key={booking.id}
