@@ -108,7 +108,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      // Créer d'abord le concierge
+      // Créer d'abord le concierge dans la table
       const { data: concierge, error: conciergeError } = await supabase
         .from("concierges")
         .insert({
@@ -125,7 +125,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
       if (conciergeError) throw conciergeError;
 
-      // Ensuite, créer les associations avec les hôtels
+      // Créer les associations avec les hôtels
       const hotelAssociations = values.hotel_ids.map((hotel_id) => ({
         concierge_id: concierge.id,
         hotel_id,
@@ -137,7 +137,28 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
       if (hotelsError) throw hotelsError;
 
-      toast.success("Concierge ajouté avec succès");
+      // Appeler l'edge function pour envoyer l'email d'invitation
+      const { error: inviteError } = await supabase.functions.invoke(
+        "invite-concierge",
+        {
+          body: {
+            email: values.email,
+            firstName: values.first_name,
+            lastName: values.last_name,
+            phone: values.phone,
+            countryCode: values.country_code,
+            hotelIds: values.hotel_ids,
+          },
+        }
+      );
+
+      if (inviteError) {
+        console.error("Erreur lors de l'envoi de l'invitation:", inviteError);
+        toast.error("Concierge créé mais l'email d'invitation n'a pas pu être envoyé");
+      } else {
+        toast.success("Concierge ajouté et invitation envoyée avec succès");
+      }
+
       form.reset();
       setProfileImage("");
       onSuccess();
