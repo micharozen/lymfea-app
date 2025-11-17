@@ -1,94 +1,53 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Scissors, Calendar, Star, Clock } from "lucide-react";
-import oomLogo from "@/assets/oom-monogram.svg";
 
 const PwaWelcome = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header with Logo */}
-      <div className="bg-black text-white p-6 text-center">
-        <img 
-          src={oomLogo} 
-          alt="OOM" 
-          className="w-20 h-20 mx-auto mb-4"
-        />
-        <h1 className="text-2xl font-bold">Beauty Room Services</h1>
-        <p className="text-sm text-gray-300 mt-2">
-          Votre espace professionnel pour gérer vos prestations
-        </p>
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1974')",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-6">
-        {/* Features */}
-        <div className="space-y-4">
-          <Card className="p-4 flex items-start gap-4">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-black text-white flex-shrink-0">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Gérez vos réservations</h3>
-              <p className="text-sm text-muted-foreground">
-                Consultez et gérez toutes vos réservations en temps réel
-              </p>
-            </div>
-          </Card>
-
-          <Card className="p-4 flex items-start gap-4">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-black text-white flex-shrink-0">
-              <Clock className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Planning optimisé</h3>
-              <p className="text-sm text-muted-foreground">
-                Visualisez votre emploi du temps de la journée
-              </p>
-            </div>
-          </Card>
-
-          <Card className="p-4 flex items-start gap-4">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-black text-white flex-shrink-0">
-              <Scissors className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Prestations détaillées</h3>
-              <p className="text-sm text-muted-foreground">
-                Accédez aux informations complètes de chaque prestation
-              </p>
-            </div>
-          </Card>
-
-          <Card className="p-4 flex items-start gap-4">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-black text-white flex-shrink-0">
-              <Star className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Suivi en direct</h3>
-              <p className="text-sm text-muted-foreground">
-                Mettez à jour le statut de vos prestations instantanément
-              </p>
-            </div>
-          </Card>
+      <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 text-white">
+        {/* Top Text */}
+        <div className="pt-12">
+          <p className="text-sm font-light tracking-widest uppercase mb-2">
+            HELLO METAMORPHOSIS
+          </p>
         </div>
 
-        {/* CTA Button */}
-        <div className="pt-4">
+        {/* Bottom Content */}
+        <div className="pb-8 space-y-6">
+          <div className="space-y-3">
+            <h1 className="text-4xl font-bold leading-tight">
+              Beauty Room Service
+            </h1>
+            <p className="text-base text-white/90 leading-relaxed">
+              Offer a luxury hair and beauty treatment in their room directly, to client rooms. A unique concept.
+            </p>
+          </div>
+
           <Button
             onClick={() => navigate("/pwa/login")}
-            className="w-full h-14 text-lg bg-black hover:bg-gray-800"
+            className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full"
             size="lg"
           >
-            Commencer
+            Get Started
           </Button>
-        </div>
 
-        <p className="text-xs text-center text-muted-foreground px-4">
-          En continuant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité
-        </p>
+          <p className="text-xs text-center text-white/70 px-4">
+            By continuing, you agree to our <span className="underline">Terms of Use</span> and <span className="underline">Privacy Policy</span>
+          </p>
+        </div>
       </div>
     </div>
   );
