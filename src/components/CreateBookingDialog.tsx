@@ -93,6 +93,7 @@ export default function CreateBookingDialog({
   const [time, setTime] = useState(selectedTime || "");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [activeTab, setActiveTab] = useState("info");
 
   // Update date and time when props change
   useEffect(() => {
@@ -157,7 +158,7 @@ export default function CreateBookingDialog({
           room_number: data.roomNumber,
           booking_date: data.date,
           booking_time: data.time,
-          status: "Assigned",
+          status: "En attente",
           total_price: data.totalPrice,
         })
         .select()
@@ -234,6 +235,7 @@ export default function CreateBookingDialog({
     setTime(selectedTime || "");
     setSelectedTreatments([]);
     setTotalPrice(0);
+    setActiveTab("info");
     onOpenChange(false);
   };
 
@@ -252,7 +254,7 @@ export default function CreateBookingDialog({
           <DialogTitle>Créer une réservation</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <Tabs defaultValue="info" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full grid grid-cols-2">
               <TabsTrigger value="info">Informations</TabsTrigger>
               <TabsTrigger value="prestations">Prestations</TabsTrigger>
@@ -380,6 +382,15 @@ export default function CreateBookingDialog({
                   onChange={(e) => setRoomNumber(e.target.value)}
                   placeholder="1002"
                 />
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button 
+                  type="button" 
+                  onClick={() => setActiveTab("prestations")}
+                >
+                  Suivant
+                </Button>
               </div>
             </TabsContent>
 
