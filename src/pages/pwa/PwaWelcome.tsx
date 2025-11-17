@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import oomLogo from "@/assets/oom-monogram.svg";
+import welcomeBg from "@/assets/welcome-bg.png";
 
 const PwaWelcome = () => {
   const navigate = useNavigate();
@@ -10,7 +12,7 @@ const PwaWelcome = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center"
         style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=1974')",
+          backgroundImage: `url(${welcomeBg})`,
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
@@ -18,11 +20,13 @@ const PwaWelcome = () => {
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 text-white">
-        {/* Top Text */}
-        <div className="pt-12">
-          <p className="text-sm font-light tracking-widest uppercase mb-2">
-            HELLO METAMORPHOSIS
-          </p>
+        {/* Top Logo */}
+        <div className="pt-12 flex justify-center">
+          <img 
+            src={oomLogo} 
+            alt="OOM" 
+            className="w-16 h-16"
+          />
         </div>
 
         {/* Bottom Content */}
