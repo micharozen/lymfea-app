@@ -151,19 +151,38 @@ export default function Booking() {
     return now.getHours() === hour;
   };
 
+  const statusTranslations: Record<string, string> = {
+    "Assigned": "Assigné",
+    "Ongoing": "En cours",
+    "Completed": "Complété",
+    "Canceled": "Annulé",
+    "Pending": "En attente",
+    "En attente": "En attente",
+  };
+
+  const getTranslatedStatus = (status: string) => {
+    return statusTranslations[status] || status;
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Assigned":
-        return "bg-blue-500/10 text-blue-700 hover:bg-blue-500/10";
-      case "Ongoing":
-        return "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10";
-      case "Completed":
-        return "bg-green-500/10 text-green-700 hover:bg-green-500/10";
-      case "Canceled":
-        return "bg-red-500/10 text-red-700 hover:bg-red-500/10";
-      default:
-        return "bg-gray-500/10 text-gray-700 hover:bg-gray-500/10";
+    const normalizedStatus = status.toLowerCase();
+    
+    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
+      return "bg-blue-500/10 text-blue-700 hover:bg-blue-500/10";
     }
+    if (normalizedStatus.includes("ongoing") || normalizedStatus.includes("en cours")) {
+      return "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10";
+    }
+    if (normalizedStatus.includes("complet")) {
+      return "bg-green-500/10 text-green-700 hover:bg-green-500/10";
+    }
+    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
+      return "bg-red-500/10 text-red-700 hover:bg-red-500/10";
+    }
+    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
+      return "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10";
+    }
+    return "bg-gray-500/10 text-gray-700 hover:bg-gray-500/10";
   };
 
   return (
@@ -217,10 +236,11 @@ export default function Booking() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="Assigned">Assigned</SelectItem>
-                    <SelectItem value="Ongoing">Ongoing</SelectItem>
-                    <SelectItem value="Completed">Completed</SelectItem>
-                    <SelectItem value="Canceled">Canceled</SelectItem>
+                    <SelectItem value="Assigned">Assigné</SelectItem>
+                    <SelectItem value="Ongoing">En cours</SelectItem>
+                    <SelectItem value="Completed">Complété</SelectItem>
+                    <SelectItem value="Canceled">Annulé</SelectItem>
+                    <SelectItem value="Pending">En attente</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -363,7 +383,7 @@ export default function Booking() {
                                           {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
                                         </div>
                                         <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
-                                          {booking.status}
+                                          {getTranslatedStatus(booking.status)}
                                         </Badge>
                                       </div>
                                     ))}
@@ -390,40 +410,47 @@ export default function Booking() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>#</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Heure</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Téléphone</TableHead>
-                    <TableHead>Prix</TableHead>
-                    <TableHead>Hôtel</TableHead>
-                    <TableHead>Coiffeur</TableHead>
+                  <TableRow className="border-b">
+                    <TableHead className="font-semibold text-foreground">Réservation</TableHead>
+                    <TableHead className="font-semibold text-foreground">Date</TableHead>
+                    <TableHead className="font-semibold text-foreground">Heure</TableHead>
+                    <TableHead className="font-semibold text-foreground">Statut</TableHead>
+                    <TableHead className="font-semibold text-foreground">Client</TableHead>
+                    <TableHead className="font-semibold text-foreground">Téléphone</TableHead>
+                    <TableHead className="font-semibold text-foreground">Prix total</TableHead>
+                    <TableHead className="font-semibold text-foreground">Hôtel</TableHead>
+                    <TableHead className="font-semibold text-foreground">Coiffeur</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredBookings?.map((booking, index) => (
-                    <TableRow key={booking.id}>
-                      <TableCell>#{index + 1}</TableCell>
-                      <TableCell>
+                    <TableRow 
+                      key={booking.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors border-b"
+                      onClick={() => {
+                        setSelectedBooking(booking);
+                        setIsEditDialogOpen(true);
+                      }}
+                    >
+                      <TableCell className="font-medium">#{index + 1}</TableCell>
+                      <TableCell className="text-muted-foreground">
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-muted-foreground">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(booking.status)}>
-                          {booking.status}
+                          {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell>{booking.phone}</TableCell>
-                      <TableCell>{booking.total_price}€</TableCell>
-                      <TableCell>{booking.hotel_name || "-"}</TableCell>
-                      <TableCell>{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{booking.phone}</TableCell>
+                      <TableCell className="font-semibold">{booking.total_price}€</TableCell>
+                      <TableCell className="text-muted-foreground">{booking.hotel_name || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{booking.hairdresser_name || "-"}</TableCell>
                     </TableRow>
                   ))}
                   {!filteredBookings?.length && (
