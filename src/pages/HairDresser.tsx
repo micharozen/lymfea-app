@@ -318,9 +318,9 @@ export default function HairDresser() {
                       <Badge
                         variant={hairdresser.status === "Actif" ? "default" : "secondary"}
                         className={cn(
-                          hairdresser.status === "Actif"
-                            ? "bg-green-500 hover:bg-green-600"
-                            : "bg-orange-500 hover:bg-orange-600"
+                          "font-medium",
+                          hairdresser.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                          hairdresser.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
                         )}
                       >
                         {hairdresser.status}
