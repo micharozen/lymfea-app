@@ -129,10 +129,14 @@ export default function TreatmentMenus() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-[1600px] mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             💆 Menus de soins
           </h1>
+          <Button onClick={() => setAddDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une prestation
+          </Button>
         </div>
 
         <div className="bg-card rounded-lg border border-border">
@@ -190,19 +194,7 @@ export default function TreatmentMenus() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[300px]">
-                  <div className="flex items-center justify-between">
-                    Prestation
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setAddDialogOpen(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableHead>
+                <TableHead className="w-[300px]">Prestation</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-center">Durée</TableHead>
                 <TableHead className="text-center">Tarif</TableHead>
