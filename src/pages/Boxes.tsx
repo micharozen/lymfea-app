@@ -4,6 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,6 +36,8 @@ import {
 
 export default function Boxes() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -42,6 +51,19 @@ export default function Boxes() {
         .from("boxes")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: hotels } = useQuery({
+    queryKey: ["hotels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("id, name")
+        .order("name");
 
       if (error) throw error;
       return data;
@@ -66,10 +88,14 @@ export default function Boxes() {
 
   const filteredBoxes = boxes?.filter((box) => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       box.name?.toLowerCase().includes(searchLower) ||
-      box.box_model?.toLowerCase().includes(searchLower)
-    );
+      box.box_model?.toLowerCase().includes(searchLower);
+    
+    const matchesStatus = statusFilter === "all" || box.status === statusFilter;
+    const matchesHotel = hotelFilter === "all" || box.hotel_id === hotelFilter;
+
+    return matchesSearch && matchesStatus && matchesHotel;
   });
 
   const handleEdit = (box: any) => {
@@ -103,14 +129,41 @@ export default function Boxes() {
 
         <div className="bg-card rounded-lg border border-border">
           <div className="p-4 border-b border-border">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex gap-4 flex-wrap items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Tous les statuts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="Actif">Actif</SelectItem>
+                  <SelectItem value="Inactif">Inactif</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tous les hôtels" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  {hotels?.map((hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
