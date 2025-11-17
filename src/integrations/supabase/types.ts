@@ -56,6 +56,96 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_treatments: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          treatment_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          treatment_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          treatment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_treatments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_treatments_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bookings: {
+        Row: {
+          booking_date: string
+          booking_time: string
+          client_first_name: string
+          client_last_name: string
+          created_at: string
+          hairdresser_id: string | null
+          hairdresser_name: string | null
+          hotel_id: string
+          hotel_name: string | null
+          id: string
+          phone: string
+          room_number: string | null
+          status: string
+          total_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          booking_date: string
+          booking_time: string
+          client_first_name: string
+          client_last_name: string
+          created_at?: string
+          hairdresser_id?: string | null
+          hairdresser_name?: string | null
+          hotel_id: string
+          hotel_name?: string | null
+          id?: string
+          phone: string
+          room_number?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string
+          booking_time?: string
+          client_first_name?: string
+          client_last_name?: string
+          created_at?: string
+          hairdresser_id?: string | null
+          hairdresser_name?: string | null
+          hotel_id?: string
+          hotel_name?: string | null
+          id?: string
+          phone?: string
+          room_number?: string | null
+          status?: string
+          total_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       boxes: {
         Row: {
           box_id: string
