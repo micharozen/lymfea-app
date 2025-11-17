@@ -142,12 +142,13 @@ serve(async (req: Request): Promise<Response> => {
     const existingUserId = await findUserByEmail(email);
     console.log('Existing user check:', existingUserId ? 'Found' : 'Not found');
 
-    // Always generate a password for concierge invitations
-    const generatedPassword = generatePassword();
+    // Variables to track user creation
+    let generatedPassword: string | null = null;
     let targetUserId: string | null = null;
 
     // Find or create user
     if (!existingUserId) {
+      generatedPassword = generatePassword();
       const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password: generatedPassword,
@@ -160,17 +161,8 @@ serve(async (req: Request): Promise<Response> => {
       targetUserId = created.user?.id || null;
       console.log('User created successfully:', targetUserId);
     } else {
-      // User exists, reset their password
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingUserId,
-        { password: generatedPassword }
-      );
-      if (updateError) {
-        console.error('Error updating user password:', updateError);
-        throw updateError;
-      }
       targetUserId = existingUserId;
-      console.log('User already exists with id, password reset:', existingUserId);
+      console.log('User already exists with id:', existingUserId);
     }
 
     if (!targetUserId) {
@@ -204,8 +196,9 @@ serve(async (req: Request): Promise<Response> => {
       .in('id', hotelIds);
     const hotelNames = hotels?.map(h => h.name).join(', ') || '';
 
-    // Always send credentials email for concierge invitations
-    const html = `
+    let html = '';
+    if (generatedPassword) {
+      html = `
         <!DOCTYPE html>
         <html>
           <head>
@@ -260,6 +253,44 @@ serve(async (req: Request): Promise<Response> => {
           </body>
         </html>
       `;
+    } else {
+      // Existing user: provide recovery link
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: loginUrl }
+      } as any);
+      if (linkError) console.error('generateLink error:', linkError.message);
+      const recoveryUrl = (linkData as any)?.properties?.action_link || loginUrl;
+
+      html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Accès activé - OOM App</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Accès concierge activé</h1>
+            </div>
+            <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+              <p>Bonjour <strong>${firstName} ${lastName}</strong>,</p>
+              <p>Votre accès en tant que concierge pour ${hotelNames} est désormais actif.</p>
+              <p>Connectez-vous avec votre mot de passe existant, ou réinitialisez-le si nécessaire :</p>
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="${recoveryUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Réinitialiser mon mot de passe</a>
+              </div>
+              <p style="font-size: 14px; color: #999;">Si vous n'avez pas demandé cet accès, ignorez cet email.</p>
+            </div>
+            <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
+              <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+            </div>
+          </body>
+        </html>
+      `;
+    }
 
     // Send the email
     const resendResponse = await fetch('https://api.resend.com/emails', {
