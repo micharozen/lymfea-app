@@ -12,6 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download } from "lucide-react";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
@@ -42,6 +49,9 @@ export default function Booking() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
+  const [invoiceHTML, setInvoiceHTML] = useState("");
+  const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
 
   const { data: bookings } = useQuery({
     queryKey: ["bookings"],
@@ -509,35 +519,16 @@ export default function Booking() {
 
                               if (error) throw error;
 
-                              // Dynamic import of html2pdf
-                              const html2pdf = (await import('html2pdf.js')).default;
-
-                              // Create temporary div with the invoice HTML
-                              const element = document.createElement('div');
-                              element.innerHTML = data.html;
-                              document.body.appendChild(element);
-
-                              // Generate PDF and download
-                              html2pdf()
-                                .set({
-                                  margin: 0,
-                                  filename: `invoice-${data.bookingId}.pdf`,
-                                  image: { type: 'jpeg', quality: 0.98 },
-                                  html2canvas: { scale: 2, letterRendering: true },
-                                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                                })
-                                .from(element)
-                                .save()
-                                .then(() => {
-                                  document.body.removeChild(element);
-                                });
+                              setInvoiceHTML(data.html);
+                              setInvoiceBookingId(data.bookingId);
+                              setIsInvoicePreviewOpen(true);
                             } catch (error) {
                               console.error('Error generating invoice:', error);
                             }
                           }}
                         >
                           <FileText className="h-4 w-4 mr-2" />
-                          Download
+                          Invoice
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -617,6 +608,56 @@ export default function Booking() {
         onOpenChange={setIsEditDialogOpen}
         booking={selectedBooking}
       />
+
+      <Dialog open={isInvoicePreviewOpen} onOpenChange={setIsInvoicePreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Aperçu de la facture #{invoiceBookingId}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto border rounded-lg bg-white">
+            <div dangerouslySetInnerHTML={{ __html: invoiceHTML }} />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsInvoicePreviewOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const html2pdf = (await import('html2pdf.js')).default;
+                  
+                  const element = document.createElement('div');
+                  element.innerHTML = invoiceHTML;
+                  document.body.appendChild(element);
+
+                  html2pdf()
+                    .set({
+                      margin: 0,
+                      filename: `invoice-${invoiceBookingId}.pdf`,
+                      image: { type: 'jpeg', quality: 0.98 },
+                      html2canvas: { scale: 2, letterRendering: true },
+                      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    })
+                    .from(element)
+                    .save()
+                    .then(() => {
+                      document.body.removeChild(element);
+                      setIsInvoicePreviewOpen(false);
+                    });
+                } catch (error) {
+                  console.error('Error downloading invoice:', error);
+                }
+              }}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Télécharger PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
