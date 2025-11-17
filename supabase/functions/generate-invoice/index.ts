@@ -17,21 +17,16 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   
   const treatmentRows = treatments.map(t => `
     <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; font-size: 14px;">${t.name}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center; font-size: 14px;">1</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-size: 14px;">€${(t.price || 0).toFixed(2)}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 500; font-size: 14px;">€${(t.price || 0).toFixed(2)}</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${t.name}</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 14px;">${t.duration} min</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 500; font-size: 14px;">${t.price}€</td>
     </tr>
   `).join('');
 
   const subtotal = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
-  const vat = hotel?.vat || 0;
+  const vat = hotel?.vat || 20;
   const vatAmount = (subtotal * vat) / 100;
-  const totalWithVAT = subtotal + vatAmount;
-
-  const issueDate = new Date(booking.booking_date);
-  const dueDate = new Date(issueDate);
-  dueDate.setDate(dueDate.getDate() + 7);
+  const total = subtotal + vatAmount;
 
   return `
     <!DOCTYPE html>
@@ -42,272 +37,235 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-          font-family: 'Arial', sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
           margin: 0;
-          padding: 40px;
-          color: #000;
+          padding: 48px;
+          color: #111827;
           background: white;
-          line-height: 1.5;
-          font-size: 14px;
+          line-height: 1.6;
         }
-        .invoice-header {
-          margin-bottom: 30px;
+        .header { 
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 50px;
+          padding-bottom: 30px;
+          border-bottom: 2px solid #000;
         }
-        .invoice-title {
+        .logo-section {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .logo {
+          width: 48px;
+          height: 48px;
+          background: #000;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 700;
+          font-size: 24px;
+        }
+        .company-name {
           font-size: 28px;
-          font-weight: bold;
-          margin-bottom: 20px;
+          font-weight: 700;
+          color: #000;
+          letter-spacing: -0.5px;
         }
-        .header-info {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 30px;
+        .invoice-info { text-align: right; }
+        .invoice-title {
+          font-size: 32px;
+          font-weight: 700;
+          color: #000;
+          margin-bottom: 8px;
+          letter-spacing: -0.5px;
         }
-        .header-left, .header-right {
-          font-size: 13px;
-          line-height: 1.8;
+        .invoice-meta {
+          color: #6b7280;
+          font-size: 14px;
+          margin: 4px 0;
         }
-        .header-left strong, .header-right strong {
-          font-weight: bold;
-          display: inline-block;
-          width: 140px;
-        }
-        .addresses {
-          display: flex;
-          justify-content: space-between;
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
           margin-bottom: 40px;
         }
-        .address-block {
-          width: 48%;
+        .info-card {
+          background: #f9fafb;
+          padding: 24px;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
         }
-        .address-title {
-          font-weight: bold;
-          margin-bottom: 8px;
+        .section-title {
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 12px;
+        }
+        .info-card p {
+          margin: 6px 0;
           font-size: 14px;
         }
-        .address-content {
-          font-size: 13px;
-          line-height: 1.8;
+        .info-card .name {
+          font-weight: 600;
+          font-size: 16px;
+          color: #000;
+          margin-bottom: 8px;
+        }
+        .booking-details {
+          background: #000;
+          color: white;
+          padding: 24px;
+          border-radius: 12px;
+          margin-bottom: 32px;
+        }
+        .booking-details .section-title {
+          color: #9ca3af;
+        }
+        .booking-details p {
+          margin: 10px 0;
+          font-size: 15px;
+        }
+        .booking-details strong {
+          color: #d1d5db;
+          font-weight: 500;
+          margin-right: 8px;
         }
         table {
           width: 100%;
           border-collapse: collapse;
-          margin: 30px 0;
+          margin-top: 24px;
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid #e5e7eb;
         }
         thead {
+          background: #f9fafb;
+        }
+        th {
+          padding: 16px 14px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .summary-row {
+          background: #fafafa;
+        }
+        .summary-row td {
+          padding: 14px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .total-row {
           background: #000;
           color: white;
         }
-        thead th {
-          padding: 12px;
-          text-align: left;
-          font-weight: bold;
-          font-size: 13px;
+        .total-row td {
+          padding: 20px 14px;
+          font-size: 18px;
+          font-weight: 700;
         }
-        thead th:nth-child(2),
-        thead th:nth-child(3),
-        thead th:nth-child(4) {
-          text-align: right;
-        }
-        tbody tr {
-          border-bottom: 1px solid #e5e7eb;
-        }
-        tbody td {
-          padding: 12px;
-          font-size: 14px;
-        }
-        tbody td:nth-child(2),
-        tbody td:nth-child(3),
-        tbody td:nth-child(4) {
-          text-align: right;
-        }
-        .summary-section {
-          margin: 40px 0;
-          padding: 20px 0;
-        }
-        .summary-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          font-size: 14px;
-        }
-        .summary-row.bold {
-          font-weight: bold;
-        }
-        .signature-section {
-          margin: 50px 0;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-        }
-        .signature-box {
-          width: 200px;
+        .footer {
+          margin-top: 60px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
           text-align: center;
         }
-        .signature-line {
-          border-top: 1px solid #000;
-          margin-top: 60px;
-          padding-top: 8px;
-          font-size: 12px;
-          font-weight: bold;
-        }
-        .final-summary {
-          background: #f9fafb;
-          padding: 20px;
-          margin: 30px 0;
-        }
-        .final-summary-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 10px 0;
-          font-size: 14px;
-        }
-        .final-summary-row.total {
-          font-weight: bold;
-          font-size: 16px;
-          border-top: 2px solid #000;
-          margin-top: 10px;
-          padding-top: 15px;
-        }
-        .notes {
-          font-size: 11px;
-          color: #666;
-          margin: 20px 0;
-          line-height: 1.6;
-        }
-        .payment-details {
-          margin-top: 40px;
-          background: #f3f4f6;
-          padding: 20px;
-        }
-        .payment-title {
-          font-weight: bold;
-          font-size: 14px;
-          margin-bottom: 15px;
-        }
-        .payment-row {
-          display: flex;
-          margin-bottom: 8px;
+        .footer p {
+          color: #9ca3af;
           font-size: 13px;
+          margin: 6px 0;
         }
-        .payment-label {
-          font-weight: bold;
-          width: 150px;
-        }
-        .payment-value {
-          flex: 1;
+        .thank-you {
+          font-weight: 600;
+          color: #000;
+          font-size: 14px;
+          margin-bottom: 12px;
         }
       </style>
     </head>
     <body>
-      <div class="invoice-header">
-        <div class="invoice-title">Invoice</div>
-        
-        <div class="header-info">
-          <div class="header-left">
-            <div><strong>Invoice Number</strong>#${booking.booking_id}</div>
-            <div><strong>Issue Date</strong>${issueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-            <div><strong>Due Date</strong>${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-          </div>
-          <div class="header-right">
-            <div><strong>Room Number</strong>${booking.room_number || 'N/A'}</div>
-            <div><strong>Client Name</strong>${booking.client_first_name} ${booking.client_last_name}</div>
-          </div>
+      <div class="header">
+        <div class="logo-section">
+          <div class="logo">O</div>
+          <div class="company-name">OOM</div>
+        </div>
+        <div class="invoice-info">
+          <div class="invoice-title">INVOICE</div>
+          <p class="invoice-meta">#${booking.booking_id}</p>
+          <p class="invoice-meta">${new Date(booking.booking_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
         </div>
       </div>
 
-      <div class="addresses">
-        <div class="address-block">
-          <div class="address-title">From Oom paris</div>
-          <div class="address-content">
-            ${hotel?.address || '38 RUE DE GRENELLE'}<br>
-            ${hotel?.postal_code || '75007'} ${hotel?.city || 'Paris'}, ${hotel?.country || 'France'}<br>
-            booking@oomhotel.com
-          </div>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="section-title">Bill To</div>
+          <p class="name">${booking.client_first_name} ${booking.client_last_name}</p>
+          <p style="color: #6b7280;">${booking.phone}</p>
+          ${booking.room_number ? `<p style="color: #6b7280;">Room ${booking.room_number}</p>` : ''}
         </div>
-        <div class="address-block" style="text-align: right;">
-          <div class="address-title">To ${hotel?.name || 'TEST'}</div>
-          <div class="address-content">
-            ${hotel?.address || 'Lane 2'}<br>
-            ${hotel?.city || 'Dhaka'}, ${hotel?.country || 'Albania'}
-          </div>
+        
+        <div class="info-card">
+          <div class="section-title">Hotel</div>
+          <p class="name">${hotel?.name || booking.hotel_name || 'N/A'}</p>
+          ${hotel?.address ? `<p style="color: #6b7280;">${hotel.address}</p>` : ''}
+          ${hotel?.city ? `<p style="color: #6b7280;">${hotel.postal_code || ''} ${hotel.city}</p>` : ''}
         </div>
+      </div>
+
+      <div class="booking-details">
+        <div class="section-title">Service Details</div>
+        <p>
+          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+        <p>
+          <strong>Time:</strong> ${booking.booking_time.substring(0, 5)}
+        </p>
+        ${booking.hairdresser_name ? `<p><strong>Stylist:</strong> ${booking.hairdresser_name}</p>` : ''}
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Item</th>
-            <th style="text-align: center;">Qty</th>
-            <th style="text-align: right;">Total Price</th>
-            <th style="text-align: right;">Amount</th>
+            <th>Treatment</th>
+            <th style="text-align: center;">Duration</th>
+            <th style="text-align: right;">Price</th>
           </tr>
         </thead>
         <tbody>
           ${treatmentRows}
+          <tr class="summary-row">
+            <td colspan="2" style="text-align: right; font-weight: 600;">Subtotal</td>
+            <td style="text-align: right; font-weight: 600;">${subtotal.toFixed(2)}€</td>
+          </tr>
+          <tr class="summary-row">
+            <td colspan="2" style="text-align: right;">VAT (${vat}%)</td>
+            <td style="text-align: right;">${vatAmount.toFixed(2)}€</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2" style="text-align: right;">TOTAL</td>
+            <td style="text-align: right;">${total.toFixed(2)}€</td>
+          </tr>
         </tbody>
       </table>
 
-      <div class="summary-section">
-        <div class="summary-row bold">
-          <span>Total Amount Paid by Client (With VAT)</span>
-          <span>€${totalWithVAT.toFixed(2)}</span>
-        </div>
-        <div class="summary-row">
-          <span>VAT (${vat}% of Total Amount)</span>
-          <span>€${vatAmount.toFixed(2)}</span>
-        </div>
-        <div class="summary-row bold">
-          <span>Total Amount (Without VAT)</span>
-          <span>€${subtotal.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <div class="signature-section">
-        <div></div>
-        <div class="signature-box">
-          <div class="signature-line">CLIENT SIGNATURE</div>
-        </div>
-      </div>
-
-      <div class="final-summary">
-        <div class="final-summary-row">
-          <span>Subtotal (100% of total amount of without VAT)</span>
-          <span>€${subtotal.toFixed(2)}</span>
-        </div>
-        <div class="final-summary-row">
-          <span>VAT (Reverse Charge Applied)</span>
-          <span>€${vatAmount.toFixed(2)}</span>
-        </div>
-        <div class="final-summary-row total">
-          <span>Total Amount Due</span>
-          <span>€${totalWithVAT.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <div class="notes">
-        <strong>Notes:</strong> VAT is not charged. This is a B2B transaction and subject to the reverse mechanism under Article 196 of the EU VAT directive. 
-        Please ensure VAT is accounted for by the recipient of the service. Payment terms (within 30 days of the invoice date)
-      </div>
-
-      <div class="payment-details">
-        <div class="payment-title">PAYMENT DETAILS</div>
-        <div class="payment-row">
-          <span class="payment-label">Account Name</span>
-          <span class="payment-value">OOM PARIS</span>
-        </div>
-        <div class="payment-row">
-          <span class="payment-label">Bank Name</span>
-          <span class="payment-value">BNP PARIBAS</span>
-        </div>
-        <div class="payment-row">
-          <span class="payment-label">IBAN</span>
-          <span class="payment-value">FR76 3000 4014 1200 0108 2983 347</span>
-        </div>
-        <div class="payment-row">
-          <span class="payment-label">BIC/SWIFT</span>
-          <span class="payment-value">BNPAFRPPXXX</span>
-        </div>
+      <div class="footer">
+        <p class="thank-you">Thank you for choosing OOM</p>
+        <p>For any inquiries, please contact booking@oomworld.com</p>
+        <p>Generated on ${new Date().toLocaleDateString('en-GB')}</p>
       </div>
     </body>
     </html>
