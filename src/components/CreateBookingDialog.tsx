@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -377,34 +377,87 @@ export default function CreateBookingDialog({
 
           <div className="space-y-3">
             <Label>Prestations</Label>
-            <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
-              {treatments?.map((treatment) => (
-                <div key={treatment.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
-                  <div className="flex items-center gap-2 flex-1">
-                    <Checkbox
-                      id={`treatment-${treatment.id}`}
-                      checked={selectedTreatments.includes(treatment.id)}
-                      onCheckedChange={() => toggleTreatment(treatment.id)}
-                    />
-                    <label
-                      htmlFor={`treatment-${treatment.id}`}
-                      className="text-sm cursor-pointer flex-1"
+            <Tabs defaultValue="Women" className="w-full">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
+                <TabsTrigger value="Men">MEN'S MENU</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="Women" className="mt-4">
+                <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+                  {treatments?.filter(t => t.service_for === "Women").map((treatment) => (
+                    <div 
+                      key={treatment.id} 
+                      className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
                     >
-                      <div className="font-medium">{treatment.name}</div>
-                      <div className="text-xs text-muted-foreground">{treatment.category}</div>
-                    </label>
-                  </div>
-                  <div className="text-sm font-medium">{treatment.price}€</div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-base">{treatment.name}</div>
+                        <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
+                        {treatment.description && (
+                          <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
+                        )}
+                        <div className="text-sm font-medium mt-2">
+                          {treatment.price}€ • {treatment.duration} min
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
+                        onClick={() => toggleTreatment(treatment.id)}
+                        className="ml-4"
+                      >
+                        {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                      </Button>
+                    </div>
+                  ))}
+                  {!treatments?.filter(t => t.service_for === "Women").length && (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      Aucune prestation disponible
+                    </div>
+                  )}
                 </div>
-              ))}
-              {!treatments?.length && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Aucune prestation disponible
-                </p>
-              )}
-            </div>
+              </TabsContent>
+              
+              <TabsContent value="Men" className="mt-4">
+                <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+                  {treatments?.filter(t => t.service_for === "Men").map((treatment) => (
+                    <div 
+                      key={treatment.id} 
+                      className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="font-semibold text-base">{treatment.name}</div>
+                        <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
+                        {treatment.description && (
+                          <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
+                        )}
+                        <div className="text-sm font-medium mt-2">
+                          {treatment.price}€ • {treatment.duration} min
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
+                        onClick={() => toggleTreatment(treatment.id)}
+                        className="ml-4"
+                      >
+                        {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                      </Button>
+                    </div>
+                  ))}
+                  {!treatments?.filter(t => t.service_for === "Men").length && (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      Aucune prestation disponible
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+            
             {selectedTreatments.length > 0 && (
-              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold">
+              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
                 <span>Prix total</span>
                 <span className="text-lg">{totalPrice}€</span>
               </div>
