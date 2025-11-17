@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import PwaProtectedRoute from "./components/PwaProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import HairDresser from "./pages/HairDresser";
@@ -20,6 +21,11 @@ import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import SetPassword from "./pages/SetPassword";
 import NotFound from "./pages/NotFound";
+import PwaLogin from "./pages/pwa/PwaLogin";
+import PwaDashboard from "./pages/pwa/PwaDashboard";
+import PwaBookings from "./pages/pwa/PwaBookings";
+import PwaBookingDetail from "./pages/pwa/PwaBookingDetail";
+import PwaProfile from "./pages/pwa/PwaProfile";
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -27,9 +33,29 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/login" element={<Auth />} />
           <Route path="/set-password" element={<SetPassword />} />
+          
+          {/* PWA Routes */}
+          <Route path="/pwa/login" element={<PwaLogin />} />
+          <Route
+            path="/pwa/*"
+            element={
+              <PwaProtectedRoute>
+                <Routes>
+                  <Route path="/dashboard" element={<PwaDashboard />} />
+                  <Route path="/bookings" element={<PwaBookings />} />
+                  <Route path="/bookings/:id" element={<PwaBookingDetail />} />
+                  <Route path="/profile" element={<PwaProfile />} />
+                  <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
+                </Routes>
+              </PwaProtectedRoute>
+            }
+          />
+          
+          {/* Admin Dashboard Routes */}
           <Route
             path="/*"
             element={
