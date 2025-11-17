@@ -34,29 +34,67 @@ serve(async (req) => {
     const cleaned = emailOrPhone.replace(/\s+/g, "");
     const isEmail = cleaned.includes("@");
 
-    // 1) Resolve admin by email or phone
-    let adminEmail: string | null = null;
+    // 1) Check both admins and concierges tables
+    let userEmail: string | null = null;
+    let userRole: string | null = null;
+    
     if (isEmail) {
-      const { data, error } = await supabaseAdmin
+      // Check admins first
+      const { data: adminData, error: adminError } = await supabaseAdmin
         .from("admins")
         .select("email, user_id")
         .eq("email", cleaned)
         .maybeSingle();
-      if (error) throw error;
-      adminEmail = data?.email ?? null;
+      if (adminError) throw adminError;
+      
+      if (adminData) {
+        userEmail = adminData.email;
+        userRole = "admin";
+      } else {
+        // Check concierges
+        const { data: conciergeData, error: conciergeError } = await supabaseAdmin
+          .from("concierges")
+          .select("email, user_id")
+          .eq("email", cleaned)
+          .maybeSingle();
+        if (conciergeError) throw conciergeError;
+        
+        if (conciergeData) {
+          userEmail = conciergeData.email;
+          userRole = "concierge";
+        }
+      }
     } else {
       // Normalize phone: remove spaces and leading 0s
       const phoneToSearch = cleaned.replace(/^0+/, "");
-      const { data, error } = await supabaseAdmin
+      
+      // Check admins
+      const { data: adminList, error: adminError } = await supabaseAdmin
         .from("admins")
         .select("email, user_id, phone");
-      if (error) throw error;
-      const match = data?.find((a) => a.phone?.replace(/\s+/g, "").replace(/^0+/, "") === phoneToSearch);
-      adminEmail = match?.email ?? null;
+      if (adminError) throw adminError;
+      
+      const adminMatch = adminList?.find((a) => a.phone?.replace(/\s+/g, "").replace(/^0+/, "") === phoneToSearch);
+      if (adminMatch) {
+        userEmail = adminMatch.email;
+        userRole = "admin";
+      } else {
+        // Check concierges
+        const { data: conciergeList, error: conciergeError } = await supabaseAdmin
+          .from("concierges")
+          .select("email, user_id, phone");
+        if (conciergeError) throw conciergeError;
+        
+        const conciergeMatch = conciergeList?.find((c) => c.phone?.replace(/\s+/g, "").replace(/^0+/, "") === phoneToSearch);
+        if (conciergeMatch) {
+          userEmail = conciergeMatch.email;
+          userRole = "concierge";
+        }
+      }
     }
 
-    if (!adminEmail) {
-      return new Response(JSON.stringify({ exists: false, hasAccount: false, email: null }), {
+    if (!userEmail) {
+      return new Response(JSON.stringify({ exists: false, hasAccount: false, email: null, role: null }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -69,7 +107,7 @@ serve(async (req) => {
     while (page <= 10) { // safety cap
       const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
       if (listErr) throw listErr;
-      const match = list?.users?.find((u: any) => u.email?.toLowerCase() === adminEmail!.toLowerCase());
+      const match = list?.users?.find((u: any) => u.email?.toLowerCase() === userEmail!.toLowerCase());
       if (match) {
         hasAccount = true;
         foundUserId = match.id;
@@ -79,17 +117,25 @@ serve(async (req) => {
       page++;
     }
 
-    // 3) If account exists but admins.user_id is null, sync it
+    // 3) If account exists but user_id is null, sync it in the appropriate table
     if (hasAccount && foundUserId) {
-      await supabaseAdmin
-        .from("admins")
-        .update({ user_id: foundUserId })
-        .eq("email", adminEmail)
-        .is("user_id", null);
+      if (userRole === "admin") {
+        await supabaseAdmin
+          .from("admins")
+          .update({ user_id: foundUserId })
+          .eq("email", userEmail)
+          .is("user_id", null);
+      } else if (userRole === "concierge") {
+        await supabaseAdmin
+          .from("concierges")
+          .update({ user_id: foundUserId })
+          .eq("email", userEmail)
+          .is("user_id", null);
+      }
     }
 
     return new Response(
-      JSON.stringify({ exists: true, hasAccount, email: adminEmail }),
+      JSON.stringify({ exists: true, hasAccount, email: userEmail, role: userRole }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
