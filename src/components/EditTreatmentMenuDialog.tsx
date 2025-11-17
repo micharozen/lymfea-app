@@ -249,7 +249,7 @@ export function EditTreatmentMenuDialog({
                 name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="whitespace-nowrap">Durée (minutes)</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Durée (min)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="60" {...field} />
                     </FormControl>
@@ -263,7 +263,7 @@ export function EditTreatmentMenuDialog({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="whitespace-nowrap">Prix (€)</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Prix (€)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
@@ -277,7 +277,7 @@ export function EditTreatmentMenuDialog({
                 name="buffer_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm">Temps de battement (minutes)</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Intervalle (min)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>
