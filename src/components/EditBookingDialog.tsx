@@ -299,11 +299,6 @@ export default function EditBookingDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full grid grid-cols-2">
-              <TabsTrigger value="info">Informations</TabsTrigger>
-              <TabsTrigger value="prestations">Prestations</TabsTrigger>
-            </TabsList>
-
             <TabsContent value="info" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
