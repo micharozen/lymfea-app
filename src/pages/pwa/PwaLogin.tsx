@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 
@@ -47,36 +48,6 @@ const PwaLogin = () => {
     }
   };
 
-  const handleNumberInput = (digit: string) => {
-    if (step === "phone") {
-      if (phone.length < 10) {
-        setPhone(phone + digit);
-      }
-    } else if (step === "otp") {
-      if (otp.length < 6) {
-        setOtp(otp + digit);
-      }
-    }
-  };
-
-  const handleDelete = () => {
-    if (step === "phone") {
-      setPhone(phone.slice(0, -1));
-    } else if (step === "otp") {
-      setOtp(otp.slice(0, -1));
-    }
-  };
-
-  const formatPhoneDisplay = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    const parts = [];
-    if (cleaned.length > 0) parts.push(cleaned.substring(0, 1));
-    if (cleaned.length > 1) parts.push(cleaned.substring(1, 3));
-    if (cleaned.length > 3) parts.push(cleaned.substring(3, 5));
-    if (cleaned.length > 5) parts.push(cleaned.substring(5, 7));
-    if (cleaned.length > 7) parts.push(cleaned.substring(7, 9));
-    return parts.join(' ');
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -96,9 +67,13 @@ const PwaLogin = () => {
               <div className="w-20 h-12 rounded-lg border border-gray-300 flex items-center justify-center text-sm">
                 {countryCode}
               </div>
-              <div className="flex-1 h-12 rounded-lg border border-gray-300 flex items-center px-4 text-lg">
-                {formatPhoneDisplay(phone) || ""}
-              </div>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="6 40 50 18 49"
+                className="flex-1 h-12 rounded-lg border border-gray-300 text-lg"
+              />
             </div>
 
             <Button
@@ -119,9 +94,14 @@ const PwaLogin = () => {
             <p className="text-sm text-gray-500 mb-8">We sent a SMS to ***{phone.slice(-4)}</p>
 
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-20 rounded-lg border-2 border-blue-500 flex items-center justify-center text-2xl font-semibold">
-                {otp || ""}
-              </div>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                maxLength={6}
+                className="w-24 h-20 rounded-lg border-2 border-blue-500 text-center text-2xl font-semibold"
+              />
             </div>
             <p className="text-xs text-center text-gray-400 mb-8">
               Didn't receive code ? / Send again in 01:31
@@ -140,38 +120,6 @@ const PwaLogin = () => {
             </Button>
           </>
         )}
-
-        <div className="mt-auto pb-8">
-          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
-              <button
-                key={digit}
-                onClick={() => handleNumberInput(digit.toString())}
-                className="h-16 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-xl font-semibold hover:bg-gray-100"
-              >
-                <span>{digit}</span>
-                <span className="text-xs text-gray-400">
-                  {digit === 7 && "PQRS"}
-                  {digit === 8 && "TUV"}
-                  {digit === 9 && "WXYZ"}
-                </span>
-              </button>
-            ))}
-            <button className="h-16"></button>
-            <button
-              onClick={() => handleNumberInput("0")}
-              className="h-16 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-xl font-semibold hover:bg-gray-100"
-            >
-              <span>0</span>
-            </button>
-            <button
-              onClick={handleDelete}
-              className="h-16 flex items-center justify-center bg-gray-50 rounded-lg hover:bg-gray-100"
-            >
-              <span className="text-xl">⌫</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
