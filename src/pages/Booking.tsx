@@ -198,8 +198,8 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background p-6 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto w-full">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             📅 Réservations
@@ -323,8 +323,8 @@ export default function Booking() {
                 </Button>
               </div>
 
-              <div className="overflow-x-auto">
-                <div className="min-w-[1000px] bg-card rounded-lg border border-border">
+              <div className="w-full overflow-hidden">
+                <div className="w-full bg-card rounded-lg border border-border">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
                     <div className="p-3 border-r border-border bg-muted/30">
