@@ -15,16 +15,13 @@ const PwaSplash = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center">
       <div className="animate-fade-in">
         <img 
           src={oomLogo} 
           alt="OOM" 
-          className="w-32 h-32 mb-8"
+          className="w-32 h-32"
         />
-        <div className="text-white text-center">
-          <div className="w-16 h-1 bg-white mx-auto animate-pulse" />
-        </div>
       </div>
     </div>
   );
