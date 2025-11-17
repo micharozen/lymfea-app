@@ -73,6 +73,27 @@ export default function Booking() {
     },
   });
 
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  // Generate 15-minute time slots from 9:00 to 20:00
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 9; hour <= 19; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        if (hour === 19 && minute > 0) break; // Stop at 19:00
+        slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+      }
+    }
+    slots.push("20:00");
+    return slots;
+  }, []);
+
   const filteredBookings = bookings?.filter((booking) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
