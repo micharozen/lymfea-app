@@ -52,9 +52,11 @@ serve(async (req: Request): Promise<Response> => {
   try {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }), 
+        JSON.stringify({ error: 'Unauthorized - No auth header' }), 
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -65,10 +67,15 @@ serve(async (req: Request): Promise<Response> => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    console.log("Attempting to get user...");
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    console.log("User error:", userError);
+    console.log("User:", user?.id);
+    
     if (userError || !user) {
+      console.error("Authentication failed:", userError?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }), 
+        JSON.stringify({ error: 'Invalid authentication', details: userError?.message }), 
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
