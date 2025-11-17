@@ -84,12 +84,17 @@ export default function Booking() {
     return () => clearInterval(interval);
   }, []);
 
-  // Generate 15-minute time slots from 9:00 to 20:00
+  // Generate hourly slots from 9:00 to 20:00 for main display
+  const hours = useMemo(() => {
+    return Array.from({ length: 12 }, (_, i) => i + 9); // 9 to 20
+  }, []);
+
+  // Generate 15-minute time slots for booking selection
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 9; hour <= 19; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
-        if (hour === 19 && minute > 0) break; // Stop at 19:00
+        if (hour === 19 && minute > 0) break;
         slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
       }
     }
@@ -128,28 +133,22 @@ export default function Booking() {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
-  const getBookingForSlot = (date: Date, time: string) => {
+  const getBookingsForHour = (date: Date, hour: number) => {
+    const hourStr = hour.toString().padStart(2, '0');
     return filteredBookings?.filter(
-      (booking) =>
-        booking.booking_date === format(date, "yyyy-MM-dd") &&
-        booking.booking_time === time
-    );
+      (booking) => {
+        const bookingDate = booking.booking_date === format(date, "yyyy-MM-dd");
+        const bookingHour = booking.booking_time?.substring(0, 2);
+        return bookingDate && bookingHour === hourStr;
+      }
+    ) || [];
   };
 
-  // Calculate current time position in the calendar
-  const getCurrentTimePosition = () => {
+  const isCurrentHour = (date: Date, hour: number) => {
+    if (format(date, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")) return false;
     const now = new Date(currentTime.toLocaleString("en-US", { timeZone: timezone }));
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    
-    if (hours < 9 || hours >= 20) return null;
-    
-    const totalMinutes = (hours - 9) * 60 + minutes;
-    const totalWorkingMinutes = 11 * 60;
-    return (totalMinutes / totalWorkingMinutes) * 100;
+    return now.getHours() === hour;
   };
-
-  const currentTimePosition = getCurrentTimePosition();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -295,25 +294,25 @@ export default function Booking() {
                 <div className="min-w-[1000px] bg-card rounded-lg border border-border">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
-                    <div className="p-4 border-r border-border bg-muted/30">
-                      <span className="text-sm font-medium text-muted-foreground">Heure</span>
+                    <div className="p-3 border-r border-border bg-muted/30">
+                      <span className="text-xs font-medium text-muted-foreground">Heure</span>
                     </div>
                     {weekDays.map((day) => {
                       const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                       return (
                         <div
                           key={day.toISOString()}
-                          className={`p-4 text-center border-r border-border last:border-r-0 ${
+                          className={`p-3 text-center border-r border-border last:border-r-0 ${
                             isToday ? "bg-primary/5" : "bg-muted/30"
                           }`}
                         >
-                          <div className="text-sm font-medium text-muted-foreground uppercase">
+                          <div className="text-xs font-medium text-muted-foreground uppercase">
                             {format(day, "EEE", { locale: fr })}
                           </div>
-                          <div className={`text-2xl font-bold mt-1 ${isToday ? "text-primary" : ""}`}>
+                          <div className={`text-xl font-bold ${isToday ? "text-primary" : ""}`}>
                             {format(day, "d")}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-[10px] text-muted-foreground">
                             {format(day, "MMM", { locale: fr })}
                           </div>
                         </div>
@@ -323,58 +322,60 @@ export default function Booking() {
 
                   {/* Grille avec les créneaux horaires */}
                   <div className="relative">
-                    {timeSlots.map((time, index) => (
-                      <div key={time} className="grid grid-cols-8 border-b border-border last:border-b-0">
-                        <div className="p-2 border-r border-border bg-muted/20 flex items-center">
-                          <span className="text-xs font-medium text-muted-foreground">{time}</span>
-                        </div>
-                        {weekDays.map((day) => {
-                          const bookingsInSlot = getBookingForSlot(day, time);
-                          const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                          return (
-                            <div
-                              key={`${day.toISOString()}-${time}`}
-                              className={`relative min-h-[35px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-all ${
-                                bookingsInSlot && bookingsInSlot.length > 0
-                                  ? "bg-primary/10 hover:bg-primary/15"
-                                  : isToday
-                                  ? "bg-primary/5 hover:bg-primary/10"
-                                  : "hover:bg-muted/50"
-                              }`}
-                              onClick={() => handleCalendarClick(day, time)}
-                            >
-                              {bookingsInSlot && bookingsInSlot.length > 0 ? (
-                                <div className="space-y-0.5">
-                                  {bookingsInSlot.map((booking, idx) => (
-                                    <div key={idx} className="flex flex-col gap-0.5 p-1.5 rounded bg-card border border-border shadow-sm text-[10px]">
-                                      <div className="font-semibold text-foreground truncate">
-                                        {booking.client_first_name} {booking.client_last_name}
+                    {hours.map((hour) => {
+                      const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+                      return (
+                        <div key={hour} className="grid grid-cols-8 border-b border-border">
+                          <div className="p-2 border-r border-border bg-muted/20 flex items-start">
+                            <span className="text-xs font-medium text-muted-foreground">{hourStr}</span>
+                          </div>
+                          {weekDays.map((day) => {
+                            const bookingsInHour = getBookingsForHour(day, hour);
+                            const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                            const isCurrent = isCurrentHour(day, hour);
+                            
+                            return (
+                              <div
+                                key={`${day.toISOString()}-${hour}`}
+                                className={`relative h-[60px] p-1.5 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                  bookingsInHour.length > 0
+                                    ? "bg-primary/5 hover:bg-primary/10"
+                                    : isToday
+                                    ? "bg-primary/[0.02] hover:bg-muted/30"
+                                    : "hover:bg-muted/30"
+                                }`}
+                                onClick={() => handleCalendarClick(day, hourStr)}
+                              >
+                                {bookingsInHour.length > 0 && (
+                                  <div className="space-y-1 h-full overflow-y-auto">
+                                    {bookingsInHour.map((booking) => (
+                                      <div
+                                        key={booking.id}
+                                        className="p-1.5 rounded bg-primary/20 border border-primary/30 text-[10px] leading-tight"
+                                      >
+                                        <div className="font-medium text-foreground truncate">
+                                          {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
+                                        </div>
+                                        <Badge className={`text-[8px] w-fit px-1 py-0 h-3.5 mt-0.5 ${getStatusColor(booking.status)}`}>
+                                          {booking.status}
+                                        </Badge>
                                       </div>
-                                      <Badge className={`text-[9px] w-fit px-1 py-0 h-4 ${getStatusColor(booking.status)}`}>
-                                        {booking.status}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-                              
-                              {/* Barre de temps actuel */}
-                              {isToday && currentTimePosition !== null && (
-                                <div
-                                  className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none"
-                                  style={{
-                                    top: `${currentTimePosition}%`,
-                                    display: time === timeSlots[Math.floor(timeSlots.length * (currentTimePosition / 100))] ? 'block' : 'none'
-                                  }}
-                                >
-                                  <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                {/* Barre de temps actuel */}
+                                {isCurrent && (
+                                  <div className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none top-1/2 -translate-y-1/2">
+                                    <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
