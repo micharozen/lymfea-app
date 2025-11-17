@@ -225,7 +225,7 @@ export function AppSidebar() {
                         }`}
                       >
                         <span className="text-lg flex-shrink-0">{item.emoji}</span>
-                        {!isCollapsed && <span>{item.title}</span>}
+                        {!isCollapsed && <span className="whitespace-nowrap">{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
