@@ -243,13 +243,13 @@ export function EditTreatmentMenuDialog({
               )}
             />
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 items-start">
               <FormField
                 control={form.control}
                 name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Durée (minutes)</FormLabel>
+                    <FormLabel className="whitespace-nowrap">Durée (minutes)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="60" {...field} />
                     </FormControl>
@@ -263,7 +263,7 @@ export function EditTreatmentMenuDialog({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prix (€)</FormLabel>
+                    <FormLabel className="whitespace-nowrap">Prix (€)</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
@@ -277,7 +277,7 @@ export function EditTreatmentMenuDialog({
                 name="buffer_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Temps de battement (minutes)</FormLabel>
+                    <FormLabel className="text-sm">Temps de battement (minutes)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>
