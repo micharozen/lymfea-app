@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,37 @@ import { ArrowLeft } from "lucide-react";
 const PwaLogin = () => {
   const navigate = useNavigate();
   const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countryCode] = useState("+33");
+  const [timer, setTimer] = useState(91); // 1:31 en secondes
+  const [canResend, setCanResend] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (step === "otp" && timer > 0) {
+      const interval = setInterval(() => {
+        setTimer((prev) => {
+          if (prev <= 1) {
+            setCanResend(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [step, timer]);
+
+  // Auto-verify when all 6 digits are entered
+  useEffect(() => {
+    const fullOtp = otp.join("");
+    if (fullOtp.length === 6) {
+      handleVerifyOtp();
+    }
+  }, [otp]);
 
   const handleSendOtp = async () => {
     if (!phone || phone.length < 9) {
@@ -21,8 +48,10 @@ const PwaLogin = () => {
 
     setLoading(true);
     try {
-      // TODO: Implement OTP sending logic
+      // TODO: Implement OTP sending logic with Twilio
       setStep("otp");
+      setTimer(91);
+      setCanResend(false);
       toast.success("Un code de vérification a été envoyé");
     } catch (error: any) {
       toast.error(error.message);
@@ -31,9 +60,27 @@ const PwaLogin = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (!canResend) return;
+    
+    setLoading(true);
+    try {
+      // TODO: Implement OTP resending logic
+      setTimer(91);
+      setCanResend(false);
+      setOtp(["", "", "", "", "", ""]);
+      toast.success("Un nouveau code a été envoyé");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length < 6) {
-      toast.error("Veuillez entrer le code de vérification");
+    const fullOtp = otp.join("");
+    if (fullOtp.length < 6) {
+      toast.error("Veuillez entrer le code de vérification complet");
       return;
     }
 
@@ -46,6 +93,32 @@ const PwaLogin = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    // Only allow digits
+    if (value && !/^\d$/.test(value)) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const formatTimer = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
 
@@ -93,25 +166,41 @@ const PwaLogin = () => {
             <h1 className="text-2xl font-semibold mb-2">Enter the code</h1>
             <p className="text-sm text-gray-500 mb-8">We sent a SMS to ***{phone.slice(-4)}</p>
 
-            <div className="flex justify-center mb-4">
-              <Input
-                type="text"
-                inputMode="numeric"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                maxLength={6}
-                className="w-24 h-20 rounded-lg border-2 border-blue-500 text-center text-2xl font-semibold"
-              />
+            {/* OTP Input - 6 separate boxes */}
+            <div className="flex justify-center gap-2 mb-4">
+              {otp.map((digit, index) => (
+                <Input
+                  key={index}
+                  ref={(el) => (otpRefs.current[index] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  className="w-14 h-16 text-center text-2xl font-semibold rounded-lg border-2 border-blue-500"
+                />
+              ))}
             </div>
             <p className="text-xs text-center text-gray-400 mb-8">
-              Didn't receive code ? / Send again in 01:31
+              {canResend ? (
+                <button
+                  onClick={handleResendOtp}
+                  className="text-blue-500 underline"
+                  disabled={loading}
+                >
+                  Send code again
+                </button>
+              ) : (
+                <>Didn't receive code ? / Send again in {formatTimer(timer)}</>
+              )}
             </p>
 
             <Button
               onClick={handleVerifyOtp}
-              disabled={otp.length < 6 || loading}
+              disabled={otp.join("").length < 6 || loading}
               className={`w-full h-12 rounded-full mb-8 ${
-                otp.length >= 6
+                otp.join("").length >= 6
                   ? "bg-black text-white hover:bg-black/90"
                   : "bg-gray-200 text-gray-400"
               }`}
