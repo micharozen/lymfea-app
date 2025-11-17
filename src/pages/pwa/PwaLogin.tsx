@@ -3,7 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+const countryCodes = [
+  { code: "+33", name: "France", flag: "🇫🇷" },
+  { code: "+971", name: "United Arab Emirates", flag: "🇦🇪" },
+  { code: "+1", name: "United States", flag: "🇺🇸" },
+  { code: "+44", name: "United Kingdom", flag: "🇬🇧" },
+  { code: "+34", name: "Spain", flag: "🇪🇸" },
+  { code: "+39", name: "Italy", flag: "🇮🇹" },
+  { code: "+49", name: "Germany", flag: "🇩🇪" },
+];
 
 const PwaLogin = () => {
   const navigate = useNavigate();
@@ -11,7 +34,8 @@ const PwaLogin = () => {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [countryCode] = useState("+33");
+  const [countryCode, setCountryCode] = useState("+33");
+  const [openCountrySelect, setOpenCountrySelect] = useState(false);
   const [timer, setTimer] = useState(91); // 1:31 en secondes
   const [canResend, setCanResend] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -137,9 +161,49 @@ const PwaLogin = () => {
             <p className="text-sm text-gray-500 mb-8">We will send you a verification code</p>
 
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-20 h-12 rounded-lg border border-gray-300 flex items-center justify-center text-sm">
-                {countryCode}
-              </div>
+              <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openCountrySelect}
+                    className="w-28 h-12 justify-between"
+                  >
+                    <span className="flex items-center gap-2">
+                      {countryCodes.find((c) => c.code === countryCode)?.flag}
+                      {countryCode}
+                    </span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[280px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search country..." />
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {countryCodes.map((country) => (
+                        <CommandItem
+                          key={country.code}
+                          value={`${country.name} ${country.code.replace("+", "")}`}
+                          onSelect={() => {
+                            setCountryCode(country.code);
+                            setOpenCountrySelect(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              countryCode === country.code ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="mr-2">{country.flag}</span>
+                          {country.name} ({country.code})
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Input
                 type="tel"
                 value={phone}
