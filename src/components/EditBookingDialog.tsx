@@ -292,239 +292,251 @@ export default function EditBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier la réservation</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-hotel">Hôtel *</Label>
-              <Select value={hotelId} onValueChange={setHotelId}>
-                <SelectTrigger id="edit-hotel">
-                  <SelectValue placeholder="Sélectionner un hôtel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotels?.map((hotel) => (
-                    <SelectItem key={hotel.id} value={hotel.id}>
-                      {hotel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <form onSubmit={handleSubmit}>
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="info">Informations</TabsTrigger>
+              <TabsTrigger value="prestations">Prestations</TabsTrigger>
+            </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-status">Statut *</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger id="edit-status">
-                  <SelectValue placeholder="Sélectionner un statut" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Assigned">Assigned</SelectItem>
-                  <SelectItem value="Confirmed">Confirmed</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <TabsContent value="info" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-hotel">Hôtel *</Label>
+                  <Select value={hotelId} onValueChange={setHotelId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un hôtel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hotels?.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-firstName">Prénom *</Label>
-              <Input
-                id="edit-firstName"
-                value={clientFirstName}
-                onChange={(e) => setClientFirstName(e.target.value)}
-                placeholder="Prénom"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Statut *</Label>
+                  <Select value={status} onValueChange={setStatus}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Assigned">Assigned</SelectItem>
+                      <SelectItem value="Ongoing">Ongoing</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
+                      <SelectItem value="Canceled">Canceled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-lastName">Nom *</Label>
-              <Input
-                id="edit-lastName"
-                value={clientLastName}
-                onChange={(e) => setClientLastName(e.target.value)}
-                placeholder="Nom"
-              />
-            </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-date">Date *</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-phone">Téléphone *</Label>
-              <div className="flex gap-2">
-                <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={countryOpen}
-                      className="w-[140px] justify-between"
-                    >
-                      {countries.find((country) => country.code === countryCode)?.flag}{" "}
-                      {countryCode}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0">
-                    <Command>
-                      <CommandInput placeholder="Rechercher..." />
-                      <CommandList>
-                        <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
-                        <CommandGroup>
-                          {countries.map((country) => (
-                            <CommandItem
-                              key={country.code}
-                              value={`${country.label} ${country.code}`}
-                              onSelect={() => {
-                                setCountryCode(country.code);
-                                setCountryOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  countryCode === country.code ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              {country.flag} {country.label} ({country.code})
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-time">Heure *</Label>
+                  <Input
+                    id="edit-time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-firstName">Prénom *</Label>
+                  <Input
+                    id="edit-firstName"
+                    value={clientFirstName}
+                    onChange={(e) => setClientFirstName(e.target.value)}
+                    placeholder="Prénom"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-lastName">Nom *</Label>
+                  <Input
+                    id="edit-lastName"
+                    value={clientLastName}
+                    onChange={(e) => setClientLastName(e.target.value)}
+                    placeholder="Nom"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Téléphone *</Label>
+                <div className="flex gap-2">
+                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={countryOpen}
+                        className="w-[140px] justify-between"
+                      >
+                        {countries.find((country) => country.code === countryCode)?.flag}{" "}
+                        {countryCode}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Rechercher..." />
+                        <CommandList>
+                          <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {countries.map((country) => (
+                              <CommandItem
+                                key={country.code}
+                                value={`${country.label} ${country.code}`}
+                                onSelect={() => {
+                                  setCountryCode(country.code);
+                                  setCountryOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    countryCode === country.code ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {country.flag} {country.label} ({country.code})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    id="edit-phone"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
+                    placeholder="6 14 21 64 42"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-roomNumber">Numéro de chambre</Label>
                 <Input
-                  id="edit-phone"
-                  value={phone}
-                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
-                  placeholder="6 14 21 64 42"
-                  className="flex-1"
+                  id="edit-roomNumber"
+                  value={roomNumber}
+                  onChange={(e) => setRoomNumber(e.target.value)}
+                  placeholder="1002"
                 />
               </div>
-            </div>
+            </TabsContent>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-room">Numéro de chambre</Label>
-              <Input
-                id="edit-room"
-                value={roomNumber}
-                onChange={(e) => setRoomNumber(e.target.value)}
-                placeholder="101"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-date">Date *</Label>
-              <Input
-                id="edit-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-time">Heure *</Label>
-              <Input
-                id="edit-time"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Label>Prestations</Label>
-            <Tabs defaultValue="Women" className="w-full">
-              <TabsList className="w-full grid grid-cols-2">
-                <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
-                <TabsTrigger value="Men">MEN'S MENU</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="Women" className="mt-4">
-                <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                  {treatments?.filter(t => t.service_for === "Women").map((treatment) => (
-                    <div 
-                      key={treatment.id} 
-                      className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="font-semibold text-base">{treatment.name}</div>
-                        <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                        {treatment.description && (
-                          <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                        )}
-                        <div className="text-sm font-medium mt-2">
-                          {treatment.price}€ • {treatment.duration} min
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                        onClick={() => toggleTreatment(treatment.id)}
-                        className="ml-4"
+            <TabsContent value="prestations" className="space-y-4 mt-4">
+              <Tabs defaultValue="Women" className="w-full">
+                <TabsList className="w-full grid grid-cols-2">
+                  <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
+                  <TabsTrigger value="Men">MEN'S MENU</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="Women" className="mt-4">
+                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+                    {treatments?.filter(t => t.service_for === "Women").map((treatment) => (
+                      <div 
+                        key={treatment.id} 
+                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
                       >
-                        {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                      </Button>
-                    </div>
-                  ))}
-                  {!treatments?.filter(t => t.service_for === "Women").length && (
-                    <div className="p-8 text-center text-sm text-muted-foreground">
-                      Aucune prestation disponible
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="Men" className="mt-4">
-                <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                  {treatments?.filter(t => t.service_for === "Men").map((treatment) => (
-                    <div 
-                      key={treatment.id} 
-                      className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="font-semibold text-base">{treatment.name}</div>
-                        <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                        {treatment.description && (
-                          <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                        )}
-                        <div className="text-sm font-medium mt-2">
-                          {treatment.price}€ • {treatment.duration} min
+                        <div className="flex-1">
+                          <div className="font-semibold text-base">{treatment.name}</div>
+                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
+                          {treatment.description && (
+                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
+                          )}
+                          <div className="text-sm font-medium mt-2">
+                            {treatment.price}€ • {treatment.duration} min
+                          </div>
                         </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
+                          onClick={() => toggleTreatment(treatment.id)}
+                          className="ml-4"
+                        >
+                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                        onClick={() => toggleTreatment(treatment.id)}
-                        className="ml-4"
+                    ))}
+                    {!treatments?.filter(t => t.service_for === "Women").length && (
+                      <div className="p-8 text-center text-sm text-muted-foreground">
+                        Aucune prestation disponible
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="Men" className="mt-4">
+                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
+                    {treatments?.filter(t => t.service_for === "Men").map((treatment) => (
+                      <div 
+                        key={treatment.id} 
+                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
                       >
-                        {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                      </Button>
-                    </div>
-                  ))}
-                  {!treatments?.filter(t => t.service_for === "Men").length && (
-                    <div className="p-8 text-center text-sm text-muted-foreground">
-                      Aucune prestation disponible
-                    </div>
-                  )}
+                        <div className="flex-1">
+                          <div className="font-semibold text-base">{treatment.name}</div>
+                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
+                          {treatment.description && (
+                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
+                          )}
+                          <div className="text-sm font-medium mt-2">
+                            {treatment.price}€ • {treatment.duration} min
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
+                          onClick={() => toggleTreatment(treatment.id)}
+                          className="ml-4"
+                        >
+                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                        </Button>
+                      </div>
+                    ))}
+                    {!treatments?.filter(t => t.service_for === "Men").length && (
+                      <div className="p-8 text-center text-sm text-muted-foreground">
+                        Aucune prestation disponible
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+              
+              {selectedTreatments.length > 0 && (
+                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
+                  <span>Prix total</span>
+                  <span className="text-lg">{totalPrice}€</span>
                 </div>
-              </TabsContent>
-            </Tabs>
-            
-            {selectedTreatments.length > 0 && (
-              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
-                <span>Prix total</span>
-                <span className="text-lg">{totalPrice}€</span>
-              </div>
-            )}
-          </div>
+              )}
+            </TabsContent>
+          </Tabs>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
             <Button type="button" variant="outline" onClick={handleClose}>
               Annuler
             </Button>
