@@ -41,6 +41,7 @@ const formSchema = z.object({
   category: z.string().min(1, "La catégorie est requise"),
   hotel_id: z.string().optional(),
   status: z.string().default("Actif"),
+  sort_order: z.string().default("0"),
 });
 
 interface EditTreatmentMenuDialogProps {
@@ -71,6 +72,7 @@ export function EditTreatmentMenuDialog({
       category: "",
       hotel_id: "",
       status: "Actif",
+      sort_order: "0",
     },
   });
 
@@ -99,6 +101,7 @@ export function EditTreatmentMenuDialog({
         category: menu.category || "",
         hotel_id: menu.hotel_id || "",
         status: menu.status || "Actif",
+        sort_order: menu.sort_order?.toString() || "0",
       });
       setMenuImage(menu.image || "");
     }
@@ -150,6 +153,7 @@ export function EditTreatmentMenuDialog({
         hotel_id: values.hotel_id || null,
         image: menuImage || null,
         status: values.status,
+        sort_order: parseInt(values.sort_order),
       })
       .eq("id", menu.id);
 
@@ -216,9 +220,19 @@ export function EditTreatmentMenuDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Catégorie *</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ex: Hair cut, Blowout" {...field} />
-                    </FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une catégorie" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Nails">Nails</SelectItem>
+                        <SelectItem value="Coloration">Coloration</SelectItem>
+                        <SelectItem value="Hair cut">Hair cut</SelectItem>
+                        <SelectItem value="Blowout">Blowout</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -243,7 +257,7 @@ export function EditTreatmentMenuDialog({
               )}
             />
 
-            <div className="grid grid-cols-3 gap-4 items-start">
+            <div className="grid grid-cols-4 gap-4 items-start">
               <FormField
                 control={form.control}
                 name="duration"
@@ -278,6 +292,20 @@ export function EditTreatmentMenuDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm whitespace-nowrap">Intervalle (min)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sort_order"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm whitespace-nowrap">Ordre</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>

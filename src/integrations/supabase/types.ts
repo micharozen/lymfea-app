@@ -281,6 +281,7 @@ export type Database = {
           name: string
           price: number | null
           service_for: string
+          sort_order: number | null
           status: string
           updated_at: string
         }
@@ -296,6 +297,7 @@ export type Database = {
           name: string
           price?: number | null
           service_for: string
+          sort_order?: number | null
           status?: string
           updated_at?: string
         }
@@ -311,6 +313,7 @@ export type Database = {
           name?: string
           price?: number | null
           service_for?: string
+          sort_order?: number | null
           status?: string
           updated_at?: string
         }
