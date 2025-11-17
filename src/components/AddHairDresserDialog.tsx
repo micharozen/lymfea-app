@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import * as z from "zod";
 
 interface AddHairDresserDialogProps {
   open: boolean;
@@ -52,6 +53,15 @@ const BOXES_OPTIONS = [
   { value: "box4", label: "Box 4" },
   { value: "box5", label: "Box 5" },
 ];
+
+const formSchema = z.object({
+  first_name: z.string().min(1, "Prénom requis").max(100, "Prénom trop long"),
+  last_name: z.string().min(1, "Nom requis").max(100, "Nom trop long"),
+  email: z.string().email("Email invalide").max(255, "Email trop long"),
+  phone: z.string().min(1, "Téléphone requis").max(20, "Numéro trop long").regex(/^[0-9\s]+$/, "Format invalide"),
+  country_code: z.string(),
+  status: z.string(),
+});
 
 export default function AddHairDresserDialog({
   open,
@@ -136,6 +146,16 @@ export default function AddHairDresserDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate form data
+    try {
+      formSchema.parse(formData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+        return;
+      }
+    }
 
     const { data: hairdresser, error } = await supabase
       .from("hairdressers")
