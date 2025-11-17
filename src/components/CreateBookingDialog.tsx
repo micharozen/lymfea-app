@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,16 @@ export default function CreateBookingDialog({
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
   const [time, setTime] = useState(selectedTime || "");
+
+  // Update date and time when props change
+  useEffect(() => {
+    if (selectedDate) {
+      setDate(format(selectedDate, "yyyy-MM-dd"));
+    }
+    if (selectedTime) {
+      setTime(selectedTime);
+    }
+  }, [selectedDate, selectedTime]);
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
