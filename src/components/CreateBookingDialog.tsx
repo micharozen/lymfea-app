@@ -480,17 +480,17 @@ export default function CreateBookingDialog({
                   <span className="text-lg">{totalPrice}€</span>
                 </div>
               )}
+
+              <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Création..." : "Créer la réservation"}
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
-
-          <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Création..." : "Créer la réservation"}
-            </Button>
-          </div>
         </form>
       </DialogContent>
     </Dialog>

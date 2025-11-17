@@ -544,17 +544,17 @@ export default function EditBookingDialog({
                   <span className="text-lg">{totalPrice}€</span>
                 </div>
               )}
+
+              <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Modification..." : "Modifier"}
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
-
-          <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? "Modification..." : "Modifier"}
-            </Button>
-          </div>
         </form>
       </DialogContent>
     </Dialog>
