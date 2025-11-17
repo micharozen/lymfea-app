@@ -95,18 +95,6 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log(`Inviting admin: ${email}`);
 
-    // Initialize Supabase client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
     // Build login URL preferring explicit SITE_URL (production), then origin/referer, then projectRef
     let appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
     if (!appUrl) {
