@@ -119,6 +119,7 @@ export default function EditBookingDialog({
   const [totalPrice, setTotalPrice] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<"view" | "edit">("view");
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -178,6 +179,28 @@ export default function EditBookingDialog({
         .eq("booking_id", booking!.id);
       if (error) throw error;
       return data;
+    },
+  });
+
+  const { data: bookingTreatments } = useQuery({
+    queryKey: ["booking_treatments_details", booking?.id],
+    enabled: !!booking?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_treatments")
+        .select(`
+          treatment_id,
+          treatment_menus (
+            id,
+            name,
+            category,
+            price,
+            duration
+          )
+        `)
+        .eq("booking_id", booking!.id);
+      if (error) throw error;
+      return data?.map((bt: any) => bt.treatment_menus).filter(Boolean) || [];
     },
   });
 
@@ -345,11 +368,110 @@ export default function EditBookingDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(open) => {
+      onOpenChange(open);
+      if (!open) setViewMode("view");
+    }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier la réservation</DialogTitle>
+          <DialogTitle>{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
+
+        {viewMode === "view" ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Hôtel</p>
+                <p className="font-medium">{booking?.hotel_name}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd/MM/yyyy")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Heure</p>
+                <p className="font-medium">{booking?.booking_time}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Statut</p>
+                <p className="font-medium">{booking?.status}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-semibold text-lg">Informations client</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Prénom</p>
+                  <p className="font-medium">{booking?.client_first_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Nom</p>
+                  <p className="font-medium">{booking?.client_last_name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Téléphone</p>
+                  <p className="font-medium">{booking?.phone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Numéro de chambre</p>
+                  <p className="font-medium">{booking?.room_number || "-"}</p>
+                </div>
+              </div>
+            </div>
+
+            {bookingTreatments && bookingTreatments.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-lg">Prestations</h3>
+                <div className="space-y-2">
+                  {bookingTreatments.map((treatment) => (
+                    <div key={treatment.id} className="flex justify-between items-center p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{treatment.name}</p>
+                        <p className="text-sm text-muted-foreground">{treatment.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">{treatment.price}€</p>
+                        <p className="text-sm text-muted-foreground">{treatment.duration} min</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold">
+                  <span>Prix total</span>
+                  <span className="text-lg">{totalPrice}€</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between gap-3 pt-4 border-t">
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={handleClose}
+              >
+                Fermer
+              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={() => setViewMode("edit")}
+                >
+                  Modifier
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsContent value="info" className="space-y-4 mt-4">
@@ -633,6 +755,7 @@ export default function EditBookingDialog({
             </TabsContent>
           </Tabs>
         </form>
+        )}
       </DialogContent>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
