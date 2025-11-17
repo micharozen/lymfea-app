@@ -166,7 +166,7 @@ export default function Boxes() {
                       <TableCell>
                         <Badge
                           className={
-                            box.status === "Available"
+                            box.status === "Actif"
                               ? "bg-green-500/10 text-green-700"
                               : "bg-orange-500/10 text-orange-700"
                           }
