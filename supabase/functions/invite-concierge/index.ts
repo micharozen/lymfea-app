@@ -61,21 +61,19 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    console.log("Attempting to get user...");
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    console.log("User error:", userError);
-    console.log("User:", user?.id);
-    
-    if (userError || !user) {
-      console.error("Authentication failed:", userError?.message);
+    // Extraire le user_id directement depuis le JWT pour éviter les erreurs d'appel Auth
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) throw new Error('Malformed token');
+      const payload = JSON.parse(atob(parts[1]));
+      var userId: string | undefined = payload.sub;
+      console.log('Decoded user id:', userId);
+      if (!userId) throw new Error('No sub in token');
+    } catch (e: any) {
+      console.error('Failed to decode token:', e?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication', details: userError?.message }), 
+        JSON.stringify({ error: 'Invalid authentication', details: 'Invalid or malformed token' }), 
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -90,7 +88,7 @@ serve(async (req: Request): Promise<Response> => {
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
+      .eq('user_id', userId as string)
       .eq('role', 'admin')
       .maybeSingle();
 
