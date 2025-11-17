@@ -149,6 +149,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
           "invite-concierge",
           {
             body: {
+              conciergeId: concierge.id,
               email: values.email,
               firstName: values.first_name,
               lastName: values.last_name,

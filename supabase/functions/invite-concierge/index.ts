@@ -10,6 +10,7 @@ const corsHeaders = {
 };
 
 interface InviteConciergeRequest {
+  conciergeId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -99,7 +100,7 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, firstName, lastName, phone, countryCode, hotelIds }: InviteConciergeRequest = await req.json();
+    const { conciergeId, email, firstName, lastName, phone, countryCode, hotelIds }: InviteConciergeRequest = await req.json();
 
     console.log(`Inviting concierge: ${email}`);
 
@@ -119,100 +120,173 @@ serve(async (req: Request): Promise<Response> => {
     }
     const loginUrl = `${appUrl}/login`;
 
-
-    // Generate a secure password
-    const generatedPassword = generatePassword();
-    console.log(`Generated password for ${email}`);
-
-    // Create the user with the generated password
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: generatedPassword,
-      email_confirm: true, // Auto-confirm email
-    });
-
-    if (createError) {
-      console.error("Error creating user:", createError);
-      throw createError;
+    // Helper to find existing user by email
+    async function findUserByEmail(emailToFind: string): Promise<string | null> {
+      let page = 1;
+      const perPage = 200;
+      while (page <= 10) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+        if (error) {
+          console.error('listUsers error:', error.message);
+          break;
+        }
+        const match = data.users?.find(u => (u.email || '').toLowerCase() === emailToFind.toLowerCase());
+        if (match) return match.id;
+        if (!data.users || data.users.length < perPage) break;
+        page += 1;
+      }
+      return null;
+    }
+    // Find or create user
+    if (!existingUserId) {
+      generatedPassword = generatePassword();
+      const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: generatedPassword,
+        email_confirm: true,
+      });
+      if (createError) {
+        console.error('Error creating user:', createError);
+        throw createError;
+      }
+      targetUserId = created.user?.id || null;
+      console.log('User created successfully:', targetUserId);
+    } else {
+      console.log('User already exists with id:', existingUserId);
     }
 
-    console.log("User created successfully:", userData.user?.id);
+    if (!targetUserId) {
+      throw new Error('Unable to resolve target user id');
+    }
 
-    // Get hotel names for email
+    // Ensure role 'concierge'
+    const { error: roleUpsertError } = await supabaseAdmin
+      .from('user_roles')
+      .upsert({ user_id: targetUserId, role: 'concierge' }, { onConflict: 'user_id,role' });
+    if (roleUpsertError) {
+      console.error('role upsert error:', roleUpsertError.message);
+      throw roleUpsertError;
+    }
+
+    // Link concierges.user_id
+    if (typeof (globalThis as any).structuredClone === 'undefined') {}
+    const { error: linkError } = await supabaseAdmin
+      .from('concierges')
+      .update({ user_id: targetUserId })
+      .eq('id', conciergeId);
+    if (linkError) {
+      console.error('concierge link error:', linkError.message);
+      // continue; not fatal for email send
+    }
+
+    // Email content
     const { data: hotels } = await supabaseAdmin
       .from('hotels')
       .select('id, name')
       .in('id', hotelIds);
-
     const hotelNames = hotels?.map(h => h.name).join(', ') || '';
 
-    // Send email with login credentials
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: "OOM App <booking@oomworld.com>",
-        to: [email],
-        subject: "Bienvenue sur OOM App - Accès Concierge",
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Bienvenue sur OOM App</title>
-            </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur OOM App</h1>
-                <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Concierge</p>
-              </div>
+    let html = '';
+    if (generatedPassword) {
+      html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Bienvenue sur OOM App</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur OOM App</h1>
+              <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Concierge</p>
+            </div>
+            
+            <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+              <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
+                Bonjour <strong>${firstName} ${lastName}</strong>,
+              </p>
               
-              <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-                <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
-                  Bonjour <strong>${firstName} ${lastName}</strong>,
-                </p>
-                
-                <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
-                  Vous avez été invité(e) en tant que concierge pour ${hotelNames}. Voici vos identifiants de connexion :
-                </p>
+              <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
+                Vous avez été invité(e) en tant que concierge pour ${hotelNames}. Voici vos identifiants de connexion :
+              </p>
 
-                <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
-                  <p style="margin: 0 0 15px 0;"><strong>URL:</strong> <a href="${loginUrl}" style="color: #0066cc;">${loginUrl}</a></p>
-                  <p style="margin: 0 0 15px 0;"><strong>Email:</strong> ${email}</p>
-                  <p style="margin: 0;"><strong>Mot de passe:</strong> ${generatedPassword}</p>
-                </div>
+              <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
+                <p style="margin: 0 0 15px 0;"><strong>URL:</strong> <a href="${loginUrl}" style="color: #0066cc;">${loginUrl}</a></p>
+                <p style="margin: 0 0 15px 0;"><strong>Email:</strong> ${email}</p>
+                <p style="margin: 0;"><strong>Mot de passe:</strong> ${generatedPassword}</p>
+              </div>
 
-                <div style="text-align: center; margin: 35px 0;">
-                  <a href="${loginUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Se connecter</a>
-                </div>
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="${loginUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Se connecter</a>
+              </div>
 
-                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin: 25px 0;">
-                  <p style="margin: 0; font-size: 14px; color: #856404;">
-                    <strong>⚠️ Important:</strong> Vous aurez accès uniquement aux réservations et données concernant vos hôtels.
-                  </p>
-                </div>
-
-                <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                  Pour des raisons de sécurité, nous vous recommandons de changer votre mot de passe après votre première connexion.
-                </p>
-
-                <p style="font-size: 16px; margin-top: 40px; color: #666;">
-                  Cordialement,<br>
-                  <strong style="color: #000000;">L'équipe OOM App</strong>
+              <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 15px; margin: 25px 0;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                  <strong>⚠️ Important:</strong> Vous aurez accès uniquement aux réservations et données concernant vos hôtels.
                 </p>
               </div>
 
-              <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
-                <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+              <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
+                Pour des raisons de sécurité, nous vous recommandons de changer votre mot de passe après votre première connexion.
+              </p>
+
+              <p style="font-size: 16px; margin-top: 40px; color: #666;">
+                Cordialement,<br>
+                <strong style="color: #000000;">L'équipe OOM App</strong>
+              </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
+              <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+            </div>
+          </body>
+        </html>
+      `;
+    } else {
+      // Existing user: provide recovery link
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: loginUrl }
+      } as any);
+      if (linkError) console.error('generateLink error:', linkError.message);
+      const recoveryUrl = (linkData as any)?.properties?.action_link || loginUrl;
+
+      html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Accès activé - OOM App</title>
+          </head>
+          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Accès concierge activé</h1>
+            </div>
+            <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
+              <p>Bonjour <strong>${firstName} ${lastName}</strong>,</p>
+              <p>Votre accès en tant que concierge pour ${hotelNames} est désormais actif.</p>
+              <p>Connectez-vous avec votre mot de passe existant, ou réinitialisez-le si nécessaire :</p>
+              <div style="text-align: center; margin: 35px 0;">
+                <a href="${recoveryUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Réinitialiser mon mot de passe</a>
               </div>
-            </body>
-          </html>
-        `,
-      }),
+              <p style="font-size: 14px; color: #999;">Si vous n'avez pas demandé cet accès, ignorez cet email.</p>
+            </div>
+            <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
+              <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+            </div>
+          </body>
+        </html>
+      `;
+    }
+
+    // Send the email
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
+      body: JSON.stringify({ from: 'OOM App <booking@oomworld.com>', to: [email], subject: 'Accès OOM App', html })
     });
 
     if (!resendResponse.ok) {
