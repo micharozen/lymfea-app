@@ -268,6 +268,54 @@ export type Database = {
         }
         Relationships: []
       }
+      treatment_menus: {
+        Row: {
+          buffer_time: number | null
+          category: string
+          created_at: string
+          description: string | null
+          duration: number | null
+          hotel_id: string | null
+          id: string
+          image: string | null
+          name: string
+          price: number | null
+          service_for: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          buffer_time?: number | null
+          category: string
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          hotel_id?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          price?: number | null
+          service_for: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          buffer_time?: number | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          hotel_id?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          price?: number | null
+          service_for?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
