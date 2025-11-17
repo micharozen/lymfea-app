@@ -137,6 +137,15 @@ serve(async (req: Request): Promise<Response> => {
       }
       return null;
     }
+
+    // Check if user already exists
+    const existingUserId = await findUserByEmail(email);
+    console.log('Existing user check:', existingUserId ? 'Found' : 'Not found');
+
+    // Variables to track user creation
+    let generatedPassword: string | null = null;
+    let targetUserId: string | null = null;
+
     // Find or create user
     if (!existingUserId) {
       generatedPassword = generatePassword();
@@ -152,6 +161,7 @@ serve(async (req: Request): Promise<Response> => {
       targetUserId = created.user?.id || null;
       console.log('User created successfully:', targetUserId);
     } else {
+      targetUserId = existingUserId;
       console.log('User already exists with id:', existingUserId);
     }
 
@@ -302,7 +312,7 @@ serve(async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: "Invitation envoyée avec succès",
-        userId: userData.user?.id 
+        userId: targetUserId 
       }),
       {
         status: 200,
