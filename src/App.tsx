@@ -26,6 +26,9 @@ import PwaDashboard from "./pages/pwa/PwaDashboard";
 import PwaBookings from "./pages/pwa/PwaBookings";
 import PwaBookingDetail from "./pages/pwa/PwaBookingDetail";
 import PwaProfile from "./pages/pwa/PwaProfile";
+import PwaSplash from "./pages/pwa/PwaSplash";
+import PwaWelcome from "./pages/pwa/PwaWelcome";
+import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -39,7 +42,17 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route path="/set-password" element={<SetPassword />} />
           
           {/* PWA Routes */}
+          <Route path="/pwa" element={<PwaSplash />} />
+          <Route path="/pwa/welcome" element={<PwaWelcome />} />
           <Route path="/pwa/login" element={<PwaLogin />} />
+          <Route
+            path="/pwa/onboarding"
+            element={
+              <PwaProtectedRoute>
+                <PwaOnboarding />
+              </PwaProtectedRoute>
+            }
+          />
           <Route
             path="/pwa/*"
             element={

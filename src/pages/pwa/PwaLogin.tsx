@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import oomLogo from "@/assets/oom-monogram.svg";
 
 const PwaLogin = () => {
   const [email, setEmail] = useState("");
@@ -75,8 +76,20 @@ const PwaLogin = () => {
         return;
       }
 
-      toast.success("Connexion réussie");
-      navigate("/pwa/dashboard");
+      // Check if first login (status is "En attente")
+      const { data: hairdresserData } = await supabase
+        .from("hairdressers")
+        .select("status")
+        .or(`email.eq.${identifier},phone.eq.${identifier}`)
+        .single();
+
+      if (hairdresserData?.status === "En attente") {
+        toast.success("Première connexion !");
+        navigate("/pwa/onboarding");
+      } else {
+        toast.success("Connexion réussie");
+        navigate("/pwa/dashboard");
+      }
     } catch (error) {
       toast.error("Une erreur est survenue");
     } finally {
@@ -89,8 +102,12 @@ const PwaLogin = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-black mb-4">
-            <span className="text-2xl font-bold text-white">OOM</span>
+          <div className="inline-flex items-center justify-center mb-6">
+            <img 
+              src={oomLogo} 
+              alt="OOM" 
+              className="w-24 h-24"
+            />
           </div>
           <h1 className="text-2xl font-bold">Connexion Coiffeur</h1>
           <p className="text-muted-foreground mt-2">
