@@ -210,6 +210,15 @@ export default function CreateBookingDialog({
       return;
     }
 
+    if (selectedTreatments.length === 0) {
+      toast({
+        title: "Prestation requise",
+        description: "Veuillez sélectionner au moins une prestation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     createMutation.mutate({
       hotelId,
       clientFirstName,
