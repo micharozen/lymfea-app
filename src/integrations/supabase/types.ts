@@ -56,6 +56,51 @@ export type Database = {
         }
         Relationships: []
       }
+      boxes: {
+        Row: {
+          box_id: string
+          box_model: string
+          created_at: string
+          hairdresser_name: string | null
+          hotel_id: string | null
+          hotel_name: string | null
+          id: string
+          image: string | null
+          name: string
+          next_booking: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          box_id: string
+          box_model: string
+          created_at?: string
+          hairdresser_name?: string | null
+          hotel_id?: string | null
+          hotel_name?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          next_booking?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          box_id?: string
+          box_model?: string
+          created_at?: string
+          hairdresser_name?: string | null
+          hotel_id?: string | null
+          hotel_name?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          next_booking?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       concierge_hotels: {
         Row: {
           concierge_id: string
