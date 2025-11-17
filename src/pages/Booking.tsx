@@ -292,7 +292,7 @@ export default function Booking() {
               </div>
 
               <div className="overflow-x-auto">
-                <div className="min-w-[1000px] bg-card rounded-lg border border-border max-h-[600px] overflow-y-auto">
+                <div className="min-w-[1000px] bg-card rounded-lg border border-border">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
                     <div className="p-3 border-r border-border bg-muted/30">
