@@ -167,8 +167,8 @@ export default function Boxes() {
                         <Badge
                           className={
                             box.status === "Actif"
-                              ? "bg-green-500/10 text-green-700"
-                              : "bg-orange-500/10 text-orange-700"
+                              ? "bg-green-500/10 text-green-700 hover:bg-green-500/10"
+                              : "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
                           }
                         >
                           {box.status}
