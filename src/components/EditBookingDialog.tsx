@@ -462,7 +462,7 @@ export default function EditBookingDialog({
                 
                 <TabsContent value="Women" className="mt-4">
                   <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Women").map((treatment) => (
+                    {treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").map((treatment) => (
                       <div 
                         key={treatment.id} 
                         className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
@@ -488,7 +488,7 @@ export default function EditBookingDialog({
                         </Button>
                       </div>
                     ))}
-                    {!treatments?.filter(t => t.service_for === "Women").length && (
+                    {!treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").length && (
                       <div className="p-8 text-center text-sm text-muted-foreground">
                         Aucune prestation disponible
                       </div>
@@ -498,7 +498,7 @@ export default function EditBookingDialog({
                 
                 <TabsContent value="Men" className="mt-4">
                   <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Men").map((treatment) => (
+                    {treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").map((treatment) => (
                       <div 
                         key={treatment.id} 
                         className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
@@ -524,7 +524,7 @@ export default function EditBookingDialog({
                         </Button>
                       </div>
                     ))}
-                    {!treatments?.filter(t => t.service_for === "Men").length && (
+                    {!treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").length && (
                       <div className="p-8 text-center text-sm text-muted-foreground">
                         Aucune prestation disponible
                       </div>
@@ -540,13 +540,22 @@ export default function EditBookingDialog({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
-                <Button type="button" variant="outline" onClick={handleClose}>
-                  Annuler
+              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => setActiveTab("info")}
+                >
+                  Retour
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Modification..." : "Modifier"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Modification..." : "Modifier"}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
