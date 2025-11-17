@@ -17,9 +17,9 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   
   const treatmentRows = treatments.map(t => `
     <tr>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${t.name}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${t.duration} min</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">${t.price}€</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${t.name}</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 14px;">${t.duration} min</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 500; font-size: 14px;">${t.price}€</td>
     </tr>
   `).join('');
 
@@ -35,54 +35,206 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       <meta charset="utf-8">
       <title>Invoice #${booking.booking_id}</title>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 40px; color: #1f2937; }
-        .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-        .logo { font-size: 32px; font-weight: bold; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+          margin: 0;
+          padding: 48px;
+          color: #111827;
+          background: white;
+          line-height: 1.6;
+        }
+        .header { 
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 50px;
+          padding-bottom: 30px;
+          border-bottom: 2px solid #000;
+        }
+        .logo-section {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .logo {
+          width: 48px;
+          height: 48px;
+          background: #000;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: 700;
+          font-size: 24px;
+        }
+        .company-name {
+          font-size: 28px;
+          font-weight: 700;
+          color: #000;
+          letter-spacing: -0.5px;
+        }
         .invoice-info { text-align: right; }
-        .section { margin-bottom: 30px; }
-        .section-title { font-size: 14px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background-color: #f9fafb; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
-        .total-row { background-color: #f9fafb; font-weight: 600; }
-        .total-row td { padding: 16px; border-top: 2px solid #e5e7eb; }
-        .client-info, .hotel-info { background-color: #f9fafb; padding: 20px; border-radius: 8px; }
+        .invoice-title {
+          font-size: 32px;
+          font-weight: 700;
+          color: #000;
+          margin-bottom: 8px;
+          letter-spacing: -0.5px;
+        }
+        .invoice-meta {
+          color: #6b7280;
+          font-size: 14px;
+          margin: 4px 0;
+        }
+        .info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          margin-bottom: 40px;
+        }
+        .info-card {
+          background: #f9fafb;
+          padding: 24px;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+        }
+        .section-title {
+          font-size: 11px;
+          font-weight: 700;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 12px;
+        }
+        .info-card p {
+          margin: 6px 0;
+          font-size: 14px;
+        }
+        .info-card .name {
+          font-weight: 600;
+          font-size: 16px;
+          color: #000;
+          margin-bottom: 8px;
+        }
+        .booking-details {
+          background: #000;
+          color: white;
+          padding: 24px;
+          border-radius: 12px;
+          margin-bottom: 32px;
+        }
+        .booking-details .section-title {
+          color: #9ca3af;
+        }
+        .booking-details p {
+          margin: 10px 0;
+          font-size: 15px;
+        }
+        .booking-details strong {
+          color: #d1d5db;
+          font-weight: 500;
+          margin-right: 8px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 24px;
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid #e5e7eb;
+        }
+        thead {
+          background: #f9fafb;
+        }
+        th {
+          padding: 16px 14px;
+          text-align: left;
+          font-weight: 600;
+          font-size: 12px;
+          color: #6b7280;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .summary-row {
+          background: #fafafa;
+        }
+        .summary-row td {
+          padding: 14px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .total-row {
+          background: #000;
+          color: white;
+        }
+        .total-row td {
+          padding: 20px 14px;
+          font-size: 18px;
+          font-weight: 700;
+        }
+        .footer {
+          margin-top: 60px;
+          padding-top: 24px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+        }
+        .footer p {
+          color: #9ca3af;
+          font-size: 13px;
+          margin: 6px 0;
+        }
+        .thank-you {
+          font-weight: 600;
+          color: #000;
+          font-size: 14px;
+          margin-bottom: 12px;
+        }
       </style>
     </head>
     <body>
       <div class="header">
-        <div class="logo">OOM App</div>
+        <div class="logo-section">
+          <div class="logo">O</div>
+          <div class="company-name">OOM</div>
+        </div>
         <div class="invoice-info">
-          <h1 style="margin: 0; font-size: 24px;">INVOICE</h1>
-          <p style="margin: 4px 0; color: #6b7280;">Invoice #${booking.booking_id}</p>
-          <p style="margin: 4px 0; color: #6b7280;">Date: ${new Date(booking.booking_date).toLocaleDateString('fr-FR')}</p>
+          <div class="invoice-title">INVOICE</div>
+          <p class="invoice-meta">#${booking.booking_id}</p>
+          <p class="invoice-meta">${new Date(booking.booking_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px;">
-        <div class="client-info">
-          <div class="section-title">CLIENT INFORMATION</div>
-          <p style="margin: 8px 0; font-weight: 600;">${booking.client_first_name} ${booking.client_last_name}</p>
-          <p style="margin: 4px 0; color: #6b7280;">${booking.phone}</p>
-          ${booking.room_number ? `<p style="margin: 4px 0; color: #6b7280;">Room: ${booking.room_number}</p>` : ''}
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="section-title">Bill To</div>
+          <p class="name">${booking.client_first_name} ${booking.client_last_name}</p>
+          <p style="color: #6b7280;">${booking.phone}</p>
+          ${booking.room_number ? `<p style="color: #6b7280;">Room ${booking.room_number}</p>` : ''}
         </div>
         
-        <div class="hotel-info">
-          <div class="section-title">HOTEL INFORMATION</div>
-          <p style="margin: 8px 0; font-weight: 600;">${hotel?.name || booking.hotel_name || 'N/A'}</p>
-          ${hotel?.address ? `<p style="margin: 4px 0; color: #6b7280;">${hotel.address}</p>` : ''}
-          ${hotel?.city ? `<p style="margin: 4px 0; color: #6b7280;">${hotel.postal_code || ''} ${hotel.city}</p>` : ''}
+        <div class="info-card">
+          <div class="section-title">Hotel</div>
+          <p class="name">${hotel?.name || booking.hotel_name || 'N/A'}</p>
+          ${hotel?.address ? `<p style="color: #6b7280;">${hotel.address}</p>` : ''}
+          ${hotel?.city ? `<p style="color: #6b7280;">${hotel.postal_code || ''} ${hotel.city}</p>` : ''}
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">BOOKING DETAILS</div>
-        <p style="margin: 8px 0;">
-          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+      <div class="booking-details">
+        <div class="section-title">Service Details</div>
+        <p>
+          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
-        <p style="margin: 8px 0;">
+        <p>
           <strong>Time:</strong> ${booking.booking_time.substring(0, 5)}
         </p>
-        ${booking.hairdresser_name ? `<p style="margin: 8px 0;"><strong>Hair Dresser:</strong> ${booking.hairdresser_name}</p>` : ''}
+        ${booking.hairdresser_name ? `<p><strong>Stylist:</strong> ${booking.hairdresser_name}</p>` : ''}
       </div>
 
       <table>
@@ -95,24 +247,25 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
         </thead>
         <tbody>
           ${treatmentRows}
-          <tr>
-            <td colspan="2" style="padding: 12px; text-align: right; font-weight: 600;">Subtotal</td>
-            <td style="padding: 12px; text-align: right; font-weight: 600;">${subtotal.toFixed(2)}€</td>
+          <tr class="summary-row">
+            <td colspan="2" style="text-align: right; font-weight: 600;">Subtotal</td>
+            <td style="text-align: right; font-weight: 600;">${subtotal.toFixed(2)}€</td>
           </tr>
-          <tr>
-            <td colspan="2" style="padding: 12px; text-align: right;">VAT (${vat}%)</td>
-            <td style="padding: 12px; text-align: right;">${vatAmount.toFixed(2)}€</td>
+          <tr class="summary-row">
+            <td colspan="2" style="text-align: right;">VAT (${vat}%)</td>
+            <td style="text-align: right;">${vatAmount.toFixed(2)}€</td>
           </tr>
           <tr class="total-row">
-            <td colspan="2" style="text-align: right; font-size: 18px;">TOTAL</td>
-            <td style="text-align: right; font-size: 18px;">${total.toFixed(2)}€</td>
+            <td colspan="2" style="text-align: right;">TOTAL</td>
+            <td style="text-align: right;">${total.toFixed(2)}€</td>
           </tr>
         </tbody>
       </table>
 
-      <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; color: #6b7280; font-size: 12px;">
-        <p>Thank you for your business!</p>
-        <p>Generated by OOM App - ${new Date().toLocaleDateString('fr-FR')}</p>
+      <div class="footer">
+        <p class="thank-you">Thank you for choosing OOM</p>
+        <p>For any inquiries, please contact booking@oomworld.com</p>
+        <p>Generated on ${new Date().toLocaleDateString('en-GB')}</p>
       </div>
     </body>
     </html>
