@@ -10,10 +10,62 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const countries = [
+  { code: "+33", label: "France", flag: "🇫🇷" },
+  { code: "+39", label: "Italie", flag: "🇮🇹" },
+  { code: "+1", label: "USA", flag: "🇺🇸" },
+  { code: "+44", label: "UK", flag: "🇬🇧" },
+  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+  { code: "+34", label: "Espagne", flag: "🇪🇸" },
+  { code: "+41", label: "Suisse", flag: "🇨🇭" },
+  { code: "+32", label: "Belgique", flag: "🇧🇪" },
+  { code: "+971", label: "EAU", flag: "🇦🇪" },
+];
+
+const formatPhoneNumber = (value: string, countryCode: string): string => {
+  const numbers = value.replace(/\D/g, '');
+  
+  switch (countryCode) {
+    case "+33":
+      const fr = numbers.slice(0, 10);
+      if (fr.length <= 1) return fr;
+      if (fr.length <= 3) return `${fr.slice(0, 1)} ${fr.slice(1)}`;
+      if (fr.length <= 5) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3)}`;
+      if (fr.length <= 7) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5)}`;
+      if (fr.length <= 9) return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5, 7)} ${fr.slice(7)}`;
+      return `${fr.slice(0, 1)} ${fr.slice(1, 3)} ${fr.slice(3, 5)} ${fr.slice(5, 7)} ${fr.slice(7, 9)} ${fr.slice(9, 10)}`;
+      
+    case "+971":
+      const uae = numbers.slice(0, 9);
+      if (uae.length <= 1) return uae;
+      if (uae.length <= 4) return `${uae.slice(0, 1)} ${uae.slice(1)}`;
+      if (uae.length <= 7) return `${uae.slice(0, 1)} ${uae.slice(1, 4)} ${uae.slice(4)}`;
+      return `${uae.slice(0, 1)} ${uae.slice(1, 4)} ${uae.slice(4, 7)} ${uae.slice(7)}`;
+      
+    default:
+      return numbers.slice(0, 15);
+  }
+};
 
 interface CreateBookingDialogProps {
   open: boolean;
@@ -33,6 +85,8 @@ export default function CreateBookingDialog({
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+33");
+  const [countryOpen, setCountryOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
   const [time, setTime] = useState(selectedTime || "");
@@ -68,7 +122,7 @@ export default function CreateBookingDialog({
         hotel_name: hotel?.name || "",
         client_first_name: data.clientFirstName,
         client_last_name: data.clientLastName,
-        phone: data.phone,
+        phone: `${data.countryCode} ${data.phone}`,
         room_number: data.roomNumber,
         booking_date: data.date,
         booking_time: data.time,
@@ -112,6 +166,7 @@ export default function CreateBookingDialog({
       clientFirstName,
       clientLastName,
       phone,
+      countryCode,
       roomNumber,
       date,
       time,
@@ -123,6 +178,7 @@ export default function CreateBookingDialog({
     setClientFirstName("");
     setClientLastName("");
     setPhone("");
+    setCountryCode("+33");
     setRoomNumber("");
     setDate(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
     setTime(selectedTime || "");
@@ -175,12 +231,57 @@ export default function CreateBookingDialog({
 
           <div className="space-y-2">
             <Label htmlFor="phone">Téléphone *</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+33 6 14 21 64 42"
-            />
+            <div className="flex gap-2">
+              <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={countryOpen}
+                    className="w-[140px] justify-between"
+                  >
+                    {countries.find((country) => country.code === countryCode)?.flag}{" "}
+                    {countryCode}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Rechercher..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {countries.map((country) => (
+                          <CommandItem
+                            key={country.code}
+                            value={`${country.label} ${country.code}`}
+                            onSelect={() => {
+                              setCountryCode(country.code);
+                              setCountryOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                countryCode === country.code ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {country.flag} {country.label} ({country.code})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
+                placeholder="6 14 21 64 42"
+                className="flex-1"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
