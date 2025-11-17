@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -90,6 +91,8 @@ export default function CreateBookingDialog({
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
   const [time, setTime] = useState(selectedTime || "");
+  const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
+  const [totalPrice, setTotalPrice] = useState(0);
 
   // Update date and time when props change
   useEffect(() => {
@@ -113,23 +116,68 @@ export default function CreateBookingDialog({
     },
   });
 
+  const { data: treatments } = useQuery({
+    queryKey: ["treatment_menus"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("treatment_menus")
+        .select("*")
+        .eq("status", "Actif")
+        .order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Recalculer le prix total quand les traitements changent
+  useEffect(() => {
+    if (treatments && selectedTreatments.length > 0) {
+      const total = selectedTreatments.reduce((sum, treatmentId) => {
+        const treatment = treatments.find(t => t.id === treatmentId);
+        return sum + (treatment?.price || 0);
+      }, 0);
+      setTotalPrice(total);
+    } else {
+      setTotalPrice(0);
+    }
+  }, [selectedTreatments, treatments]);
+
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const hotel = hotels?.find((h) => h.id === data.hotelId);
       
-      const { error } = await supabase.from("bookings").insert({
-        hotel_id: data.hotelId,
-        hotel_name: hotel?.name || "",
-        client_first_name: data.clientFirstName,
-        client_last_name: data.clientLastName,
-        phone: `${data.countryCode} ${data.phone}`,
-        room_number: data.roomNumber,
-        booking_date: data.date,
-        booking_time: data.time,
-        status: "Assigned",
-      });
+      const { data: bookingData, error: bookingError } = await supabase
+        .from("bookings")
+        .insert({
+          hotel_id: data.hotelId,
+          hotel_name: hotel?.name || "",
+          client_first_name: data.clientFirstName,
+          client_last_name: data.clientLastName,
+          phone: `${data.countryCode} ${data.phone}`,
+          room_number: data.roomNumber,
+          booking_date: data.date,
+          booking_time: data.time,
+          status: "Assigned",
+          total_price: data.totalPrice,
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
+
+      // Insérer les traitements sélectionnés
+      if (data.selectedTreatments.length > 0) {
+        const treatmentRecords = data.selectedTreatments.map((treatmentId: string) => ({
+          booking_id: bookingData.id,
+          treatment_id: treatmentId,
+        }));
+
+        const { error: treatmentsError } = await supabase
+          .from("booking_treatments")
+          .insert(treatmentRecords);
+
+        if (treatmentsError) throw treatmentsError;
+      }
     },
     onSuccess: () => {
       toast({
@@ -170,6 +218,8 @@ export default function CreateBookingDialog({
       roomNumber,
       date,
       time,
+      selectedTreatments,
+      totalPrice,
     });
   };
 
@@ -182,7 +232,17 @@ export default function CreateBookingDialog({
     setRoomNumber("");
     setDate(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
     setTime(selectedTime || "");
+    setSelectedTreatments([]);
+    setTotalPrice(0);
     onOpenChange(false);
+  };
+
+  const toggleTreatment = (treatmentId: string) => {
+    setSelectedTreatments(prev => 
+      prev.includes(treatmentId) 
+        ? prev.filter(id => id !== treatmentId)
+        : [...prev, treatmentId]
+    );
   };
 
   return (
@@ -313,6 +373,42 @@ export default function CreateBookingDialog({
                 onChange={(e) => setTime(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Prestations</Label>
+            <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
+              {treatments?.map((treatment) => (
+                <div key={treatment.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Checkbox
+                      id={`treatment-${treatment.id}`}
+                      checked={selectedTreatments.includes(treatment.id)}
+                      onCheckedChange={() => toggleTreatment(treatment.id)}
+                    />
+                    <label
+                      htmlFor={`treatment-${treatment.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      <div className="font-medium">{treatment.name}</div>
+                      <div className="text-xs text-muted-foreground">{treatment.category}</div>
+                    </label>
+                  </div>
+                  <div className="text-sm font-medium">{treatment.price}€</div>
+                </div>
+              ))}
+              {!treatments?.length && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucune prestation disponible
+                </p>
+              )}
+            </div>
+            {selectedTreatments.length > 0 && (
+              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold">
+                <span>Prix total</span>
+                <span className="text-lg">{totalPrice}€</span>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 pt-4">
