@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText } from "lucide-react";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
@@ -40,6 +40,8 @@ export default function Booking() {
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   const { data: bookings } = useQuery({
     queryKey: ["bookings"],
@@ -411,19 +413,62 @@ export default function Booking() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b">
-                    <TableHead className="font-semibold text-foreground">Réservation</TableHead>
-                    <TableHead className="font-semibold text-foreground">Date</TableHead>
-                    <TableHead className="font-semibold text-foreground">Heure</TableHead>
-                    <TableHead className="font-semibold text-foreground">Statut</TableHead>
-                    <TableHead className="font-semibold text-foreground">Client</TableHead>
-                    <TableHead className="font-semibold text-foreground">Téléphone</TableHead>
-                    <TableHead className="font-semibold text-foreground">Prix total</TableHead>
-                    <TableHead className="font-semibold text-foreground">Hôtel</TableHead>
-                    <TableHead className="font-semibold text-foreground">Coiffeur</TableHead>
+                    <TableHead className="font-semibold text-foreground">Booking ID</TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4" />
+                        Date
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Start time
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">Status</TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        Client name
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4" />
+                        Client phone
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Euro className="h-4 w-4" />
+                        Total price
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Hotel
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Hair dresser
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Invoice
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBookings?.map((booking, index) => (
+                  {filteredBookings
+                    ?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors border-b"
@@ -432,7 +477,7 @@ export default function Booking() {
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium">#{index + 1}</TableCell>
+                      <TableCell className="font-medium">#{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
@@ -451,17 +496,79 @@ export default function Booking() {
                       <TableCell className="font-semibold">{booking.total_price}€</TableCell>
                       <TableCell className="text-muted-foreground">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Implement invoice view/download
+                          }}
+                        >
+                          <FileText className="h-4 w-4" />
+                          View invoice
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
                         Aucune réservation trouvée
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
+              
+              {/* Pagination */}
+              {filteredBookings && filteredBookings.length > itemsPerPage && (
+                <div className="flex items-center justify-between px-4 py-4 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings.length)} on {filteredBookings.length} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    {Array.from({ length: Math.ceil(filteredBookings.length / itemsPerPage) }, (_, i) => i + 1)
+                      .filter(page => {
+                        const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+                        return page === 1 || 
+                               page === totalPages ||
+                               (page >= currentPage - 1 && page <= currentPage + 1);
+                      })
+                      .map((page, idx, arr) => (
+                        <div key={page} className="flex items-center">
+                          {idx > 0 && arr[idx - 1] !== page - 1 && (
+                            <span className="px-2 text-muted-foreground">...</span>
+                          )}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="min-w-[40px]"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredBookings.length / itemsPerPage), p + 1))}
+                      disabled={currentPage === Math.ceil(filteredBookings.length / itemsPerPage)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
