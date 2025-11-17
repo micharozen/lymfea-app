@@ -221,57 +221,83 @@ export default function Booking() {
           </div>
 
           {view === "calendar" ? (
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
                 <Button variant="outline" size="sm" onClick={handlePreviousWeek}>
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Semaine précédente
                 </Button>
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-xl font-semibold">
                   {format(currentWeekStart, "d MMM", { locale: fr })} -{" "}
                   {format(addDays(currentWeekStart, 6), "d MMM yyyy", { locale: fr })}
                 </h2>
                 <Button variant="outline" size="sm" onClick={handleNextWeek}>
-                  <ChevronRight className="h-4 w-4" />
+                  Semaine suivante
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
 
               <div className="overflow-x-auto">
-                <div className="min-w-[800px]">
-                  <div className="grid grid-cols-8 gap-2 mb-2">
-                    <div className="text-sm font-medium text-muted-foreground"></div>
-                    {weekDays.map((day) => (
-                      <div
-                        key={day.toISOString()}
-                        className="text-center text-sm font-medium"
-                      >
-                        <div>{format(day, "EEE", { locale: fr })}</div>
-                        <div className="text-lg">{format(day, "d")}</div>
-                      </div>
-                    ))}
+                <div className="min-w-[1000px] bg-card rounded-lg border border-border">
+                  {/* Header avec les jours */}
+                  <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
+                    <div className="p-4 border-r border-border bg-muted/30">
+                      <span className="text-sm font-medium text-muted-foreground">Heure</span>
+                    </div>
+                    {weekDays.map((day) => {
+                      const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                      return (
+                        <div
+                          key={day.toISOString()}
+                          className={`p-4 text-center border-r border-border last:border-r-0 ${
+                            isToday ? "bg-primary/5" : "bg-muted/30"
+                          }`}
+                        >
+                          <div className="text-sm font-medium text-muted-foreground uppercase">
+                            {format(day, "EEE", { locale: fr })}
+                          </div>
+                          <div className={`text-2xl font-bold mt-1 ${isToday ? "text-primary" : ""}`}>
+                            {format(day, "d")}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(day, "MMM", { locale: fr })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="space-y-1">
-                    {timeSlots.map((time) => (
-                      <div key={time} className="grid grid-cols-8 gap-2">
-                        <div className="text-sm text-muted-foreground py-2">{time}</div>
+                  {/* Grille avec les créneaux horaires */}
+                  <div className="relative">
+                    {timeSlots.map((time, index) => (
+                      <div key={time} className="grid grid-cols-8 border-b border-border last:border-b-0">
+                        <div className="p-3 border-r border-border bg-muted/20 flex items-start">
+                          <span className="text-sm font-medium text-muted-foreground">{time}</span>
+                        </div>
                         {weekDays.map((day) => {
                           const booking = getBookingForSlot(day, time);
+                          const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                           return (
                             <div
                               key={`${day.toISOString()}-${time}`}
-                              className={`min-h-[60px] border border-border rounded p-1 cursor-pointer transition-colors ${
+                              className={`min-h-[80px] p-2 border-r border-border last:border-r-0 cursor-pointer transition-all ${
                                 booking
-                                  ? "bg-primary/5"
-                                  : "hover:bg-muted"
+                                  ? "bg-primary/10 hover:bg-primary/15"
+                                  : isToday
+                                  ? "bg-primary/5 hover:bg-primary/10"
+                                  : "hover:bg-muted/50"
                               }`}
                               onClick={() => !booking && handleCalendarClick(day, time)}
                             >
                               {booking && (
-                                <div className="text-xs">
-                                  <div className="font-medium">
+                                <div className="h-full flex flex-col gap-1 p-2 rounded bg-card border border-border shadow-sm">
+                                  <div className="text-xs font-semibold text-foreground truncate">
                                     {booking.client_first_name} {booking.client_last_name}
                                   </div>
-                                  <Badge className={`text-xs mt-1 ${getStatusColor(booking.status)}`}>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {booking.phone}
+                                  </div>
+                                  <Badge className={`text-xs w-fit ${getStatusColor(booking.status)}`}>
                                     {booking.status}
                                   </Badge>
                                 </div>
