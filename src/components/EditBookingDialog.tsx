@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -104,6 +105,8 @@ export default function EditBookingDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("");
+  const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
+  const [totalPrice, setTotalPrice] = useState(0);
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -140,6 +143,52 @@ export default function EditBookingDialog({
     },
   });
 
+  const { data: treatments } = useQuery({
+    queryKey: ["treatment_menus"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("treatment_menus")
+        .select("*")
+        .eq("status", "Actif")
+        .order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: existingTreatments } = useQuery({
+    queryKey: ["booking_treatments", booking?.id],
+    enabled: !!booking?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("booking_treatments")
+        .select("treatment_id")
+        .eq("booking_id", booking!.id);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Charger les traitements existants quand la réservation change
+  useEffect(() => {
+    if (existingTreatments) {
+      setSelectedTreatments(existingTreatments.map(t => t.treatment_id));
+    }
+  }, [existingTreatments]);
+
+  // Recalculer le prix total quand les traitements changent
+  useEffect(() => {
+    if (treatments && selectedTreatments.length > 0) {
+      const total = selectedTreatments.reduce((sum, treatmentId) => {
+        const treatment = treatments.find(t => t.id === treatmentId);
+        return sum + (treatment?.price || 0);
+      }, 0);
+      setTotalPrice(total);
+    } else {
+      setTotalPrice(0);
+    }
+  }, [selectedTreatments, treatments]);
+
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
       const hotel = hotels?.find((h) => h.id === data.hotelId);
@@ -156,10 +205,33 @@ export default function EditBookingDialog({
           booking_date: data.date,
           booking_time: data.time,
           status: data.status,
+          total_price: data.totalPrice,
         })
         .eq("id", booking?.id);
 
       if (error) throw error;
+
+      // Supprimer les anciens traitements
+      const { error: deleteError } = await supabase
+        .from("booking_treatments")
+        .delete()
+        .eq("booking_id", booking!.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insérer les nouveaux traitements
+      if (data.selectedTreatments.length > 0) {
+        const treatmentRecords = data.selectedTreatments.map((treatmentId: string) => ({
+          booking_id: booking!.id,
+          treatment_id: treatmentId,
+        }));
+
+        const { error: treatmentsError } = await supabase
+          .from("booking_treatments")
+          .insert(treatmentRecords);
+
+        if (treatmentsError) throw treatmentsError;
+      }
     },
     onSuccess: () => {
       toast({
@@ -201,11 +273,21 @@ export default function EditBookingDialog({
       date,
       time,
       status,
+      selectedTreatments,
+      totalPrice,
     });
   };
 
   const handleClose = () => {
     onOpenChange(false);
+  };
+
+  const toggleTreatment = (treatmentId: string) => {
+    setSelectedTreatments(prev => 
+      prev.includes(treatmentId) 
+        ? prev.filter(id => id !== treatmentId)
+        : [...prev, treatmentId]
+    );
   };
 
   return (
@@ -351,6 +433,42 @@ export default function EditBookingDialog({
                 onChange={(e) => setTime(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Prestations</Label>
+            <div className="border rounded-lg p-3 max-h-[200px] overflow-y-auto space-y-2">
+              {treatments?.map((treatment) => (
+                <div key={treatment.id} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded">
+                  <div className="flex items-center gap-2 flex-1">
+                    <Checkbox
+                      id={`edit-treatment-${treatment.id}`}
+                      checked={selectedTreatments.includes(treatment.id)}
+                      onCheckedChange={() => toggleTreatment(treatment.id)}
+                    />
+                    <label
+                      htmlFor={`edit-treatment-${treatment.id}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      <div className="font-medium">{treatment.name}</div>
+                      <div className="text-xs text-muted-foreground">{treatment.category}</div>
+                    </label>
+                  </div>
+                  <div className="text-sm font-medium">{treatment.price}€</div>
+                </div>
+              ))}
+              {!treatments?.length && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Aucune prestation disponible
+                </p>
+              )}
+            </div>
+            {selectedTreatments.length > 0 && (
+              <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold">
+                <span>Prix total</span>
+                <span className="text-lg">{totalPrice}€</span>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
