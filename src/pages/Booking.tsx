@@ -509,24 +509,35 @@ export default function Booking() {
 
                               if (error) throw error;
 
-                              // Create a new window with the invoice HTML
-                              const printWindow = window.open('', '_blank');
-                              if (printWindow) {
-                                printWindow.document.write(data.html);
-                                printWindow.document.close();
-                                
-                                // Wait for content to load then trigger print
-                                printWindow.onload = () => {
-                                  printWindow.print();
-                                };
-                              }
+                              // Dynamic import of html2pdf
+                              const html2pdf = (await import('html2pdf.js')).default;
+
+                              // Create temporary div with the invoice HTML
+                              const element = document.createElement('div');
+                              element.innerHTML = data.html;
+                              document.body.appendChild(element);
+
+                              // Generate PDF and download
+                              html2pdf()
+                                .set({
+                                  margin: 0,
+                                  filename: `invoice-${data.bookingId}.pdf`,
+                                  image: { type: 'jpeg', quality: 0.98 },
+                                  html2canvas: { scale: 2, letterRendering: true },
+                                  jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                })
+                                .from(element)
+                                .save()
+                                .then(() => {
+                                  document.body.removeChild(element);
+                                });
                             } catch (error) {
                               console.error('Error generating invoice:', error);
                             }
                           }}
                         >
                           <FileText className="h-4 w-4 mr-2" />
-                          View invoice
+                          Download
                         </Button>
                       </TableCell>
                     </TableRow>
