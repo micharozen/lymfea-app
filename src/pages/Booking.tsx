@@ -292,7 +292,7 @@ export default function Booking() {
               </div>
 
               <div className="overflow-x-auto">
-                <div className="min-w-[1000px] bg-card rounded-lg border border-border">
+                <div className="min-w-[1000px] bg-card rounded-lg border border-border max-h-[600px] overflow-y-auto">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
                     <div className="p-3 border-r border-border bg-muted/30">
@@ -327,8 +327,8 @@ export default function Booking() {
                       const hourStr = `${hour.toString().padStart(2, '0')}:00`;
                       return (
                         <div key={hour} className="grid grid-cols-8 border-b border-border">
-                          <div className="p-2 border-r border-border bg-muted/20 flex items-start">
-                            <span className="text-xs font-medium text-muted-foreground">{hourStr}</span>
+                          <div className="p-1 border-r border-border bg-muted/20 flex items-start">
+                            <span className="text-[10px] font-medium text-muted-foreground">{hourStr}</span>
                           </div>
                           {weekDays.map((day) => {
                             const bookingsInHour = getBookingsForHour(day, hour);
@@ -338,7 +338,7 @@ export default function Booking() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative h-[60px] p-1.5 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                className={`relative h-[40px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
                                   bookingsInHour.length > 0
                                     ? "bg-primary/5 hover:bg-primary/10"
                                     : isToday
@@ -348,11 +348,11 @@ export default function Booking() {
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
-                                  <div className="space-y-1 h-full overflow-y-auto">
+                                  <div className="space-y-0.5 h-full overflow-y-auto">
                                     {bookingsInHour.map((booking) => (
                                       <div
                                         key={booking.id}
-                                        className="p-1.5 rounded bg-primary/20 border border-primary/30 text-[10px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                        className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setSelectedBooking(booking);
@@ -362,7 +362,7 @@ export default function Booking() {
                                         <div className="font-medium text-foreground truncate">
                                           {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
                                         </div>
-                                        <Badge className={`text-[8px] w-fit px-1 py-0 h-3.5 mt-0.5 ${getStatusColor(booking.status)}`}>
+                                        <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
                                           {booking.status}
                                         </Badge>
                                       </div>
