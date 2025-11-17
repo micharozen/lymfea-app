@@ -1,198 +1,177 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import oomLogo from "@/assets/oom-monogram.svg";
+import { ArrowLeft } from "lucide-react";
 
 const PwaLogin = () => {
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"input" | "password">("input");
-  const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
   const navigate = useNavigate();
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [countryCode] = useState("+33");
 
-  const handleCheckUser = async () => {
+  const handleSendOtp = async () => {
+    if (!phone || phone.length < 9) {
+      toast.error("Veuillez entrer un numéro de téléphone valide");
+      return;
+    }
+
     setLoading(true);
     try {
-      const identifier = loginMethod === "email" ? email : phone;
-      
-      // Check if hairdresser exists
-      const { data: hairdresser, error } = await supabase
-        .from("hairdressers")
-        .select("email, user_id")
-        .or(`email.eq.${identifier},phone.eq.${identifier}`)
-        .single();
-
-      if (error || !hairdresser) {
-        toast.error("Compte non trouvé. Contactez l'administrateur.");
-        return;
-      }
-
-      if (!hairdresser.user_id) {
-        toast.error("Votre compte n'est pas encore activé. Contactez l'administrateur.");
-        return;
-      }
-
-      setStep("password");
-    } catch (error) {
-      toast.error("Une erreur est survenue");
+      // TODO: Implement OTP sending logic
+      setStep("otp");
+      toast.success("Un code de vérification a été envoyé");
+    } catch (error: any) {
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length < 6) {
+      toast.error("Veuillez entrer le code de vérification");
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const identifier = loginMethod === "email" ? email : phone;
-      
-      // Get hairdresser email for login
-      const { data: hairdresser } = await supabase
-        .from("hairdressers")
-        .select("email")
-        .or(`email.eq.${identifier},phone.eq.${identifier}`)
-        .single();
-
-      if (!hairdresser) {
-        toast.error("Erreur de connexion");
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: hairdresser.email,
-        password,
-      });
-
-      if (error) {
-        toast.error("Email ou mot de passe incorrect");
-        return;
-      }
-
-      // Check if first login (status is "En attente")
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
-        .select("status")
-        .or(`email.eq.${identifier},phone.eq.${identifier}`)
-        .single();
-
-      if (hairdresserData?.status === "En attente") {
-        toast.success("Première connexion !");
-        navigate("/pwa/onboarding");
-      } else {
-        toast.success("Connexion réussie");
-        navigate("/pwa/dashboard");
-      }
-    } catch (error) {
-      toast.error("Une erreur est survenue");
+      // TODO: Implement OTP verification
+      navigate("/pwa/onboarding");
+    } catch (error: any) {
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleNumberInput = (digit: string) => {
+    if (step === "phone") {
+      if (phone.length < 10) {
+        setPhone(phone + digit);
+      }
+    } else if (step === "otp") {
+      if (otp.length < 6) {
+        setOtp(otp + digit);
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    if (step === "phone") {
+      setPhone(phone.slice(0, -1));
+    } else if (step === "otp") {
+      setOtp(otp.slice(0, -1));
+    }
+  };
+
+  const formatPhoneDisplay = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const parts = [];
+    if (cleaned.length > 0) parts.push(cleaned.substring(0, 1));
+    if (cleaned.length > 1) parts.push(cleaned.substring(1, 3));
+    if (cleaned.length > 3) parts.push(cleaned.substring(3, 5));
+    if (cleaned.length > 5) parts.push(cleaned.substring(5, 7));
+    if (cleaned.length > 7) parts.push(cleaned.substring(7, 9));
+    return parts.join(' ');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center mb-6">
-            <img 
-              src={oomLogo} 
-              alt="OOM" 
-              className="w-24 h-24"
-            />
-          </div>
-          <h1 className="text-2xl font-bold">Connexion Coiffeur</h1>
-          <p className="text-muted-foreground mt-2">
-            Accédez à votre espace professionnel
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col bg-white">
+      <div className="p-4">
+        <button onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}>
+          <ArrowLeft className="h-6 w-6" />
+        </button>
+      </div>
 
-        {step === "input" ? (
-          <div className="space-y-4">
-            <Tabs value={loginMethod} onValueChange={(v) => setLoginMethod(v as "email" | "phone")}>
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="email">Email</TabsTrigger>
-                <TabsTrigger value="phone">Téléphone</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="email" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Adresse email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="votre@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="phone" className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Numéro de téléphone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+33 6 12 34 56 78"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={loading}
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
+      <div className="flex-1 flex flex-col px-6 pt-8">
+        {step === "phone" ? (
+          <>
+            <h1 className="text-2xl font-semibold mb-2">Enter your Phone Number</h1>
+            <p className="text-sm text-gray-500 mb-8">We will send you a verification code</p>
 
-            <Button 
-              onClick={handleCheckUser} 
-              disabled={loading || (!email && !phone)}
-              className="w-full"
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-20 h-12 rounded-lg border border-gray-300 flex items-center justify-center text-sm">
+                {countryCode}
+              </div>
+              <div className="flex-1 h-12 rounded-lg border border-gray-300 flex items-center px-4 text-lg">
+                {formatPhoneDisplay(phone) || ""}
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSendOtp}
+              disabled={phone.length < 9 || loading}
+              className={`w-full h-12 rounded-full mb-8 ${
+                phone.length >= 9
+                  ? "bg-black text-white hover:bg-black/90"
+                  : "bg-gray-200 text-gray-400"
+              }`}
             >
-              {loading ? "Vérification..." : "Continuer"}
+              Continue with Phone
             </Button>
-          </div>
+          </>
         ) : (
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Entrez votre mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                autoFocus
-              />
-            </div>
+          <>
+            <h1 className="text-2xl font-semibold mb-2">Enter the code</h1>
+            <p className="text-sm text-gray-500 mb-8">We sent a SMS to ***{phone.slice(-4)}</p>
 
-            <div className="space-y-2">
-              <Button type="submit" disabled={loading || !password} className="w-full">
-                {loading ? "Connexion..." : "Se connecter"}
-              </Button>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                onClick={() => {
-                  setStep("input");
-                  setPassword("");
-                }}
-                className="w-full"
-              >
-                Retour
-              </Button>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-20 rounded-lg border-2 border-blue-500 flex items-center justify-center text-2xl font-semibold">
+                {otp || ""}
+              </div>
             </div>
-          </form>
+            <p className="text-xs text-center text-gray-400 mb-8">
+              Didn't receive code ? / Send again in 01:31
+            </p>
+
+            <Button
+              onClick={handleVerifyOtp}
+              disabled={otp.length < 6 || loading}
+              className={`w-full h-12 rounded-full mb-8 ${
+                otp.length >= 6
+                  ? "bg-black text-white hover:bg-black/90"
+                  : "bg-gray-200 text-gray-400"
+              }`}
+            >
+              Continue with Phone
+            </Button>
+          </>
         )}
+
+        <div className="mt-auto pb-8">
+          <div className="grid grid-cols-3 gap-4 max-w-xs mx-auto">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => (
+              <button
+                key={digit}
+                onClick={() => handleNumberInput(digit.toString())}
+                className="h-16 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-xl font-semibold hover:bg-gray-100"
+              >
+                <span>{digit}</span>
+                <span className="text-xs text-gray-400">
+                  {digit === 7 && "PQRS"}
+                  {digit === 8 && "TUV"}
+                  {digit === 9 && "WXYZ"}
+                </span>
+              </button>
+            ))}
+            <button className="h-16"></button>
+            <button
+              onClick={() => handleNumberInput("0")}
+              className="h-16 flex flex-col items-center justify-center bg-gray-50 rounded-lg text-xl font-semibold hover:bg-gray-100"
+            >
+              <span>0</span>
+            </button>
+            <button
+              onClick={handleDelete}
+              className="h-16 flex items-center justify-center bg-gray-50 rounded-lg hover:bg-gray-100"
+            >
+              <span className="text-xl">⌫</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
