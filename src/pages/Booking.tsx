@@ -477,7 +477,7 @@ export default function Booking() {
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium">#{(currentPage - 1) * itemsPerPage + index + 1}</TableCell>
+                      <TableCell className="font-medium">#{booking.booking_id}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
@@ -500,12 +500,32 @@ export default function Booking() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
-                            // TODO: Implement invoice view/download
+                            try {
+                              const { data, error } = await supabase.functions.invoke('generate-invoice', {
+                                body: { bookingId: booking.id }
+                              });
+
+                              if (error) throw error;
+
+                              // Create a new window with the invoice HTML
+                              const printWindow = window.open('', '_blank');
+                              if (printWindow) {
+                                printWindow.document.write(data.html);
+                                printWindow.document.close();
+                                
+                                // Wait for content to load then trigger print
+                                printWindow.onload = () => {
+                                  printWindow.print();
+                                };
+                              }
+                            } catch (error) {
+                              console.error('Error generating invoice:', error);
+                            }
                           }}
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-4 w-4 mr-2" />
                           View invoice
                         </Button>
                       </TableCell>
