@@ -27,14 +27,28 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    // Decode JWT manually
+    const token = authHeader.replace('Bearer ', '');
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token format' }), 
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
+    let payload;
+    try {
+      payload = JSON.parse(atob(parts[1]));
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token payload' }), 
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const userId = payload.sub;
+    if (!userId) {
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }), 
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -52,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
 
