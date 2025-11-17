@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
+import EditBookingDialog from "@/components/EditBookingDialog";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -32,6 +33,8 @@ export default function Booking() {
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [hairdresserFilter, setHairdresserFilter] = useState<string>("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
@@ -351,7 +354,12 @@ export default function Booking() {
                                     {bookingsInHour.map((booking) => (
                                       <div
                                         key={booking.id}
-                                        className="p-1.5 rounded bg-primary/20 border border-primary/30 text-[10px] leading-tight"
+                                        className="p-1.5 rounded bg-primary/20 border border-primary/30 text-[10px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedBooking(booking);
+                                          setIsEditDialogOpen(true);
+                                        }}
                                       >
                                         <div className="font-medium text-foreground truncate">
                                           {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
@@ -439,6 +447,12 @@ export default function Booking() {
         onOpenChange={setIsCreateDialogOpen}
         selectedDate={selectedDate}
         selectedTime={selectedTime}
+      />
+
+      <EditBookingDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        booking={selectedBooking}
       />
     </div>
   );
