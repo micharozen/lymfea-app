@@ -192,7 +192,7 @@ export default function TreatmentMenus() {
               <TableRow>
                 <TableHead className="w-[300px]">
                   <div className="flex items-center justify-between">
-                    Nom du menu
+                    Prestation
                     <Button
                       variant="ghost"
                       size="icon"
@@ -205,11 +205,11 @@ export default function TreatmentMenus() {
                 </TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-center">Durée</TableHead>
-                <TableHead className="text-center">Prix</TableHead>
-                <TableHead className="text-center">Temps de battement</TableHead>
-                <TableHead className="text-center">Service pour</TableHead>
+                <TableHead className="text-center">Tarif</TableHead>
+                <TableHead className="text-center">Intervalle</TableHead>
+                <TableHead className="text-center">Public</TableHead>
                 <TableHead className="text-center">Catégorie</TableHead>
-                <TableHead className="text-center">Hôtel</TableHead>
+                <TableHead className="text-center">Établissement</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
