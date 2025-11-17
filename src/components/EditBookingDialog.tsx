@@ -28,8 +28,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -108,6 +118,7 @@ export default function EditBookingDialog({
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -191,64 +202,97 @@ export default function EditBookingDialog({
   }, [selectedTreatments, treatments]);
 
   const updateMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const hotel = hotels?.find((h) => h.id === data.hotelId);
-      
-      const { error } = await supabase
+    mutationFn: async (bookingData: any) => {
+      if (!booking?.id) return;
+
+      const { error: bookingError } = await supabase
         .from("bookings")
         .update({
-          hotel_id: data.hotelId,
-          hotel_name: hotel?.name || "",
-          client_first_name: data.clientFirstName,
-          client_last_name: data.clientLastName,
-          phone: `${data.countryCode} ${data.phone}`,
-          room_number: data.roomNumber,
-          booking_date: data.date,
-          booking_time: data.time,
-          status: data.status,
-          total_price: data.totalPrice,
+          hotel_id: bookingData.hotel_id,
+          client_first_name: bookingData.client_first_name,
+          client_last_name: bookingData.client_last_name,
+          phone: bookingData.phone,
+          room_number: bookingData.room_number,
+          booking_date: bookingData.booking_date,
+          booking_time: bookingData.booking_time,
+          total_price: bookingData.total_price,
         })
-        .eq("id", booking?.id);
+        .eq("id", booking.id);
 
-      if (error) throw error;
+      if (bookingError) throw bookingError;
 
-      // Supprimer les anciens traitements
-      const { error: deleteError } = await supabase
+      const { error: deleteTreatmentsError } = await supabase
         .from("booking_treatments")
         .delete()
-        .eq("booking_id", booking!.id);
+        .eq("booking_id", booking.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteTreatmentsError) throw deleteTreatmentsError;
 
-      // Insérer les nouveaux traitements
-      if (data.selectedTreatments.length > 0) {
-        const treatmentRecords = data.selectedTreatments.map((treatmentId: string) => ({
-          booking_id: booking!.id,
+      if (bookingData.treatments.length > 0) {
+        const treatmentInserts = bookingData.treatments.map((treatmentId: string) => ({
+          booking_id: booking.id,
           treatment_id: treatmentId,
         }));
 
         const { error: treatmentsError } = await supabase
           .from("booking_treatments")
-          .insert(treatmentRecords);
+          .insert(treatmentInserts);
 
         if (treatmentsError) throw treatmentsError;
       }
     },
     onSuccess: () => {
-      toast({
-        title: "Réservation modifiée",
-        description: "La réservation a été modifiée avec succès.",
-      });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      handleClose();
+      toast({
+        title: "Succès",
+        description: "La réservation a été modifiée avec succès",
+      });
+      onOpenChange(false);
     },
     onError: (error) => {
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la modification de la réservation.",
+        description: "Une erreur est survenue lors de la modification de la réservation",
         variant: "destructive",
       });
       console.error("Error updating booking:", error);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!booking?.id) return;
+
+      const { error: deleteTreatmentsError } = await supabase
+        .from("booking_treatments")
+        .delete()
+        .eq("booking_id", booking.id);
+
+      if (deleteTreatmentsError) throw deleteTreatmentsError;
+
+      const { error: deleteBookingError } = await supabase
+        .from("bookings")
+        .delete()
+        .eq("id", booking.id);
+
+      if (deleteBookingError) throw deleteBookingError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast({
+        title: "Succès",
+        description: "La réservation a été supprimée avec succès",
+      });
+      setShowDeleteDialog(false);
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la suppression de la réservation",
+        variant: "destructive",
+      });
+      console.error("Error deleting booking:", error);
     },
   });
 
@@ -550,14 +594,25 @@ export default function EditBookingDialog({
               )}
 
               <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setActiveTab("info")}
-                >
-                  Retour
-                </Button>
+                <div>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setActiveTab("info")}
+                  >
+                    Retour
+                  </Button>
+                </div>
                 <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </Button>
                   <Button type="button" variant="outline" onClick={handleClose}>
                     Annuler
                   </Button>
@@ -570,6 +625,26 @@ export default function EditBookingDialog({
           </Tabs>
         </form>
       </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette réservation ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
