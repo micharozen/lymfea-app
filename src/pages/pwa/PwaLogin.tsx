@@ -140,19 +140,36 @@ const PwaLogin = () => {
       });
       
       if (error) {
+        console.error('OTP verification error:', error);
+        
         // Handle 404 errors (expired or already used OTP)
         if (error.message?.includes('404') || error.message?.includes('not found')) {
-          toast.error("Code expiré ou déjà utilisé. Demandez un nouveau code.");
+          toast.error("❌ Ce code a expiré ou a déjà été utilisé", {
+            description: "Cliquez sur 'Renvoyer le code' pour recevoir un nouveau code",
+            duration: 5000
+          });
           setOtp(["", "", "", "", "", ""]);
           otpRefs.current[0]?.focus();
           setCanResend(true);
+          setTimer(0);
           return;
         }
-        throw error;
+        
+        // Handle other errors
+        toast.error("Erreur de vérification", {
+          description: error.message || "Veuillez réessayer",
+          duration: 4000
+        });
+        setOtp(["", "", "", "", "", ""]);
+        otpRefs.current[0]?.focus();
+        return;
       }
       
       if (!data.success) {
-        toast.error(data.error || "Code invalide ou expiré");
+        toast.error("Code incorrect", {
+          description: data.error || "Vérifiez le code et réessayez",
+          duration: 4000
+        });
         setOtp(["", "", "", "", "", ""]);
         otpRefs.current[0]?.focus();
         return;
@@ -164,9 +181,12 @@ const PwaLogin = () => {
         refresh_token: data.session.properties.refresh_token,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error('Session error:', signInError);
+        throw signInError;
+      }
 
-      toast.success("Connexion réussie");
+      toast.success("✅ Connexion réussie !");
       
       // Redirect based on hairdresser status
       if (data.hairdresser.status === "En attente") {
@@ -176,7 +196,10 @@ const PwaLogin = () => {
       }
     } catch (error: any) {
       console.error('Verification error:', error);
-      toast.error(error.message || "Code invalide");
+      toast.error("Erreur de connexion", {
+        description: "Veuillez réessayer ou demander un nouveau code",
+        duration: 4000
+      });
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
     } finally {
