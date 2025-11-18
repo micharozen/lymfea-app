@@ -101,6 +101,13 @@ export function AppSidebar() {
             .maybeSingle();
           
           if (concierge) {
+            console.log('[AppSidebar] Concierge trouvé:', {
+              id: concierge.id,
+              firstName: concierge.first_name,
+              lastName: concierge.last_name,
+              status: concierge.status
+            });
+            
             setAdminInfo({ 
               firstName: concierge.first_name, 
               lastName: concierge.last_name,
@@ -109,10 +116,20 @@ export function AppSidebar() {
             
             // Auto-activate concierge status on first login
             if (concierge.status === "En attente") {
-              await supabase
+              console.log('[AppSidebar] Tentative d\'activation du statut concierge...');
+              const { data, error } = await supabase
                 .from('concierges')
                 .update({ status: "Actif" })
-                .eq('id', concierge.id);
+                .eq('id', concierge.id)
+                .select();
+              
+              if (error) {
+                console.error('[AppSidebar] Erreur lors de l\'activation:', error);
+              } else {
+                console.log('[AppSidebar] Statut activé avec succès:', data);
+              }
+            } else {
+              console.log('[AppSidebar] Statut déjà actif, pas de mise à jour nécessaire');
             }
           }
         }
