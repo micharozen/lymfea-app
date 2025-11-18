@@ -32,6 +32,20 @@ const PwaOnboarding = () => {
 
       // If hairdresser doesn't exist, create one
       if (!hairdresser) {
+        // Extract country code and phone from user_metadata
+        const fullPhone = user.user_metadata?.phone || "";
+        let countryCode = "+33";
+        let phoneNumber = "";
+        
+        // Parse phone number (format: "+33674678293")
+        if (fullPhone.startsWith("+")) {
+          const match = fullPhone.match(/^(\+\d{1,4})(\d+)$/);
+          if (match) {
+            countryCode = match[1];
+            phoneNumber = match[2];
+          }
+        }
+
         const { data: newHairdresser, error: createError } = await supabase
           .from("hairdressers")
           .insert({
@@ -39,8 +53,8 @@ const PwaOnboarding = () => {
             email: user.email!,
             first_name: user.user_metadata?.first_name || "",
             last_name: user.user_metadata?.last_name || "",
-            phone: user.user_metadata?.phone || "",
-            country_code: "+33",
+            phone: phoneNumber,
+            country_code: countryCode,
             status: "En attente"
           })
           .select("id")
