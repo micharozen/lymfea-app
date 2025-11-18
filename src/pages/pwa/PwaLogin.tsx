@@ -75,14 +75,29 @@ const PwaLogin = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-otp', {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { 
           phoneNumber: phone,
           countryCode: countryCode 
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        // Parse error response from edge function
+        const errorMessage = typeof error === 'object' && error.message 
+          ? error.message 
+          : "Erreur lors de l'envoi du code";
+        
+        // Check if it's a phone not found error
+        if (errorMessage.includes('404') || errorMessage.includes('non trouvé')) {
+          toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
+            duration: 6000,
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+        return;
+      }
       
       setStep("otp");
       setTimer(91);
@@ -90,7 +105,16 @@ const PwaLogin = () => {
       setIsCodeExpired(false);
       toast.success("Un code de vérification a été envoyé");
     } catch (error: any) {
-      toast.error(error.message || "Erreur lors de l'envoi du code");
+      console.error('Send OTP error:', error);
+      const errorMsg = error?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+      
+      if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
+        toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
+          duration: 6000,
+        });
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -101,14 +125,27 @@ const PwaLogin = () => {
     
     setLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-otp', {
+      const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { 
           phoneNumber: phone,
           countryCode: countryCode 
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        const errorMessage = typeof error === 'object' && error.message 
+          ? error.message 
+          : "Erreur lors de l'envoi du code";
+        
+        if (errorMessage.includes('404') || errorMessage.includes('non trouvé')) {
+          toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
+            duration: 6000,
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+        return;
+      }
       
       setTimer(91);
       setCanResend(false);
@@ -117,7 +154,16 @@ const PwaLogin = () => {
       otpRefs.current[0]?.focus();
       toast.success("Un nouveau code a été envoyé");
     } catch (error: any) {
-      toast.error(error.message || "Erreur lors de l'envoi du code");
+      console.error('Resend OTP error:', error);
+      const errorMsg = error?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+      
+      if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
+        toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
+          duration: 6000,
+        });
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
