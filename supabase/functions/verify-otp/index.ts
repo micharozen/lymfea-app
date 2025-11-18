@@ -187,14 +187,30 @@ serve(async (req) => {
       );
     }
 
-    console.log('✅ Session generated successfully');
-    console.log('Session structure:', JSON.stringify(sessionData, null, 2));
+    // Verify the hashed token to get real session tokens
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: sessionData.properties.hashed_token,
+      type: 'magiclink',
+    });
+
+    if (verifyError || !verifyData.session) {
+      console.error('Error verifying token:', verifyError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to create session' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('✅ Session created successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        user: authUser,
-        session: sessionData,
+        user: verifyData.user,
+        session: {
+          access_token: verifyData.session.access_token,
+          refresh_token: verifyData.session.refresh_token,
+        },
         hairdresser: {
           id: hairdresser.id,
           status: hairdresser.status,
