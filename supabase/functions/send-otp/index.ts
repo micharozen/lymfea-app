@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,6 +22,44 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Normalize phone number (remove spaces and leading 0)
+    const normalizedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '');
+    
+    console.log('Checking if phone exists in hairdressers:', normalizedPhone, countryCode);
+
+    // Check if phone number exists in hairdressers table
+    const { data: hairdressers, error: dbError } = await supabase
+      .from('hairdressers')
+      .select('id, phone, country_code')
+      .eq('country_code', countryCode);
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      return new Response(
+        JSON.stringify({ error: 'Database error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if any hairdresser matches the normalized phone number
+    const hairdresserExists = hairdressers?.some(h => {
+      const dbNormalizedPhone = h.phone.replace(/\s/g, '').replace(/^0/, '');
+      return dbNormalizedPhone === normalizedPhone;
+    });
+
+    if (!hairdresserExists) {
+      console.log('Phone number not found in hairdressers table');
+      return new Response(
+        JSON.stringify({ error: 'Numéro de téléphone non trouvé. Veuillez contacter l\'administrateur.' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
     const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
     const TWILIO_VERIFY_SERVICE_SID = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
@@ -34,9 +73,9 @@ serve(async (req) => {
     }
 
     // Format phone number with country code
-    const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+    const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
-    console.log('Sending OTP to:', fullPhoneNumber);
+    console.log('Sending OTP to verified hairdresser:', fullPhoneNumber);
 
     // Use Twilio Verify API to send OTP
     const response = await fetch(
