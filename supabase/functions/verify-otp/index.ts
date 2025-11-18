@@ -34,8 +34,11 @@ serve(async (req) => {
       );
     }
 
+    // Normalize phone number (remove spaces and leading 0) - must match send-otp normalization
+    const normalizedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '');
+    
     // Format phone number with country code
-    const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+    const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
     console.log('Verifying OTP for:', fullPhoneNumber);
 
@@ -83,9 +86,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Normalize phone number for lookup
-    const normalizedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '');
-    
+    // Use the same normalized phone for database lookup
     const { data: hairdresser, error: dbError } = await supabase
       .from('hairdressers')
       .select('*')
