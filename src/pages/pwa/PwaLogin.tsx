@@ -83,13 +83,11 @@ const PwaLogin = () => {
       });
       
       if (error) {
-        // Parse error response from edge function
-        const errorMessage = typeof error === 'object' && error.message 
-          ? error.message 
-          : "Erreur lors de l'envoi du code";
+        // Parse error response from edge function - check context.body.error first
+        const errorMessage = (error as any)?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
         
         // Check if it's a phone not found error
-        if (errorMessage.includes('404') || errorMessage.includes('non trouvé')) {
+        if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
             duration: 6000,
           });
@@ -133,11 +131,9 @@ const PwaLogin = () => {
       });
       
       if (error) {
-        const errorMessage = typeof error === 'object' && error.message 
-          ? error.message 
-          : "Erreur lors de l'envoi du code";
+        const errorMessage = (error as any)?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
         
-        if (errorMessage.includes('404') || errorMessage.includes('non trouvé')) {
+        if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
             duration: 6000,
           });
