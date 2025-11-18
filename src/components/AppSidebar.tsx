@@ -96,7 +96,7 @@ export function AppSidebar() {
           // Try concierges
           const { data: concierge } = await supabase
             .from('concierges')
-            .select('first_name, last_name, profile_image')
+            .select('id, first_name, last_name, profile_image, status')
             .eq('user_id', user.id)
             .maybeSingle();
           
@@ -106,6 +106,14 @@ export function AppSidebar() {
               lastName: concierge.last_name,
               profileImage: concierge.profile_image 
             });
+            
+            // Auto-activate concierge status on first login
+            if (concierge.status === "En attente") {
+              await supabase
+                .from('concierges')
+                .update({ status: "Actif" })
+                .eq('id', concierge.id);
+            }
           }
         }
       }
