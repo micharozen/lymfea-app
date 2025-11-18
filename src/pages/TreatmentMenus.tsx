@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -45,6 +45,28 @@ export default function TreatmentMenus() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [menuToEdit, setMenuToEdit] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!error && data) {
+        setUserRole(data.role);
+      }
+    };
+    
+    fetchUserRole();
+  }, []);
+
+  const isAdmin = userRole === "admin";
 
   const { data: menus, refetch } = useQuery({
     queryKey: ["treatment-menus"],
@@ -133,10 +155,12 @@ export default function TreatmentMenus() {
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             💆 Menus de soins
           </h1>
-          <Button onClick={() => setAddDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter une prestation
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter une prestation
+            </Button>
+          )}
         </div>
 
         <div className="bg-card rounded-lg border border-border">
@@ -203,7 +227,7 @@ export default function TreatmentMenus() {
                 <TableHead className="text-center">Catégorie</TableHead>
                 <TableHead className="text-center">Établissement</TableHead>
                 <TableHead className="text-center">Statut</TableHead>
-                <TableHead className="text-center">Actions</TableHead>
+                {isAdmin && <TableHead className="text-center">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -284,30 +308,32 @@ export default function TreatmentMenus() {
                         {menu.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setMenuToEdit(menu);
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setMenuToDelete(menu.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="align-middle text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setMenuToEdit(menu);
+                              setEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setMenuToDelete(menu.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}

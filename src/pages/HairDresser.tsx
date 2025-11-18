@@ -67,11 +67,30 @@ export default function HairDresser() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedHairDresser, setSelectedHairDresser] = useState<HairDresser | null>(null);
   const [deleteHairDresserId, setDeleteHairDresserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHairdressers();
     fetchHotels();
+    fetchUserRole();
   }, []);
+
+  const fetchUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!error && data) {
+      setUserRole(data.role);
+    }
+  };
+
+  const isAdmin = userRole === "admin";
 
   useEffect(() => {
     filterHairdressers();
@@ -246,6 +265,7 @@ export default function HairDresser() {
             <Button
               className="ml-auto bg-foreground text-background hover:bg-foreground/90"
               onClick={() => setIsAddDialogOpen(true)}
+              style={{ display: isAdmin ? 'flex' : 'none' }}
             >
               <Plus className="h-4 w-4 mr-2" />
               Ajouter un coiffeur
@@ -264,7 +284,7 @@ export default function HairDresser() {
                 <TableHead className="font-semibold">Box</TableHead>
                 <TableHead className="font-semibold">Compétences</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
-                <TableHead className="font-semibold text-right">Actions</TableHead>
+                {isAdmin && <TableHead className="font-semibold text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -326,30 +346,32 @@ export default function HairDresser() {
                         {hairdresser.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="align-middle">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedHairDresser(hairdresser);
-                            setIsEditDialogOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setDeleteHairDresserId(hairdresser.id);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="align-middle">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedHairDresser(hairdresser);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setDeleteHairDresserId(hairdresser.id);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

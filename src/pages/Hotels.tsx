@@ -64,10 +64,29 @@ export default function Hotels() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editHotelId, setEditHotelId] = useState<string | null>(null);
   const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHotels();
+    fetchUserRole();
   }, []);
+
+  const fetchUserRole = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!error && data) {
+      setUserRole(data.role);
+    }
+  };
+
+  const isAdmin = userRole === "admin";
 
   useEffect(() => {
     filterHotels();
@@ -203,6 +222,7 @@ export default function Hotels() {
           <Button 
             className="ml-auto bg-foreground text-background hover:bg-foreground/90"
             onClick={() => setShowAddDialog(true)}
+            style={{ display: isAdmin ? 'flex' : 'none' }}
           >
             <Plus className="h-4 w-4 mr-2" />
             Ajouter un hôtel
@@ -247,7 +267,9 @@ export default function Hotels() {
                     Réservations
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold w-[100px] text-right whitespace-nowrap">Actions</TableHead>
+                {isAdmin && (
+                  <TableHead className="font-semibold w-[100px] text-right whitespace-nowrap">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -318,26 +340,28 @@ export default function Hotels() {
                     <TableCell className="align-middle text-center">
                       <span className="text-muted-foreground">0</span>
                     </TableCell>
-                    <TableCell className="align-middle">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-                          onClick={() => setEditHotelId(hotel.id)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                          onClick={() => setDeleteHotelId(hotel.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="align-middle">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => setEditHotelId(hotel.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            onClick={() => setDeleteHotelId(hotel.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
