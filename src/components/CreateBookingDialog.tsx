@@ -91,6 +91,7 @@ export default function CreateBookingDialog({
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
   const [time, setTime] = useState(selectedTime || "");
+  const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
@@ -105,6 +106,25 @@ export default function CreateBookingDialog({
     }
   }, [selectedDate, selectedTime]);
 
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+  });
+
+  const isAdmin = userRole === "admin";
+
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
@@ -112,6 +132,19 @@ export default function CreateBookingDialog({
         .from("hotels")
         .select("id, name")
         .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: hairdressers } = useQuery({
+    queryKey: ["hairdressers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hairdressers")
+        .select("id, first_name, last_name")
+        .eq("status", "Actif")
+        .order("first_name");
       if (error) throw error;
       return data;
     },
@@ -146,6 +179,7 @@ export default function CreateBookingDialog({
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const hotel = hotels?.find((h) => h.id === data.hotelId);
+      const hairdresser = hairdressers?.find((h) => h.id === data.hairdresserId);
       
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
@@ -158,6 +192,8 @@ export default function CreateBookingDialog({
           room_number: data.roomNumber,
           booking_date: data.date,
           booking_time: data.time,
+          hairdresser_id: data.hairdresserId || null,
+          hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
           status: "En attente",
           total_price: data.totalPrice,
         })
@@ -228,6 +264,7 @@ export default function CreateBookingDialog({
       roomNumber,
       date,
       time,
+      hairdresserId,
       selectedTreatments,
       totalPrice,
     });
@@ -242,6 +279,7 @@ export default function CreateBookingDialog({
     setRoomNumber("");
     setDate(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
     setTime(selectedTime || "");
+    setHairdresserId("");
     setSelectedTreatments([]);
     setTotalPrice(0);
     setActiveTab("info");
@@ -377,6 +415,24 @@ export default function CreateBookingDialog({
                   />
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label htmlFor="hairdresser">Coiffeur</Label>
+                  <Select value={hairdresserId} onValueChange={setHairdresserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un coiffeur (optionnel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hairdressers?.map((hairdresser) => (
+                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                          {hairdresser.first_name} {hairdresser.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="roomNumber">Numéro de chambre</Label>
