@@ -61,8 +61,25 @@ export default function Concierges() {
   const [deleteConciergeId, setDeleteConciergeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchUserRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!error && data) {
+        setUserRole(data.role);
+      }
+    };
+    
+    fetchUserRole();
     fetchConcierges();
   }, []);
 
@@ -217,13 +234,15 @@ export default function Concierges() {
               </SelectContent>
             </Select>
 
-            <Button 
-              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={() => setShowAddDialog(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un concierge
-            </Button>
+            {userRole === "admin" && (
+              <Button 
+                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un concierge
+              </Button>
+            )}
           </div>
         </div>
 
@@ -238,13 +257,15 @@ export default function Concierges() {
                 <TableHead className="font-semibold">Numéro de téléphone</TableHead>
                 <TableHead className="font-semibold">Hôtel</TableHead>
                 <TableHead className="font-semibold">Statut</TableHead>
-                <TableHead className="font-semibold text-right">Actions</TableHead>
+                {userRole === "admin" && (
+                  <TableHead className="font-semibold text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedConcierges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={userRole === "admin" ? 6 : 5} className="h-24 text-center text-muted-foreground">
                     Aucun concierge trouvé
                   </TableCell>
                 </TableRow>
@@ -290,27 +311,29 @@ export default function Concierges() {
                       {concierge.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="align-middle">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-                        onClick={() => setEditConciergeId(concierge.id)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                  {userRole === "admin" && (
+                    <TableCell className="align-middle">
+                      <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                          onClick={() => setDeleteConciergeId(concierge.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                          onClick={() => setEditConciergeId(concierge.id)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            onClick={() => setDeleteConciergeId(concierge.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                     </TableCell>
-                  </TableRow>
+                  )}
+                </TableRow>
                 ))
               )}
             </TableBody>
