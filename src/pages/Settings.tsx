@@ -177,6 +177,26 @@ export default function Settings() {
     },
   });
 
+  // Check user role
+  const { data: userRole } = useQuery({
+    queryKey: ["userRole"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error) throw error;
+      return data?.role || null;
+    },
+  });
+
+  const isAdmin = userRole === "admin";
+
   // Fetch admins from database
   const { data: admins = [], isLoading } = useQuery({
     queryKey: ["admins"],
@@ -428,13 +448,15 @@ export default function Settings() {
               />
             </div>
 
-            <Button 
-              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={handleOpenAddDialog}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un admin
-            </Button>
+            {isAdmin && (
+              <Button 
+                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+                onClick={handleOpenAddDialog}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un admin
+              </Button>
+            )}
           </div>
         </div>
 
@@ -454,21 +476,23 @@ export default function Settings() {
                 <TableHead className="font-semibold">
                   Statut
                 </TableHead>
-                <TableHead className="font-semibold text-right">
-                  Actions
-                </TableHead>
+                {isAdmin && (
+                  <TableHead className="font-semibold text-right">
+                    Actions
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
                     Chargement...
                   </TableCell>
                 </TableRow>
               ) : admins.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 5 : 4} className="text-center py-8 text-muted-foreground">
                     Aucun administrateur trouvé
                   </TableCell>
                 </TableRow>
@@ -500,33 +524,35 @@ export default function Settings() {
                         variant={admin.status === "Actif" ? "default" : "secondary"}
                         className={cn(
                           "font-medium",
-                          admin.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                          admin.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
+                          admin.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/10",
+                          admin.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
                         )}
                       >
                         {admin.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="align-middle">
-                      <div className="flex items-center justify-end gap-2">
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
-                         onClick={() => handleEditAdmin(admin)}
-                       >
-                         <Pencil className="h-4 w-4" />
-                       </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                          onClick={() => setDeleteAdminId(admin.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="align-middle">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                            onClick={() => handleEditAdmin(admin)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            onClick={() => setDeleteAdminId(admin.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
