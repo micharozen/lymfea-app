@@ -187,6 +187,9 @@ serve(async (req) => {
       );
     }
 
+    console.log('✅ Session generated successfully');
+    console.log('Session structure:', JSON.stringify(sessionData, null, 2));
+
     return new Response(
       JSON.stringify({ 
         success: true,
