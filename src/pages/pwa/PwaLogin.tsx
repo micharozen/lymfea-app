@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Command,
@@ -39,6 +39,7 @@ const PwaLogin = () => {
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
   const [timer, setTimer] = useState(91); // 1:31 en secondes
   const [canResend, setCanResend] = useState(false);
+  const [isCodeExpired, setIsCodeExpired] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Timer countdown
@@ -48,6 +49,7 @@ const PwaLogin = () => {
         setTimer((prev) => {
           if (prev <= 1) {
             setCanResend(true);
+            setIsCodeExpired(true);
             return 0;
           }
           return prev - 1;
@@ -85,6 +87,7 @@ const PwaLogin = () => {
       setStep("otp");
       setTimer(91);
       setCanResend(false);
+      setIsCodeExpired(false);
       toast.success("Un code de vérification a été envoyé");
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de l'envoi du code");
@@ -109,6 +112,7 @@ const PwaLogin = () => {
       
       setTimer(91);
       setCanResend(false);
+      setIsCodeExpired(false);
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
       toast.success("Un nouveau code a été envoyé");
@@ -144,6 +148,7 @@ const PwaLogin = () => {
         
         // Handle 404 errors (expired or already used OTP)
         if (error.message?.includes('404') || error.message?.includes('not found')) {
+          setIsCodeExpired(true);
           toast.error("❌ Ce code a expiré ou a déjà été utilisé", {
             description: "Cliquez sur 'Renvoyer le code' pour recevoir un nouveau code",
             duration: 5000
@@ -330,10 +335,31 @@ const PwaLogin = () => {
                   value={digit}
                   onChange={(e) => handleOtpChange(index, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                  className="w-14 h-16 text-center text-2xl font-semibold rounded-lg border-2 border-blue-500"
+                  disabled={isCodeExpired}
+                  className={cn(
+                    "w-14 h-16 text-center text-2xl font-semibold rounded-lg border-2 transition-all",
+                    isCodeExpired 
+                      ? "border-orange-300 bg-orange-50 text-gray-400 cursor-not-allowed"
+                      : "border-blue-500 bg-white"
+                  )}
                 />
               ))}
             </div>
+            {/* Code expiration warning */}
+            {isCodeExpired && (
+              <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-400 rounded-xl flex items-start gap-3 animate-in fade-in duration-300">
+                <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-orange-900 mb-1">
+                    ⏰ Code expiré
+                  </p>
+                  <p className="text-xs text-orange-700">
+                    Ce code n'est plus valide. Cliquez sur "Send code again" ci-dessous pour recevoir un nouveau code.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <p className="text-xs text-center text-gray-400 mb-8">
               {canResend ? (
                 <button
@@ -350,14 +376,15 @@ const PwaLogin = () => {
 
             <Button
               onClick={handleVerifyOtp}
-              disabled={otp.join("").length < 6 || loading}
-              className={`w-full h-12 rounded-full mb-8 ${
-                otp.join("").length >= 6
+              disabled={otp.join("").length < 6 || loading || isCodeExpired}
+              className={cn(
+                "w-full h-12 rounded-full mb-8",
+                otp.join("").length >= 6 && !isCodeExpired
                   ? "bg-black text-white hover:bg-black/90"
-                  : "bg-gray-200 text-gray-400"
-              }`}
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              )}
             >
-              Continue with Phone
+              {isCodeExpired ? "Code expiré" : "Continue with Phone"}
             </Button>
           </>
         )}
