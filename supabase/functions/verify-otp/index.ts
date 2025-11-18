@@ -40,7 +40,14 @@ serve(async (req) => {
     // Format phone number with country code
     const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
-    console.log('Verifying OTP for:', fullPhoneNumber);
+    console.log('=== OTP Verification Attempt ===');
+    console.log('Phone Number (raw):', phoneNumber);
+    console.log('Phone Number (normalized):', normalizedPhone);
+    console.log('Country Code:', countryCode);
+    console.log('Full Phone Number:', fullPhoneNumber);
+    console.log('OTP Code:', code);
+    console.log('Service SID:', TWILIO_VERIFY_SERVICE_SID);
+    console.log('===============================');
 
     // Use Twilio Verify API to check OTP
     const response = await fetch(
@@ -59,27 +66,46 @@ serve(async (req) => {
     );
 
     const data = await response.json();
+    console.log('Twilio response status:', response.status);
+    console.log('Twilio response data:', JSON.stringify(data));
     
     if (!response.ok) {
-      console.error('Twilio verification error:', data);
+      console.error('❌ Twilio verification error:');
+      console.error('Status:', response.status);
+      console.error('Error details:', JSON.stringify(data));
+      
+      // More helpful error message for 404
+      if (response.status === 404) {
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: 'Ce code a expiré ou a déjà été utilisé. Demandez un nouveau code.' 
+          }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
-        JSON.stringify({ error: data.message || 'Failed to verify OTP' }),
+        JSON.stringify({ 
+          success: false,
+          error: data.message || 'Failed to verify OTP' 
+        }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (data.status !== 'approved') {
-      console.log('OTP verification failed:', data.status);
+      console.log('⚠️ OTP verification failed - status:', data.status);
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'Invalid or expired verification code' 
+          error: 'Code de vérification invalide' 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('OTP verified successfully');
+    console.log('✅ OTP verified successfully');
 
     // Find hairdresser by phone number
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
