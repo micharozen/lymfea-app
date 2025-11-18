@@ -115,6 +115,7 @@ export default function EditBookingDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
+  const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
@@ -141,8 +142,28 @@ export default function EditBookingDialog({
       setDate(booking.booking_date);
       setTime(booking.booking_time);
       setStatus(booking.status);
+      setHairdresserId(booking.hairdresser_id || "");
     }
   }, [booking]);
+
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.role;
+    },
+  });
+
+  const isAdmin = userRole === "admin";
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -151,6 +172,19 @@ export default function EditBookingDialog({
         .from("hotels")
         .select("id, name")
         .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: hairdressers } = useQuery({
+    queryKey: ["hairdressers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hairdressers")
+        .select("id, first_name, last_name")
+        .eq("status", "Actif")
+        .order("first_name");
       if (error) throw error;
       return data;
     },
@@ -228,6 +262,8 @@ export default function EditBookingDialog({
     mutationFn: async (bookingData: any) => {
       if (!booking?.id) return;
 
+      const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
+
       const { error: bookingError } = await supabase
         .from("bookings")
         .update({
@@ -238,6 +274,8 @@ export default function EditBookingDialog({
           room_number: bookingData.room_number,
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
+          hairdresser_id: bookingData.hairdresser_id || null,
+          hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
           total_price: bookingData.total_price,
         })
         .eq("id", booking.id);
@@ -341,17 +379,16 @@ export default function EditBookingDialog({
     }
 
     updateMutation.mutate({
-      hotelId,
-      clientFirstName,
-      clientLastName,
-      phone,
-      countryCode,
-      roomNumber,
-      date,
-      time,
-      status,
-      selectedTreatments,
-      totalPrice,
+      hotel_id: hotelId,
+      client_first_name: clientFirstName,
+      client_last_name: clientLastName,
+      phone: `${countryCode} ${phone}`,
+      room_number: roomNumber,
+      booking_date: date,
+      booking_time: time,
+      hairdresser_id: hairdresserId,
+      total_price: totalPrice,
+      selected_treatments: selectedTreatments,
     });
   };
 
@@ -417,6 +454,12 @@ export default function EditBookingDialog({
                   <p className="text-sm text-muted-foreground">Numéro de chambre</p>
                   <p className="font-medium">{booking?.room_number || "-"}</p>
                 </div>
+                {booking?.hairdresser_name && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Coiffeur</p>
+                    <p className="font-medium">{booking.hairdresser_name}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -607,6 +650,24 @@ export default function EditBookingDialog({
                   />
                 </div>
               </div>
+
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-hairdresser">Coiffeur</Label>
+                  <Select value={hairdresserId} onValueChange={setHairdresserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un coiffeur (optionnel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hairdressers?.map((hairdresser) => (
+                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                          {hairdresser.first_name} {hairdresser.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="edit-roomNumber">Numéro de chambre</Label>
