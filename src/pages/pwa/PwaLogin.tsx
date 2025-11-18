@@ -84,6 +84,7 @@ const PwaLogin = () => {
       
       if (error) {
         // Parse error response from edge function - check context.body.error first
+        console.log('Full error object:', JSON.stringify(error, null, 2));
         const errorMessage = (error as any)?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
         
         // Check if it's a phone not found error
@@ -104,6 +105,7 @@ const PwaLogin = () => {
       toast.success("Un code de vérification a été envoyé");
     } catch (error: any) {
       console.error('Send OTP error:', error);
+      console.log('Full catch error object:', JSON.stringify(error, null, 2));
       const errorMsg = error?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
