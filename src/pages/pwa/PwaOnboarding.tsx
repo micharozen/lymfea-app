@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Check, Bell } from "lucide-react";
 import { toast } from "sonner";
-import oomLogo from "@/assets/oom-monogram.svg";
+import oomLogo from "@/assets/oom-logo.svg";
 
 const PwaOnboarding = () => {
   const [step, setStep] = useState<"welcome" | "photo" | "notifications">("welcome");
@@ -91,7 +91,7 @@ const PwaOnboarding = () => {
             <img 
               src={oomLogo} 
               alt="OOM" 
-              className="w-20 h-20"
+              className="h-16"
             />
           </div>
           <h1 className="text-2xl font-bold text-center">Bienvenue sur OOM</h1>
@@ -136,7 +136,7 @@ const PwaOnboarding = () => {
             <img 
               src={oomLogo} 
               alt="OOM" 
-              className="w-20 h-20"
+              className="h-16"
             />
           </div>
           <h1 className="text-2xl font-bold text-center">Photo de profil</h1>
@@ -207,13 +207,13 @@ const PwaOnboarding = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-black text-white p-6">
-        <div className="flex justify-center mb-4">
-          <img 
-            src={oomLogo} 
-            alt="OOM" 
-            className="w-20 h-20"
-          />
-        </div>
+          <div className="flex justify-center mb-4">
+            <img 
+              src={oomLogo} 
+              alt="OOM" 
+              className="h-16"
+            />
+          </div>
         <h1 className="text-2xl font-bold text-center">Notifications</h1>
         <p className="text-sm text-gray-300 text-center mt-2">Étape 2 sur 2</p>
       </div>
