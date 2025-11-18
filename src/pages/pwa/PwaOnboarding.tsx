@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Check } from "lucide-react";
+import { Camera, Check, Bell } from "lucide-react";
 import { toast } from "sonner";
 import oomLogo from "@/assets/oom-monogram.svg";
 
@@ -84,34 +84,44 @@ const PwaOnboarding = () => {
 
   if (step === "welcome") {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="bg-black text-white p-6 text-center">
-          <img 
-            src={oomLogo} 
-            alt="OOM" 
-            className="w-16 h-16 mx-auto mb-4"
-          />
-          <h1 className="text-xl font-bold">Bienvenue sur OOM</h1>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header - same style as dashboard */}
+        <div className="bg-black text-white p-6">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={oomLogo} 
+              alt="OOM" 
+              className="w-20 h-20"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-center">Bienvenue sur OOM</h1>
+          <p className="text-sm text-gray-300 text-center mt-2">Beauty Room Services</p>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
-          <div className="text-center space-y-4">
-            <div className="w-24 h-24 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-              <Check className="h-12 w-12 text-green-600" />
+        {/* Content */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <Card className="p-8 max-w-md w-full space-y-6 shadow-lg">
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center">
+                <Check className="h-10 w-10 text-white" strokeWidth={3} />
+              </div>
             </div>
-            <h2 className="text-2xl font-bold">Compte créé avec succès !</h2>
-            <p className="text-muted-foreground">
-              Configurons votre profil pour commencer
-            </p>
-          </div>
+            
+            <div className="text-center space-y-3">
+              <h2 className="text-2xl font-bold">Compte créé !</h2>
+              <p className="text-muted-foreground">
+                Votre compte a été créé avec succès. Configurons votre profil pour commencer.
+              </p>
+            </div>
 
-          <Button
-            onClick={() => setStep("photo")}
-            className="w-full max-w-sm h-14 bg-black hover:bg-gray-800"
-            size="lg"
-          >
-            Continuer
-          </Button>
+            <Button
+              onClick={() => setStep("photo")}
+              className="w-full h-12 bg-black hover:bg-gray-800 text-white"
+              size="lg"
+            >
+              Commencer
+            </Button>
+          </Card>
         </div>
       </div>
     );
@@ -119,107 +129,128 @@ const PwaOnboarding = () => {
 
   if (step === "photo") {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="bg-black text-white p-6 text-center">
-          <img 
-            src={oomLogo} 
-            alt="OOM" 
-            className="w-16 h-16 mx-auto mb-4"
-          />
-          <h1 className="text-xl font-bold">Photo de profil</h1>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="bg-black text-white p-6">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={oomLogo} 
+              alt="OOM" 
+              className="w-20 h-20"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-center">Photo de profil</h1>
+          <p className="text-sm text-gray-300 text-center mt-2">Étape 1 sur 2</p>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
-          <div className="text-center space-y-6">
-            <p className="text-muted-foreground">
-              Ajoutez une photo de profil pour personnaliser votre compte
-            </p>
+        {/* Content */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <Card className="p-8 max-w-md w-full space-y-6 shadow-lg">
+            <div className="text-center space-y-4">
+              <p className="text-muted-foreground">
+                Ajoutez une photo pour personnaliser votre profil
+              </p>
 
-            <div className="relative inline-block">
-              <Avatar className="h-32 w-32 border-4 border-black">
-                <AvatarImage src={profileImage || undefined} />
-                <AvatarFallback className="bg-gray-200">
-                  <Camera className="h-12 w-12 text-gray-400" />
-                </AvatarFallback>
-              </Avatar>
-              <label className="absolute bottom-0 right-0 bg-black text-white p-3 rounded-full cursor-pointer hover:bg-gray-800 transition-colors">
-                <Camera className="h-5 w-5" />
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  disabled={uploading}
-                />
-              </label>
+              <div className="flex justify-center">
+                <div className="relative inline-block">
+                  <Avatar className="h-32 w-32 border-4 border-black">
+                    <AvatarImage src={profileImage || undefined} />
+                    <AvatarFallback className="bg-gray-200">
+                      <Camera className="h-12 w-12 text-gray-400" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="absolute bottom-0 right-0 bg-black text-white p-3 rounded-full cursor-pointer hover:bg-gray-800 transition-colors shadow-lg">
+                    <Camera className="h-5 w-5" />
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {uploading && (
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Téléchargement en cours...
+                </p>
+              )}
             </div>
 
-            {uploading && (
-              <p className="text-sm text-muted-foreground">Téléchargement...</p>
-            )}
-          </div>
-
-          <div className="w-full max-w-sm space-y-3">
-            <Button
-              onClick={() => setStep("notifications")}
-              className="w-full h-14 bg-black hover:bg-gray-800"
-              size="lg"
-              disabled={uploading}
-            >
-              Continuer
-            </Button>
-            <Button
-              onClick={() => setStep("notifications")}
-              variant="ghost"
-              className="w-full"
-              disabled={uploading}
-            >
-              Passer
-            </Button>
-          </div>
+            <div className="space-y-3">
+              <Button
+                onClick={() => setStep("notifications")}
+                className="w-full h-12 bg-black hover:bg-gray-800 text-white"
+                size="lg"
+                disabled={uploading}
+              >
+                Continuer
+              </Button>
+              <Button
+                onClick={() => setStep("notifications")}
+                variant="outline"
+                className="w-full h-12"
+                disabled={uploading}
+              >
+                Passer cette étape
+              </Button>
+            </div>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="bg-black text-white p-6 text-center">
-        <img 
-          src={oomLogo} 
-          alt="OOM" 
-          className="w-16 h-16 mx-auto mb-4"
-        />
-        <h1 className="text-xl font-bold">Notifications</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-black text-white p-6">
+        <div className="flex justify-center mb-4">
+          <img 
+            src={oomLogo} 
+            alt="OOM" 
+            className="w-20 h-20"
+          />
+        </div>
+        <h1 className="text-2xl font-bold text-center">Notifications</h1>
+        <p className="text-sm text-gray-300 text-center mt-2">Étape 2 sur 2</p>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8">
-        <Card className="p-6 text-center space-y-4 max-w-sm">
-          <div className="w-16 h-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-3xl">🔔</span>
+      {/* Content */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <Card className="p-8 max-w-md w-full space-y-6 shadow-lg">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center">
+              <Bell className="h-10 w-10 text-white" />
+            </div>
           </div>
-          <h2 className="text-xl font-bold">Activez les notifications</h2>
-          <p className="text-sm text-muted-foreground">
-            Recevez des alertes pour vos nouvelles réservations et mises à jour importantes
-          </p>
-        </Card>
+          
+          <div className="text-center space-y-3">
+            <h2 className="text-2xl font-bold">Restez informé</h2>
+            <p className="text-muted-foreground">
+              Recevez des notifications pour vos nouvelles réservations et mises à jour importantes
+            </p>
+          </div>
 
-        <div className="w-full max-w-sm space-y-3">
-          <Button
-            onClick={handleFinish}
-            className="w-full h-14 bg-black hover:bg-gray-800"
-            size="lg"
-          >
-            Activer les notifications
-          </Button>
-          <Button
-            onClick={handleFinish}
-            variant="ghost"
-            className="w-full"
-          >
-            Plus tard
-          </Button>
-        </div>
+          <div className="space-y-3">
+            <Button
+              onClick={handleFinish}
+              className="w-full h-12 bg-black hover:bg-gray-800 text-white"
+              size="lg"
+            >
+              Activer les notifications
+            </Button>
+            <Button
+              onClick={handleFinish}
+              variant="outline"
+              className="w-full h-12"
+            >
+              Configurer plus tard
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );
