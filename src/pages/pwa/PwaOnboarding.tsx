@@ -23,14 +23,34 @@ const PwaOnboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
-      // Get hairdresser ID
-      const { data: hairdresser } = await supabase
+      // Get or create hairdresser entry
+      let { data: hairdresser } = await supabase
         .from("hairdressers")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (!hairdresser) throw new Error("Hairdresser not found");
+      // If hairdresser doesn't exist, create one
+      if (!hairdresser) {
+        const { data: newHairdresser, error: createError } = await supabase
+          .from("hairdressers")
+          .insert({
+            user_id: user.id,
+            email: user.email!,
+            first_name: user.user_metadata?.first_name || "",
+            last_name: user.user_metadata?.last_name || "",
+            phone: user.user_metadata?.phone || "",
+            country_code: "+33",
+            status: "En attente"
+          })
+          .select("id")
+          .single();
+
+        if (createError) throw createError;
+        hairdresser = newHairdresser;
+      }
+
+      if (!hairdresser) throw new Error("Failed to get or create hairdresser");
 
       const fileExt = file.name.split(".").pop();
       const fileName = `${hairdresser.id}-${Date.now()}.${fileExt}`;
