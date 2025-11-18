@@ -61,11 +61,24 @@ export function AppSidebar() {
   const { toast } = useToast();
   const isCollapsed = state === "collapsed";
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
+  const [userRole, setUserRole] = useState<string>("...");
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Fetch user role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (roleData) {
+          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Concierge' : roleData.role;
+          setUserRole(roleLabel);
+        }
+
         // Try admins first
         const { data: admin } = await supabase
           .from('admins')
@@ -183,7 +196,7 @@ export function AppSidebar() {
                       </p>
                       <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                     </div>
-                    <p className="text-xs text-sidebar-foreground/60">Admin</p>
+                    <p className="text-xs text-sidebar-foreground/60">{userRole}</p>
                   </div>
                 )}
               </button>
