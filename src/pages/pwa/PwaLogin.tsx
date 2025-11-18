@@ -126,6 +126,9 @@ const PwaLogin = () => {
       return;
     }
 
+    // Prevent multiple simultaneous verification attempts
+    if (loading) return;
+
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
@@ -136,10 +139,22 @@ const PwaLogin = () => {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        // Handle 404 errors (expired or already used OTP)
+        if (error.message?.includes('404') || error.message?.includes('not found')) {
+          toast.error("Code expiré ou déjà utilisé. Demandez un nouveau code.");
+          setOtp(["", "", "", "", "", ""]);
+          otpRefs.current[0]?.focus();
+          setCanResend(true);
+          return;
+        }
+        throw error;
+      }
       
       if (!data.success) {
-        toast.error("Code invalide ou expiré");
+        toast.error(data.error || "Code invalide ou expiré");
+        setOtp(["", "", "", "", "", ""]);
+        otpRefs.current[0]?.focus();
         return;
       }
 
@@ -160,7 +175,10 @@ const PwaLogin = () => {
         navigate("/pwa/dashboard");
       }
     } catch (error: any) {
+      console.error('Verification error:', error);
       toast.error(error.message || "Code invalide");
+      setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
