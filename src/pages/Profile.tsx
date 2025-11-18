@@ -45,6 +45,13 @@ export default function Profile() {
               .maybeSingle();
             
             if (concierge) {
+              console.log('[Profile] Concierge trouvé:', {
+                id: concierge.id,
+                firstName: concierge.first_name,
+                lastName: concierge.last_name,
+                status: concierge.status
+              });
+              
               setAdminId(concierge.id);
               setFirstName(concierge.first_name || "");
               setLastName(concierge.last_name || "");
@@ -54,10 +61,20 @@ export default function Profile() {
               
               // Update concierge status to "Actif" on first login
               if (concierge.status === "En attente") {
-                await supabase
+                console.log('[Profile] Tentative d\'activation du statut concierge...');
+                const { data, error } = await supabase
                   .from('concierges')
                   .update({ status: "Actif" })
-                  .eq('id', concierge.id);
+                  .eq('id', concierge.id)
+                  .select();
+                
+                if (error) {
+                  console.error('[Profile] Erreur lors de l\'activation:', error);
+                } else {
+                  console.log('[Profile] Statut activé avec succès:', data);
+                }
+              } else {
+                console.log('[Profile] Statut déjà actif, pas de mise à jour nécessaire');
               }
             }
           }
