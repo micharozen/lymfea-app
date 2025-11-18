@@ -22,6 +22,7 @@ export default function Profile() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          // Try admins table first
           const { data: admin } = await supabase
             .from('admins')
             .select('*')
@@ -35,6 +36,30 @@ export default function Profile() {
             setPhone(admin.phone || "");
             setEmail(admin.email || "");
             setProfileImage(admin.profile_image || null);
+          } else {
+            // Try concierges table
+            const { data: concierge } = await supabase
+              .from('concierges')
+              .select('*')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (concierge) {
+              setAdminId(concierge.id);
+              setFirstName(concierge.first_name || "");
+              setLastName(concierge.last_name || "");
+              setPhone(concierge.phone || "");
+              setEmail(concierge.email || "");
+              setProfileImage(concierge.profile_image || null);
+              
+              // Update concierge status to "Actif" on first login
+              if (concierge.status === "En attente") {
+                await supabase
+                  .from('concierges')
+                  .update({ status: "Actif" })
+                  .eq('id', concierge.id);
+              }
+            }
           }
         }
       } catch (error) {
@@ -72,13 +97,21 @@ export default function Profile() {
       
       const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`;
 
-      // Mettre à jour immédiatement la base de données
-      const { error: updateError } = await supabase
-        .from('admins')
-        .update({ profile_image: publicUrl })
-        .eq('id', adminId);
-
-      if (updateError) throw updateError;
+      // Try to update in both tables (one will succeed)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Try admins first
+        await supabase
+          .from('admins')
+          .update({ profile_image: publicUrl })
+          .eq('id', adminId);
+        
+        // Try concierges
+        await supabase
+          .from('concierges')
+          .update({ profile_image: publicUrl })
+          .eq('id', adminId);
+      }
 
       // Mettre à jour l'état local pour affichage immédiat
       setProfileImage(urlWithTimestamp);
@@ -96,7 +129,8 @@ export default function Profile() {
     }
 
     try {
-      const { error } = await supabase
+      // Try to update in both tables (one will succeed)
+      await supabase
         .from('admins')
         .update({
           first_name: firstName,
@@ -106,7 +140,15 @@ export default function Profile() {
         })
         .eq('id', adminId);
 
-      if (error) throw error;
+      await supabase
+        .from('concierges')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone,
+          profile_image: profileImage,
+        })
+        .eq('id', adminId);
 
       toast.success("Profil mis à jour avec succès");
       setIsEditing(false);
