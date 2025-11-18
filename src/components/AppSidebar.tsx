@@ -66,11 +66,12 @@ export function AppSidebar() {
     const fetchAdminInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Try admins first
         const { data: admin } = await supabase
           .from('admins')
           .select('first_name, last_name, profile_image')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
         
         if (admin) {
           setAdminInfo({ 
@@ -78,14 +79,29 @@ export function AppSidebar() {
             lastName: admin.last_name,
             profileImage: admin.profile_image 
           });
+        } else {
+          // Try concierges
+          const { data: concierge } = await supabase
+            .from('concierges')
+            .select('first_name, last_name, profile_image')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (concierge) {
+            setAdminInfo({ 
+              firstName: concierge.first_name, 
+              lastName: concierge.last_name,
+              profileImage: concierge.profile_image 
+            });
+          }
         }
       }
     };
     
     fetchAdminInfo();
 
-    // Écouter les changements en temps réel
-    const channel = supabase
+    // Écouter les changements en temps réel sur les deux tables
+    const adminChannel = supabase
       .channel('admin-changes')
       .on(
         'postgres_changes',
@@ -100,8 +116,24 @@ export function AppSidebar() {
       )
       .subscribe();
 
+    const conciergeChannel = supabase
+      .channel('concierge-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'concierges',
+        },
+        () => {
+          fetchAdminInfo();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(adminChannel);
+      supabase.removeChannel(conciergeChannel);
     };
   }, []);
 
