@@ -75,10 +75,26 @@ const PwaDashboard = () => {
   };
 
   const fetchAllBookings = async (hairdresserId: string) => {
+    // First, get affiliated hotel IDs
+    const { data: affiliatedHotels, error: hotelsError } = await supabase
+      .from("hairdresser_hotels")
+      .select("hotel_id")
+      .eq("hairdresser_id", hairdresserId);
+
+    if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
+      console.error("Error fetching affiliated hotels:", hotelsError);
+      setAllBookings([]);
+      return;
+    }
+
+    const hotelIds = affiliatedHotels.map(h => h.hotel_id);
+
+    // Then fetch bookings for this hairdresser from affiliated hotels only
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("hairdresser_id", hairdresserId)
+      .in("hotel_id", hotelIds)
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
