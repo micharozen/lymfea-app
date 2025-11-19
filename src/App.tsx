@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import ProtectedRoute from "./components/ProtectedRoute";
-import PwaProtectedRoute from "./components/PwaProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import HairDresser from "./pages/HairDresser";
@@ -48,15 +48,15 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route
             path="/pwa/onboarding"
             element={
-              <PwaProtectedRoute>
+              <HairdresserProtectedRoute>
                 <PwaOnboarding />
-              </PwaProtectedRoute>
+              </HairdresserProtectedRoute>
             }
           />
           <Route
             path="/pwa/*"
             element={
-              <PwaProtectedRoute>
+              <HairdresserProtectedRoute>
                 <Routes>
                   <Route path="/dashboard" element={<PwaDashboard />} />
                   <Route path="/bookings" element={<PwaBookings />} />
@@ -64,7 +64,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="/profile" element={<PwaProfile />} />
                   <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
                 </Routes>
-              </PwaProtectedRoute>
+              </HairdresserProtectedRoute>
             }
           />
           
@@ -72,7 +72,7 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route
             path="/*"
             element={
-              <ProtectedRoute>
+              <AdminProtectedRoute>
                 <SidebarProvider>
                   <div className="flex min-h-screen w-full">
                     <AppSidebar />
@@ -96,7 +96,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                     </div>
                   </div>
                 </SidebarProvider>
-              </ProtectedRoute>
+              </AdminProtectedRoute>
             }
           />
         </Routes>
