@@ -4,9 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, LogOut, User } from "lucide-react";
+import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, isPast, isFuture, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface Hairdresser {
@@ -27,12 +27,14 @@ interface Booking {
   hotel_name: string;
   room_number: string;
   status: string;
+  total_price: number | null;
 }
 
 const PwaDashboard = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
-  const [todayBookings, setTodayBookings] = useState<Booking[]>([]);
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,12 +59,13 @@ const PwaDashboard = () => {
 
       if (error || !hairdresserData) {
         toast.error("Profil introuvable");
-        handleLogout();
+        await supabase.auth.signOut();
+        navigate("/pwa/login");
         return;
       }
 
       setHairdresser(hairdresserData);
-      fetchTodayBookings(hairdresserData.id);
+      fetchAllBookings(hairdresserData.id);
     } catch (error) {
       console.error("Auth error:", error);
       navigate("/pwa/login");
@@ -71,27 +74,37 @@ const PwaDashboard = () => {
     }
   };
 
-  const fetchTodayBookings = async (hairdresserId: string) => {
-    const today = new Date();
-    const startDate = startOfDay(today).toISOString();
-    const endDate = endOfDay(today).toISOString();
-
+  const fetchAllBookings = async (hairdresserId: string) => {
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
       .eq("hairdresser_id", hairdresserId)
-      .gte("booking_date", startDate)
-      .lte("booking_date", endDate)
+      .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
     if (!error && data) {
-      setTodayBookings(data);
+      setAllBookings(data);
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/pwa/login");
+  const getFilteredBookings = () => {
+    const now = new Date();
+    
+    return allBookings.filter((booking) => {
+      const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
+      
+      if (activeTab === "upcoming") {
+        return isFuture(bookingDateTime) && booking.status !== "Annulé";
+      } else if (activeTab === "past") {
+        return isPast(bookingDateTime) && booking.status !== "Annulé";
+      } else {
+        return booking.status === "Annulé";
+      }
+    });
+  };
+
+  const getPendingRequests = () => {
+    return allBookings.filter((booking) => booking.status === "En attente");
   };
 
   if (loading) {
@@ -107,99 +120,73 @@ const PwaDashboard = () => {
   }
 
   const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();
+  const filteredBookings = getFilteredBookings();
+  const pendingRequests = getPendingRequests();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header with black background */}
-      <div className="bg-black text-white p-6 pb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-14 w-14 border-2 border-white">
-              <AvatarImage src={hairdresser.profile_image || undefined} />
-              <AvatarFallback className="bg-white text-black font-bold text-lg">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h1 className="text-lg font-bold">
-                {hairdresser.first_name} {hairdresser.last_name}
-              </h1>
-              <p className="text-sm text-white/70">Coiffeur</p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-white hover:bg-white/10"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+    <div className="min-h-screen bg-background pb-20">
+      {/* Header */}
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-4xl font-bold">OOM</h1>
+          <Avatar className="h-14 w-14">
+            <AvatarImage src={hairdresser.profile_image || undefined} />
+            <AvatarFallback className="bg-blue-400 text-white font-bold text-lg">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <Card className="bg-white/10 backdrop-blur border-white/20 p-4 text-white">
-            <div className="text-3xl font-bold mb-1">{todayBookings.length}</div>
-            <div className="text-xs text-white/80">Réservations aujourd'hui</div>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur border-white/20 p-4 text-white">
-            <div className="text-3xl font-bold mb-1">
-              {todayBookings.filter(b => b.status === "Terminé").length}
-            </div>
-            <div className="text-xs text-white/80">Terminées</div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="p-4 space-y-4 -mt-4">
-        {/* Today's Bookings Section */}
-        <div className="bg-card rounded-lg shadow-sm p-4">
-          <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Réservations du jour
-          </h2>
+        {/* My Bookings Section */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">MY BOOKINGS</h2>
           
-          {todayBookings.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              Aucune réservation aujourd'hui
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6">
+            <Button
+              variant={activeTab === "upcoming" ? "default" : "outline"}
+              onClick={() => setActiveTab("upcoming")}
+              className="rounded-full"
+            >
+              Upcoming
+            </Button>
+            <Button
+              variant={activeTab === "past" ? "default" : "outline"}
+              onClick={() => setActiveTab("past")}
+              className="rounded-full"
+            >
+              Past
+            </Button>
+            <Button
+              variant={activeTab === "cancelled" ? "default" : "outline"}
+              onClick={() => setActiveTab("cancelled")}
+              className="rounded-full"
+            >
+              Cancelled
+            </Button>
+          </div>
+
+          {/* Bookings List */}
+          {filteredBookings.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground">
+              No bookings found
             </div>
           ) : (
-            <div className="space-y-2">
-              {todayBookings.map((booking) => (
+            <div className="space-y-3">
+              {filteredBookings.map((booking) => (
                 <Card
                   key={booking.id}
-                  className="p-3 cursor-pointer hover:bg-accent/50 transition-colors border"
+                  className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
                   onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm mb-1">
-                        {booking.client_first_name} {booking.client_last_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground mb-1">
-                        {booking.hotel_name}
-                        {booking.room_number && ` • Ch. ${booking.room_number}`}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {booking.booking_time}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">{booking.client_first_name} {booking.client_last_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {booking.booking_time} • {booking.hotel_name}
                       </div>
                     </div>
-                    <div className="flex-shrink-0">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                          booking.status === "Terminé"
-                            ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                            : booking.status === "En cours"
-                            ? "bg-blue-500/10 text-blue-700 dark:text-blue-400"
-                            : "bg-orange-500/10 text-orange-700 dark:text-orange-400"
-                        }`}
-                      >
-                        {booking.status}
-                      </span>
-                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </Card>
               ))}
@@ -207,24 +194,60 @@ const PwaDashboard = () => {
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            className="h-20 flex-col gap-2 bg-card"
-            onClick={() => navigate("/pwa/bookings")}
-          >
-            <Calendar className="h-5 w-5" />
-            <span className="text-sm">Planning</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 flex-col gap-2 bg-card"
-            onClick={() => navigate("/pwa/profile")}
-          >
-            <User className="h-5 w-5" />
-            <span className="text-sm">Profil</span>
-          </Button>
+        {/* Pending Requests Section */}
+        {pendingRequests.length > 0 && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">
+              PENDING REQUESTS <span className="text-muted-foreground">{pendingRequests.length}</span>
+            </h2>
+            
+            <div className="space-y-4">
+              {pendingRequests.map((booking) => {
+                const bookingDate = parseISO(booking.booking_date);
+                return (
+                  <div key={booking.id}>
+                    <div className="text-sm text-muted-foreground mb-2">
+                      {format(bookingDate, "d MMM", { locale: fr })} / {format(bookingDate, "EEEE", { locale: fr })}
+                    </div>
+                    <Card
+                      className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
+                      onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-semibold mb-1">{booking.client_first_name} {booking.client_last_name}</div>
+                          <div className="text-sm text-muted-foreground mb-1">
+                            {booking.booking_time} • 84 min
+                          </div>
+                          <div className="text-sm font-semibold">€{booking.total_price || 0}</div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+        <div className="flex items-center justify-around py-4">
+          <button className="flex flex-col items-center gap-1">
+            <Home className="h-6 w-6" />
+            <span className="text-xs font-medium">Home</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-muted-foreground">
+            <Wallet className="h-6 w-6" />
+            <span className="text-xs">Wallet</span>
+          </button>
+          <button className="flex flex-col items-center gap-1 text-muted-foreground">
+            <Bell className="h-6 w-6" />
+            <span className="text-xs">Notifications</span>
+          </button>
         </div>
       </div>
     </div>
