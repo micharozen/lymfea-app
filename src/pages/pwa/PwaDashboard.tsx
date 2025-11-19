@@ -94,7 +94,10 @@ const PwaDashboard = () => {
       const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
       
       if (activeTab === "upcoming") {
-        return isFuture(bookingDateTime) && booking.status !== "Annulé" && booking.status !== "En attente";
+        return isFuture(bookingDateTime) && 
+               booking.status !== "Annulé" && 
+               booking.status !== "En attente" &&
+               (booking.status === "Confirmé" || booking.status === "En cours");
       } else if (activeTab === "past") {
         return isPast(bookingDateTime) && booking.status !== "Annulé";
       } else {
@@ -200,12 +203,12 @@ const PwaDashboard = () => {
                   onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
                 >
                   <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{booking.client_first_name} {booking.client_last_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {booking.booking_time} • {booking.hotel_name}
-                      </div>
+                  <div>
+                    <div className="font-semibold">{booking.client_first_name} {booking.client_last_name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {booking.booking_time.substring(0, 5)} • {booking.hotel_name}
                     </div>
+                  </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </Card>
@@ -238,7 +241,7 @@ const PwaDashboard = () => {
                         <div className="flex-1">
                           <div className="font-semibold mb-1">{booking.client_first_name} {booking.client_last_name}</div>
                           <div className="text-sm text-muted-foreground mb-1">
-                            {booking.booking_time} • 84 min
+                            {booking.booking_time.substring(0, 5)} • 84 min
                           </div>
                           <div className="text-sm font-semibold">€{booking.total_price || 0}</div>
                         </div>

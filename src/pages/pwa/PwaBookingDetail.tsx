@@ -13,6 +13,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Calendar, Clock, MapPin, Phone, User, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -43,6 +50,14 @@ interface Treatment {
   };
 }
 
+interface TreatmentMenu {
+  id: string;
+  name: string;
+  description: string;
+  duration: number;
+  price: number;
+}
+
 const PwaBookingDetail = () => {
   const { id } = useParams();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -51,10 +66,14 @@ const PwaBookingDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showConfirmed, setShowConfirmed] = useState(false);
+  const [showAddTreatment, setShowAddTreatment] = useState(false);
+  const [availableTreatments, setAvailableTreatments] = useState<TreatmentMenu[]>([]);
+  const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchBookingDetail();
+    fetchAvailableTreatments();
   }, [id]);
 
   const fetchBookingDetail = async () => {
@@ -118,6 +137,64 @@ const PwaBookingDetail = () => {
     }
   };
 
+  const fetchAvailableTreatments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("treatment_menus")
+        .select("id, name, description, duration, price")
+        .eq("status", "Actif")
+        .order("name");
+
+      if (!error && data) {
+        setAvailableTreatments(data);
+      }
+    } catch (error) {
+      console.error("Error fetching treatments:", error);
+    }
+  };
+
+  const handleAddTreatments = async () => {
+    if (!booking || selectedTreatments.length === 0) return;
+
+    setUpdating(true);
+    try {
+      // Add selected treatments to booking
+      const treatmentsToAdd = selectedTreatments.map(treatmentId => ({
+        booking_id: booking.id,
+        treatment_id: treatmentId,
+      }));
+
+      const { error } = await supabase
+        .from("booking_treatments")
+        .insert(treatmentsToAdd);
+
+      if (error) throw error;
+
+      // Calculate new total price
+      const addedTreatments = availableTreatments.filter(t => 
+        selectedTreatments.includes(t.id)
+      );
+      const additionalPrice = addedTreatments.reduce((sum, t) => sum + (t.price || 0), 0);
+      const newTotalPrice = (booking.total_price || 0) + additionalPrice;
+
+      // Update booking total price
+      await supabase
+        .from("bookings")
+        .update({ total_price: newTotalPrice })
+        .eq("id", booking.id);
+
+      toast.success("Prestations ajoutées avec succès");
+      setShowAddTreatment(false);
+      setSelectedTreatments([]);
+      fetchBookingDetail();
+    } catch (error) {
+      console.error("Error adding treatments:", error);
+      toast.error("Erreur lors de l'ajout des prestations");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleUpdateStatus = async (newStatus: string) => {
     if (!booking) return;
     
@@ -138,6 +215,11 @@ const PwaBookingDetail = () => {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const formatTime = (time: string) => {
+    // Remove seconds from time format (14:30:00 -> 14:30)
+    return time.substring(0, 5);
   };
 
   if (loading) {
@@ -198,7 +280,7 @@ const PwaBookingDetail = () => {
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">{booking.hotel_name || "TEST"}</h2>
           <p className="text-blue-600 font-medium">
-            {format(new Date(booking.booking_date), "EEE d MMMM", { locale: fr })} • {booking.booking_time}
+            {format(new Date(booking.booking_date), "EEE d MMMM", { locale: fr })} • {formatTime(booking.booking_time)}
           </p>
           <p className="text-muted-foreground">
             {treatments.reduce((total, t) => total + (t.treatment_menus.duration || 0), 0)} min
@@ -237,7 +319,11 @@ const PwaBookingDetail = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Treatments</h3>
             {booking.status === "Confirmé" && (
-              <Button variant="ghost" size="icon">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setShowAddTreatment(true)}
+              >
                 <Plus className="h-5 w-5" />
               </Button>
             )}
@@ -283,6 +369,7 @@ const PwaBookingDetail = () => {
                 variant="outline"
                 size="lg"
                 className="flex-1"
+                onClick={() => setShowAddTreatment(true)}
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Add
@@ -329,6 +416,62 @@ const PwaBookingDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Treatment Dialog */}
+      <Dialog open={showAddTreatment} onOpenChange={setShowAddTreatment}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Treatments</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {availableTreatments.map((treatment) => (
+              <div
+                key={treatment.id}
+                className="flex items-start gap-3 p-3 border rounded-lg"
+              >
+                <Checkbox
+                  checked={selectedTreatments.includes(treatment.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedTreatments([...selectedTreatments, treatment.id]);
+                    } else {
+                      setSelectedTreatments(selectedTreatments.filter(id => id !== treatment.id));
+                    }
+                  }}
+                />
+                <div className="flex-1">
+                  <div className="font-semibold">{treatment.name}</div>
+                  {treatment.description && (
+                    <div className="text-sm text-muted-foreground">{treatment.description}</div>
+                  )}
+                  <div className="text-sm text-muted-foreground mt-1">
+                    {treatment.duration} min • €{treatment.price}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddTreatment(false);
+                setSelectedTreatments([]);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddTreatments}
+              disabled={selectedTreatments.length === 0 || updating}
+              className="flex-1"
+            >
+              {updating ? "Adding..." : `Add (${selectedTreatments.length})`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
