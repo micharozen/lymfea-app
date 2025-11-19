@@ -283,7 +283,7 @@ const PwaBookingDetail = () => {
             {format(new Date(booking.booking_date), "EEE d MMMM", { locale: fr })} • {formatTime(booking.booking_time)}
           </p>
           <p className="text-muted-foreground">
-            {treatments.reduce((total, t) => total + (t.treatment_menus.duration || 0), 0)} min
+            {treatments.reduce((total, t) => total + (t.treatment_menus?.duration || 0), 0)} min
           </p>
         </div>
 
@@ -335,9 +335,9 @@ const PwaBookingDetail = () => {
                 key={treatment.id}
                 className="p-4 border-b last:border-b-0"
               >
-                <div className="font-semibold text-lg">{treatment.treatment_menus.name}</div>
+                <div className="font-semibold text-lg">{treatment.treatment_menus?.name || "Prestation"}</div>
                 <div className="text-sm text-muted-foreground">
-                  {treatment.treatment_menus.duration} min
+                  {treatment.treatment_menus?.duration || 0} min
                 </div>
               </div>
             ))}
