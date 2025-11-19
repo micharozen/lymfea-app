@@ -218,12 +218,16 @@ const PwaDashboard = () => {
         </div>
 
         {/* Pending Requests Section */}
-        {pendingRequests.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold mb-4">
-              PENDING REQUESTS <span className="text-muted-foreground">{pendingRequests.length}</span>
-            </h2>
-            
+        <div>
+          <h2 className="text-2xl font-bold mb-4">
+            PENDING REQUESTS <span className="text-muted-foreground">{pendingRequests.length}</span>
+          </h2>
+          
+          {pendingRequests.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground">
+              No pending requests
+            </div>
+          ) : (
             <div className="space-y-4">
               {pendingRequests.map((booking) => {
                 const bookingDate = parseISO(booking.booking_date);
@@ -252,8 +256,8 @@ const PwaDashboard = () => {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Bottom Navigation */}
