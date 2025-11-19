@@ -588,6 +588,7 @@ export default function EditBookingDialog({
                   <Input
                     id="edit-time"
                     type="time"
+                    step="600"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                   />

@@ -354,6 +354,7 @@ export default function CreateBookingDialog({
                   <Input
                     id="time"
                     type="time"
+                    step="600"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
                   />
