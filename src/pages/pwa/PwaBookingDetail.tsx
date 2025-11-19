@@ -67,6 +67,7 @@ const PwaBookingDetail = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showConfirmed, setShowConfirmed] = useState(false);
   const [showAddTreatment, setShowAddTreatment] = useState(false);
   const [availableTreatments, setAvailableTreatments] = useState<TreatmentMenu[]>([]);
@@ -134,6 +135,29 @@ const PwaBookingDetail = () => {
     } catch (error) {
       console.error("Error accepting booking:", error);
       toast.error("Erreur lors de l'acceptation");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleRejectBooking = async () => {
+    if (!booking) return;
+    
+    setShowRejectDialog(false);
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "Refusé" })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Réservation refusée");
+      navigate("/pwa/bookings");
+    } catch (error) {
+      console.error("Error rejecting booking:", error);
+      toast.error("Erreur lors du refus de la réservation");
     } finally {
       setUpdating(false);
     }
@@ -355,14 +379,25 @@ const PwaBookingDetail = () => {
         {/* Action Buttons */}
         <div className="fixed bottom-0 left-0 right-0 p-6 bg-background border-t space-y-3">
           {booking.status === "En attente" && (
-            <Button
-              onClick={() => setShowConfirmDialog(true)}
-              disabled={updating}
-              className="w-full"
-              size="lg"
-            >
-              Accept
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowRejectDialog(true)}
+                disabled={updating}
+                className="flex-1"
+                size="lg"
+              >
+                Reject
+              </Button>
+              <Button
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={updating}
+                className="flex-1"
+                size="lg"
+              >
+                Accept
+              </Button>
+            </div>
           )}
           
           {booking.status === "Confirmé" && (
@@ -414,6 +449,24 @@ const PwaBookingDetail = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleAcceptBooking}>
               Yes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject Dialog */}
+      <AlertDialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refuser la réservation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir refuser cette réservation ? Cette action ne peut pas être annulée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRejectBooking} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Refuser
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
