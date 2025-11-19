@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
+import { Home, Wallet, Bell, ChevronRight, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -107,6 +107,16 @@ const PwaDashboard = () => {
     return allBookings.filter((booking) => booking.status === "En attente");
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/pwa/login");
+      toast.success("Déconnexion réussie");
+    } catch (error) {
+      toast.error("Erreur lors de la déconnexion");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -128,13 +138,23 @@ const PwaDashboard = () => {
       {/* Header */}
       <div className="p-6">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-bold">OOM</h1>
-          <Avatar className="h-14 w-14">
-            <AvatarImage src={hairdresser.profile_image || undefined} />
-            <AvatarFallback className="bg-blue-400 text-white font-bold text-lg">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold">OOM</h1>
+            <Avatar className="h-14 w-14">
+              <AvatarImage src={hairdresser.profile_image || undefined} />
+              <AvatarFallback className="bg-blue-400 text-white font-bold text-lg">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* My Bookings Section */}
