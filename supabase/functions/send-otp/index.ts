@@ -60,6 +60,27 @@ serve(async (req) => {
       );
     }
 
+    // Format phone number with country code
+    const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
+    
+    // Check for DEV_MODE to bypass Twilio
+    const DEV_MODE = Deno.env.get('DEV_MODE') === 'true';
+    
+    if (DEV_MODE) {
+      console.log('🔧 DEV MODE: Skipping Twilio SMS');
+      console.log('📱 Use code: 123456 for phone:', fullPhoneNumber);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          status: 'pending',
+          message: 'OTP sent successfully (DEV MODE)',
+          devCode: '123456' // Only returned in dev mode
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
     const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
     const TWILIO_VERIFY_SERVICE_SID = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
@@ -71,9 +92,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Format phone number with country code
-    const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
     console.log('Sending OTP to verified hairdresser:', fullPhoneNumber);
 
