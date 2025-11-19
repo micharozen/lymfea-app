@@ -94,7 +94,7 @@ const PwaDashboard = () => {
       const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
       
       if (activeTab === "upcoming") {
-        return isFuture(bookingDateTime) && booking.status !== "Annulé";
+        return isFuture(bookingDateTime) && booking.status !== "Annulé" && booking.status !== "En attente";
       } else if (activeTab === "past") {
         return isPast(bookingDateTime) && booking.status !== "Annulé";
       } else {
