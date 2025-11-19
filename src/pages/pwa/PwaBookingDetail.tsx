@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, Clock, MapPin, Phone, User, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -56,6 +57,7 @@ interface TreatmentMenu {
   description: string;
   duration: number;
   price: number;
+  service_for: string;
 }
 
 const PwaBookingDetail = () => {
@@ -141,7 +143,7 @@ const PwaBookingDetail = () => {
     try {
       const { data, error } = await supabase
         .from("treatment_menus")
-        .select("id, name, description, duration, price")
+        .select("id, name, description, duration, price, service_for")
         .eq("status", "Actif")
         .order("name");
 
@@ -421,36 +423,78 @@ const PwaBookingDetail = () => {
       <Dialog open={showAddTreatment} onOpenChange={setShowAddTreatment}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Treatments</DialogTitle>
+            <DialogTitle>Select Treatments</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {availableTreatments.map((treatment) => (
-              <div
-                key={treatment.id}
-                className="flex items-start gap-3 p-3 border rounded-lg"
-              >
-                <Checkbox
-                  checked={selectedTreatments.includes(treatment.id)}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedTreatments([...selectedTreatments, treatment.id]);
-                    } else {
-                      setSelectedTreatments(selectedTreatments.filter(id => id !== treatment.id));
-                    }
-                  }}
-                />
-                <div className="flex-1">
-                  <div className="font-semibold">{treatment.name}</div>
-                  {treatment.description && (
-                    <div className="text-sm text-muted-foreground">{treatment.description}</div>
-                  )}
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {treatment.duration} min • €{treatment.price}
+          
+          <Tabs defaultValue="women" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="women">Women</TabsTrigger>
+              <TabsTrigger value="men">Men</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="women" className="space-y-4 py-4">
+              {availableTreatments
+                .filter(t => t.service_for === "Femme")
+                .map((treatment) => (
+                  <div
+                    key={treatment.id}
+                    className="flex items-start gap-3 p-3 border rounded-lg"
+                  >
+                    <Checkbox
+                      checked={selectedTreatments.includes(treatment.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTreatments([...selectedTreatments, treatment.id]);
+                        } else {
+                          setSelectedTreatments(selectedTreatments.filter(id => id !== treatment.id));
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold">{treatment.name}</div>
+                      {treatment.description && (
+                        <div className="text-sm text-muted-foreground">{treatment.description}</div>
+                      )}
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {treatment.duration} min • €{treatment.price}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                ))}
+            </TabsContent>
+            
+            <TabsContent value="men" className="space-y-4 py-4">
+              {availableTreatments
+                .filter(t => t.service_for === "Homme")
+                .map((treatment) => (
+                  <div
+                    key={treatment.id}
+                    className="flex items-start gap-3 p-3 border rounded-lg"
+                  >
+                    <Checkbox
+                      checked={selectedTreatments.includes(treatment.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedTreatments([...selectedTreatments, treatment.id]);
+                        } else {
+                          setSelectedTreatments(selectedTreatments.filter(id => id !== treatment.id));
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold">{treatment.name}</div>
+                      {treatment.description && (
+                        <div className="text-sm text-muted-foreground">{treatment.description}</div>
+                      )}
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {treatment.duration} min • €{treatment.price}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </TabsContent>
+          </Tabs>
+          
           <div className="flex gap-3">
             <Button
               variant="outline"
