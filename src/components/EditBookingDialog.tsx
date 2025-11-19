@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -28,7 +29,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { fr } from "date-fns/locale";
+import { Check, ChevronsUpDown, Trash2, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -112,7 +114,7 @@ export default function EditBookingDialog({
   const [countryCode, setCountryCode] = useState("+33");
   const [countryOpen, setCountryOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
   const [hairdresserId, setHairdresserId] = useState("");
@@ -139,7 +141,7 @@ export default function EditBookingDialog({
       }
       
       setRoomNumber(booking.room_number || "");
-      setDate(booking.booking_date);
+      setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
       setTime(booking.booking_time);
       setStatus(booking.status);
       setHairdresserId(booking.hairdresser_id || "");
@@ -384,7 +386,7 @@ export default function EditBookingDialog({
       client_last_name: clientLastName,
       phone: `${countryCode} ${phone}`,
       room_number: roomNumber,
-      booking_date: date,
+      booking_date: date ? format(date, "yyyy-MM-dd") : "",
       booking_time: time,
       hairdresser_id: hairdresserId,
       total_price: totalPrice,
@@ -555,12 +557,30 @@ export default function EditBookingDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-date">Date *</Label>
-                  <Input
-                    id="edit-date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">

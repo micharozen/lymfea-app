@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -28,7 +29,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { fr } from "date-fns/locale";
+import { Check, ChevronsUpDown, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const countries = [
@@ -89,7 +91,7 @@ export default function CreateBookingDialog({
   const [countryCode, setCountryCode] = useState("+33");
   const [countryOpen, setCountryOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
-  const [date, setDate] = useState(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
+  const [date, setDate] = useState<Date | undefined>(selectedDate);
   const [time, setTime] = useState(selectedTime || "");
   const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
@@ -99,7 +101,7 @@ export default function CreateBookingDialog({
   // Update date and time when props change
   useEffect(() => {
     if (selectedDate) {
-      setDate(format(selectedDate, "yyyy-MM-dd"));
+      setDate(selectedDate);
     }
     if (selectedTime) {
       setTime(selectedTime);
@@ -262,7 +264,7 @@ export default function CreateBookingDialog({
       phone,
       countryCode,
       roomNumber,
-      date,
+      date: date ? format(date, "yyyy-MM-dd") : "",
       time,
       hairdresserId,
       selectedTreatments,
@@ -277,7 +279,7 @@ export default function CreateBookingDialog({
     setPhone("");
     setCountryCode("+33");
     setRoomNumber("");
-    setDate(selectedDate ? format(selectedDate, "yyyy-MM-dd") : "");
+    setDate(selectedDate);
     setTime(selectedTime || "");
     setHairdresserId("");
     setSelectedTreatments([]);
@@ -322,12 +324,30 @@ export default function CreateBookingDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Date *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="time">Heure *</Label>
