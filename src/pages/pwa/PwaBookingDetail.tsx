@@ -154,7 +154,7 @@ const PwaBookingDetail = () => {
       if (error) throw error;
 
       toast.success("Réservation refusée");
-      navigate("/pwa/bookings");
+      navigate("/pwa/dashboard");
     } catch (error) {
       console.error("Error rejecting booking:", error);
       toast.error("Erreur lors du refus de la réservation");
