@@ -414,90 +414,90 @@ export default function EditBookingDialog({
       if (!open) setViewMode("view");
     }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
               <div>
-                <p className="text-sm text-muted-foreground">Hôtel</p>
-                <p className="font-medium">{booking?.hotel_name}</p>
+                <p className="text-xs text-muted-foreground">Hôtel</p>
+                <p className="font-medium text-sm">{booking?.hotel_name}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Date</p>
-                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd/MM/yyyy")}</p>
+                <p className="text-xs text-muted-foreground">Date</p>
+                <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd/MM/yyyy")}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Heure</p>
-                <p className="font-medium">{booking?.booking_time}</p>
+                <p className="text-xs text-muted-foreground">Heure</p>
+                <p className="font-medium text-sm">{booking?.booking_time}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Statut</p>
-                <p className="font-medium">{booking?.status}</p>
+                <p className="text-xs text-muted-foreground">Statut</p>
+                <p className="font-medium text-sm">{booking?.status}</p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg">Informations client</h3>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-base">Informations client</h3>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-sm text-muted-foreground">Prénom</p>
-                  <p className="font-medium">{booking?.client_first_name}</p>
+                  <p className="text-xs text-muted-foreground">Prénom</p>
+                  <p className="font-medium text-sm">{booking?.client_first_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Nom</p>
-                  <p className="font-medium">{booking?.client_last_name}</p>
+                  <p className="text-xs text-muted-foreground">Nom</p>
+                  <p className="font-medium text-sm">{booking?.client_last_name}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Téléphone</p>
-                  <p className="font-medium">{booking?.phone}</p>
+                  <p className="text-xs text-muted-foreground">Téléphone</p>
+                  <p className="font-medium text-sm">{booking?.phone}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Numéro de chambre</p>
-                  <p className="font-medium">{booking?.room_number || "-"}</p>
+                  <p className="text-xs text-muted-foreground">Numéro de chambre</p>
+                  <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
                 </div>
                 {booking?.hairdresser_name && (
                   <div>
-                    <p className="text-sm text-muted-foreground">Coiffeur</p>
-                    <p className="font-medium">{booking.hairdresser_name}</p>
+                    <p className="text-xs text-muted-foreground">Coiffeur</p>
+                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {bookingTreatments && bookingTreatments.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-lg">Prestations</h3>
-                <div className="space-y-2">
+              <div className="space-y-2">
+                <h3 className="font-semibold text-base">Prestations</h3>
+                <div className="space-y-1.5">
                   {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex justify-between items-center p-3 border rounded-lg">
+                    <div key={treatment.id} className="flex justify-between items-center p-2 border rounded-lg">
                       <div>
-                        <p className="font-medium">{treatment.name}</p>
-                        <p className="text-sm text-muted-foreground">{treatment.category}</p>
+                        <p className="font-medium text-sm">{treatment.name}</p>
+                        <p className="text-xs text-muted-foreground">{treatment.category}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">{treatment.price}€</p>
-                        <p className="text-sm text-muted-foreground">{treatment.duration} min</p>
+                        <p className="font-medium text-sm">{treatment.price}€</p>
+                        <p className="text-xs text-muted-foreground">{treatment.duration} min</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
-                    <span className="font-medium">Durée totale</span>
-                    <span className="font-semibold">{bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)} min</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
+                    <span className="font-medium text-sm">Durée totale</span>
+                    <span className="font-semibold text-sm">{bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)} min</span>
                   </div>
-                  <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
-                    <span className="font-medium">Prix total</span>
-                    <span className="font-semibold text-lg">{totalPrice}€</span>
+                  <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
+                    <span className="font-medium text-sm">Prix total</span>
+                    <span className="font-semibold text-base">{totalPrice}€</span>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex justify-between gap-3 pt-4 border-t">
+            <div className="flex justify-between gap-2 pt-3 border-t">
               <Button 
                 type="button" 
                 variant="outline"
