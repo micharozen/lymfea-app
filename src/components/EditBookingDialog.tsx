@@ -301,14 +301,17 @@ export default function EditBookingDialog({
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
       
-      // Si on assigne un coiffeur et que le statut est "En attente", passer à "Assigné"
+      // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
       if (bookingData.hairdresser_id && booking.status === "En attente") {
         newStatus = "Assigné";
         assignedAt = new Date().toISOString();
       }
       
-      // Si on change de coiffeur sur une réservation déjà assignée, mettre à jour assigned_at
-      if (bookingData.hairdresser_id && booking.hairdresser_id && bookingData.hairdresser_id !== booking.hairdresser_id) {
+      // Si on change de coiffeur (nouveau coiffeur différent de l'ancien), mettre à jour assigned_at
+      if (bookingData.hairdresser_id && booking.hairdresser_id && 
+          bookingData.hairdresser_id !== booking.hairdresser_id && 
+          booking.status === "Assigné") {
+        // Le statut reste "Assigné" mais on met à jour la date d'assignation
         assignedAt = new Date().toISOString();
       }
       
@@ -482,14 +485,14 @@ export default function EditBookingDialog({
                   booking?.status === "Terminé" ? "default" :
                   booking?.status === "Annulé" ? "destructive" :
                   booking?.status === "En attente" ? "secondary" :
-                  booking?.status === "Confirmé" ? "default" :
+                  booking?.status === "Assigné" ? "default" :
                   "outline"
                 }
                 className={
                   booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600 text-white" :
                   booking?.status === "Annulé" ? "bg-red-500 hover:bg-red-600 text-white" :
                   booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600 text-white" :
-                  booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600 text-white" :
+                  booking?.status === "Assigné" ? "bg-blue-500 hover:bg-blue-600 text-white" :
                   ""
                 }
               >
