@@ -29,6 +29,7 @@ import PwaProfile from "./pages/pwa/PwaProfile";
 import PwaSplash from "./pages/pwa/PwaSplash";
 import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
+import PwaNotifications from "./pages/pwa/PwaNotifications";
 
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
@@ -62,6 +63,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="/dashboard" element={<PwaDashboard />} />
                   <Route path="/bookings" element={<PwaBookings />} />
                   <Route path="/booking/:id" element={<PwaBookingDetail />} />
+                  <Route path="/notifications" element={<PwaNotifications />} />
                   <Route path="/profile" element={<PwaProfile />} />
                   <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
                 </Routes>

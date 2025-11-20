@@ -36,6 +36,7 @@ const PwaDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +86,17 @@ const PwaDashboard = () => {
     const setupNotificationListener = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Initial fetch of unread count
+      const { data: unreadData } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
+
+      if (unreadData !== null) {
+        setUnreadNotifications(unreadData.length);
+      }
       
       const notifChannel = supabase
         .channel('notifications-changes')
@@ -101,7 +113,26 @@ const PwaDashboard = () => {
             
             if (notification.user_id === user.id) {
               toast.info(notification.message);
+              setUnreadNotifications(prev => prev + 1);
             }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications'
+          },
+          async () => {
+            // Refetch unread count when notifications are updated
+            const { count } = await supabase
+              .from("notifications")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", user.id)
+              .eq("read", false);
+
+            setUnreadNotifications(count || 0);
           }
         )
         .subscribe();
@@ -409,8 +440,18 @@ const PwaDashboard = () => {
             <Wallet className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
             <span className="text-[10px] font-medium text-gray-400">Wallet</span>
           </button>
-          <button className="flex flex-col items-center justify-center gap-1 flex-1">
-            <Bell className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
+          <button 
+            onClick={() => navigate("/pwa/notifications")}
+            className="flex flex-col items-center justify-center gap-1 flex-1 relative"
+          >
+            <div className="relative">
+              <Bell className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
+              {unreadNotifications > 0 && (
+                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </div>
+              )}
+            </div>
             <span className="text-[10px] font-medium text-gray-400">Notifications</span>
           </button>
         </div>
