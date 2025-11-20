@@ -214,10 +214,9 @@ const PwaBookingDetail = () => {
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
         setShowConfirmDialog(false);
         setUpdating(false);
-        // Force refresh by navigating with replace to trigger remount
+        // Navigate back and the realtime listener will refresh the list
         setTimeout(() => {
           navigate("/pwa/dashboard", { replace: true });
-          window.location.reload(); // Force page reload to ensure fresh data
         }, 1500);
         return;
       }
