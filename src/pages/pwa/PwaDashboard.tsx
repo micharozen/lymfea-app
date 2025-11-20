@@ -48,16 +48,14 @@ const PwaDashboard = () => {
 
   useEffect(() => {
     checkAuth();
+  }, []);
 
-    // Refresh bookings when window regains focus (e.g., after navigating back)
-    const handleFocus = () => {
-      if (hairdresser) {
-        fetchAllBookings(hairdresser.id);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+  // Force refresh when component mounts or becomes visible
+  useEffect(() => {
+    if (hairdresser) {
+      console.log('Dashboard mounted or hairdresser changed, fetching bookings...');
+      fetchAllBookings(hairdresser.id);
+    }
   }, [hairdresser]);
 
   // Realtime listener for bookings
@@ -195,6 +193,8 @@ const PwaDashboard = () => {
   };
 
   const fetchAllBookings = async (hairdresserId: string) => {
+    console.log('Fetching bookings for hairdresser:', hairdresserId);
+    
     const { data: affiliatedHotels, error: hotelsError } = await supabase
       .from("hairdresser_hotels")
       .select("hotel_id")
@@ -207,6 +207,7 @@ const PwaDashboard = () => {
     }
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
+    console.log('Hotel IDs:', hotelIds);
 
     // Fetch bookings: either assigned to this hairdresser OR pending (unassigned) from their hotels
     const { data, error } = await supabase
@@ -225,12 +226,18 @@ const PwaDashboard = () => {
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
-    if (!error && data) {
-      console.log('Fetched bookings:', data.map(b => ({ 
+    if (error) {
+      console.error('Error fetching bookings:', error);
+      return;
+    }
+
+    if (data) {
+      console.log('📊 All fetched bookings:', data.map(b => ({ 
         id: b.booking_id, 
         status: b.status, 
         date: b.booking_date,
-        hairdresser_id: b.hairdresser_id 
+        hairdresser_id: b.hairdresser_id,
+        hotel_id: b.hotel_id
       })));
       setAllBookings(data);
     }
