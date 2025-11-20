@@ -280,7 +280,7 @@ const PwaBookingDetail = () => {
               <p className="text-sm text-gray-500">
                 {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
               </p>
-              {booking.room_number && (
+              {booking.room_number && booking.status === "En attente" && (
                 <p className="text-sm text-gray-500">Room: {booking.room_number}</p>
               )}
             </div>
