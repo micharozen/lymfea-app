@@ -216,6 +216,12 @@ const PwaDashboard = () => {
       .order("booking_time", { ascending: true });
 
     if (!error && data) {
+      console.log('Fetched bookings:', data.map(b => ({ 
+        id: b.booking_id, 
+        status: b.status, 
+        date: b.booking_date,
+        hairdresser_id: b.hairdresser_id 
+      })));
       setAllBookings(data);
     }
   };
@@ -252,6 +258,15 @@ const PwaDashboard = () => {
       const bookingDate = parseISO(booking.booking_date);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      
+      console.log('Filtering booking:', {
+        id: booking.booking_id,
+        status: booking.status,
+        date: booking.booking_date,
+        bookingDate: bookingDate,
+        today: today,
+        isUpcoming: (booking.status === "Confirmé" || booking.status === "Assigné") && bookingDate >= today
+      });
       
       if (activeTab === "upcoming") {
         return (booking.status === "Confirmé" || booking.status === "Assigné") && 
