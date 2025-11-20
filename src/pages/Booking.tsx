@@ -244,16 +244,16 @@ export default function Booking() {
     const normalizedStatus = status.toLowerCase();
     
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-info/5 border-info/20 hover:bg-info/10";
+      return "bg-info border-info hover:bg-info/90";
     }
     if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
-      return "bg-success/5 border-success/20 hover:bg-success/10";
+      return "bg-success border-success hover:bg-success/90";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-destructive/5 border-destructive/20 hover:bg-destructive/10";
+      return "bg-destructive border-destructive hover:bg-destructive/90";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-warning/5 border-warning/20 hover:bg-warning/10";
+      return "bg-warning border-warning hover:bg-warning/90";
     }
     return "bg-card border-border hover:bg-muted/5";
   };
@@ -456,7 +456,7 @@ export default function Booking() {
                                            <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className={`p-1 rounded border text-[9px] leading-tight cursor-pointer transition-colors flex-1 overflow-hidden ${getStatusCardColor(booking.status)}`}
+                                                className={`p-1.5 rounded border text-[10px] leading-tight cursor-pointer transition-colors flex-1 overflow-hidden ${getStatusCardColor(booking.status)}`}
                                                 style={{ minHeight: `${heightInPixels}px` }}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
@@ -464,11 +464,14 @@ export default function Booking() {
                                                   setIsEditDialogOpen(true);
                                                 }}
                                               >
-                                                <div className="font-medium text-foreground truncate">
+                                                <div className="font-bold text-foreground truncate">
                                                   {booking.booking_time?.substring(0, 5)}
                                                 </div>
-                                                <div className="text-foreground/80 truncate font-medium">
-                                                  {booking.client_first_name}
+                                                <div className="text-foreground/90 truncate font-semibold">
+                                                  {booking.hotel_name}
+                                                </div>
+                                                <div className="text-foreground/70 truncate text-[9px]">
+                                                  {durationFormatted}
                                                 </div>
                                               </div>
                                             </TooltipTrigger>
