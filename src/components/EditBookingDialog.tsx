@@ -459,8 +459,8 @@ export default function EditBookingDialog({
             </div>
 
             {/* Infos principales */}
-            <div className="p-3 bg-muted/30 rounded">
-              <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 bg-muted/30 rounded space-y-3">
+              <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
                 <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Date</p>
                   <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
@@ -474,11 +474,8 @@ export default function EditBookingDialog({
                   <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Prix et Durée */}
-            <div className="p-3 bg-muted/30 rounded">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
                 <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Prix total</p>
                   <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
@@ -487,6 +484,7 @@ export default function EditBookingDialog({
                   <p className="text-xs text-muted-foreground mb-1">Durée</p>
                   <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
                 </div>
+                <div></div>
               </div>
             </div>
 
