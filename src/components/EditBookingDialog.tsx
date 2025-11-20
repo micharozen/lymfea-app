@@ -30,8 +30,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, Trash2, CalendarIcon } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2, CalendarIcon, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,6 +83,7 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
 
 interface Booking {
   id: string;
+  booking_id: number;
   hotel_id: string;
   hotel_name: string | null;
   client_first_name: string;
@@ -420,82 +422,111 @@ export default function EditBookingDialog({
 
         {viewMode === "view" ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
+            {/* En-tête avec numéro de réservation */}
+            <div className="flex items-center gap-3 pb-3 border-b">
+              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                <CalendarIcon className="w-6 h-6" />
+              </div>
               <div>
-                <p className="text-xs text-muted-foreground">Hôtel</p>
-                <p className="font-medium text-sm">{booking?.hotel_name}</p>
+                <p className="text-xs text-muted-foreground">#{booking?.booking_id}</p>
+                <p className="font-semibold">{booking?.hotel_name}</p>
+              </div>
+            </div>
+
+            {/* Infos principales en grille 3 colonnes */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Room number</p>
+                <p className="font-medium">{booking?.room_number || "-"}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Date</p>
-                <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd/MM/yyyy")}</p>
+                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Heure</p>
-                <p className="font-medium text-sm">{booking?.booking_time}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Statut</p>
-                <p className="font-medium text-sm">{booking?.status}</p>
+                <p className="text-xs text-muted-foreground">Start time</p>
+                <p className="font-medium">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="font-semibold text-base">Informations client</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Prénom</p>
-                  <p className="font-medium text-sm">{booking?.client_first_name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Nom</p>
-                  <p className="font-medium text-sm">{booking?.client_last_name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Téléphone</p>
-                  <p className="font-medium text-sm">{booking?.phone}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Numéro de chambre</p>
-                  <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
-                </div>
-                {booking?.hairdresser_name && (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Coiffeur</p>
-                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
-                  </div>
-                )}
+            {/* Prix et durée */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Total price</p>
+                <p className="font-semibold text-lg">€{totalPrice.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Duration</p>
+                <p className="font-medium">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} Min</p>
               </div>
             </div>
 
+            {/* Prestations */}
             {bookingTreatments && bookingTreatments.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="font-semibold text-base">Prestations</h3>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Treatments</p>
                 <div className="space-y-1.5">
                   {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex justify-between items-center p-2 border rounded-lg">
-                      <div>
-                        <p className="font-medium text-sm">{treatment.name}</p>
-                        <p className="text-xs text-muted-foreground">{treatment.category}</p>
+                    <div key={treatment.id} className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
+                        <span className="text-xs">💇</span>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-sm">{treatment.price}€</p>
-                        <p className="text-xs text-muted-foreground">{treatment.duration} min</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{treatment.name}</p>
+                        <p className="text-xs text-muted-foreground">{treatment.category}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
-                    <span className="font-medium text-sm">Durée totale</span>
-                    <span className="font-semibold text-sm">{bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)} min</span>
+              </div>
+            )}
+
+            {/* Coiffeur */}
+            {booking?.hairdresser_name && (
+              <div>
+                <p className="text-xs text-muted-foreground">Hair dresser</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4" />
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-muted/30 rounded-lg">
-                    <span className="font-medium text-sm">Prix total</span>
-                    <span className="font-semibold text-base">{totalPrice}€</span>
-                  </div>
+                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
                 </div>
               </div>
             )}
+
+            {/* Nom du client */}
+            <div>
+              <p className="text-xs text-muted-foreground">Client name</p>
+              <p className="font-medium">{booking?.client_first_name} {booking?.client_last_name}</p>
+            </div>
+
+            {/* Téléphone */}
+            <div>
+              <p className="text-xs text-muted-foreground">Client phone</p>
+              <p className="font-medium">{booking?.phone}</p>
+            </div>
+
+            {/* Statut avec badge coloré */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Access Status</p>
+              <Badge 
+                variant={
+                  booking?.status === "Terminé" ? "default" :
+                  booking?.status === "En attente" ? "secondary" :
+                  booking?.status === "Confirmé" ? "default" :
+                  booking?.status === "Annulé" ? "destructive" :
+                  "outline"
+                }
+                className={
+                  booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600" :
+                  booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600" :
+                  booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600" :
+                  ""
+                }
+              >
+                {booking?.status}
+              </Badge>
+            </div>
 
             <div className="flex justify-between gap-2 pt-3 border-t">
               <Button 
