@@ -408,30 +408,26 @@ export default function Booking() {
                                   <div className="space-y-0.5 h-full">
                                      {bookingsInHour.map((booking) => {
                                       const duration = (booking as any).totalDuration || 0;
-                                      // Calculate bar height as percentage (max 100% for 60+ min)
-                                      const barHeight = Math.min(100, (duration / 60) * 100);
                                       
                                       return (
                                         <div
                                           key={booking.id}
-                                          className="relative p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                          className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedBooking(booking);
                                             setIsEditDialogOpen(true);
                                           }}
                                         >
-                                          {/* Barre de durée */}
-                                          {duration > 0 && (
-                                            <div 
-                                              className="absolute left-0 top-0 w-1 bg-primary rounded-l"
-                                              style={{ height: `${barHeight}%` }}
-                                            />
-                                          )}
-                                          <div className="font-medium text-foreground truncate pl-1">
+                                          <div className="font-medium text-foreground truncate">
                                             {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
                                           </div>
-                                          <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ml-1 ${getStatusColor(booking.status)}`}>
+                                          {duration > 0 && (
+                                            <div className="text-[8px] text-muted-foreground mt-0.5">
+                                              ⏱️ {duration} min
+                                            </div>
+                                          )}
+                                          <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
                                             {getTranslatedStatus(booking.status)}
                                           </Badge>
                                         </div>
