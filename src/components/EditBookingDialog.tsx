@@ -507,7 +507,10 @@ export default function EditBookingDialog({
                 </Button>
                 <Button 
                   type="button" 
-                  onClick={() => setViewMode("edit")}
+                  onClick={() => {
+                    setViewMode("edit");
+                    setActiveTab("info");
+                  }}
                 >
                   Modifier
                 </Button>
