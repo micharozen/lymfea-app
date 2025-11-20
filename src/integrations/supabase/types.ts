@@ -94,11 +94,14 @@ export type Database = {
       }
       bookings: {
         Row: {
+          assigned_at: string | null
           booking_date: string
           booking_id: number
           booking_time: string
+          cancellation_reason: string | null
           client_first_name: string
           client_last_name: string
+          client_signature: string | null
           created_at: string
           hairdresser_id: string | null
           hairdresser_name: string | null
@@ -107,16 +110,20 @@ export type Database = {
           id: string
           phone: string
           room_number: string | null
+          signed_at: string | null
           status: string
           total_price: number | null
           updated_at: string
         }
         Insert: {
+          assigned_at?: string | null
           booking_date: string
           booking_id?: number
           booking_time: string
+          cancellation_reason?: string | null
           client_first_name: string
           client_last_name: string
+          client_signature?: string | null
           created_at?: string
           hairdresser_id?: string | null
           hairdresser_name?: string | null
@@ -125,16 +132,20 @@ export type Database = {
           id?: string
           phone: string
           room_number?: string | null
+          signed_at?: string | null
           status?: string
           total_price?: number | null
           updated_at?: string
         }
         Update: {
+          assigned_at?: string | null
           booking_date?: string
           booking_id?: number
           booking_time?: string
+          cancellation_reason?: string | null
           client_first_name?: string
           client_last_name?: string
+          client_signature?: string | null
           created_at?: string
           hairdresser_id?: string | null
           hairdresser_name?: string | null
@@ -143,6 +154,7 @@ export type Database = {
           id?: string
           phone?: string
           room_number?: string | null
+          signed_at?: string | null
           status?: string
           total_price?: number | null
           updated_at?: string
@@ -405,6 +417,44 @@ export type Database = {
           vat?: number | null
         }
         Relationships: []
+      }
+      notifications: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          type: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          type: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       treatment_menus: {
         Row: {

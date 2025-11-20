@@ -87,18 +87,75 @@ const PwaBookingDetail = () => {
     
     setUpdating(true);
     try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ status: "Confirmé" })
-        .eq("id", booking.id);
+      // Get current hairdresser ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-      if (error) throw error;
+      const { data: hairdresserData } = await supabase
+        .from("hairdressers")
+        .select("id, first_name, last_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!hairdresserData) throw new Error("Hairdresser not found");
+
+      // Check if booking is still available (no hairdresser assigned)
+      const { data: currentBooking } = await supabase
+        .from("bookings")
+        .select("hairdresser_id, hairdresser_name, hotel_id")
+        .eq("id", booking.id)
+        .single();
+
+      if (currentBooking?.hairdresser_id) {
+        toast.error(`Cette réservation a déjà été acceptée par ${currentBooking.hairdresser_name}`);
+        setShowConfirmDialog(false);
+        setUpdating(false);
+        navigate("/pwa/dashboard");
+        return;
+      }
+
+      // Assign booking to current hairdresser
+      const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
+      const { error: updateError } = await supabase
+        .from("bookings")
+        .update({ 
+          status: "Confirmé",
+          hairdresser_id: hairdresserData.id,
+          hairdresser_name: hairdresserName,
+          assigned_at: new Date().toISOString()
+        })
+        .eq("id", booking.id)
+        .is("hairdresser_id", null); // Only update if still unassigned
+
+      if (updateError) throw updateError;
+
+      // Get other hairdressers from the same hotel to notify them
+      const { data: otherHairdressers } = await supabase
+        .from("hairdresser_hotels")
+        .select(`
+          hairdresser_id,
+          hairdressers!inner(user_id, first_name, last_name)
+        `)
+        .eq("hotel_id", currentBooking.hotel_id)
+        .neq("hairdresser_id", hairdresserData.id);
+
+      // Create notifications for other hairdressers
+      if (otherHairdressers && otherHairdressers.length > 0) {
+        const notifications = otherHairdressers.map((hd: any) => ({
+          user_id: hd.hairdressers.user_id,
+          booking_id: booking.id,
+          type: "booking_taken",
+          message: `La réservation #${booking.booking_id} a été acceptée par ${hairdresserName}`
+        }));
+
+        await supabase.from("notifications").insert(notifications);
+      }
 
       toast.success("Réservation acceptée");
       navigate("/pwa/dashboard");
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erreur");
+      toast.error("Erreur lors de l'acceptation");
     } finally {
       setUpdating(false);
       setShowConfirmDialog(false);
@@ -112,7 +169,10 @@ const PwaBookingDetail = () => {
     try {
       const { error } = await supabase
         .from("bookings")
-        .update({ status: "Refusé" })
+        .update({ 
+          status: "Refusé",
+          cancellation_reason: rejectReason || "Refusé par le coiffeur"
+        })
         .eq("id", booking.id);
 
       if (error) throw error;
@@ -125,6 +185,7 @@ const PwaBookingDetail = () => {
     } finally {
       setUpdating(false);
       setShowRejectDialog(false);
+      setRejectReason("");
     }
   };
 
