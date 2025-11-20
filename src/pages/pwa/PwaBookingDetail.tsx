@@ -296,7 +296,7 @@ const PwaBookingDetail = () => {
           )}
 
           {/* Add Treatment Button */}
-          {(booking.status === "Confirmé" || booking.status === "En cours") && (
+          {(booking.status === "Assigné") && (
             <div className="pt-4">
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}

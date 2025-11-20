@@ -297,12 +297,18 @@ export default function EditBookingDialog({
 
       const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
       
-      // Si on assigne un coiffeur et que le statut est "En attente", passer à "Assigné"
+      // Gestion du statut et de assigned_at
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
       
+      // Si on assigne un coiffeur et que le statut est "En attente", passer à "Assigné"
       if (bookingData.hairdresser_id && booking.status === "En attente") {
         newStatus = "Assigné";
+        assignedAt = new Date().toISOString();
+      }
+      
+      // Si on change de coiffeur sur une réservation déjà assignée, mettre à jour assigned_at
+      if (bookingData.hairdresser_id && booking.hairdresser_id && bookingData.hairdresser_id !== booking.hairdresser_id) {
         assignedAt = new Date().toISOString();
       }
       
@@ -733,13 +739,12 @@ export default function EditBookingDialog({
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="En attente">En attente</SelectItem>
-                      <SelectItem value="Assigné">Assigné</SelectItem>
-                      <SelectItem value="En cours">En cours</SelectItem>
-                      <SelectItem value="Terminé">Terminé</SelectItem>
-                      <SelectItem value="Annulé">Annulé</SelectItem>
-                    </SelectContent>
+                      <SelectContent>
+                        <SelectItem value="En attente">En attente</SelectItem>
+                        <SelectItem value="Assigné">Assigné</SelectItem>
+                        <SelectItem value="Terminé">Terminé</SelectItem>
+                        <SelectItem value="Annulé">Annulé</SelectItem>
+                      </SelectContent>
                   </Select>
                 </div>
               </div>

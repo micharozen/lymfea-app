@@ -183,6 +183,10 @@ export default function CreateBookingDialog({
       const hotel = hotels?.find((h) => h.id === data.hotelId);
       const hairdresser = hairdressers?.find((h) => h.id === data.hairdresserId);
       
+      // Déterminer le statut initial
+      const initialStatus = data.hairdresserId ? "Assigné" : "En attente";
+      const assignedAt = data.hairdresserId ? new Date().toISOString() : null;
+      
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
         .insert({
@@ -196,7 +200,8 @@ export default function CreateBookingDialog({
           booking_time: data.time,
           hairdresser_id: data.hairdresserId || null,
           hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
-          status: "En attente",
+          status: initialStatus,
+          assigned_at: assignedAt,
           total_price: data.totalPrice,
         })
         .select()

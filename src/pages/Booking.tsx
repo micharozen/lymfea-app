@@ -199,11 +199,13 @@ export default function Booking() {
 
   const statusTranslations: Record<string, string> = {
     "Assigned": "Assigné",
-    "Ongoing": "En cours",
-    "Completed": "Complété",
+    "Completed": "Terminé",
     "Canceled": "Annulé",
     "Pending": "En attente",
     "En attente": "En attente",
+    "Assigné": "Assigné",
+    "Terminé": "Terminé",
+    "Annulé": "Annulé"
   };
 
   const getTranslatedStatus = (status: string) => {
@@ -216,10 +218,7 @@ export default function Booking() {
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
       return "bg-blue-500/10 text-blue-700 hover:bg-blue-500/10";
     }
-    if (normalizedStatus.includes("ongoing") || normalizedStatus.includes("en cours")) {
-      return "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10";
-    }
-    if (normalizedStatus.includes("complet")) {
+    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
       return "bg-green-500/10 text-green-700 hover:bg-green-500/10";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
@@ -282,11 +281,10 @@ export default function Booking() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="Assigned">Assigné</SelectItem>
-                    <SelectItem value="Ongoing">En cours</SelectItem>
-                    <SelectItem value="Completed">Complété</SelectItem>
-                    <SelectItem value="Canceled">Annulé</SelectItem>
-                    <SelectItem value="Pending">En attente</SelectItem>
+                    <SelectItem value="En attente">En attente</SelectItem>
+                    <SelectItem value="Assigné">Assigné</SelectItem>
+                    <SelectItem value="Terminé">Terminé</SelectItem>
+                    <SelectItem value="Annulé">Annulé</SelectItem>
                   </SelectContent>
                 </Select>
 
