@@ -83,10 +83,15 @@ export default function Booking() {
           const totalDuration = treatments?.reduce((sum, t: any) => {
             return sum + (t.treatment_menus?.duration || 0);
           }, 0) || 0;
+          
+          const totalPrice = treatments?.reduce((sum, t: any) => {
+            return sum + (t.treatment_menus?.price || 0);
+          }, 0) || 0;
 
           return {
             ...booking,
             totalDuration,
+            total_price: totalPrice,
             treatments: treatments?.map((t: any) => t.treatment_menus).filter(Boolean) || [],
           };
         })
