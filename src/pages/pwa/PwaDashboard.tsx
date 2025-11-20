@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
-import oomLogo from "@/assets/oom-monogram-white.svg";
+import oomLogo from "@/assets/oom-monogram-black.svg";
 
 interface Hairdresser {
   id: string;
@@ -267,14 +267,14 @@ const PwaDashboard = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-black text-white px-6 py-3 flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <img src={oomLogo} alt="OOM" className="h-8 w-auto" />
         <Avatar 
-          className="h-9 w-9 ring-2 ring-white/20 cursor-pointer"
+          className="h-9 w-9 ring-2 ring-gray-200 cursor-pointer"
           onClick={() => navigate("/pwa/profile")}
         >
           <AvatarImage src={hairdresser?.profile_image || undefined} />
-          <AvatarFallback className="bg-white text-black text-xs font-medium">
+          <AvatarFallback className="bg-gray-100 text-black text-xs font-medium">
             {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
           </AvatarFallback>
         </Avatar>
