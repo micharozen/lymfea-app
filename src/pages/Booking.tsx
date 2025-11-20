@@ -56,14 +56,39 @@ export default function Booking() {
   const { data: bookings } = useQuery({
     queryKey: ["bookings"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
         .select("*")
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
-      if (error) throw error;
-      return data;
+      if (bookingsError) throw bookingsError;
+
+      // Fetch treatments for each booking
+      const bookingsWithDuration = await Promise.all(
+        (bookingsData || []).map(async (booking) => {
+          const { data: treatments } = await supabase
+            .from("booking_treatments")
+            .select(`
+              treatment_id,
+              treatment_menus (
+                duration
+              )
+            `)
+            .eq("booking_id", booking.id);
+
+          const totalDuration = treatments?.reduce((sum, t: any) => {
+            return sum + (t.treatment_menus?.duration || 0);
+          }, 0) || 0;
+
+          return {
+            ...booking,
+            totalDuration,
+          };
+        })
+      );
+
+      return bookingsWithDuration;
     },
   });
 
@@ -367,38 +392,58 @@ export default function Booking() {
                             const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                             const isCurrent = isCurrentHour(day, hour);
                             
+                            // Calculate max duration for this hour to determine cell height
+                            const maxDuration = bookingsInHour.reduce((max, booking) => {
+                              const duration = (booking as any).totalDuration || 0;
+                              return Math.max(max, duration);
+                            }, 0);
+                            const cellHeight = maxDuration > 0 ? Math.max(40, (maxDuration / 60) * 40) : 40;
+                            
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative h-[40px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                className={`relative p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
                                   bookingsInHour.length > 0
                                     ? "bg-primary/5 hover:bg-primary/10"
                                     : isToday
                                     ? "bg-primary/[0.02] hover:bg-muted/30"
                                     : "hover:bg-muted/30"
                                 }`}
+                                style={{ minHeight: `${cellHeight}px` }}
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
                                   <div className="space-y-0.5 h-full">
-                                    {bookingsInHour.map((booking) => (
-                                      <div
-                                        key={booking.id}
-                                        className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedBooking(booking);
-                                          setIsEditDialogOpen(true);
-                                        }}
-                                      >
-                                        <div className="font-medium text-foreground truncate">
-                                          {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
+                                     {bookingsInHour.map((booking) => {
+                                      const duration = (booking as any).totalDuration || 0;
+                                      // Calculate height based on duration (40px per hour base + proportional to minutes)
+                                      const heightInPx = duration > 0 ? Math.max(40, (duration / 60) * 40) : 40;
+                                      
+                                      return (
+                                        <div
+                                          key={booking.id}
+                                          className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                          style={{ minHeight: `${heightInPx}px` }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedBooking(booking);
+                                            setIsEditDialogOpen(true);
+                                          }}
+                                        >
+                                          <div className="font-medium text-foreground truncate">
+                                            {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
+                                          </div>
+                                          {duration > 0 && (
+                                            <div className="text-[8px] text-muted-foreground mt-0.5">
+                                              ⏱️ {duration} min
+                                            </div>
+                                          )}
+                                          <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
+                                            {getTranslatedStatus(booking.status)}
+                                          </Badge>
                                         </div>
-                                        <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
-                                          {getTranslatedStatus(booking.status)}
-                                        </Badge>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                                 
@@ -434,6 +479,12 @@ export default function Booking() {
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         Start time
+                      </div>
+                    </TableHead>
+                    <TableHead className="font-semibold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Durée
                       </div>
                     </TableHead>
                     <TableHead className="font-semibold text-foreground">Status</TableHead>
@@ -494,6 +545,9 @@ export default function Booking() {
                       <TableCell className="text-muted-foreground">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {(booking as any).totalDuration > 0 ? `${(booking as any).totalDuration} min` : "-"}
+                      </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(booking.status)}>
                           {getTranslatedStatus(booking.status)}
@@ -535,7 +589,7 @@ export default function Booking() {
                   ))}
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         Aucune réservation trouvée
                       </TableCell>
                     </TableRow>
