@@ -194,7 +194,7 @@ const PwaBookingDetail = () => {
 
       // Assign booking to current hairdresser and update total_price
       const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
-      const { error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from("bookings")
         .update({ 
           status: "Confirmé",
@@ -204,9 +204,21 @@ const PwaBookingDetail = () => {
           total_price: totalPrice
         })
         .eq("id", booking.id)
-        .is("hairdresser_id", null); // Only update if still unassigned
+        .is("hairdresser_id", null) // Only update if still unassigned
+        .select(); // Return the updated row to verify it worked
 
       if (updateError) throw updateError;
+
+      // Check if the update actually affected any rows
+      if (!updateData || updateData.length === 0) {
+        toast.error("Cette réservation a déjà été prise par un autre coiffeur");
+        setTimeout(() => {
+          navigate("/pwa/dashboard");
+        }, 1500);
+        return;
+      }
+
+      console.log('✅ Booking updated successfully:', updateData[0]);
 
       // Get other hairdressers from the same hotel to notify them
       const { data: otherHairdressers } = await supabase
