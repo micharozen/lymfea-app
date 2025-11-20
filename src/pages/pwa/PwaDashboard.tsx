@@ -48,7 +48,17 @@ const PwaDashboard = () => {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+
+    // Refresh bookings when window regains focus (e.g., after navigating back)
+    const handleFocus = () => {
+      if (hairdresser) {
+        fetchAllBookings(hairdresser.id);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [hairdresser]);
 
   // Realtime listener for bookings
   useEffect(() => {
