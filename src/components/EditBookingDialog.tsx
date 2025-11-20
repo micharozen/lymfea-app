@@ -422,93 +422,17 @@ export default function EditBookingDialog({
 
         {viewMode === "view" ? (
           <div className="space-y-4">
-            {/* En-tête avec numéro de réservation */}
-            <div className="flex items-center gap-3 pb-3 border-b">
-              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                <CalendarIcon className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">#{booking?.booking_id}</p>
-                <p className="font-semibold">{booking?.hotel_name}</p>
-              </div>
-            </div>
-
-            {/* Infos principales en grille 3 colonnes */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Room number</p>
-                <p className="font-medium">{booking?.room_number || "-"}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Date</p>
-                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Start time</p>
-                <p className="font-medium">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
-              </div>
-            </div>
-
-            {/* Prix et durée */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Total price</p>
-                <p className="font-semibold text-lg">€{totalPrice.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Duration</p>
-                <p className="font-medium">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} Min</p>
-              </div>
-            </div>
-
-            {/* Prestations */}
-            {bookingTreatments && bookingTreatments.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Treatments</p>
-                <div className="space-y-1.5">
-                  {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
-                        <span className="text-xs">💇</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{treatment.name}</p>
-                        <p className="text-xs text-muted-foreground">{treatment.category}</p>
-                      </div>
-                    </div>
-                  ))}
+            {/* En-tête */}
+            <div className="flex items-center justify-between pb-3 border-b">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                  <CalendarIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">#{booking?.booking_id}</p>
+                  <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
                 </div>
               </div>
-            )}
-
-            {/* Coiffeur */}
-            {booking?.hairdresser_name && (
-              <div>
-                <p className="text-xs text-muted-foreground">Hair dresser</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-8 h-8 bg-muted rounded flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Nom du client */}
-            <div>
-              <p className="text-xs text-muted-foreground">Client name</p>
-              <p className="font-medium">{booking?.client_first_name} {booking?.client_last_name}</p>
-            </div>
-
-            {/* Téléphone */}
-            <div>
-              <p className="text-xs text-muted-foreground">Client phone</p>
-              <p className="font-medium">{booking?.phone}</p>
-            </div>
-
-            {/* Statut avec badge coloré */}
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">Access Status</p>
               <Badge 
                 variant={
                   booking?.status === "Terminé" ? "default" :
@@ -518,14 +442,83 @@ export default function EditBookingDialog({
                   "outline"
                 }
                 className={
-                  booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600" :
-                  booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600" :
-                  booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600" :
+                  booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600 text-white" :
+                  booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600 text-white" :
+                  booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600 text-white" :
                   ""
                 }
               >
                 {booking?.status}
               </Badge>
+            </div>
+
+            {/* Infos principales */}
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Date</p>
+                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Heure</p>
+                <p className="font-medium">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Chambre</p>
+                <p className="font-medium">{booking?.room_number || "-"}</p>
+              </div>
+            </div>
+
+            {/* Prix et Durée */}
+            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Prix total</p>
+                <p className="font-semibold text-lg">€{totalPrice.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Durée</p>
+                <p className="font-semibold text-lg">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+              </div>
+            </div>
+
+            {/* Prestations */}
+            {bookingTreatments && bookingTreatments.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                <div className="space-y-1.5">
+                  {bookingTreatments.map((treatment) => (
+                    <div key={treatment.id} className="flex items-center gap-2 p-2 border rounded">
+                      <div className="w-6 h-6 bg-muted rounded flex items-center justify-center shrink-0 text-xs">
+                        💇
+                      </div>
+                      <p className="font-medium text-sm flex-1">{treatment.name}</p>
+                      <p className="text-xs text-muted-foreground">{treatment.category}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Coiffeur */}
+            {booking?.hairdresser_name && (
+              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Coiffeur</p>
+                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Client */}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Client</p>
+                <p className="font-medium">{booking?.client_first_name} {booking?.client_last_name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Téléphone</p>
+                <p className="font-medium">{booking?.phone}</p>
+              </div>
             </div>
 
             <div className="flex justify-between gap-2 pt-3 border-t">
