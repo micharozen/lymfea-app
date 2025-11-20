@@ -301,12 +301,7 @@ const PwaBookingDetail = () => {
           <h1 className="text-base font-semibold">
             {booking.status === "En attente" ? "Booking request" : "Booking details"}
           </h1>
-          {booking.status === "En attente" && (
-            <button onClick={() => setShowRejectDialog(true)}>
-              <MoreVertical className="w-6 h-6 text-black" />
-            </button>
-          )}
-          {booking.status !== "En attente" && <div className="w-6" />}
+          <div className="w-6" />
         </div>
 
         {/* Hotel Info */}
