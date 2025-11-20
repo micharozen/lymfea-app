@@ -623,7 +623,6 @@ export default function EditBookingDialog({
                             });
                             queryClient.invalidateQueries({ queryKey: ["bookings"] });
                             setShowAssignHairdresser(false);
-                            onOpenChange(false);
                           }
                         }}
                         className="flex-1"
