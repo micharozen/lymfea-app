@@ -240,7 +240,7 @@ const PwaDashboard = () => {
   };
 
   const fetchAllBookings = async (hairdresserId: string) => {
-    console.log('Fetching bookings for hairdresser:', hairdresserId);
+    console.log('🔄 Fetching bookings for hairdresser:', hairdresserId);
     
     const { data: affiliatedHotels, error: hotelsError } = await supabase
       .from("hairdresser_hotels")
@@ -248,15 +248,14 @@ const PwaDashboard = () => {
       .eq("hairdresser_id", hairdresserId);
 
     if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
-      console.error("Error fetching affiliated hotels:", hotelsError);
+      console.error("❌ Error fetching affiliated hotels:", hotelsError);
       setAllBookings([]);
       return;
     }
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
-    console.log('Hotel IDs:', hotelIds);
+    console.log('🏨 Hotel IDs:', hotelIds);
 
-    // Fetch bookings in two separate queries for better control
     // 1. Get bookings assigned to this hairdresser (any status)
     const { data: myBookings, error: myError } = await supabase
       .from("bookings")
@@ -272,7 +271,9 @@ const PwaDashboard = () => {
       .eq("hairdresser_id", hairdresserId)
       .in("hotel_id", hotelIds);
 
-    // 2. Get pending bookings (not assigned to anyone) from their hotels
+    console.log('👤 My bookings:', myBookings?.length || 0, myBookings?.map(b => ({ id: b.booking_id, status: b.status, hairdresser_id: b.hairdresser_id })));
+
+    // 2. Get ONLY pending bookings (not assigned to anyone)
     const { data: pendingBookings, error: pendingError } = await supabase
       .from("bookings")
       .select(`
@@ -288,8 +289,10 @@ const PwaDashboard = () => {
       .is("hairdresser_id", null)
       .in("status", ["En attente", "Pending"]);
 
+    console.log('⏳ Pending bookings:', pendingBookings?.length || 0, pendingBookings?.map(b => ({ id: b.booking_id, status: b.status, hairdresser_id: b.hairdresser_id })));
+
     if (myError || pendingError) {
-      console.error('Error fetching bookings:', myError || pendingError);
+      console.error('❌ Error fetching bookings:', myError || pendingError);
       return;
     }
 
@@ -301,13 +304,7 @@ const PwaDashboard = () => {
       return a.booking_time.localeCompare(b.booking_time);
     });
 
-    console.log('📊 All fetched bookings:', sortedData.map(b => ({ 
-      id: b.booking_id, 
-      status: b.status, 
-      date: b.booking_date,
-      hairdresser_id: b.hairdresser_id,
-      hotel_id: b.hotel_id
-    })));
+    console.log('✅ Total bookings loaded:', sortedData.length);
     setAllBookings(sortedData);
   };
 
@@ -385,11 +382,15 @@ const PwaDashboard = () => {
 
 
   const getPendingRequests = () => {
-    return allBookings.filter(b => 
-      // Only show bookings that are truly pending (not assigned to anyone)
-      (b.status === "En attente" || b.status === "Pending") && 
-      b.hairdresser_id === null
-    );
+    const pending = allBookings.filter(b => {
+      const isPending = (b.status === "En attente" || b.status === "Pending") && b.hairdresser_id === null;
+      if (!isPending && (b.status === "En attente" || b.status === "Pending")) {
+        console.log('⚠️ Booking with "En attente" status but has hairdresser_id:', b.booking_id, 'hairdresser_id:', b.hairdresser_id);
+      }
+      return isPending;
+    });
+    console.log('📊 Total bookings:', allBookings.length, 'Pending:', pending.length);
+    return pending;
   };
 
   const groupBookingsByDate = (bookings: Booking[]) => {
