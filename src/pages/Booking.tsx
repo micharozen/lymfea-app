@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
@@ -72,7 +73,9 @@ export default function Booking() {
             .select(`
               treatment_id,
               treatment_menus (
-                duration
+                name,
+                duration,
+                price
               )
             `)
             .eq("booking_id", booking.id);
@@ -84,6 +87,7 @@ export default function Booking() {
           return {
             ...booking,
             totalDuration,
+            treatments: treatments?.map((t: any) => t.treatment_menus).filter(Boolean) || [],
           };
         })
       );
@@ -406,33 +410,58 @@ export default function Booking() {
                               >
                                 {bookingsInHour.length > 0 && (
                                   <div className="space-y-0.5 h-full">
-                                     {bookingsInHour.map((booking) => {
-                                      const duration = (booking as any).totalDuration || 0;
-                                      
-                                      return (
-                                        <div
-                                          key={booking.id}
-                                          className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedBooking(booking);
-                                            setIsEditDialogOpen(true);
-                                          }}
-                                        >
-                                          <div className="font-medium text-foreground truncate">
-                                            {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
-                                          </div>
-                                          {duration > 0 && (
-                                            <div className="text-[8px] text-muted-foreground mt-0.5">
-                                              ⏱️ {duration} min
-                                            </div>
-                                          )}
-                                          <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
-                                            {getTranslatedStatus(booking.status)}
-                                          </Badge>
-                                        </div>
-                                      );
-                                    })}
+                                    <TooltipProvider>
+                                      {bookingsInHour.map((booking) => {
+                                        const duration = (booking as any).totalDuration || 0;
+                                        const treatments = (booking as any).treatments || [];
+                                        
+                                        return (
+                                          <Tooltip key={booking.id} delayDuration={300}>
+                                            <TooltipTrigger asChild>
+                                              <div
+                                                className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedBooking(booking);
+                                                  setIsEditDialogOpen(true);
+                                                }}
+                                              >
+                                                <div className="font-medium text-foreground truncate">
+                                                  {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
+                                                </div>
+                                                <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
+                                                  {getTranslatedStatus(booking.status)}
+                                                </Badge>
+                                              </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" className="max-w-xs">
+                                              <div className="space-y-2">
+                                                <div className="font-semibold text-sm">
+                                                  {booking.client_first_name} {booking.client_last_name}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-xs">
+                                                  <Clock className="h-3 w-3" />
+                                                  <span>Durée totale: {duration} min</span>
+                                                </div>
+                                                {treatments.length > 0 && (
+                                                  <div className="space-y-1">
+                                                    <div className="text-xs font-medium">Traitements:</div>
+                                                    <ul className="text-xs space-y-0.5">
+                                                      {treatments.map((treatment: any, idx: number) => (
+                                                        <li key={idx} className="flex justify-between gap-2">
+                                                          <span>{treatment.name}</span>
+                                                          <span className="text-muted-foreground">{treatment.duration} min</span>
+                                                        </li>
+                                                      ))}
+                                                    </ul>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        );
+                                      })}
+                                    </TooltipProvider>
                                   </div>
                                 )}
                                 
