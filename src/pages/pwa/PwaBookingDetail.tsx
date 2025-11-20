@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Clock, MapPin, User, MoreVertical, Plus } from "lucide-react";
+import { X, Clock, MapPin, CreditCard, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isToday, isTomorrow, isYesterday } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
@@ -231,6 +231,16 @@ const PwaBookingDetail = () => {
     );
   }
 
+  const getRelativeDay = (dateString: string) => {
+    const date = new Date(dateString);
+    if (isToday(date)) return "Today";
+    if (isTomorrow(date)) return "Tomorrow";
+    if (isYesterday(date)) return "Yesterday";
+    return "";
+  };
+
+  const relativeDay = getRelativeDay(booking.booking_date);
+
   return (
     <>
       <div className="min-h-screen bg-white">
@@ -239,7 +249,9 @@ const PwaBookingDetail = () => {
           <button onClick={() => navigate("/pwa/dashboard")}>
             <X className="w-6 h-6 text-black" />
           </button>
-          <h1 className="text-base font-semibold">Booking details</h1>
+          <h1 className="text-base font-semibold">
+            {booking.status === "En attente" ? "Booking request" : "Booking details"}
+          </h1>
           {booking.status === "En attente" && (
             <button onClick={() => setShowRejectDialog(true)}>
               <MoreVertical className="w-6 h-6 text-black" />
@@ -265,12 +277,11 @@ const PwaBookingDetail = () => {
             <div className="flex-1">
               <h2 className="font-semibold text-base mb-1">{booking.hotel_name}</h2>
               <p className="text-sm text-gray-500">
-                {format(new Date(booking.booking_date), "EEE d MMM")} • {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
+                {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
               </p>
               {booking.room_number && (
                 <p className="text-sm text-gray-500">Room: {booking.room_number}</p>
               )}
-              <p className="text-sm text-gray-500">€{booking.total_price}</p>
             </div>
           </div>
 
@@ -295,14 +306,17 @@ const PwaBookingDetail = () => {
                   <p className="text-sm font-medium">
                     {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)}
                   </p>
+                  {relativeDay && (
+                    <p className="text-xs text-gray-400">{relativeDay}</p>
+                  )}
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <User className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                <CreditCard className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium">€{booking.total_price}</p>
-                  <p className="text-xs text-gray-400">Price in total</p>
+                  <p className="text-xs text-gray-400">Payout</p>
                 </div>
               </div>
             </div>
