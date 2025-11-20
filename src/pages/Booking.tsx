@@ -226,18 +226,36 @@ export default function Booking() {
     const normalizedStatus = status.toLowerCase();
     
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-blue-500/10 text-blue-700 hover:bg-blue-500/10";
+      return "bg-info/10 text-info border-info/30 hover:bg-info/20";
     }
     if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
-      return "bg-green-500/10 text-green-700 hover:bg-green-500/10";
+      return "bg-success/10 text-success border-success/30 hover:bg-success/20";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-red-500/10 text-red-700 hover:bg-red-500/10";
+      return "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10";
+      return "bg-warning/10 text-warning border-warning/30 hover:bg-warning/20";
     }
-    return "bg-gray-500/10 text-gray-700 hover:bg-gray-500/10";
+    return "bg-muted/10 text-muted-foreground border-border hover:bg-muted/20";
+  };
+
+  const getStatusCardColor = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    
+    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
+      return "bg-info/5 border-info/20 hover:bg-info/10";
+    }
+    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
+      return "bg-success/5 border-success/20 hover:bg-success/10";
+    }
+    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
+      return "bg-destructive/5 border-destructive/20 hover:bg-destructive/10";
+    }
+    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
+      return "bg-warning/5 border-warning/20 hover:bg-warning/10";
+    }
+    return "bg-card border-border hover:bg-muted/5";
   };
 
   return (
@@ -435,10 +453,10 @@ export default function Booking() {
                                           : `${minutes}min`;
                                         
                                         return (
-                                          <Tooltip key={booking.id} delayDuration={300}>
+                                           <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors flex-1"
+                                                className={`p-1 rounded border text-[9px] leading-tight cursor-pointer transition-colors flex-1 overflow-hidden ${getStatusCardColor(booking.status)}`}
                                                 style={{ minHeight: `${heightInPixels}px` }}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
@@ -447,11 +465,11 @@ export default function Booking() {
                                                 }}
                                               >
                                                 <div className="font-medium text-foreground truncate">
-                                                  {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
+                                                  {booking.booking_time?.substring(0, 5)}
                                                 </div>
-                                                <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
-                                                  {getTranslatedStatus(booking.status)}
-                                                </Badge>
+                                                <div className="text-foreground/80 truncate font-medium">
+                                                  {booking.client_first_name}
+                                                </div>
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="right" className="max-w-sm">
@@ -625,7 +643,7 @@ export default function Booking() {
                     .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors border-b"
+                      className={`cursor-pointer border transition-colors ${getStatusCardColor(booking.status)}`}
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
