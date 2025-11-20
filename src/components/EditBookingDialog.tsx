@@ -436,22 +436,24 @@ export default function EditBookingDialog({
               <Badge 
                 variant={
                   booking?.status === "Terminé" ? "default" :
+                  booking?.status === "Annulé" ? "destructive" :
+                  booking?.hairdresser_id && (booking?.status === "En attente" || booking?.status === "Confirmé") ? "default" :
                   booking?.status === "En attente" ? "secondary" :
                   booking?.status === "Confirmé" ? "default" :
-                  booking?.status === "Annulé" ? "destructive" :
-                  booking?.hairdresser_id ? "default" : "outline"
+                  "outline"
                 }
                 className={
                   booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600 text-white" :
+                  booking?.status === "Annulé" ? "bg-red-500 hover:bg-red-600 text-white" :
+                  booking?.hairdresser_id && (booking?.status === "En attente" || booking?.status === "Confirmé") ? "bg-purple-500 hover:bg-purple-600 text-white" :
                   booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600 text-white" :
                   booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600 text-white" :
-                  booking?.hairdresser_id ? "bg-purple-500 hover:bg-purple-600 text-white" :
                   ""
                 }
               >
                 {booking?.status === "Terminé" ? "Terminé" :
                  booking?.status === "Annulé" ? "Annulé" :
-                 booking?.hairdresser_id ? "Assigné" :
+                 booking?.hairdresser_id && (booking?.status === "En attente" || booking?.status === "Confirmé") ? "Assigné" :
                  booking?.status}
               </Badge>
             </div>
@@ -473,14 +475,14 @@ export default function EditBookingDialog({
             </div>
 
             {/* Prix et Durée */}
-            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-lg">
+            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Prix total</p>
-                <p className="font-semibold text-lg">€{totalPrice.toFixed(2)}</p>
+                <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Durée</p>
-                <p className="font-semibold text-lg">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+                <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
               </div>
             </div>
 
@@ -518,7 +520,7 @@ export default function EditBookingDialog({
                     setViewMode("edit");
                     setActiveTab("hairdresser");
                   }}
-                  className="w-full"
+                  className="h-8 text-xs"
                 >
                   Assigner un coiffeur
                 </Button>
