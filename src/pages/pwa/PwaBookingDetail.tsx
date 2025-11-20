@@ -528,7 +528,7 @@ const PwaBookingDetail = () => {
           <div className="bg-white rounded-2xl w-full max-w-sm p-6">
             <h3 className="text-lg font-semibold mb-3">Are you sure you want to decline this booking?</h3>
             <p className="text-sm text-gray-600 mb-4">
-              If you decline this order, you will no longer deliver your services for this appointment. The customer will be notified of your refusal.
+              If you decline this order, you will no longer deliver your services for this appointment.
             </p>
             <div className="mb-6">
               <label className="text-xs text-gray-500 mb-2 block">Reason for Decline (Optional)</label>
@@ -544,7 +544,7 @@ const PwaBookingDetail = () => {
                 onClick={() => setShowRejectDialog(false)}
                 className="flex-1 border border-gray-300 rounded-full py-2.5 px-4 text-sm font-medium hover:bg-gray-50"
               >
-                No, keep booking page
+                No
               </button>
               <button
                 onClick={handleRejectBooking}
