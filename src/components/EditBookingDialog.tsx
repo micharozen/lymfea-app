@@ -883,11 +883,12 @@ export default function EditBookingDialog({
 
               <div className="space-y-2">
                 <Label htmlFor="edit-hairdresser">Coiffeur</Label>
-                <Select value={hairdresserId} onValueChange={setHairdresserId}>
+                <Select value={hairdresserId || "none"} onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un coiffeur" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">Aucun coiffeur</SelectItem>
                     {hairdressers?.map((hairdresser) => (
                       <SelectItem key={hairdresser.id} value={hairdresser.id}>
                         {hairdresser.first_name} {hairdresser.last_name}
