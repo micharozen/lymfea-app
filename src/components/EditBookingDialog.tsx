@@ -319,6 +319,8 @@ export default function EditBookingDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
+      queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
       toast({
         title: "Succès",
         description: "La réservation a été modifiée avec succès",
