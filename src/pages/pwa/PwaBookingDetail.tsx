@@ -316,17 +316,17 @@ const PwaBookingDetail = () => {
                 {treatments.map((treatment) => (
                   <div key={treatment.id} className="flex items-start gap-3">
                     <Avatar className="w-10 h-10 flex-shrink-0">
-                      {treatment.treatment_menus.image ? (
+                      {treatment.treatment_menus?.image ? (
                         <AvatarImage src={treatment.treatment_menus.image} alt={treatment.treatment_menus.name} />
                       ) : null}
                       <AvatarFallback className="bg-gray-200 text-xs">
-                        {treatment.treatment_menus.name[0]}
+                        {treatment.treatment_menus?.name?.[0] || 'T'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{treatment.treatment_menus.name}</p>
+                      <p className="text-sm font-medium">{treatment.treatment_menus?.name || 'Treatment'}</p>
                       <p className="text-xs text-gray-400">
-                        €{treatment.treatment_menus.price} • {treatment.treatment_menus.duration} min
+                        €{treatment.treatment_menus?.price || 0} • {treatment.treatment_menus?.duration || 0} min
                       </p>
                     </div>
                   </div>
