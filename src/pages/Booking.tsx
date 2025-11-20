@@ -409,18 +409,21 @@ export default function Booking() {
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
-                                  <div className="space-y-0.5 h-full">
+                                  <div className="flex gap-0.5 h-full">
                                     <TooltipProvider>
                                       {bookingsInHour.map((booking) => {
                                         const duration = (booking as any).totalDuration || 0;
                                         const treatments = (booking as any).treatments || [];
                                         const heightInPixels = Math.max(40, (duration / 60) * 60);
+                                        const hours = Math.floor(duration / 60);
+                                        const minutes = duration % 60;
+                                        const durationFormatted = `${hours.toString().padStart(2, '0')}h${minutes.toString().padStart(2, '0')}`;
                                         
                                         return (
                                           <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
+                                                className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors flex-1"
                                                 style={{ minHeight: `${heightInPixels}px` }}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
@@ -482,21 +485,26 @@ export default function Booking() {
                                                 
                                                 <div className="flex items-center gap-2 text-xs">
                                                   <Clock className="h-3 w-3" />
-                                                  <span>Durée: {duration} min</span>
+                                                  <span>Durée: {durationFormatted}</span>
                                                 </div>
                                                 
                                                 {treatments.length > 0 && (
                                                   <div className="space-y-1">
                                                     <div className="text-xs font-medium">Traitements:</div>
                                                     <ul className="text-xs space-y-1">
-                                                      {treatments.map((treatment: any, idx: number) => (
-                                                        <li key={idx} className="flex justify-between gap-2">
-                                                          <span>{treatment.name}</span>
-                                                          <span className="text-muted-foreground whitespace-nowrap">
-                                                            {treatment.duration} min • €{treatment.price}
-                                                          </span>
-                                                        </li>
-                                                      ))}
+                                                      {treatments.map((treatment: any, idx: number) => {
+                                                        const tHours = Math.floor(treatment.duration / 60);
+                                                        const tMinutes = treatment.duration % 60;
+                                                        const tDurationFormatted = `${tHours.toString().padStart(2, '0')}h${tMinutes.toString().padStart(2, '0')}`;
+                                                        return (
+                                                          <li key={idx} className="flex justify-between gap-2">
+                                                            <span>{treatment.name}</span>
+                                                            <span className="text-muted-foreground whitespace-nowrap">
+                                                              {tDurationFormatted} • €{treatment.price}
+                                                            </span>
+                                                          </li>
+                                                        );
+                                                      })}
                                                     </ul>
                                                   </div>
                                                 )}
