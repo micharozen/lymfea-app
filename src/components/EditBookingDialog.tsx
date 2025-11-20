@@ -372,15 +372,6 @@ export default function EditBookingDialog({
       return;
     }
 
-    if (selectedTreatments.length === 0) {
-      toast({
-        title: "Prestation requise",
-        description: "Veuillez sélectionner au moins une prestation.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     updateMutation.mutate({
       hotel_id: hotelId,
       client_first_name: clientFirstName,
@@ -391,7 +382,7 @@ export default function EditBookingDialog({
       booking_time: time,
       hairdresser_id: hairdresserId,
       total_price: totalPrice,
-      selected_treatments: selectedTreatments,
+      treatments: selectedTreatments,
     });
   };
 
@@ -708,15 +699,24 @@ export default function EditBookingDialog({
               </div>
 
               <div className="flex justify-between pt-4">
-                <Button 
-                  type="button" 
-                  variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setViewMode("view")}
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </Button>
+                </div>
                 <Button 
                   type="button" 
                   onClick={() => setActiveTab("prestations")}
@@ -833,7 +833,7 @@ export default function EditBookingDialog({
                     <Trash2 className="h-4 w-4" />
                     Supprimer
                   </Button>
-                  <Button type="button" variant="outline" onClick={handleClose}>
+                  <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
                     Annuler
                   </Button>
                   <Button type="submit" disabled={updateMutation.isPending}>
