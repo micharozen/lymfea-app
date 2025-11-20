@@ -629,7 +629,10 @@ export default function Booking() {
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {(booking as any).totalDuration > 0 ? `${(booking as any).totalDuration} min` : "-"}
+                        {(booking as any).totalDuration > 0 
+                          ? `${Math.floor((booking as any).totalDuration / 60).toString().padStart(2, '0')}h${((booking as any).totalDuration % 60).toString().padStart(2, '0')}`
+                          : "-"
+                        }
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(booking.status)}>

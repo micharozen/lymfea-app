@@ -123,7 +123,6 @@ export default function EditBookingDialog({
   const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
@@ -697,7 +696,6 @@ export default function EditBookingDialog({
                     type="button" 
                     onClick={() => {
                       setViewMode("edit");
-                      setActiveTab("info");
                     }}
                   >
                     Modifier
@@ -708,13 +706,9 @@ export default function EditBookingDialog({
           </div>
         ) : (
         <form onSubmit={handleSubmit}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full grid grid-cols-2 mb-4">
-              <TabsTrigger value="info">Informations</TabsTrigger>
-              <TabsTrigger value="prestations">Prestations</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="info" className="space-y-4 mt-4">
+          <div className="space-y-4 mt-4">
+            {/* Section Informations */}
+            <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-hotel">Hôtel *</Label>
@@ -797,7 +791,6 @@ export default function EditBookingDialog({
                     id="edit-firstName"
                     value={clientFirstName}
                     onChange={(e) => setClientFirstName(e.target.value)}
-                    placeholder="Prénom"
                   />
                 </div>
 
@@ -807,124 +800,98 @@ export default function EditBookingDialog({
                     id="edit-lastName"
                     value={clientLastName}
                     onChange={(e) => setClientLastName(e.target.value)}
-                    placeholder="Nom"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-phone">Téléphone *</Label>
-                <div className="flex gap-2">
-                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={countryOpen}
-                        className="w-[140px] justify-between"
-                      >
-                        {countries.find((country) => country.code === countryCode)?.flag}{" "}
-                        {countryCode}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Rechercher..." />
-                        <CommandList>
-                          <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
-                          <CommandGroup>
-                            {countries.map((country) => (
-                              <CommandItem
-                                key={country.code}
-                                value={`${country.label} ${country.code}`}
-                                onSelect={() => {
-                                  setCountryCode(country.code);
-                                  setCountryOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    countryCode === country.code ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {country.flag} {country.label} ({country.code})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <Input
-                    id="edit-phone"
-                    value={phone}
-                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
-                    placeholder="6 14 21 64 42"
-                    className="flex-1"
-                  />
-                </div>
-              </div>
-
-              {isAdmin && (
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-hairdresser">Coiffeur</Label>
-                  <Select value={hairdresserId || "none"} onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un coiffeur (optionnel)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucun coiffeur</SelectItem>
-                      {hairdressers?.map((hairdresser) => (
-                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                          {hairdresser.first_name} {hairdresser.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="edit-phone">Téléphone *</Label>
+                  <div className="flex gap-2">
+                    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={countryOpen}
+                          className="w-[140px] justify-between"
+                        >
+                          {countries.find((country) => country.code === countryCode)?.flag}{" "}
+                          {countryCode}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Rechercher..." />
+                          <CommandList>
+                            <CommandEmpty>Aucun pays trouvé.</CommandEmpty>
+                            <CommandGroup>
+                              {countries.map((country) => (
+                                <CommandItem
+                                  key={country.code}
+                                  value={country.code}
+                                  onSelect={() => {
+                                    setCountryCode(country.code);
+                                    setCountryOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      countryCode === country.code ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {country.flag} {country.label}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      id="edit-phone"
+                      value={phone}
+                      onChange={(e) => {
+                        const formatted = formatPhoneNumber(e.target.value, countryCode);
+                        setPhone(formatted);
+                      }}
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-room">Numéro de chambre</Label>
+                  <Input
+                    id="edit-room"
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                  />
+                </div>
+              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-roomNumber">Numéro de chambre</Label>
-                <Input
-                  id="edit-roomNumber"
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                  placeholder="1002"
-                />
+                <Label htmlFor="edit-hairdresser">Coiffeur</Label>
+                <Select value={hairdresserId} onValueChange={setHairdresserId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un coiffeur" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hairdressers?.map((hairdresser) => (
+                      <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                        {hairdresser.first_name} {hairdresser.last_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              <div className="flex justify-between pt-4">
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setViewMode("view")}
-                  >
-                    Annuler
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Supprimer
-                  </Button>
-                </div>
-                <Button 
-                  type="button" 
-                  onClick={() => setActiveTab("prestations")}
-                >
-                  Suivant
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="prestations" className="space-y-4 mt-4">
+            {/* Section Prestations */}
+            <div className="space-y-4 pt-4 border-t">
+              <Label>Prestations</Label>
               <Tabs defaultValue="Women" className="w-full">
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
@@ -1010,37 +977,28 @@ export default function EditBookingDialog({
                   <span className="text-lg">{totalPrice}€</span>
                 </div>
               )}
+            </div>
 
-              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
-                <div>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setActiveTab("info")}
-                  >
-                    Retour
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Supprimer
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Modification..." : "Modifier"}
-                  </Button>
-                </div>
+            <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
+              <Button 
+                type="button" 
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
+                  Annuler
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? "Modification..." : "Modifier"}
+                </Button>
               </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </form>
         )}
       </DialogContent>
