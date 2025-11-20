@@ -21,6 +21,9 @@ interface Booking {
   status: string;
   phone: string;
   total_price: number;
+  hotel_image_url?: string;
+  hotel_address?: string;
+  hotel_city?: string;
 }
 
 interface Treatment {
@@ -31,6 +34,7 @@ interface Treatment {
     description: string;
     duration: number;
     price: number;
+    image?: string;
   };
 }
 
@@ -59,7 +63,25 @@ const PwaBookingDetail = () => {
         .single();
 
       if (bookingError) throw bookingError;
-      setBooking(bookingData);
+
+      // Fetch hotel data separately
+      let hotelData = null;
+      if (bookingData.hotel_id) {
+        const { data: hotel } = await supabase
+          .from("hotels")
+          .select("image, address, city")
+          .eq("id", bookingData.hotel_id)
+          .single();
+        hotelData = hotel;
+      }
+      
+      const bookingWithHotel = {
+        ...bookingData,
+        hotel_image_url: hotelData?.image,
+        hotel_address: hotelData?.address,
+        hotel_city: hotelData?.city
+      };
+      setBooking(bookingWithHotel);
 
       const { data: treatmentsData, error: treatmentsError } = await supabase
         .from("booking_treatments")
@@ -69,7 +91,8 @@ const PwaBookingDetail = () => {
             name,
             description,
             duration,
-            price
+            price,
+            image
           )
         `)
         .eq("booking_id", id);
@@ -216,7 +239,7 @@ const PwaBookingDetail = () => {
           <button onClick={() => navigate("/pwa/dashboard")}>
             <X className="w-6 h-6 text-black" />
           </button>
-          <h1 className="text-base font-semibold">Booking request</h1>
+          <h1 className="text-base font-semibold">Booking details</h1>
           {booking.status === "En attente" && (
             <button onClick={() => setShowRejectDialog(true)}>
               <MoreVertical className="w-6 h-6 text-black" />
@@ -228,14 +251,25 @@ const PwaBookingDetail = () => {
         {/* Hotel Info */}
         <div className="px-6 py-6">
           <div className="flex items-start gap-4 mb-6">
-            <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0">
-              <div className="w-full h-full bg-gray-200 rounded" />
+            <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+              {booking.hotel_image_url ? (
+                <img 
+                  src={booking.hotel_image_url} 
+                  alt={booking.hotel_name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 rounded" />
+              )}
             </div>
             <div className="flex-1">
               <h2 className="font-semibold text-base mb-1">{booking.hotel_name}</h2>
               <p className="text-sm text-gray-500">
-                {format(new Date(booking.booking_date), "EEE, d MMM")} • {booking.booking_time.substring(0, 5)} min
+                {format(new Date(booking.booking_date), "EEE, d MMM")} • {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
               </p>
+              {booking.room_number && (
+                <p className="text-sm text-gray-500">Room: {booking.room_number}</p>
+              )}
               <p className="text-sm text-gray-500">€{booking.total_price}</p>
             </div>
           </div>
@@ -249,6 +283,9 @@ const PwaBookingDetail = () => {
                 <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium">{booking.hotel_name}</p>
+                  {booking.hotel_city && (
+                    <p className="text-xs text-gray-400">{booking.hotel_city}</p>
+                  )}
                 </div>
               </div>
 
@@ -256,7 +293,7 @@ const PwaBookingDetail = () => {
                 <Clock className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium">
-                    {format(new Date(booking.booking_date), "EEE, d MMM, HH:mm")}
+                    {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)}
                   </p>
                 </div>
               </div>
@@ -279,6 +316,9 @@ const PwaBookingDetail = () => {
                 {treatments.map((treatment) => (
                   <div key={treatment.id} className="flex items-start gap-3">
                     <Avatar className="w-10 h-10 flex-shrink-0">
+                      {treatment.treatment_menus.image ? (
+                        <AvatarImage src={treatment.treatment_menus.image} alt={treatment.treatment_menus.name} />
+                      ) : null}
                       <AvatarFallback className="bg-gray-200 text-xs">
                         {treatment.treatment_menus.name[0]}
                       </AvatarFallback>
