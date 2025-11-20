@@ -884,18 +884,14 @@ export default function EditBookingDialog({
               <div className="space-y-2">
                 <Label htmlFor="edit-hairdresser">Coiffeur</Label>
                 <Select 
-                  key={`hairdresser-${booking?.id}-${hairdresserId}`}
                   value={hairdresserId || "none"} 
-                  onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
+                  onValueChange={(value) => {
+                    const newValue = value === "none" ? "" : value;
+                    setHairdresserId(newValue);
+                  }}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un coiffeur">
-                      {hairdresserId && hairdresserId !== "none" 
-                        ? hairdressers?.find(h => h.id === hairdresserId)
-                            ? `${hairdressers?.find(h => h.id === hairdresserId)?.first_name} ${hairdressers?.find(h => h.id === hairdresserId)?.last_name}`
-                            : "Sélectionner un coiffeur"
-                        : "Aucun coiffeur"}
-                    </SelectValue>
+                  <SelectTrigger id="edit-hairdresser">
+                    <SelectValue placeholder="Sélectionner un coiffeur" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Aucun coiffeur</SelectItem>
