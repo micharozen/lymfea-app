@@ -261,6 +261,16 @@ export default function EditBookingDialog({
     }
   }, [selectedTreatments, treatments]);
 
+  // Calculer le prix total depuis les traitements de la réservation pour la vue
+  useEffect(() => {
+    if (bookingTreatments && bookingTreatments.length > 0 && viewMode === "view") {
+      const total = bookingTreatments.reduce((sum, treatment) => {
+        return sum + (treatment?.price || 0);
+      }, 0);
+      setTotalPrice(total);
+    }
+  }, [bookingTreatments, viewMode]);
+
   const updateMutation = useMutation({
     mutationFn: async (bookingData: any) => {
       if (!booking?.id) return;
