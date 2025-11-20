@@ -249,16 +249,20 @@ const PwaDashboard = () => {
 
   const getFilteredBookings = () => {
     return allBookings.filter((booking) => {
-      const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
+      const bookingDate = parseISO(booking.booking_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
       if (activeTab === "upcoming") {
         return (booking.status === "Confirmé" || booking.status === "Assigné") && 
-               isFuture(bookingDateTime);
+               bookingDate >= today;
       } else if (activeTab === "past") {
-        return (isPast(bookingDateTime) || booking.status === "Terminé") && 
+        return (bookingDate < today || booking.status === "Terminé") && 
                booking.status !== "Annulé" &&
                booking.status !== "En attente" &&
-               booking.status !== "Pending";
+               booking.status !== "Pending" &&
+               booking.status !== "Confirmé" &&
+               booking.status !== "Assigné";
       } else {
         return booking.status === "Annulé";
       }
