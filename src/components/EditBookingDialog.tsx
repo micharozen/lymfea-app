@@ -126,6 +126,8 @@ export default function EditBookingDialog({
   const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
+  const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
+  const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -540,23 +542,120 @@ export default function EditBookingDialog({
             {/* Coiffeur */}
             <div className="p-3 bg-muted/30 rounded">
               <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
-              {booking?.hairdresser_name ? (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+              {booking?.hairdresser_name && !showAssignHairdresser ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+                  </div>
+                  {isAdmin && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        setShowAssignHairdresser(true);
+                        setSelectedHairdresserId(booking.hairdresser_id || "");
+                      }}
+                      className="h-7 text-xs"
+                    >
+                      Modifier
+                    </Button>
+                  )}
                 </div>
               ) : isAdmin ? (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setViewMode("edit");
-                    setActiveTab("hairdresser");
-                  }}
-                  className="h-8 text-xs"
-                >
-                  Assigner un coiffeur
-                </Button>
+                showAssignHairdresser ? (
+                  <div className="space-y-2">
+                    <Select 
+                      value={selectedHairdresserId || "none"} 
+                      onValueChange={setSelectedHairdresserId}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Sélectionner un coiffeur" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Aucun coiffeur</SelectItem>
+                        {hairdressers?.map((hairdresser) => (
+                          <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                            {hairdresser.first_name} {hairdresser.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm"
+                        onClick={async () => {
+                          const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
+                          const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
+                          
+                          // Déterminer le nouveau statut
+                          let newStatus = booking!.status;
+                          let assignedAt = booking!.assigned_at;
+                          
+                          if (hairdresserId && booking!.status === "En attente") {
+                            newStatus = "Assigné";
+                            assignedAt = new Date().toISOString();
+                          } else if (!hairdresserId && booking!.status === "Assigné") {
+                            newStatus = "En attente";
+                            assignedAt = null;
+                          }
+                          
+                          const { error } = await supabase
+                            .from("bookings")
+                            .update({
+                              hairdresser_id: hairdresserId,
+                              hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+                              status: newStatus,
+                              assigned_at: assignedAt,
+                            })
+                            .eq("id", booking!.id);
+                            
+                          if (error) {
+                            toast({
+                              title: "Erreur",
+                              description: "Impossible d'assigner le coiffeur",
+                              variant: "destructive",
+                            });
+                          } else {
+                            toast({
+                              title: "Succès",
+                              description: hairdresserId ? "Coiffeur assigné avec succès" : "Coiffeur retiré avec succès",
+                            });
+                            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+                            setShowAssignHairdresser(false);
+                            onOpenChange(false);
+                          }
+                        }}
+                        className="flex-1"
+                      >
+                        Confirmer
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowAssignHairdresser(false);
+                          setSelectedHairdresserId(booking?.hairdresser_id || "");
+                        }}
+                        className="flex-1"
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setShowAssignHairdresser(true);
+                      setSelectedHairdresserId("");
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    Assigner un coiffeur
+                  </Button>
+                )
               ) : (
                 <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
               )}
