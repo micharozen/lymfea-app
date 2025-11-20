@@ -32,6 +32,7 @@ import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
+import oomLogo from "@/assets/oom-monogram-black.svg";
 
 export default function Booking() {
   const [view, setView] = useState<"calendar" | "list">("calendar");
@@ -201,9 +202,10 @@ export default function Booking() {
     <div className="min-h-screen bg-background p-6 overflow-x-hidden">
       <div className="max-w-7xl mx-auto w-full">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            📅 Réservations
-          </h1>
+          <div className="flex items-center gap-3">
+            <img src={oomLogo} alt="OOM" className="h-10 w-auto" />
+            <h1 className="text-2xl font-bold text-foreground">Réservations</h1>
+          </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Label>Fuseau horaire:</Label>
