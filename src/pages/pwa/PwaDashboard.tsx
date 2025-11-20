@@ -72,19 +72,29 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (payload) => {
-          console.log('Booking change detected:', payload);
-          // Refresh bookings on any change
-          fetchAllBookings(hairdresser.id);
+          console.log('🔄 Booking change detected:', payload);
           
-          // Show toast for specific events
+          // For UPDATE events, check if a pending booking was assigned
           if (payload.eventType === 'UPDATE') {
-            const newStatus = (payload.new as any).status;
-            const oldStatus = (payload.old as any)?.status;
+            const oldData = payload.old as any;
+            const newData = payload.new as any;
             
-            if (oldStatus !== 'Annulé' && newStatus === 'Annulé') {
+            // If booking was assigned to someone (not me)
+            if (oldData.hairdresser_id === null && newData.hairdresser_id !== null) {
+              console.log('⚠️ Booking was taken by another hairdresser, removing from list');
+              // Remove the booking from local state immediately
+              setAllBookings(prev => prev.filter(b => b.id !== newData.id));
+              return; // Don't fetch all bookings, just remove this one
+            }
+            
+            // Check for cancellation
+            if (oldData.status !== 'Annulé' && newData.status === 'Annulé') {
               toast.error('Une réservation a été annulée');
             }
           }
+          
+          // For other changes, refresh all bookings
+          fetchAllBookings(hairdresser.id);
         }
       )
       .subscribe();
