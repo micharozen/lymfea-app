@@ -407,8 +407,6 @@ export default function Booking() {
                                 {bookingsInHour.length > 0 && (
                                   <div className="space-y-0.5 h-full">
                                      {bookingsInHour.map((booking) => {
-                                      const duration = (booking as any).totalDuration || 0;
-                                      
                                       return (
                                         <div
                                           key={booking.id}
@@ -422,11 +420,6 @@ export default function Booking() {
                                           <div className="font-medium text-foreground truncate">
                                             {booking.booking_time?.substring(0, 5)} - {booking.client_first_name}
                                           </div>
-                                          {duration > 0 && (
-                                            <div className="text-[8px] text-muted-foreground mt-0.5">
-                                              ⏱️ {duration} min
-                                            </div>
-                                          )}
                                           <Badge className={`text-[7px] w-fit px-0.5 py-0 h-3 mt-0.5 ${getStatusColor(booking.status)}`}>
                                             {getTranslatedStatus(booking.status)}
                                           </Badge>
