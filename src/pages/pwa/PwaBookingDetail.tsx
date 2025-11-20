@@ -212,8 +212,12 @@ const PwaBookingDetail = () => {
       // Check if the update actually affected any rows
       if (!updateData || updateData.length === 0) {
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
+        setShowConfirmDialog(false);
+        setUpdating(false);
+        // Force refresh by navigating with replace to trigger remount
         setTimeout(() => {
-          navigate("/pwa/dashboard");
+          navigate("/pwa/dashboard", { replace: true });
+          window.location.reload(); // Force page reload to ensure fresh data
         }, 1500);
         return;
       }
