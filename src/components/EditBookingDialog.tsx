@@ -456,11 +456,7 @@ export default function EditBookingDialog({
           <DialogTitle className="text-lg">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
 
-        {!booking ? (
-          <div className="flex items-center justify-center py-8">
-            <p className="text-muted-foreground">Chargement...</p>
-          </div>
-        ) : viewMode === "view" ? (
+        {viewMode === "view" ? (
           <div className="space-y-3">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
