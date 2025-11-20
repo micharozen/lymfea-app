@@ -78,7 +78,6 @@ const PwaBookingDetail = () => {
 
   useEffect(() => {
     fetchBookingDetail();
-    fetchAvailableTreatments();
   }, [id]);
 
   const fetchBookingDetail = async () => {
@@ -93,7 +92,7 @@ const PwaBookingDetail = () => {
       if (bookingError) throw bookingError;
       setBooking(bookingData);
 
-      // Fetch treatments
+      // Fetch treatments for this booking
       const { data: treatmentsData, error: treatmentsError } = await supabase
         .from("booking_treatments")
         .select(`
@@ -110,6 +109,9 @@ const PwaBookingDetail = () => {
       if (!treatmentsError && treatmentsData) {
         setTreatments(treatmentsData as any);
       }
+
+      // Fetch available treatments for this hotel
+      await fetchAvailableTreatments(bookingData.hotel_id);
     } catch (error) {
       console.error("Error fetching booking:", error);
       toast.error("Erreur lors du chargement de la réservation");
@@ -165,12 +167,13 @@ const PwaBookingDetail = () => {
     }
   };
 
-  const fetchAvailableTreatments = async () => {
+  const fetchAvailableTreatments = async (hotelId: string) => {
     try {
       const { data, error } = await supabase
         .from("treatment_menus")
         .select("id, name, description, duration, price, service_for")
         .eq("status", "Actif")
+        .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
         .order("name");
 
       if (!error && data) {
