@@ -421,7 +421,7 @@ export default function EditBookingDialog({
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-3">
@@ -459,40 +459,44 @@ export default function EditBookingDialog({
             </div>
 
             {/* Infos principales */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Date</p>
-                <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Heure</p>
-                <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Chambre</p>
-                <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
+            <div className="p-3 bg-muted/30 rounded">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Date</p>
+                  <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Heure</p>
+                  <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Chambre</p>
+                  <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
+                </div>
               </div>
             </div>
 
             {/* Prix et Durée */}
-            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Prix total</p>
-                <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Durée</p>
-                <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+            <div className="p-3 bg-muted/30 rounded">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Prix total</p>
+                  <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Durée</p>
+                  <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+                </div>
               </div>
             </div>
 
             {/* Prestations */}
             {bookingTreatments && bookingTreatments.length > 0 && (
-              <div>
+              <div className="p-3 bg-muted/30 rounded">
                 <p className="text-xs text-muted-foreground mb-2">Prestations</p>
                 <div className="space-y-1.5">
                   {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex items-center gap-2 p-2 border rounded">
+                    <div key={treatment.id} className="flex items-center gap-2 p-2 bg-background border rounded">
                       <div className="w-6 h-6 bg-muted rounded flex items-center justify-center shrink-0 text-xs">
                         💇
                       </div>
@@ -530,14 +534,16 @@ export default function EditBookingDialog({
             </div>
 
             {/* Client */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Client</p>
-                <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Téléphone</p>
-                <p className="font-medium text-sm">{booking?.phone}</p>
+            <div className="p-3 bg-muted/30 rounded">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Client</p>
+                  <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Téléphone</p>
+                  <p className="font-medium text-sm">{booking?.phone}</p>
+                </div>
               </div>
             </div>
 
