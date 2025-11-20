@@ -239,7 +239,7 @@ const PwaDashboard = () => {
       `)
       .in("hotel_id", hotelIds)
       .is("hairdresser_id", null)
-      .eq("status", "En attente");
+      .in("status", ["En attente", "Pending"]);
 
     if (myError || pendingError) {
       console.error('Error fetching bookings:', myError || pendingError);
