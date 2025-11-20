@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
@@ -45,18 +45,42 @@ const PwaDashboard = () => {
   const [startY, setStartY] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     checkAuth();
   }, []);
 
+  // Listen for navigation back to dashboard and force refresh
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && hairdresser) {
+        console.log('📱 Dashboard became visible, refreshing bookings...');
+        fetchAllBookings(hairdresser.id);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [hairdresser]);
+
   // Force refresh when component mounts or becomes visible
   useEffect(() => {
     if (hairdresser) {
-      console.log('Dashboard mounted or hairdresser changed, fetching bookings...');
+      console.log('🔄 Dashboard mounted, fetching bookings...');
       fetchAllBookings(hairdresser.id);
     }
   }, [hairdresser]);
+
+  // Check if we need to force refresh from navigation state
+  useEffect(() => {
+    if (location.state?.forceRefresh && hairdresser) {
+      console.log('🔄 Force refresh requested from navigation state');
+      fetchAllBookings(hairdresser.id);
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, hairdresser]);
 
   // Realtime listener for bookings
   useEffect(() => {
