@@ -82,72 +82,61 @@ const PwaDashboard = () => {
     }
   }, [location.state, hairdresser]);
 
-  // Realtime listener for bookings
+  // Realtime listener for bookings - optimized to only refresh when needed
   useEffect(() => {
     if (!hairdresser) return;
 
     console.log('🎧 Setting up realtime listener for bookings...');
     
     const channel = supabase
-      .channel('bookings-realtime-' + hairdresser.id)
+      .channel('db-changes-bookings')
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'bookings'
         },
         (payload) => {
-          console.log('🔄 UPDATE event received:', payload);
-          const oldData = payload.old as any;
-          const newData = payload.new as any;
+          console.log('🔄 Realtime event:', payload.eventType, payload);
           
-          // If booking was assigned to someone
-          if (oldData.hairdresser_id === null && newData.hairdresser_id !== null) {
-            console.log('⚠️ Booking #' + newData.booking_id + ' was assigned to hairdresser:', newData.hairdresser_id);
-            console.log('📋 Current hairdresser ID:', hairdresser.id);
+          if (payload.eventType === 'UPDATE') {
+            const newData = payload.new as any;
+            const oldData = payload.old as any;
             
-            // Remove the booking from local state immediately for ALL hairdressers
-            setAllBookings(prev => {
-              const filtered = prev.filter(b => b.id !== newData.id);
-              console.log('✂️ Removed booking from list. Before:', prev.length, 'After:', filtered.length);
-              return filtered;
-            });
-            
-            // Show a toast if it wasn't assigned to me
-            if (newData.hairdresser_id !== hairdresser.id) {
-              toast.info('Une demande a été prise par un autre coiffeur');
+            // Booking was just assigned - remove it immediately
+            if (oldData?.hairdresser_id === null && newData?.hairdresser_id !== null) {
+              console.log('⚡ Booking assigned, removing:', newData.booking_id);
+              setAllBookings(prev => prev.filter(b => b.id !== newData.id));
+              
+              if (newData.hairdresser_id !== hairdresser.id) {
+                toast.info('Une demande a été prise');
+              }
+              return;
             }
             
-            return;
+            // Booking cancelled
+            if (newData?.status === 'Annulé' && oldData?.status !== 'Annulé') {
+              console.log('❌ Booking cancelled');
+              toast.error('Réservation annulée');
+              fetchAllBookings(hairdresser.id);
+              return;
+            }
           }
           
-          // Check for cancellation
-          if (oldData.status !== 'Annulé' && newData.status === 'Annulé') {
-            console.log('❌ Booking cancelled');
-            toast.error('Une réservation a été annulée');
+          // New booking created
+          if (payload.eventType === 'INSERT') {
+            console.log('➕ New booking');
             fetchAllBookings(hairdresser.id);
           }
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'bookings'
-        },
-        (payload) => {
-          console.log('📥 INSERT event received:', payload);
-          fetchAllBookings(hairdresser.id);
-        }
-      )
       .subscribe((status) => {
-        console.log('📡 Realtime subscription status:', status);
+        console.log('📡 Subscription status:', status);
       });
 
     return () => {
-      console.log('🔌 Removing realtime channel');
+      console.log('🔌 Cleanup realtime');
       supabase.removeChannel(channel);
     };
   }, [hairdresser]);
