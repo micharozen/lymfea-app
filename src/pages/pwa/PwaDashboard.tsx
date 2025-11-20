@@ -26,6 +26,7 @@ interface Booking {
   room_number: string;
   status: string;
   total_price: number | null;
+  hairdresser_id: string | null;
 }
 
 const PwaDashboard = () => {
@@ -196,7 +197,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select("*")
       .in("hotel_id", hotelIds)
-      .or(`hairdresser_id.eq.${hairdresserId},and(hairdresser_id.is.null,status.eq.En attente)`)
+      .or(`hairdresser_id.eq.${hairdresserId},and(hairdresser_id.is.null,status.in.(En attente,Pending,Assigned))`)
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
@@ -237,12 +238,13 @@ const PwaDashboard = () => {
       const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
       
       if (activeTab === "upcoming") {
-        return (booking.status === "Assigné") && 
+        return (booking.status === "Assigné" || booking.status === "Confirmé") && 
                isFuture(bookingDateTime);
       } else if (activeTab === "past") {
         return (isPast(bookingDateTime) || booking.status === "Terminé") && 
                booking.status !== "Annulé" &&
-               booking.status !== "En attente";
+               booking.status !== "En attente" &&
+               booking.status !== "Pending";
       } else {
         return booking.status === "Annulé";
       }
@@ -250,7 +252,10 @@ const PwaDashboard = () => {
   };
 
   const getPendingRequests = () => {
-    return allBookings.filter(b => b.status === "En attente");
+    return allBookings.filter(b => 
+      (b.status === "En attente" || b.status === "Pending" || b.status === "Assigned") && 
+      !b.hairdresser_id
+    );
   };
 
   const filteredBookings = getFilteredBookings();
