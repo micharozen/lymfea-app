@@ -133,6 +133,16 @@ export default function Booking() {
     return () => clearInterval(interval);
   }, []);
 
+  // Update selectedBooking when bookings data changes
+  useEffect(() => {
+    if (selectedBooking && bookings) {
+      const updatedBooking = bookings.find(b => b.id === selectedBooking.id);
+      if (updatedBooking) {
+        setSelectedBooking(updatedBooking);
+      }
+    }
+  }, [bookings]);
+
   // Generate hourly slots from 0:00 to 23:00 for main display (24h)
   const hours = useMemo(() => {
     return Array.from({ length: 24 }, (_, i) => i); // 0 to 23
