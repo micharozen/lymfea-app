@@ -288,7 +288,12 @@ const PwaBookingDetail = () => {
   };
 
   const relativeDay = getRelativeDay(booking.booking_date);
-  const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+  
+  // Calculate total price from treatments (same logic as dashboard)
+  const totalPrice = treatments.length > 0 
+    ? treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0)
+    : booking.total_price || 0;
+
 
   return (
     <>
