@@ -291,7 +291,7 @@ export default function EditBookingDialog({
 
       if (deleteTreatmentsError) throw deleteTreatmentsError;
 
-      if (bookingData.treatments.length > 0) {
+      if (bookingData.treatments && bookingData.treatments.length > 0) {
         const treatmentInserts = bookingData.treatments.map((treatmentId: string) => ({
           booking_id: booking.id,
           treatment_id: treatmentId,
