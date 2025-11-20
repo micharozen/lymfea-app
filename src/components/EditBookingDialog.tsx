@@ -95,6 +95,7 @@ interface Booking {
   status: string;
   hairdresser_id: string | null;
   hairdresser_name: string | null;
+  assigned_at: string | null;
 }
 
 interface EditBookingDialogProps {
@@ -278,6 +279,21 @@ export default function EditBookingDialog({
       if (!booking?.id) return;
 
       const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
+      
+      // Si on assigne un coiffeur et que le statut est "En attente", passer à "Assigné"
+      let newStatus = bookingData.status;
+      let assignedAt = booking.assigned_at;
+      
+      if (bookingData.hairdresser_id && booking.status === "En attente") {
+        newStatus = "Assigné";
+        assignedAt = new Date().toISOString();
+      }
+      
+      // Si on retire le coiffeur d'une réservation "Assigné", remettre à "En attente"
+      if (!bookingData.hairdresser_id && booking.status === "Assigné") {
+        newStatus = "En attente";
+        assignedAt = null;
+      }
 
       const { error: bookingError } = await supabase
         .from("bookings")
@@ -292,6 +308,8 @@ export default function EditBookingDialog({
           hairdresser_id: bookingData.hairdresser_id || null,
           hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
           total_price: bookingData.total_price,
+          status: newStatus,
+          assigned_at: assignedAt,
         })
         .eq("id", booking.id);
 
@@ -397,6 +415,7 @@ export default function EditBookingDialog({
       hairdresser_id: hairdresserId,
       total_price: totalPrice,
       treatments: selectedTreatments,
+      status: status,
     });
   };
 
@@ -731,11 +750,12 @@ export default function EditBookingDialog({
               {isAdmin && (
                 <div className="space-y-2">
                   <Label htmlFor="edit-hairdresser">Coiffeur</Label>
-                  <Select value={hairdresserId} onValueChange={setHairdresserId}>
+                  <Select value={hairdresserId || "none"} onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Sélectionner un coiffeur (optionnel)" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Aucun coiffeur</SelectItem>
                       {hairdressers?.map((hairdresser) => (
                         <SelectItem key={hairdresser.id} value={hairdresser.id}>
                           {hairdresser.first_name} {hairdresser.last_name}
