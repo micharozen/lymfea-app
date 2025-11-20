@@ -682,26 +682,28 @@ export default function EditBookingDialog({
               >
                 Fermer
               </Button>
-              <div className="flex gap-2">
-                <Button 
-                  type="button" 
-                  variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Supprimer
-                </Button>
-                <Button 
-                  type="button" 
-                  onClick={() => {
-                    setViewMode("edit");
-                    setActiveTab("info");
-                  }}
-                >
-                  Modifier
-                </Button>
-              </div>
+              {!showAssignHairdresser && (
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      setViewMode("edit");
+                      setActiveTab("info");
+                    }}
+                  >
+                    Modifier
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
