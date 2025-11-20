@@ -439,32 +439,36 @@ export default function EditBookingDialog({
                   booking?.status === "En attente" ? "secondary" :
                   booking?.status === "Confirmé" ? "default" :
                   booking?.status === "Annulé" ? "destructive" :
-                  "outline"
+                  booking?.hairdresser_id ? "default" : "outline"
                 }
                 className={
                   booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600 text-white" :
                   booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600 text-white" :
                   booking?.status === "Confirmé" ? "bg-blue-500 hover:bg-blue-600 text-white" :
+                  booking?.hairdresser_id ? "bg-purple-500 hover:bg-purple-600 text-white" :
                   ""
                 }
               >
-                {booking?.status}
+                {booking?.status === "Terminé" ? "Terminé" :
+                 booking?.status === "Annulé" ? "Annulé" :
+                 booking?.hairdresser_id ? "Assigné" :
+                 booking?.status}
               </Badge>
             </div>
 
             {/* Infos principales */}
-            <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Date</p>
-                <p className="font-medium">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
+                <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Heure</p>
-                <p className="font-medium">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
+                <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Chambre</p>
-                <p className="font-medium">{booking?.room_number || "-"}</p>
+                <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
               </div>
             </div>
 
@@ -499,25 +503,39 @@ export default function EditBookingDialog({
             )}
 
             {/* Coiffeur */}
-            {booking?.hairdresser_name && (
-              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded">
-                <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Coiffeur</p>
+            <div className="p-3 bg-muted/30 rounded">
+              <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
+              {booking?.hairdresser_name ? (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground shrink-0" />
                   <p className="font-medium text-sm">{booking.hairdresser_name}</p>
                 </div>
-              </div>
-            )}
+              ) : isAdmin ? (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setViewMode("edit");
+                    setActiveTab("hairdresser");
+                  }}
+                  className="w-full"
+                >
+                  Assigner un coiffeur
+                </Button>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
+              )}
+            </div>
 
             {/* Client */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Client</p>
-                <p className="font-medium">{booking?.client_first_name} {booking?.client_last_name}</p>
+                <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Téléphone</p>
-                <p className="font-medium">{booking?.phone}</p>
+                <p className="font-medium text-sm">{booking?.phone}</p>
               </div>
             </div>
 
