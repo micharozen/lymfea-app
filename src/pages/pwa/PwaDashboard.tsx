@@ -33,6 +33,9 @@ const PwaDashboard = () => {
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [startY, setStartY] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -98,6 +101,33 @@ const PwaDashboard = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    if (!hairdresser || refreshing) return;
+    setRefreshing(true);
+    await fetchAllBookings(hairdresser.id);
+    setRefreshing(false);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const scrollTop = (e.currentTarget as HTMLElement).scrollTop;
+    if (scrollTop === 0 && !refreshing) {
+      const currentY = e.touches[0].clientY;
+      const distance = Math.min(Math.max(currentY - startY, 0), 80);
+      setPullDistance(distance);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (pullDistance > 60) {
+      await handleRefresh();
+    }
+    setPullDistance(0);
+  };
+
   const getFilteredBookings = () => {
     return allBookings.filter((booking) => {
       const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
@@ -143,8 +173,27 @@ const PwaDashboard = () => {
         </Avatar>
       </div>
 
+      {/* Pull to refresh indicator */}
+      {pullDistance > 0 && (
+        <div 
+          className="flex justify-center items-center py-2 transition-opacity"
+          style={{ 
+            opacity: Math.min(pullDistance / 60, 1),
+            transform: `translateY(${Math.min(pullDistance - 20, 0)}px)`
+          }}
+        >
+          <div className={`w-6 h-6 border-2 border-black border-t-transparent rounded-full ${refreshing ? 'animate-spin' : ''}`} />
+        </div>
+      )}
+
       {/* Content */}
-      <div className="pb-20">
+      <div 
+        className="pb-20 overflow-y-auto"
+        style={{ maxHeight: 'calc(100vh - 80px)' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* My Bookings Section */}
         <div className="px-6 pt-5">
           <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-black">MY BOOKINGS</h2>
