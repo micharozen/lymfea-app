@@ -265,7 +265,7 @@ const PwaBookingDetail = () => {
             <div className="flex-1">
               <h2 className="font-semibold text-base mb-1">{booking.hotel_name}</h2>
               <p className="text-sm text-gray-500">
-                {format(new Date(booking.booking_date), "EEE, d MMM")} • {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
+                {format(new Date(booking.booking_date), "EEE d MMM")} • {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
               </p>
               {booking.room_number && (
                 <p className="text-sm text-gray-500">Room: {booking.room_number}</p>
@@ -325,7 +325,10 @@ const PwaBookingDetail = () => {
                     </Avatar>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{treatment.treatment_menus?.name || 'Treatment'}</p>
-                      <p className="text-xs text-gray-400">
+                      {treatment.treatment_menus?.description && (
+                        <p className="text-xs text-gray-500 mt-0.5">{treatment.treatment_menus.description}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">
                         €{treatment.treatment_menus?.price || 0} • {treatment.treatment_menus?.duration || 0} min
                       </p>
                     </div>
