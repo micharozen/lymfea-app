@@ -594,8 +594,7 @@ const PwaBookingDetail = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Réservation acceptée !</h3>
-            <p className="text-gray-500 text-sm">Redirection...</p>
+            <h3 className="text-xl font-semibold">Réservation acceptée !</h3>
           </div>
         </div>
       )}
