@@ -197,7 +197,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select("*")
       .in("hotel_id", hotelIds)
-      .or(`hairdresser_id.eq.${hairdresserId},and(hairdresser_id.is.null,status.in.(En attente,Pending,Assigned))`)
+      .or(`hairdresser_id.eq.${hairdresserId},hairdresser_id.is.null`)
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
