@@ -461,15 +461,15 @@ export default function EditBookingDialog({
             {/* Infos principales */}
             <div className="p-3 bg-muted/30 rounded">
               <div className="grid grid-cols-3 gap-3">
-                <div>
+                <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Date</p>
                   <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Heure</p>
                   <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Chambre</p>
                   <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
                 </div>
@@ -479,11 +479,11 @@ export default function EditBookingDialog({
             {/* Prix et Durée */}
             <div className="p-3 bg-muted/30 rounded">
               <div className="grid grid-cols-2 gap-3">
-                <div>
+                <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Prix total</p>
                   <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-xs text-muted-foreground mb-1">Durée</p>
                   <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
                 </div>
