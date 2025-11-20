@@ -25,6 +25,7 @@ import { ArrowLeft, Calendar, Clock, MapPin, Phone, User, Check, Plus } from "lu
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { SignatureDialog } from "@/components/SignatureDialog";
 
 interface Booking {
   id: string;
@@ -72,6 +73,7 @@ const PwaBookingDetail = () => {
   const [showAddTreatment, setShowAddTreatment] = useState(false);
   const [availableTreatments, setAvailableTreatments] = useState<TreatmentMenu[]>([]);
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -234,10 +236,33 @@ const PwaBookingDetail = () => {
       if (error) throw error;
 
       toast.success(`Statut mis à jour : ${newStatus}`);
-      setBooking({ ...booking, status: newStatus });
+      navigate("/pwa/dashboard");
     } catch (error) {
       console.error("Error updating status:", error);
       toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSignatureConfirm = async (signatureData: string) => {
+    if (!booking) return;
+    
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ status: "Terminé" })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Réservation terminée avec succès");
+      setShowSignatureDialog(false);
+      navigate("/pwa/dashboard");
+    } catch (error) {
+      console.error("Error completing booking:", error);
+      toast.error("Erreur lors de la validation");
     } finally {
       setUpdating(false);
     }
@@ -424,13 +449,13 @@ const PwaBookingDetail = () => {
 
           {booking.status === "En cours" && (
             <Button
-              onClick={() => handleUpdateStatus("Terminé")}
+              onClick={() => setShowSignatureDialog(true)}
               disabled={updating}
               className="w-full bg-green-600 hover:bg-green-700"
               size="lg"
             >
               <Check className="h-5 w-5 mr-2" />
-              {updating ? "Mise à jour..." : "Marquer comme terminé"}
+              Signer la facture
             </Button>
           )}
         </div>
@@ -569,6 +594,14 @@ const PwaBookingDetail = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Signature Dialog */}
+      <SignatureDialog
+        open={showSignatureDialog}
+        onOpenChange={setShowSignatureDialog}
+        onConfirm={handleSignatureConfirm}
+        loading={updating}
+      />
     </div>
   );
 };
