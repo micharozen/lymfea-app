@@ -338,11 +338,24 @@ const PwaDashboard = () => {
 
 
   const getPendingRequests = () => {
-    return allBookings.filter(b => 
-      // Only show bookings that are truly pending (not assigned to anyone)
-      (b.status === "En attente" || b.status === "Pending") && 
-      b.hairdresser_id === null
-    );
+    const pending = allBookings.filter(b => {
+      const isPending = (b.status === "En attente" || b.status === "Pending") && 
+                        b.hairdresser_id === null;
+      
+      if (b.status === "En attente" || b.status === "Pending") {
+        console.log(`📋 Booking #${b.booking_id}:`, {
+          status: b.status,
+          hairdresser_id: b.hairdresser_id,
+          isPending: isPending,
+          reason: b.hairdresser_id !== null ? 'Already assigned' : 'Truly pending'
+        });
+      }
+      
+      return isPending;
+    });
+    
+    console.log(`✅ Total pending requests: ${pending.length}`, pending.map(b => b.booking_id));
+    return pending;
   };
 
   const groupBookingsByDate = (bookings: Booking[]) => {
