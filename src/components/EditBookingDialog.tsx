@@ -130,7 +130,6 @@ export default function EditBookingDialog({
   // Pre-fill form when booking changes
   useEffect(() => {
     if (booking) {
-      console.log("Booking loaded:", booking);
       setViewMode("view"); // Reset to view mode when opening
       setHotelId(booking.hotel_id);
       setClientFirstName(booking.client_first_name);
@@ -188,7 +187,6 @@ export default function EditBookingDialog({
     queryKey: ["hairdressers", booking?.hotel_id],
     enabled: !!booking?.hotel_id,
     queryFn: async () => {
-      console.log("Fetching hairdressers for hotel:", booking!.hotel_id);
       // Récupérer les coiffeurs assignés à l'hôtel de cette réservation
       const { data, error } = await supabase
         .from("hairdresser_hotels")
@@ -203,21 +201,13 @@ export default function EditBookingDialog({
         `)
         .eq("hotel_id", booking!.hotel_id);
 
-      if (error) {
-        console.error("Error fetching hairdressers:", error);
-        throw error;
-      }
-      
-      console.log("Hairdressers data:", data);
+      if (error) throw error;
       
       // Filtrer pour ne garder que les coiffeurs actifs
-      const activeHairdressers = data
+      return data
         ?.map((hh: any) => hh.hairdressers)
         .filter((h: any) => h && h.status === "Actif")
         .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
-        
-      console.log("Active hairdressers:", activeHairdressers);
-      return activeHairdressers;
     },
   });
 
@@ -619,6 +609,11 @@ export default function EditBookingDialog({
         ) : (
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full grid grid-cols-2 mb-4">
+              <TabsTrigger value="info">Informations</TabsTrigger>
+              <TabsTrigger value="prestations">Prestations</TabsTrigger>
+            </TabsList>
+            
             <TabsContent value="info" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
