@@ -547,67 +547,68 @@ export default function Booking() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b">
-                    <TableHead className="font-semibold text-foreground">Booking ID</TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4" />
-                        Date
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Start time
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Durée
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">Status</TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        Client name
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4" />
-                        Client phone
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Euro className="h-4 w-4" />
-                        Total price
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" />
-                        Hotel
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Hair dresser
-                      </div>
-                    </TableHead>
-                    <TableHead className="font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Invoice
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b">
+                      <TableHead className="font-semibold text-foreground">Booking ID</TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4" />
+                          Date
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Start time
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4" />
+                          Durée
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Client name
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          Client phone
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">Chambre</TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Euro className="h-4 w-4" />
+                          Total price
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          Hotel
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Hair dresser
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Invoice
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {filteredBookings
                     ?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -639,6 +640,7 @@ export default function Booking() {
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{booking.phone}</TableCell>
+                      <TableCell className="text-muted-foreground">{booking.room_number || "-"}</TableCell>
                       <TableCell className="font-semibold">{booking.total_price}€</TableCell>
                       <TableCell className="text-muted-foreground">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">{booking.hairdresser_name || "-"}</TableCell>
