@@ -123,6 +123,7 @@ export default function EditBookingDialog({
   const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
@@ -696,6 +697,7 @@ export default function EditBookingDialog({
                     type="button" 
                     onClick={() => {
                       setViewMode("edit");
+                      setActiveTab("info");
                     }}
                   >
                     Modifier
@@ -706,9 +708,8 @@ export default function EditBookingDialog({
           </div>
         ) : (
         <form onSubmit={handleSubmit}>
-          <div className="space-y-4 mt-4">
-            {/* Section Informations */}
-            <div className="space-y-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsContent value="info" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-hotel">Hôtel *</Label>
@@ -887,11 +888,36 @@ export default function EditBookingDialog({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            {/* Section Prestations */}
-            <div className="space-y-4 pt-4 border-t">
-              <Label>Prestations</Label>
+              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setViewMode("view")}
+                  >
+                    Annuler
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </Button>
+                </div>
+                <Button 
+                  type="button" 
+                  onClick={() => setActiveTab("prestations")}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="prestations" className="space-y-4 mt-4">
               <Tabs defaultValue="Women" className="w-full">
                 <TabsList className="w-full grid grid-cols-2">
                   <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
@@ -977,28 +1003,39 @@ export default function EditBookingDialog({
                   <span className="text-lg">{totalPrice}€</span>
                 </div>
               )}
-            </div>
 
-            <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
-              <Button 
-                type="button" 
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-                className="gap-2"
-              >
-                <Trash2 className="h-4 w-4" />
-                Supprimer
-              </Button>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
-                  Annuler
+              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => setActiveTab("info")}
+                >
+                  Retour
                 </Button>
-                <Button type="submit" disabled={updateMutation.isPending}>
-                  {updateMutation.isPending ? "Modification..." : "Modifier"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => setViewMode("view")}
+                  >
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Modification..." : "Modifier"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
         </form>
         )}
       </DialogContent>
