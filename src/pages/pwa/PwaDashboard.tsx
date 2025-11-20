@@ -103,22 +103,38 @@ const PwaDashboard = () => {
             const oldData = payload.old as any;
             const newData = payload.new as any;
             
-            // If booking was assigned to someone (not me)
+            // If booking was assigned to someone
             if (oldData.hairdresser_id === null && newData.hairdresser_id !== null) {
-              console.log('⚠️ Booking was taken by another hairdresser, removing from list');
-              // Remove the booking from local state immediately
-              setAllBookings(prev => prev.filter(b => b.id !== newData.id));
-              return; // Don't fetch all bookings, just remove this one
+              console.log('⚠️ Booking #' + newData.booking_id + ' was assigned, removing from pending list');
+              
+              // Remove the booking from local state immediately for ALL hairdressers
+              setAllBookings(prev => {
+                const filtered = prev.filter(b => b.id !== newData.id);
+                console.log('📋 Removed booking, new count:', filtered.length);
+                return filtered;
+              });
+              
+              // Show a toast if it wasn't assigned to me
+              if (newData.hairdresser_id !== hairdresser.id) {
+                toast.info('Une demande a été prise par un autre coiffeur');
+              }
+              
+              return; // Don't fetch all bookings, the removal is already done
             }
             
             // Check for cancellation
             if (oldData.status !== 'Annulé' && newData.status === 'Annulé') {
               toast.error('Une réservation a été annulée');
+              fetchAllBookings(hairdresser.id);
+              return;
             }
           }
           
-          // For other changes, refresh all bookings
-          fetchAllBookings(hairdresser.id);
+          // For INSERT (new bookings), refresh all
+          if (payload.eventType === 'INSERT') {
+            console.log('📥 New booking created, refreshing list');
+            fetchAllBookings(hairdresser.id);
+          }
         }
       )
       .subscribe();
