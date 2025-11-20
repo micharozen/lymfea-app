@@ -127,6 +127,7 @@ export default function EditBookingDialog({
   // Pre-fill form when booking changes
   useEffect(() => {
     if (booking) {
+      setViewMode("view"); // Reset to view mode when opening
       setHotelId(booking.hotel_id);
       setClientFirstName(booking.client_first_name);
       setClientLastName(booking.client_last_name);
@@ -482,9 +483,15 @@ export default function EditBookingDialog({
                     </div>
                   ))}
                 </div>
-                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold">
-                  <span>Prix total</span>
-                  <span className="text-lg">{totalPrice}€</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
+                    <span className="font-medium">Durée totale</span>
+                    <span className="font-semibold">{bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)} min</span>
+                  </div>
+                  <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg">
+                    <span className="font-medium">Prix total</span>
+                    <span className="font-semibold text-lg">{totalPrice}€</span>
+                  </div>
                 </div>
               </div>
             )}
