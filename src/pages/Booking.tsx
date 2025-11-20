@@ -430,7 +430,9 @@ export default function Booking() {
                                         const heightInPixels = Math.max(40, (duration / 60) * 60);
                                         const hours = Math.floor(duration / 60);
                                         const minutes = duration % 60;
-                                        const durationFormatted = `${hours.toString().padStart(2, '0')}h${minutes.toString().padStart(2, '0')}`;
+                                        const durationFormatted = hours > 0 
+                                          ? (minutes > 0 ? `${hours}h${minutes}` : `${hours}h`)
+                                          : `${minutes}min`;
                                         
                                         return (
                                           <Tooltip key={booking.id} delayDuration={300}>
@@ -638,7 +640,13 @@ export default function Booking() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {(booking as any).totalDuration > 0 
-                          ? `${Math.floor((booking as any).totalDuration / 60).toString().padStart(2, '0')}h${((booking as any).totalDuration % 60).toString().padStart(2, '0')}`
+                          ? (() => {
+                              const hours = Math.floor((booking as any).totalDuration / 60);
+                              const minutes = (booking as any).totalDuration % 60;
+                              return hours > 0 
+                                ? (minutes > 0 ? `${hours}h${minutes}` : `${hours}h`)
+                                : `${minutes}min`;
+                            })()
                           : "-"
                         }
                       </TableCell>

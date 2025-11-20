@@ -241,7 +241,7 @@ export default function CreateBookingDialog({
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) {
@@ -260,6 +260,64 @@ export default function CreateBookingDialog({
         variant: "destructive",
       });
       return;
+    }
+
+    // Vérifier les chevauchements si un coiffeur est assigné
+    if (hairdresserId && selectedTreatments.length > 0) {
+      const totalDuration = selectedTreatments.reduce((sum, treatmentId) => {
+        const treatment = treatments?.find(t => t.id === treatmentId);
+        return sum + (treatment?.duration || 0);
+      }, 0);
+
+      // Calculer l'heure de fin
+      const [hours, minutes] = time.split(':').map(Number);
+      const startTime = hours * 60 + minutes;
+      const endTime = startTime + totalDuration;
+
+      // Vérifier les réservations existantes pour ce coiffeur
+      const { data: existingBookings, error } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          booking_time,
+          booking_date,
+          booking_treatments (
+            treatment_menus (
+              duration
+            )
+          )
+        `)
+        .eq("hairdresser_id", hairdresserId)
+        .eq("booking_date", format(date, "yyyy-MM-dd"));
+
+      if (error) {
+        console.error("Error checking for overlaps:", error);
+      } else if (existingBookings && existingBookings.length > 0) {
+        // Vérifier chaque réservation existante
+        for (const existingBooking of existingBookings) {
+          const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
+          const existingStartTime = existingHours * 60 + existingMinutes;
+          
+          const existingDuration = (existingBooking.booking_treatments as any[]).reduce((sum, bt) => {
+            return sum + (bt.treatment_menus?.duration || 0);
+          }, 0);
+          const existingEndTime = existingStartTime + existingDuration;
+
+          // Vérifier le chevauchement
+          if (
+            (startTime >= existingStartTime && startTime < existingEndTime) ||
+            (endTime > existingStartTime && endTime <= existingEndTime) ||
+            (startTime <= existingStartTime && endTime >= existingEndTime)
+          ) {
+            toast({
+              title: "Chevauchement détecté",
+              description: `Ce coiffeur a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
     }
 
     createMutation.mutate({
