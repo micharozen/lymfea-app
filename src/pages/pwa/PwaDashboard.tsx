@@ -258,8 +258,25 @@ const PwaDashboard = () => {
     );
   };
 
+  const groupBookingsByDate = (bookings: Booking[]) => {
+    const groups: { [key: string]: Booking[] } = {};
+    
+    bookings.forEach(booking => {
+      const dateKey = booking.booking_date;
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(booking);
+    });
+    
+    return Object.entries(groups).sort(([dateA], [dateB]) => 
+      new Date(dateA).getTime() - new Date(dateB).getTime()
+    );
+  };
+
   const filteredBookings = getFilteredBookings();
   const pendingRequests = getPendingRequests();
+  const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
   if (loading) {
     return (
@@ -407,29 +424,35 @@ const PwaDashboard = () => {
           {pendingRequests.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">No pending requests</p>
           ) : (
-            <div className="space-y-4">
-              {pendingRequests.map((booking, index) => (
-                <div key={booking.id}>
-                  <p className="text-[11px] text-gray-400 mb-2 font-medium uppercase tracking-wide">
-                    {format(new Date(booking.booking_date), "d MMM")} • {format(new Date(booking.booking_date), "EEEE")}
+            <div className="space-y-6">
+              {groupedPendingRequests.map(([date, bookings]) => (
+                <div key={date}>
+                  <p className="text-[11px] text-gray-400 mb-3 font-medium uppercase tracking-wide">
+                    {format(new Date(date), "d MMM")} • {format(new Date(date), "EEEE")}
                   </p>
-                  <div
-                    onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                    className="flex items-center gap-3 cursor-pointer"
-                  >
-                    <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
-                      <p className="text-[13px] text-gray-500">
-                        {booking.booking_time.substring(0, 5)} • 45 min
-                      </p>
-                      <p className="text-[13px] text-gray-500">{booking.total_price} €</p>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                  <div className="space-y-4">
+                    {bookings.map((booking, index) => (
+                      <div key={booking.id}>
+                        <div
+                          onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                          className="flex items-center gap-3 cursor-pointer"
+                        >
+                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
+                            <p className="text-[13px] text-gray-500">
+                              {booking.booking_time.substring(0, 5)} • 45 min
+                            </p>
+                            <p className="text-[13px] text-gray-500">{booking.total_price} €</p>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                        </div>
+                        {index < bookings.length - 1 && (
+                          <div className="h-px bg-gray-100 mt-4" />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  {index < pendingRequests.length - 1 && (
-                    <div className="h-px bg-gray-100 mt-4" />
-                  )}
                 </div>
               ))}
             </div>
