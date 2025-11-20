@@ -646,7 +646,7 @@ export default function Booking() {
                     .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className={`cursor-pointer border transition-colors ${getStatusCardColor(booking.status)}`}
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
