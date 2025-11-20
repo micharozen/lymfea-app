@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Clock, MapPin, User, MoreVertical } from "lucide-react";
+import { X, Clock, MapPin, User, MoreVertical, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { AddTreatmentDialog } from "./AddTreatmentDialog";
 
 interface Booking {
   id: string;
@@ -15,6 +16,7 @@ interface Booking {
   client_first_name: string;
   client_last_name: string;
   hotel_name: string;
+  hotel_id: string;
   room_number: string;
   status: string;
   phone: string;
@@ -40,6 +42,7 @@ const PwaBookingDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const navigate = useNavigate();
 
@@ -291,6 +294,19 @@ const PwaBookingDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Add Treatment Button */}
+          {(booking.status === "Confirmé" || booking.status === "En cours") && (
+            <div className="pt-4">
+              <button
+                onClick={() => setShowAddTreatmentDialog(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter une prestation
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Action Button */}
@@ -368,6 +384,17 @@ const PwaBookingDetail = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Add Treatment Dialog */}
+      {booking && (
+        <AddTreatmentDialog
+          open={showAddTreatmentDialog}
+          onOpenChange={setShowAddTreatmentDialog}
+          bookingId={booking.id}
+          hotelId={booking.hotel_id}
+          onTreatmentsAdded={fetchBookingDetail}
+        />
       )}
     </>
   );
