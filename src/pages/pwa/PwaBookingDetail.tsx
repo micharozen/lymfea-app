@@ -367,16 +367,31 @@ const PwaBookingDetail = () => {
           )}
         </div>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         {booking.status === "En attente" && (
           <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4">
-            <button
-              onClick={() => setShowConfirmDialog(true)}
-              disabled={updating}
-              className="w-full bg-black text-white rounded-full py-3 px-6 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
-            >
-              Accept
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowRejectDialog(true)}
+                className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50"
+              >
+                <X className="w-5 h-5 text-red-500" />
+              </button>
+              <button
+                onClick={() => setShowRejectDialog(true)}
+                className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50"
+              >
+                <MoreVertical className="w-5 h-5 text-black" />
+              </button>
+              <button
+                onClick={() => setShowConfirmDialog(true)}
+                disabled={updating}
+                className="flex-1 bg-black text-white rounded-full py-3 px-6 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <span className="text-lg">✓</span>
+                Accept
+              </button>
+            </div>
           </div>
         )}
       </div>
