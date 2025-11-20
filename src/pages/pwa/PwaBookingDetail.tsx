@@ -131,7 +131,7 @@ const PwaBookingDetail = () => {
         `)
         .eq("hotel_id", bookingData.hotel_id)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (conciergeData && conciergeData.concierges) {
         setConciergeContact(conciergeData.concierges as any);
@@ -143,7 +143,7 @@ const PwaBookingDetail = () => {
         .select("phone, country_code, first_name, last_name")
         .eq("status", "Actif")
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (adminData) {
         setAdminContact(adminData);
