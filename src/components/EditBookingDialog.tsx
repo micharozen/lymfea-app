@@ -130,6 +130,7 @@ export default function EditBookingDialog({
   // Pre-fill form when booking changes
   useEffect(() => {
     if (booking) {
+      console.log("Booking loaded:", booking);
       setViewMode("view"); // Reset to view mode when opening
       setHotelId(booking.hotel_id);
       setClientFirstName(booking.client_first_name);
@@ -187,6 +188,7 @@ export default function EditBookingDialog({
     queryKey: ["hairdressers", booking?.hotel_id],
     enabled: !!booking?.hotel_id,
     queryFn: async () => {
+      console.log("Fetching hairdressers for hotel:", booking!.hotel_id);
       // Récupérer les coiffeurs assignés à l'hôtel de cette réservation
       const { data, error } = await supabase
         .from("hairdresser_hotels")
@@ -201,13 +203,21 @@ export default function EditBookingDialog({
         `)
         .eq("hotel_id", booking!.hotel_id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching hairdressers:", error);
+        throw error;
+      }
+      
+      console.log("Hairdressers data:", data);
       
       // Filtrer pour ne garder que les coiffeurs actifs
-      return data
+      const activeHairdressers = data
         ?.map((hh: any) => hh.hairdressers)
         .filter((h: any) => h && h.status === "Actif")
         .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
+        
+      console.log("Active hairdressers:", activeHairdressers);
+      return activeHairdressers;
     },
   });
 
