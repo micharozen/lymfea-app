@@ -35,7 +35,21 @@ interface Treatment {
     duration: number;
     price: number;
     image?: string;
-  };
+  } | null;
+}
+
+interface ConciergeContact {
+  phone: string;
+  country_code: string;
+  first_name: string;
+  last_name: string;
+}
+
+interface AdminContact {
+  phone: string;
+  country_code: string;
+  first_name: string;
+  last_name: string;
 }
 
 const PwaBookingDetail = () => {
@@ -48,6 +62,8 @@ const PwaBookingDetail = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
+  const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const navigate = useNavigate();
 
@@ -100,6 +116,37 @@ const PwaBookingDetail = () => {
 
       if (!treatmentsError && treatmentsData) {
         setTreatments(treatmentsData as any);
+      }
+
+      // Fetch concierge contact for this hotel
+      const { data: conciergeData } = await supabase
+        .from("concierge_hotels")
+        .select(`
+          concierges (
+            phone,
+            country_code,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("hotel_id", bookingData.hotel_id)
+        .limit(1)
+        .single();
+
+      if (conciergeData && conciergeData.concierges) {
+        setConciergeContact(conciergeData.concierges as any);
+      }
+
+      // Fetch admin contact (first active admin)
+      const { data: adminData } = await supabase
+        .from("admins")
+        .select("phone, country_code, first_name, last_name")
+        .eq("status", "Actif")
+        .limit(1)
+        .single();
+
+      if (adminData) {
+        setAdminContact(adminData);
       }
     } catch (error) {
       console.error("Error fetching booking:", error);
@@ -417,20 +464,37 @@ const PwaBookingDetail = () => {
                 </div>
               </a>
               
-              <button
-                className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors w-full text-left"
-                onClick={() => {
-                  setShowActionsMenu(false);
-                  // TODO: Implement concierge contact logic
-                  toast.info("Fonction à venir");
-                }}
-              >
-                <Mail className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="font-medium">Contacter le concierge</p>
-                  <p className="text-sm text-gray-500">{booking.hotel_name}</p>
-                </div>
-              </button>
+              {conciergeContact && (
+                <a
+                  href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
+                  className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => setShowActionsMenu(false)}
+                >
+                  <Phone className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <p className="font-medium">Contacter le concierge</p>
+                    <p className="text-sm text-gray-500">
+                      {conciergeContact.first_name} {conciergeContact.last_name} • {conciergeContact.country_code}{conciergeContact.phone}
+                    </p>
+                  </div>
+                </a>
+              )}
+
+              {adminContact && (
+                <a
+                  href={`tel:${adminContact.country_code}${adminContact.phone}`}
+                  className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => setShowActionsMenu(false)}
+                >
+                  <Phone className="w-5 h-5 text-gray-600" />
+                  <div>
+                    <p className="font-medium">Contacter OOM</p>
+                    <p className="text-sm text-gray-500">
+                      {adminContact.first_name} {adminContact.last_name} • {adminContact.country_code}{adminContact.phone}
+                    </p>
+                  </div>
+                </a>
+              )}
             </div>
           </div>
         </div>
