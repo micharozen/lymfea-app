@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Home, Wallet, Bell, ChevronRight, LogOut } from "lucide-react";
+import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
 
 interface Hairdresser {
   id: string;
@@ -50,7 +47,6 @@ const PwaDashboard = () => {
         return;
       }
 
-      // Get hairdresser profile
       const { data: hairdresserData, error } = await supabase
         .from("hairdressers")
         .select("*")
@@ -75,7 +71,6 @@ const PwaDashboard = () => {
   };
 
   const fetchAllBookings = async (hairdresserId: string) => {
-    // First, get affiliated hotel IDs
     const { data: affiliatedHotels, error: hotelsError } = await supabase
       .from("hairdresser_hotels")
       .select("hotel_id")
@@ -89,7 +84,6 @@ const PwaDashboard = () => {
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
 
-    // Then fetch bookings for this hairdresser from affiliated hotels only
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
@@ -104,8 +98,6 @@ const PwaDashboard = () => {
   };
 
   const getFilteredBookings = () => {
-    const now = new Date();
-    
     return allBookings.filter((booking) => {
       const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
       
@@ -123,173 +115,151 @@ const PwaDashboard = () => {
   };
 
   const getPendingRequests = () => {
-    return allBookings.filter((booking) => booking.status === "En attente");
+    return allBookings.filter(b => b.status === "En attente");
   };
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate("/pwa/login");
-      toast.success("Déconnexion réussie");
-    } catch (error) {
-      toast.error("Erreur lors de la déconnexion");
-    }
-  };
+  const filteredBookings = getFilteredBookings();
+  const pendingRequests = getPendingRequests();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-sm text-gray-500">Loading...</div>
       </div>
     );
   }
 
-  if (!hairdresser) {
-    return null;
-  }
-
-  const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();
-  const filteredBookings = getFilteredBookings();
-  const pendingRequests = getPendingRequests();
-
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-bold">OOM</h1>
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={hairdresser.profile_image || undefined} />
-              <AvatarFallback className="bg-blue-400 text-white font-bold text-lg">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </div>
+      <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
+        <h1 className="text-xl font-bold tracking-wide">BEAUTICK</h1>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={hairdresser?.profile_image || undefined} />
+          <AvatarFallback className="bg-white text-black text-xs">
+            {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
+          </AvatarFallback>
+        </Avatar>
+      </div>
 
+      {/* Content */}
+      <div className="pb-20">
         {/* My Bookings Section */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-4">MY BOOKINGS</h2>
+        <div className="px-6 pt-6">
+          <h2 className="text-xs font-bold uppercase tracking-wide mb-4">MY BOOKINGS</h2>
           
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            <Button
-              variant={activeTab === "upcoming" ? "default" : "outline"}
+          <div className="flex gap-4 mb-6 border-b border-gray-200">
+            <button
               onClick={() => setActiveTab("upcoming")}
-              className="rounded-full"
+              className={`pb-2 text-sm font-medium transition-colors ${
+                activeTab === "upcoming"
+                  ? "text-black border-b-2 border-black"
+                  : "text-gray-400"
+              }`}
             >
               Upcoming
-            </Button>
-            <Button
-              variant={activeTab === "past" ? "default" : "outline"}
+            </button>
+            <button
               onClick={() => setActiveTab("past")}
-              className="rounded-full"
+              className={`pb-2 text-sm font-medium transition-colors ${
+                activeTab === "past"
+                  ? "text-black border-b-2 border-black"
+                  : "text-gray-400"
+              }`}
             >
               Past
-            </Button>
-            <Button
-              variant={activeTab === "cancelled" ? "default" : "outline"}
+            </button>
+            <button
               onClick={() => setActiveTab("cancelled")}
-              className="rounded-full"
+              className={`pb-2 text-sm font-medium transition-colors ${
+                activeTab === "cancelled"
+                  ? "text-black border-b-2 border-black"
+                  : "text-gray-400"
+              }`}
             >
               Cancelled
-            </Button>
+            </button>
           </div>
 
           {/* Bookings List */}
-          {filteredBookings.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              No bookings found
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredBookings.map((booking) => (
-                <Card
+          <div className="space-y-4">
+            {filteredBookings.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No bookings found</p>
+            ) : (
+              filteredBookings.slice(0, 3).map((booking) => (
+                <div
                   key={booking.id}
-                  className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
+                  onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                  className="flex items-start gap-3 cursor-pointer"
                 >
-                  <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold">{booking.client_first_name} {booking.client_last_name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {booking.booking_time.substring(0, 5)} • {booking.hotel_name}
-                    </div>
+                  <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+                    <div className="w-full h-full bg-gray-200" />
                   </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm mb-0.5">{booking.hotel_name}</h3>
+                    <p className="text-xs text-gray-500">
+                      {format(new Date(booking.booking_date), "EEE, d MMM")} • {booking.booking_time.substring(0, 5)} min
+                    </p>
+                    <p className="text-xs text-gray-500">{booking.total_price} €</p>
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
+                  <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                </div>
+              ))
+            )}
+            
+            {filteredBookings.length > 3 && (
+              <button className="text-sm text-black font-medium w-full text-center py-2">
+                Show 4 More
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Pending Requests Section */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4">
-            PENDING REQUESTS <span className="text-muted-foreground">{pendingRequests.length}</span>
-          </h2>
-          
-          {pendingRequests.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              No pending requests
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pendingRequests.map((booking) => {
-                const bookingDate = parseISO(booking.booking_date);
-                return (
-                  <div key={booking.id}>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      {format(bookingDate, "d MMM", { locale: fr })} / {format(bookingDate, "EEEE", { locale: fr })}
+        {pendingRequests.length > 0 && (
+          <div className="px-6 pt-8">
+            <h2 className="text-xs font-bold uppercase tracking-wide mb-4">PENDING REQUESTS</h2>
+            <div className="space-y-3">
+              {pendingRequests.map((booking) => (
+                <div key={booking.id} className="border-b border-gray-100 pb-3 last:border-0">
+                  <p className="text-xs text-gray-400 mb-2">
+                    {format(new Date(booking.booking_date), "d MMM")} • {format(new Date(), "EEEE")}
+                  </p>
+                  <div
+                    onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                    className="flex items-start gap-3 cursor-pointer"
+                  >
+                    <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+                      <div className="w-full h-full bg-gray-200" />
                     </div>
-                    <Card
-                      className="p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                      onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0" />
-                        <div className="flex-1">
-                          <div className="font-semibold mb-1">{booking.client_first_name} {booking.client_last_name}</div>
-                          <div className="text-sm text-muted-foreground mb-1">
-                            {booking.booking_time.substring(0, 5)} • 84 min
-                          </div>
-                          <div className="text-sm font-semibold">€{booking.total_price || 0}</div>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </Card>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm mb-0.5">{booking.hotel_name}</h3>
+                      <p className="text-xs text-gray-500">
+                        {booking.booking_time.substring(0, 5)} • {booking.booking_time.substring(0, 5)} min
+                      </p>
+                      <p className="text-xs text-gray-500">{booking.total_price} €</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-        <div className="flex items-center justify-around py-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+        <div className="flex items-center justify-around py-3">
           <button className="flex flex-col items-center gap-1">
-            <Home className="h-6 w-6" />
-            <span className="text-xs font-medium">Home</span>
+            <Home className="w-6 h-6 text-black" />
           </button>
-          <button className="flex flex-col items-center gap-1 text-muted-foreground">
-            <Wallet className="h-6 w-6" />
-            <span className="text-xs">Wallet</span>
+          <button className="flex flex-col items-center gap-1">
+            <Wallet className="w-6 h-6 text-gray-400" />
           </button>
-          <button className="flex flex-col items-center gap-1 text-muted-foreground">
-            <Bell className="h-6 w-6" />
-            <span className="text-xs">Notifications</span>
+          <button className="flex flex-col items-center gap-1">
+            <Bell className="w-6 h-6 text-gray-400" />
           </button>
         </div>
       </div>
