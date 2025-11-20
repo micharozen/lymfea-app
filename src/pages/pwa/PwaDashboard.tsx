@@ -51,88 +51,68 @@ const PwaDashboard = () => {
     checkAuth();
   }, []);
 
-  // Listen for navigation back to dashboard and force refresh
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && hairdresser) {
-        console.log('📱 Dashboard became visible, refreshing bookings...');
-        fetchAllBookings(hairdresser.id);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [hairdresser]);
-
-  // Force refresh when component mounts or becomes visible
-  useEffect(() => {
-    if (hairdresser) {
-      console.log('🔄 Dashboard mounted, fetching bookings...');
-      fetchAllBookings(hairdresser.id);
-    }
-  }, [hairdresser]);
-
-  // Check if we need to force refresh from navigation state
-  useEffect(() => {
-    if (location.state?.forceRefresh && hairdresser) {
-      console.log('🔄 Force refresh requested from navigation state');
-      fetchAllBookings(hairdresser.id);
-      // Clear the state
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, hairdresser]);
-
-  // Realtime listener for bookings - optimized to only refresh when needed
+  // Single useEffect to handle all refresh scenarios
   useEffect(() => {
     if (!hairdresser) return;
 
-    console.log('🎧 Setting up realtime listener for bookings...');
+    console.log('🔄 Fetching initial bookings...');
+    fetchAllBookings(hairdresser.id);
+
+    // Clear navigation state if needed
+    if (location.state?.forceRefresh) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [hairdresser]);
+
+  // Realtime listener for bookings
+  useEffect(() => {
+    if (!hairdresser) return;
+
+    console.log('🎧 Setting up realtime listener...');
     
     const channel = supabase
-      .channel('db-changes-bookings')
+      .channel('bookings-updates')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'bookings'
         },
         (payload) => {
-          console.log('🔄 Realtime event:', payload.eventType, payload);
+          console.log('🔄 UPDATE received:', payload);
+          const newData = payload.new as any;
+          const oldData = payload.old as any;
           
-          if (payload.eventType === 'UPDATE') {
-            const newData = payload.new as any;
-            const oldData = payload.old as any;
+          // Booking was assigned - remove from pending list immediately
+          if (oldData.hairdresser_id === null && newData.hairdresser_id !== null) {
+            console.log('⚡ Booking #' + newData.booking_id + ' assigned, removing immediately');
+            setAllBookings(prev => {
+              const filtered = prev.filter(b => b.id !== newData.id);
+              console.log('Before:', prev.length, 'After:', filtered.length);
+              return filtered;
+            });
             
-            // Booking was just assigned - remove it immediately
-            if (oldData?.hairdresser_id === null && newData?.hairdresser_id !== null) {
-              console.log('⚡ Booking assigned, removing:', newData.booking_id);
-              setAllBookings(prev => prev.filter(b => b.id !== newData.id));
-              
-              if (newData.hairdresser_id !== hairdresser.id) {
-                toast.info('Une demande a été prise');
-              }
-              return;
+            if (newData.hairdresser_id !== hairdresser.id) {
+              toast.info('Une demande a été prise');
             }
-            
-            // Booking cancelled
-            if (newData?.status === 'Annulé' && oldData?.status !== 'Annulé') {
-              console.log('❌ Booking cancelled');
-              toast.error('Réservation annulée');
-              fetchAllBookings(hairdresser.id);
-              return;
-            }
-          }
-          
-          // New booking created
-          if (payload.eventType === 'INSERT') {
-            console.log('➕ New booking');
-            fetchAllBookings(hairdresser.id);
           }
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('➕ INSERT received:', payload);
+          fetchAllBookings(hairdresser.id);
+        }
+      )
       .subscribe((status) => {
-        console.log('📡 Subscription status:', status);
+        console.log('📡 Realtime status:', status);
       });
 
     return () => {
