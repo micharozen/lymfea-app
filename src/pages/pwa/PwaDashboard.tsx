@@ -209,8 +209,24 @@ const PwaDashboard = () => {
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
     console.log('Hotel IDs:', hotelIds);
 
-    // Fetch bookings: either assigned to this hairdresser OR pending (unassigned) from their hotels
-    const { data, error } = await supabase
+    // Fetch bookings in two separate queries for better control
+    // 1. Get bookings assigned to this hairdresser (any status)
+    const { data: myBookings, error: myError } = await supabase
+      .from("bookings")
+      .select(`
+        *,
+        booking_treatments (
+          treatment_menus (
+            price,
+            duration
+          )
+        )
+      `)
+      .eq("hairdresser_id", hairdresserId)
+      .in("hotel_id", hotelIds);
+
+    // 2. Get pending bookings (not assigned to anyone) from their hotels
+    const { data: pendingBookings, error: pendingError } = await supabase
       .from("bookings")
       .select(`
         *,
@@ -222,25 +238,30 @@ const PwaDashboard = () => {
         )
       `)
       .in("hotel_id", hotelIds)
-      .or(`hairdresser_id.eq.${hairdresserId},hairdresser_id.is.null`)
-      .order("booking_date", { ascending: true })
-      .order("booking_time", { ascending: true });
+      .is("hairdresser_id", null)
+      .eq("status", "En attente");
 
-    if (error) {
-      console.error('Error fetching bookings:', error);
+    if (myError || pendingError) {
+      console.error('Error fetching bookings:', myError || pendingError);
       return;
     }
 
-    if (data) {
-      console.log('📊 All fetched bookings:', data.map(b => ({ 
-        id: b.booking_id, 
-        status: b.status, 
-        date: b.booking_date,
-        hairdresser_id: b.hairdresser_id,
-        hotel_id: b.hotel_id
-      })));
-      setAllBookings(data);
-    }
+    // Combine and sort both sets of bookings
+    const allData = [...(myBookings || []), ...(pendingBookings || [])];
+    const sortedData = allData.sort((a, b) => {
+      const dateCompare = a.booking_date.localeCompare(b.booking_date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.booking_time.localeCompare(b.booking_time);
+    });
+
+    console.log('📊 All fetched bookings:', sortedData.map(b => ({ 
+      id: b.booking_id, 
+      status: b.status, 
+      date: b.booking_date,
+      hairdresser_id: b.hairdresser_id,
+      hotel_id: b.hotel_id
+    })));
+    setAllBookings(sortedData);
   };
 
   const handleRefresh = async () => {
