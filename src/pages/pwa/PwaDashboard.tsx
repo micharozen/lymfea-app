@@ -318,8 +318,9 @@ const PwaDashboard = () => {
 
   const getPendingRequests = () => {
     return allBookings.filter(b => 
-      (b.status === "En attente" || b.status === "Pending" || b.status === "Assigned") && 
-      !b.hairdresser_id
+      // Only show bookings that are truly pending (not assigned to anyone)
+      (b.status === "En attente" || b.status === "Pending") && 
+      b.hairdresser_id === null
     );
   };
 
