@@ -435,9 +435,9 @@ const PwaDashboard = () => {
                       <div key={booking.id}>
                         <div
                           onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                          className="flex items-start gap-3 cursor-pointer"
+                          className="flex items-center gap-3 cursor-pointer"
                         >
-                          <div className="w-12 self-stretch bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden min-h-[52px]" />
+                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
                             <p className="text-[13px] text-gray-500">
