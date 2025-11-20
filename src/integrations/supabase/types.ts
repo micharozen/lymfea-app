@@ -489,6 +489,7 @@ export type Database = {
           hotel_id: string
         }[]
       }
+      get_hairdresser_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
