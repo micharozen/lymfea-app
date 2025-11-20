@@ -30,7 +30,6 @@ import PwaSplash from "./pages/pwa/PwaSplash";
 import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 import PwaNotifications from "./pages/pwa/PwaNotifications";
-import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
@@ -39,9 +38,6 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Public Landing Page */}
-          <Route path="/landing" element={<Landing />} />
-          
           {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/login" element={<Auth />} />
