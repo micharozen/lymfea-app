@@ -27,6 +27,12 @@ interface Booking {
   status: string;
   total_price: number | null;
   hairdresser_id: string | null;
+  booking_treatments?: Array<{
+    treatment_menus: {
+      price: number;
+      duration: number;
+    } | null;
+  }>;
 }
 
 const PwaDashboard = () => {
@@ -195,7 +201,15 @@ const PwaDashboard = () => {
     // Fetch bookings: either assigned to this hairdresser OR pending (unassigned) from their hotels
     const { data, error } = await supabase
       .from("bookings")
-      .select("*")
+      .select(`
+        *,
+        booking_treatments (
+          treatment_menus (
+            price,
+            duration
+          )
+        )
+      `)
       .in("hotel_id", hotelIds)
       .or(`hairdresser_id.eq.${hairdresserId},hairdresser_id.is.null`)
       .order("booking_date", { ascending: true })
@@ -250,6 +264,21 @@ const PwaDashboard = () => {
       }
     });
   };
+
+  const calculateTotalPrice = (booking: Booking) => {
+    if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
+      return booking.total_price || 0;
+    }
+    return booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.price || 0), 0);
+  };
+
+  const calculateTotalDuration = (booking: Booking) => {
+    if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
+      return 60; // default
+    }
+    return booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0);
+  };
+
 
   const getPendingRequests = () => {
     return allBookings.filter(b => 
@@ -395,9 +424,9 @@ const PwaDashboard = () => {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
                     <p className="text-[13px] text-gray-500">
-                      {format(new Date(booking.booking_date), "EEE, d MMM")} • {booking.booking_time.substring(0, 5)} • 60 min
+                      {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
                     </p>
-                    <p className="text-[13px] text-gray-500">{booking.total_price} €</p>
+                    <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                   </div>
                   <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                 </div>
@@ -441,9 +470,9 @@ const PwaDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
                             <p className="text-[13px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • 45 min
+                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
                             </p>
-                            <p className="text-[13px] text-gray-500">{booking.total_price} €</p>
+                            <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                           </div>
                           <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                         </div>

@@ -240,6 +240,7 @@ const PwaBookingDetail = () => {
   };
 
   const relativeDay = getRelativeDay(booking.booking_date);
+  const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
 
   return (
     <>
@@ -315,7 +316,7 @@ const PwaBookingDetail = () => {
               <div className="flex items-start gap-3">
                 <CreditCard className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium">€{booking.total_price}</p>
+                  <p className="text-sm font-medium">€{totalPrice}</p>
                   <p className="text-xs text-gray-400">Payout</p>
                 </div>
               </div>
