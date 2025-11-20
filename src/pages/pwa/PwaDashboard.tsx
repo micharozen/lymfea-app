@@ -42,6 +42,78 @@ const PwaDashboard = () => {
     checkAuth();
   }, []);
 
+  // Realtime listener for bookings
+  useEffect(() => {
+    if (!hairdresser) return;
+
+    const channel = supabase
+      .channel('bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('Booking change detected:', payload);
+          // Refresh bookings on any change
+          fetchAllBookings(hairdresser.id);
+          
+          // Show toast for specific events
+          if (payload.eventType === 'UPDATE') {
+            const newStatus = (payload.new as any).status;
+            const oldStatus = (payload.old as any)?.status;
+            
+            if (oldStatus !== 'Annulé' && newStatus === 'Annulé') {
+              toast.error('Une réservation a été annulée');
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hairdresser]);
+
+  // Realtime listener for notifications
+  useEffect(() => {
+    if (!hairdresser) return;
+
+    const setupNotificationListener = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const notifChannel = supabase
+        .channel('notifications-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications'
+          },
+          (payload) => {
+            console.log('New notification:', payload);
+            const notification = payload.new as any;
+            
+            if (notification.user_id === user.id) {
+              toast.info(notification.message);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(notifChannel);
+      };
+    };
+
+    setupNotificationListener();
+  }, [hairdresser]);
+
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -88,11 +160,12 @@ const PwaDashboard = () => {
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
 
+    // Fetch bookings: either assigned to this hairdresser OR pending (unassigned) from their hotels
     const { data, error } = await supabase
       .from("bookings")
       .select("*")
-      .eq("hairdresser_id", hairdresserId)
       .in("hotel_id", hotelIds)
+      .or(`hairdresser_id.eq.${hairdresserId},and(hairdresser_id.is.null,status.eq.En attente)`)
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true });
 
