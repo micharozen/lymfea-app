@@ -133,7 +133,7 @@ const PwaDashboard = () => {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold tracking-wide">BEAUTICK</h1>
+        <h1 className="text-xl font-bold tracking-[0.2em]">OOM</h1>
         <Avatar className="h-8 w-8">
           <AvatarImage src={hairdresser?.profile_image || undefined} />
           <AvatarFallback className="bg-white text-black text-xs">

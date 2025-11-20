@@ -41,7 +41,7 @@ const PwaWelcome = () => {
           </div>
 
           <Button
-            onClick={() => navigate("/pwa/login")}
+            onClick={() => navigate("/pwa/flow")}
             className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full"
             size="lg"
           >

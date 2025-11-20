@@ -266,7 +266,7 @@ const PwaBookingDetail = () => {
                 disabled={updating}
                 className="flex-1 bg-black text-white rounded-full py-2.5 px-4 text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
               >
-                Yes, confirm
+                {updating ? "..." : "Yes, confirm"}
               </button>
             </div>
           </div>
@@ -302,7 +302,7 @@ const PwaBookingDetail = () => {
                 disabled={updating}
                 className="flex-1 bg-red-500 text-white rounded-full py-2.5 px-4 text-sm font-medium hover:bg-red-600 disabled:opacity-50"
               >
-                Yes, decline
+                {updating ? "..." : "Yes, decline"}
               </button>
             </div>
           </div>
