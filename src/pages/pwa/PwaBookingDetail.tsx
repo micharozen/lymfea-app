@@ -230,6 +230,11 @@ const PwaBookingDetail = () => {
         await supabase.from("notifications").insert(notifications);
       }
 
+      // Trigger haptic feedback (vibration)
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]); // Pattern: vibrate 200ms, pause 100ms, vibrate 200ms
+      }
+
       // Show success animation
       setShowSuccessAnimation(true);
       toast.success("Réservation acceptée");
