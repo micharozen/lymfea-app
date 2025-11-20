@@ -184,15 +184,30 @@ export default function EditBookingDialog({
   });
 
   const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers"],
+    queryKey: ["hairdressers", booking?.hotel_id],
+    enabled: !!booking?.hotel_id,
     queryFn: async () => {
+      // Récupérer les coiffeurs assignés à l'hôtel de cette réservation
       const { data, error } = await supabase
-        .from("hairdressers")
-        .select("id, first_name, last_name")
-        .eq("status", "Actif")
-        .order("first_name");
+        .from("hairdresser_hotels")
+        .select(`
+          hairdresser_id,
+          hairdressers (
+            id,
+            first_name,
+            last_name,
+            status
+          )
+        `)
+        .eq("hotel_id", booking!.hotel_id);
+
       if (error) throw error;
-      return data;
+      
+      // Filtrer pour ne garder que les coiffeurs actifs
+      return data
+        ?.map((hh: any) => hh.hairdressers)
+        .filter((h: any) => h && h.status === "Actif")
+        .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
 
@@ -441,7 +456,11 @@ export default function EditBookingDialog({
           <DialogTitle className="text-lg">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
 
-        {viewMode === "view" ? (
+        {!booking ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-muted-foreground">Chargement...</p>
+          </div>
+        ) : viewMode === "view" ? (
           <div className="space-y-3">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
