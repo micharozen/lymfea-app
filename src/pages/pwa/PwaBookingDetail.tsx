@@ -62,6 +62,7 @@ const PwaBookingDetail = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -188,7 +189,10 @@ const PwaBookingDetail = () => {
         return;
       }
 
-      // Assign booking to current hairdresser
+      // Calculate total price from treatments
+      const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+
+      // Assign booking to current hairdresser and update total_price
       const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
       const { error: updateError } = await supabase
         .from("bookings")
@@ -196,7 +200,8 @@ const PwaBookingDetail = () => {
           status: "Confirmé",
           hairdresser_id: hairdresserData.id,
           hairdresser_name: hairdresserName,
-          assigned_at: new Date().toISOString()
+          assigned_at: new Date().toISOString(),
+          total_price: totalPrice
         })
         .eq("id", booking.id)
         .is("hairdresser_id", null); // Only update if still unassigned
@@ -225,8 +230,14 @@ const PwaBookingDetail = () => {
         await supabase.from("notifications").insert(notifications);
       }
 
+      // Show success animation
+      setShowSuccessAnimation(true);
       toast.success("Réservation acceptée");
-      navigate("/pwa/dashboard");
+      
+      // Navigate after animation
+      setTimeout(() => {
+        navigate("/pwa/dashboard");
+      }, 1500);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur lors de l'acceptation");
@@ -572,6 +583,21 @@ const PwaBookingDetail = () => {
           hotelId={booking.hotel_id}
           onTreatmentsAdded={fetchBookingDetail}
         />
+      )}
+
+      {/* Success Animation */}
+      {showSuccessAnimation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-8 flex flex-col items-center animate-scale-in">
+            <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center mb-4">
+              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Réservation acceptée !</h3>
+            <p className="text-gray-500 text-sm">Redirection...</p>
+          </div>
+        </div>
       )}
     </>
   );
