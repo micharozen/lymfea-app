@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Clock, MapPin, CreditCard, MoreVertical, Plus } from "lucide-react";
+import { X, Clock, MapPin, CreditCard, MoreVertical, Plus, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { format, isToday, isTomorrow, isYesterday } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -47,6 +47,7 @@ const PwaBookingDetail = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const navigate = useNavigate();
 
@@ -378,7 +379,7 @@ const PwaBookingDetail = () => {
                 <X className="w-5 h-5 text-red-500" />
               </button>
               <button
-                onClick={() => setShowRejectDialog(true)}
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
                 className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50"
               >
                 <MoreVertical className="w-5 h-5 text-black" />
@@ -395,6 +396,45 @@ const PwaBookingDetail = () => {
           </div>
         )}
       </div>
+
+      {/* Actions Menu */}
+      {showActionsMenu && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50" onClick={() => setShowActionsMenu(false)}>
+          <div className="bg-white rounded-t-3xl w-full max-w-sm p-6 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6" />
+            <h3 className="text-lg font-semibold mb-4">Actions</h3>
+            
+            <div className="space-y-2">
+              <a
+                href={`tel:${booking.phone}`}
+                className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
+                onClick={() => setShowActionsMenu(false)}
+              >
+                <Phone className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="font-medium">Contacter le client</p>
+                  <p className="text-sm text-gray-500">{booking.phone}</p>
+                </div>
+              </a>
+              
+              <button
+                className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors w-full text-left"
+                onClick={() => {
+                  setShowActionsMenu(false);
+                  // TODO: Implement concierge contact logic
+                  toast.info("Fonction à venir");
+                }}
+              >
+                <Mail className="w-5 h-5 text-gray-600" />
+                <div>
+                  <p className="font-medium">Contacter le concierge</p>
+                  <p className="text-sm text-gray-500">{booking.hotel_name}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Dialog */}
       {showConfirmDialog && (
