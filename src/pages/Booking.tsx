@@ -392,38 +392,27 @@ export default function Booking() {
                             const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                             const isCurrent = isCurrentHour(day, hour);
                             
-                            // Calculate max duration for this hour to determine cell height
-                            const maxDuration = bookingsInHour.reduce((max, booking) => {
-                              const duration = (booking as any).totalDuration || 0;
-                              return Math.max(max, duration);
-                            }, 0);
-                            const cellHeight = maxDuration > 0 ? Math.max(40, (maxDuration / 60) * 40) : 40;
-                            
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                className={`relative h-[40px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
                                   bookingsInHour.length > 0
                                     ? "bg-primary/5 hover:bg-primary/10"
                                     : isToday
                                     ? "bg-primary/[0.02] hover:bg-muted/30"
                                     : "hover:bg-muted/30"
                                 }`}
-                                style={{ minHeight: `${cellHeight}px` }}
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
                                   <div className="space-y-0.5 h-full">
                                      {bookingsInHour.map((booking) => {
                                       const duration = (booking as any).totalDuration || 0;
-                                      // Calculate height based on duration (40px per hour base + proportional to minutes)
-                                      const heightInPx = duration > 0 ? Math.max(40, (duration / 60) * 40) : 40;
                                       
                                       return (
                                         <div
                                           key={booking.id}
                                           className="p-1 rounded bg-primary/20 border border-primary/30 text-[9px] leading-tight cursor-pointer hover:bg-primary/30 transition-colors"
-                                          style={{ minHeight: `${heightInPx}px` }}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setSelectedBooking(booking);
