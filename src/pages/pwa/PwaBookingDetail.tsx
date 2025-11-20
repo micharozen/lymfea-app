@@ -251,7 +251,7 @@ const PwaBookingDetail = () => {
         {/* Hotel Info */}
         <div className="px-6 py-6">
           <div className="flex items-start gap-4 mb-6">
-            <div className="w-16 h-16 bg-gray-100 rounded flex-shrink-0 overflow-hidden">
+            <div className="w-16 self-stretch bg-gray-100 rounded flex-shrink-0 overflow-hidden min-h-[72px]">
               {booking.hotel_image_url ? (
                 <img 
                   src={booking.hotel_image_url} 
