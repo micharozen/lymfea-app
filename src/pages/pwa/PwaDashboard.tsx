@@ -45,12 +45,18 @@ const PwaDashboard = () => {
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showAllBookings, setShowAllBookings] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Reset show all bookings when changing tabs
+  useEffect(() => {
+    setShowAllBookings(false);
+  }, [activeTab]);
 
   // Single useEffect to handle all refresh scenarios
   useEffect(() => {
@@ -324,6 +330,7 @@ const PwaDashboard = () => {
   const handleRefresh = async () => {
     if (!hairdresser || refreshing) return;
     setRefreshing(true);
+    setShowAllBookings(false); // Reset to show only 3 on refresh
     await fetchAllBookings(hairdresser.id);
     setRefreshing(false);
   };
@@ -531,45 +538,59 @@ const PwaDashboard = () => {
             {filteredBookings.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">No bookings found</p>
             ) : (
-              filteredBookings.slice(0, 3).map((booking, index) => (
-                <div
-                  key={booking.id}
-                  onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                  className="flex items-center gap-3 cursor-pointer py-2"
-                >
-                  <div className="w-14 h-14 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex-shrink-0 overflow-hidden relative">
-                    {index === 0 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-pink-500" />
-                    )}
-                    {index === 1 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-indigo-500" />
-                    )}
-                    {index === 2 && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-500" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
-                      {booking.hairdresser_id && booking.status === "En attente" && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                          À confirmer
-                        </Badge>
+              <>
+                {filteredBookings.slice(0, showAllBookings ? filteredBookings.length : 3).map((booking, index) => (
+                  <div
+                    key={booking.id}
+                    onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                    className="flex items-center gap-3 cursor-pointer py-2"
+                  >
+                    <div className="w-14 h-14 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex-shrink-0 overflow-hidden relative">
+                      {index === 0 && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-pink-500" />
+                      )}
+                      {index === 1 && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-indigo-500" />
+                      )}
+                      {index === 2 && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-500" />
                       )}
                     </div>
-                    <p className="text-[13px] text-gray-500">
-                      {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
-                    </p>
-                    <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
+                        {booking.hairdresser_id && booking.status === "En attente" && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                            À confirmer
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[13px] text-gray-500">
+                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
+                      </p>
+                      <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
-                </div>
-              ))
+                ))}
+              </>
             )}
             
-            {filteredBookings.length > 3 && (
-              <button className="text-sm text-black font-medium w-full text-center py-3">
+            {filteredBookings.length > 3 && !showAllBookings && (
+              <button 
+                onClick={() => setShowAllBookings(true)}
+                className="text-sm text-black font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
+              >
                 Show {filteredBookings.length - 3} More
+              </button>
+            )}
+            
+            {showAllBookings && filteredBookings.length > 3 && (
+              <button 
+                onClick={() => setShowAllBookings(false)}
+                className="text-sm text-gray-500 font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                Show Less
               </button>
             )}
           </div>
