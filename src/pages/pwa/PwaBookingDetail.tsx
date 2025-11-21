@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -75,8 +75,11 @@ const PwaBookingDetail = () => {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hairdresserProfile, setHairdresserProfile] = useState<any>(null);
@@ -184,6 +187,32 @@ const PwaBookingDetail = () => {
     }
   };
 
+  const handleMarkComplete = async () => {
+    if (!booking) return;
+    
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ 
+          status: "Complété",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Réservation marquée comme complétée");
+      setShowCompleteDialog(false);
+      fetchBookingDetail();
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleCancelBooking = async () => {
     if (!booking) return;
     
@@ -204,6 +233,35 @@ const PwaBookingDetail = () => {
       console.error("Error:", error);
       toast.error("Erreur");
     }
+  };
+
+  const handleDeleteTreatment = async (treatmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("booking_treatments")
+        .delete()
+        .eq("id", treatmentId);
+
+      if (error) throw error;
+
+      toast.success("Traitement supprimé");
+      setTreatmentToDelete(null);
+      fetchBookingDetail();
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const openInMaps = () => {
+    if (!booking) return;
+    
+    const address = `${booking.hotel_name}, ${booking.hotel_address || ''}, ${booking.hotel_city || ''}`;
+    const encodedAddress = encodeURIComponent(address);
+    
+    // Try to open in Google Maps app, fallback to web
+    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    window.open(mapsUrl, '_blank');
   };
 
   if (loading) {
@@ -227,7 +285,7 @@ const PwaBookingDetail = () => {
 
   const getStatusBadge = () => {
     if (booking.status === "En attente") {
-      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment pending</Badge>;
+      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
     }
     if (booking.status === "Assigné" || booking.status === "Confirmé") {
       return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
@@ -250,8 +308,15 @@ const PwaBookingDetail = () => {
           <div className="w-6" />
         </div>
 
-        {/* Hotel Image and Badge */}
+        {/* Status Badge */}
         <div className="px-6 pt-6">
+          {getStatusBadge() && (
+            <div className="flex justify-center mb-4">
+              {getStatusBadge()}
+            </div>
+          )}
+
+          {/* Hotel Image */}
           <div className="relative w-24 h-24 mx-auto mb-3">
             {booking.hotel_image_url ? (
               <img 
@@ -264,19 +329,17 @@ const PwaBookingDetail = () => {
             )}
           </div>
 
-          {getStatusBadge() && (
-            <div className="flex justify-center mb-2">
-              {getStatusBadge()}
-            </div>
-          )}
-
           {/* Hotel Name and Address */}
           <div className="text-center mb-6">
             <h2 className="font-semibold text-lg text-foreground mb-1">{booking.hotel_name}</h2>
-            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+            <button 
+              onClick={openInMaps}
+              className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors"
+            >
+              <Navigation className="w-3.5 h-3.5" />
               Via {booking.hotel_address || booking.hotel_city || "N/A"}
               <ChevronLeft className="w-4 h-4 rotate-180" />
-            </p>
+            </button>
           </div>
 
           {/* Details */}
@@ -324,34 +387,42 @@ const PwaBookingDetail = () => {
 
           {/* Treatments */}
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Treatments</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Treatments</h3>
+              {(booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente") && (
+                <button
+                  onClick={() => setShowAddTreatmentDialog(true)}
+                  className="text-sm text-primary hover:text-primary/80 font-medium"
+                >
+                  + Ajouter
+                </button>
+              )}
+            </div>
             {treatments.length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucun traitement ajouté</p>
             ) : (
               <div className="space-y-3">
                 {treatments.map((treatment) => (
-                  <div key={treatment.id} className="flex items-start gap-3">
+                  <div key={treatment.id} className="flex items-start gap-3 group">
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">{treatment.treatment_menus?.name || 'Treatment'}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
                       </p>
                     </div>
+                    {booking.status !== "Complété" && (
+                      <button
+                        onClick={() => setTreatmentToDelete(treatment.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Add Treatment Button */}
-          {(booking.status === "Assigné" || booking.status === "Confirmé" || (booking.hairdresser_id && booking.status === "En attente")) && (
-            <button
-              onClick={() => setShowAddTreatmentDialog(true)}
-              className="w-full text-sm text-foreground font-medium py-3 border-t border-border"
-            >
-              + Add treatment
-            </button>
-          )}
 
           {/* Hairdresser Avatar */}
           {hairdresserProfile && (
@@ -421,28 +492,22 @@ const PwaBookingDetail = () => {
             </DropdownMenu>
 
             {/* Main Action Button */}
-            {booking.status === "Assigné" || booking.status === "Confirmé" ? (
+            {booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente" ? (
               <button
-                onClick={() => toast.info("Fonctionnalité à venir")}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90"
+                onClick={() => setShowCompleteDialog(true)}
+                disabled={updating}
+                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
               >
                 Request to mark complete
               </button>
-            ) : booking.status === "En attente" && !booking.hairdresser_id ? (
-              <button
-                onClick={() => toast.info("Fonctionnalité à venir")}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90"
-              >
-                Accept booking
-              </button>
-            ) : (
+            ) : booking.status === "Complété" ? (
               <button
                 onClick={() => setShowCancelDialog(true)}
                 className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90"
               >
                 Annuler
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -455,6 +520,24 @@ const PwaBookingDetail = () => {
         hotelId={booking.hotel_id}
         onTreatmentsAdded={fetchBookingDetail}
       />
+
+      {/* Complete Confirmation Dialog */}
+      <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marquer comme complétée ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirmez-vous que cette réservation est terminée ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMarkComplete} disabled={updating}>
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancel Confirmation Dialog */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -469,6 +552,24 @@ const PwaBookingDetail = () => {
             <AlertDialogCancel>Non, garder</AlertDialogCancel>
             <AlertDialogAction onClick={handleCancelBooking}>
               Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Treatment Confirmation Dialog */}
+      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer le traitement ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce traitement ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>
+              Supprimer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
