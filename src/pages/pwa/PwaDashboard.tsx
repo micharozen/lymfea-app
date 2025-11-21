@@ -28,6 +28,7 @@ interface Booking {
   status: string;
   total_price: number | null;
   hairdresser_id: string | null;
+  declined_by?: string[];
   booking_treatments?: Array<{
     treatment_menus: {
       price: number;
@@ -409,10 +410,12 @@ const PwaDashboard = () => {
       const isStatusPending = b.status === "En attente" || b.status === "Pending";
       
       // Seules les réservations NON ASSIGNÉES sont des "pending requests"
-      // Si une réservation a déjà un hairdresser_id, elle doit être dans "my bookings"
       const isUnassigned = b.hairdresser_id === null;
       
-      const isPending = isStatusPending && isUnassigned;
+      // Exclure les réservations que ce coiffeur a déjà refusées/annulées
+      const hasDeclined = hairdresser && (b as any).declined_by?.includes(hairdresser.id);
+      
+      const isPending = isStatusPending && isUnassigned && !hasDeclined;
       
       return isPending;
     });
