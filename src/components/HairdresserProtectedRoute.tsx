@@ -64,11 +64,13 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'hairdresser')
-          .single();
+          .maybeSingle();
 
         if (error || !data) {
+          console.log("No hairdresser role found or error:", error);
           setHasHairdresserRole(false);
         } else {
+          console.log("Hairdresser role found!");
           setHasHairdresserRole(true);
         }
       } catch (error) {
