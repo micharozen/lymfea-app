@@ -245,17 +245,15 @@ const PwaBookingDetail = () => {
       const { error } = await supabase
         .from("bookings")
         .update({ 
-          status: "En attente",
-          hairdresser_id: null,
-          hairdresser_name: null,
-          assigned_at: null,
+          status: "Annulé",
+          cancellation_reason: "Annulé par le coiffeur",
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      toast.success("Réservation remise en attente");
+      toast.success("Réservation annulée");
       setShowUnassignDialog(false);
       navigate("/pwa/dashboard");
     } catch (error) {
