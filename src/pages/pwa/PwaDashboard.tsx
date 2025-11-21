@@ -418,19 +418,14 @@ const PwaDashboard = () => {
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
       const isStatusPending = b.status === "En attente" || b.status === "Pending";
-      
-      // Seules les réservations NON ASSIGNÉES sont des "pending requests"
       const isUnassigned = b.hairdresser_id === null;
       
-      // Exclure les réservations que ce coiffeur a déjà refusées/annulées
-      const hasDeclined = hairdresser && (b as any).declined_by?.includes(hairdresser.id);
+      // Temporairement désactivé pour debug
+      // const hasDeclined = hairdresser && (b as any).declined_by?.includes(hairdresser.id);
       
-      const isPending = isStatusPending && isUnassigned && !hasDeclined;
-      
-      return isPending;
+      return isStatusPending && isUnassigned;
     });
     
-    console.log('📊 Total bookings:', allBookings.length, 'Pending:', pending.length);
     return pending;
   };
 
