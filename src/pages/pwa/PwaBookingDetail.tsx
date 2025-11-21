@@ -257,11 +257,9 @@ const PwaBookingDetail = () => {
     if (!booking) return;
     
     const address = `8 Rue Louis Armand, 75015 Paris`;
-    const encodedAddress = encodeURIComponent(address);
     
-    // Use OpenStreetMap which works better in iframes
-    const mapsUrl = `https://www.openstreetmap.org/search?query=${encodedAddress}`;
-    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
+    // Use native map URI that works on all platforms
+    window.location.href = `maps://maps.apple.com/?q=${encodeURIComponent(address)}`;
   };
 
   if (loading) {
@@ -427,20 +425,6 @@ const PwaBookingDetail = () => {
               </div>
             )}
           </div>
-
-          {/* Hairdresser Avatar */}
-          {hairdresserProfile && (
-            <div className="flex justify-center mt-6">
-              <Avatar className="w-16 h-16">
-                {hairdresserProfile.profile_image ? (
-                  <AvatarImage src={hairdresserProfile.profile_image} alt={`${hairdresserProfile.first_name} ${hairdresserProfile.last_name}`} />
-                ) : null}
-                <AvatarFallback className="bg-muted text-foreground">
-                  {hairdresserProfile.first_name?.[0]}{hairdresserProfile.last_name?.[0]}
-                </AvatarFallback>
-              </Avatar>
-            </div>
-          )}
         </div>
 
         {/* Bottom Actions */}
