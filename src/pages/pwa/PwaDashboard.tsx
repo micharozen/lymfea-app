@@ -353,17 +353,20 @@ const PwaDashboard = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
+      // Si la réservation est assignée à ce coiffeur, elle doit être dans upcoming
+      const isAssignedToMe = hairdresser && booking.hairdresser_id === hairdresser.id;
+      
       console.log('Filtering booking:', {
         id: booking.booking_id,
         status: booking.status,
         date: booking.booking_date,
         bookingDate: bookingDate,
         today: today,
-        isUpcoming: (booking.status === "Confirmé" || booking.status === "Assigné") && bookingDate >= today
+        isUpcoming: (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && bookingDate >= today
       });
       
       if (activeTab === "upcoming") {
-        return (booking.status === "Confirmé" || booking.status === "Assigné") && 
+        return (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && 
                bookingDate >= today;
       } else if (activeTab === "past") {
         return (bookingDate < today || booking.status === "Terminé") && 
@@ -397,18 +400,11 @@ const PwaDashboard = () => {
     const pending = allBookings.filter(b => {
       const isStatusPending = b.status === "En attente" || b.status === "Pending";
       
-      // Cas 1: Réservation non assignée (disponible pour tous)
+      // Seules les réservations NON ASSIGNÉES sont des "pending requests"
+      // Si une réservation a déjà un hairdresser_id, elle doit être dans "my bookings"
       const isUnassigned = b.hairdresser_id === null;
       
-      // Cas 2: Réservation assignée à ce coiffeur (il doit l'accepter)
-      const isAssignedToMe = hairdresser && b.hairdresser_id === hairdresser.id;
-      
-      const isPending = isStatusPending && (isUnassigned || isAssignedToMe);
-      
-      // Log pour debug si une réservation "En attente" a un autre coiffeur
-      if (!isPending && isStatusPending && b.hairdresser_id !== null && b.hairdresser_id !== hairdresser?.id) {
-        console.log('⚠️ Booking assigned to another hairdresser:', b.booking_id, 'hairdresser_id:', b.hairdresser_id);
-      }
+      const isPending = isStatusPending && isUnassigned;
       
       return isPending;
     });
