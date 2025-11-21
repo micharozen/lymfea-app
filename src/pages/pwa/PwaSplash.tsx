@@ -8,43 +8,51 @@ const PwaSplash = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // Check if user is a hairdresser
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'hairdresser')
-          .single();
-
-        if (roles) {
-          // Get hairdresser status
-          const { data: hairdresser } = await supabase
-            .from('hairdressers')
-            .select('status')
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Check if user is a hairdresser
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
             .eq('user_id', session.user.id)
+            .eq('role', 'hairdresser')
             .single();
 
-          if (hairdresser) {
-            // Redirect based on status
-            if (hairdresser.status === "En attente") {
-              navigate("/pwa/onboarding", { replace: true });
-            } else {
-              navigate("/pwa/dashboard", { replace: true });
+          if (roles) {
+            // Get hairdresser status
+            const { data: hairdresser } = await supabase
+              .from('hairdressers')
+              .select('status')
+              .eq('user_id', session.user.id)
+              .single();
+
+            if (hairdresser) {
+              // Redirect based on status after a short delay
+              setTimeout(() => {
+                if (hairdresser.status === "En attente") {
+                  navigate("/pwa/onboarding", { replace: true });
+                } else {
+                  navigate("/pwa/dashboard", { replace: true });
+                }
+              }, 1500);
+              return;
             }
-            return;
           }
         }
+        
+        // No valid session, show welcome screen after delay
+        setTimeout(() => {
+          navigate("/pwa/welcome", { replace: true });
+        }, 1500);
+      } catch (error) {
+        console.error("Error checking session:", error);
+        // On error, redirect to welcome
+        setTimeout(() => {
+          navigate("/pwa/welcome", { replace: true });
+        }, 1500);
       }
-      
-      // No valid session, show welcome screen after delay
-      const timer = setTimeout(() => {
-        navigate("/pwa/welcome");
-      }, 2000);
-
-      return () => clearTimeout(timer);
     };
 
     checkSession();
