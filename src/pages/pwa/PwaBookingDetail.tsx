@@ -259,8 +259,8 @@ const PwaBookingDetail = () => {
     const address = `8 Rue Louis Armand, 75015 Paris`;
     const encodedAddress = encodeURIComponent(address);
     
-    // Use google.com/maps instead of maps.google.com to avoid blocking
-    const mapsUrl = `https://www.google.com/maps/search/${encodedAddress}`;
+    // Use OpenStreetMap which works better in iframes
+    const mapsUrl = `https://www.openstreetmap.org/search?query=${encodedAddress}`;
     window.open(mapsUrl, '_blank', 'noopener,noreferrer');
   };
 
