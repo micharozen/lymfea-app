@@ -21,6 +21,7 @@ interface Booking {
   status: string;
   phone: string;
   total_price: number;
+  hairdresser_id: string | null;
   hotel_image_url?: string;
   hotel_address?: string;
   hotel_city?: string;
@@ -411,9 +412,11 @@ const PwaBookingDetail = () => {
           </div>
 
           {/* Treatments */}
-          {treatments.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Treatments</h3>
+          <div className="space-y-4 mb-6">
+            <h3 className="text-sm font-semibold">Treatments</h3>
+            {treatments.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucun traitement ajouté</p>
+            ) : (
               <div className="space-y-3">
                 {treatments.map((treatment) => (
                   <div key={treatment.id} className="flex items-start gap-3">
@@ -437,11 +440,11 @@ const PwaBookingDetail = () => {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Add Treatment Button */}
-          {(booking.status === "Assigné") && (
+          {(booking.status === "Assigné" || booking.status === "Confirmé" || (booking.hairdresser_id && booking.status === "En attente")) && (
             <div className="pt-4">
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
@@ -548,7 +549,14 @@ const PwaDashboard = () => {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
+                      {booking.hairdresser_id && booking.status === "En attente" && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                          À confirmer
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-[13px] text-gray-500">
                       {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
                     </p>
@@ -594,7 +602,14 @@ const PwaDashboard = () => {
                         >
                           <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-[15px] mb-0.5 text-black">{booking.hotel_name}</h3>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
+                              {booking.hairdresser_id && booking.status === "En attente" && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                                  À confirmer
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-[13px] text-gray-500">
                               {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
                             </p>
