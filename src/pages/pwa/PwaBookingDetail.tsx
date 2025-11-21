@@ -1,12 +1,28 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { X, Clock, MapPin, CreditCard, MoreVertical, Plus, Phone, Mail } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
-import { format, isToday, isTomorrow, isYesterday } from "date-fns";
+import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Booking {
   id: string;
@@ -55,19 +71,15 @@ interface AdminContact {
 
 const PwaBookingDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const navigate = useNavigate();
+  const [hairdresserProfile, setHairdresserProfile] = useState<any>(null);
 
   useEffect(() => {
     fetchBookingDetail();
@@ -83,7 +95,7 @@ const PwaBookingDetail = () => {
 
       if (bookingError) throw bookingError;
 
-      // Fetch hotel data separately
+      // Fetch hotel data
       let hotelData = null;
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
@@ -102,6 +114,7 @@ const PwaBookingDetail = () => {
       };
       setBooking(bookingWithHotel);
 
+      // Fetch treatments
       const { data: treatmentsData, error: treatmentsError } = await supabase
         .from("booking_treatments")
         .select(`
@@ -120,7 +133,20 @@ const PwaBookingDetail = () => {
         setTreatments(treatmentsData as any);
       }
 
-      // Fetch concierge contact for this hotel
+      // Fetch hairdresser profile if assigned
+      if (bookingData.hairdresser_id) {
+        const { data: hairdresserData } = await supabase
+          .from("hairdressers")
+          .select("profile_image, first_name, last_name")
+          .eq("id", bookingData.hairdresser_id)
+          .single();
+        
+        if (hairdresserData) {
+          setHairdresserProfile(hairdresserData);
+        }
+      }
+
+      // Fetch concierge contact
       const { data: conciergeData } = await supabase
         .from("concierge_hotels")
         .select(`
@@ -139,7 +165,7 @@ const PwaBookingDetail = () => {
         setConciergeContact(conciergeData.concierges as any);
       }
 
-      // Fetch admin contact (first active admin)
+      // Fetch admin contact
       const { data: adminData } = await supabase
         .from("admins")
         .select("phone, country_code, first_name, last_name")
@@ -158,283 +184,157 @@ const PwaBookingDetail = () => {
     }
   };
 
-  const handleAcceptBooking = async () => {
+  const handleCancelBooking = async () => {
     if (!booking) return;
     
-    setUpdating(true);
-    try {
-      // Get current hairdresser ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
-        .select("id, first_name, last_name")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!hairdresserData) throw new Error("Hairdresser not found");
-
-      // Check if booking is assigned to another hairdresser
-      const { data: currentBooking } = await supabase
-        .from("bookings")
-        .select("hairdresser_id, hairdresser_name, hotel_id")
-        .eq("id", booking.id)
-        .single();
-
-      if (currentBooking?.hairdresser_id && currentBooking.hairdresser_id !== hairdresserData.id) {
-        toast.error(`Cette réservation a déjà été acceptée par ${currentBooking.hairdresser_name}`);
-        setShowConfirmDialog(false);
-        setUpdating(false);
-        navigate("/pwa/dashboard");
-        return;
-      }
-
-      // Calculate total price from treatments
-      const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-
-      // Assign booking to current hairdresser and update total_price using atomic function
-      const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
-      
-      console.log('🔄 Attempting to accept booking:', {
-        booking_id: booking.id,
-        booking_number: booking.booking_id,
-        new_hairdresser: hairdresserData.id
-      });
-
-      const { data: result, error: updateError } = await supabase
-        .rpc('accept_booking', {
-          _booking_id: booking.id,
-          _hairdresser_id: hairdresserData.id,
-          _hairdresser_name: hairdresserName,
-          _total_price: totalPrice
-        });
-
-      console.log('📥 RPC result:', { result, error: updateError });
-
-      if (updateError) {
-        console.error('❌ Update error:', updateError);
-        throw updateError;
-      }
-
-      // Check if the booking was successfully accepted
-      const resultData = result as { success: boolean; error?: string; data?: any };
-      console.log('✅ Result data:', resultData);
-      
-      if (!resultData?.success) {
-        console.log('⚠️ Booking already taken:', resultData);
-        toast.error("Cette réservation a déjà été prise par un autre coiffeur");
-        setShowConfirmDialog(false);
-        setUpdating(false);
-        navigate("/pwa/dashboard", { replace: true, state: { forceRefresh: true } });
-        return;
-      }
-
-      console.log('✅ Booking updated successfully:', resultData.data);
-
-      // Get other hairdressers from the same hotel to notify them
-      const { data: otherHairdressers } = await supabase
-        .from("hairdresser_hotels")
-        .select(`
-          hairdresser_id,
-          hairdressers!inner(user_id, first_name, last_name)
-        `)
-        .eq("hotel_id", currentBooking.hotel_id)
-        .neq("hairdresser_id", hairdresserData.id);
-
-      // Create notifications for other hairdressers
-      if (otherHairdressers && otherHairdressers.length > 0) {
-        const notifications = otherHairdressers.map((hd: any) => ({
-          user_id: hd.hairdressers.user_id,
-          booking_id: booking.id,
-          type: "booking_taken",
-          message: `La réservation #${booking.booking_id} a été acceptée par ${hairdresserName}`
-        }));
-
-        await supabase.from("notifications").insert(notifications);
-      }
-
-      // Trigger haptic feedback (vibration)
-      if ('vibrate' in navigator) {
-        navigator.vibrate([200, 100, 200]); // Pattern: vibrate 200ms, pause 100ms, vibrate 200ms
-      }
-
-      // Show success animation
-      setShowSuccessAnimation(true);
-      toast.success(`✅ Réservation #${booking.booking_id} confirmée !`);
-      
-      // Navigate after animation with delay for DB sync
-      setTimeout(() => {
-        navigate("/pwa/dashboard", { replace: true, state: { forceRefresh: true } });
-      }, 1500);
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur lors de l'acceptation");
-    } finally {
-      setUpdating(false);
-      setShowConfirmDialog(false);
-    }
-  };
-
-  const handleRejectBooking = async () => {
-    if (!booking) return;
-    
-    setUpdating(true);
     try {
       const { error } = await supabase
         .from("bookings")
         .update({ 
-          status: "Refusé",
-          cancellation_reason: rejectReason || "Refusé par le coiffeur"
+          status: "Annulé",
+          cancellation_reason: "Annulé par le coiffeur"
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      toast.success("Réservation refusée");
+      toast.success("Réservation annulée");
       navigate("/pwa/dashboard");
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur");
-    } finally {
-      setUpdating(false);
-      setShowRejectDialog(false);
-      setRejectReason("");
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-sm text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   if (!booking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-sm text-gray-500">Booking not found</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">Booking not found</div>
       </div>
     );
   }
 
-  const getRelativeDay = (dateString: string) => {
-    const date = new Date(dateString);
-    if (isToday(date)) return "Today";
-    if (isTomorrow(date)) return "Tomorrow";
-    if (isYesterday(date)) return "Yesterday";
-    return "";
+  const totalDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
+  const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+
+  const getStatusBadge = () => {
+    if (booking.status === "En attente") {
+      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment pending</Badge>;
+    }
+    if (booking.status === "Assigné" || booking.status === "Confirmé") {
+      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
+    }
+    if (booking.status === "Complété") {
+      return <Badge variant="outline" className="border-success text-success-foreground bg-success/10">Completed</Badge>;
+    }
+    return null;
   };
-
-  const relativeDay = getRelativeDay(booking.booking_date);
-  
-  // Calculate total price from treatments (same logic as dashboard)
-  const totalPrice = treatments.length > 0 
-    ? treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0)
-    : booking.total_price || 0;
-
 
   return (
     <>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background pb-24">
         {/* Header */}
-        <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-200">
-          <button onClick={() => navigate("/pwa/dashboard")}>
-            <X className="w-6 h-6 text-black" />
+        <div className="bg-background px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-border">
+          <button onClick={() => navigate("/pwa/dashboard")} className="p-1">
+            <ChevronLeft className="w-6 h-6 text-foreground" />
           </button>
-          <h1 className="text-base font-semibold">
-            {booking.status === "En attente" ? "Booking request" : "Booking details"}
-          </h1>
+          <h1 className="text-base font-semibold text-foreground">My booking</h1>
           <div className="w-6" />
         </div>
 
-        {/* Hotel Info */}
-        <div className="px-6 py-6">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-16 self-stretch bg-gray-100 rounded flex-shrink-0 overflow-hidden min-h-[72px]">
-              {booking.hotel_image_url ? (
-                <img 
-                  src={booking.hotel_image_url} 
-                  alt={booking.hotel_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 rounded" />
-              )}
-            </div>
-            <div className="flex-1">
-              <h2 className="font-semibold text-base mb-1">{booking.hotel_name}</h2>
-              <p className="text-sm text-gray-500">
-                {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0)} min
-              </p>
-              {booking.room_number && booking.status === "En attente" && (
-                <p className="text-sm text-gray-500">Room: {booking.room_number}</p>
-              )}
-            </div>
+        {/* Hotel Image and Badge */}
+        <div className="px-6 pt-6">
+          <div className="relative w-24 h-24 mx-auto mb-3">
+            {booking.hotel_image_url ? (
+              <img 
+                src={booking.hotel_image_url} 
+                alt={booking.hotel_name}
+                className="w-full h-full object-cover rounded-2xl"
+              />
+            ) : (
+              <div className="w-full h-full bg-muted rounded-2xl" />
+            )}
           </div>
 
-          {/* Booking Details */}
+          {getStatusBadge() && (
+            <div className="flex justify-center mb-2">
+              {getStatusBadge()}
+            </div>
+          )}
+
+          {/* Hotel Name and Address */}
+          <div className="text-center mb-6">
+            <h2 className="font-semibold text-lg text-foreground mb-1">{booking.hotel_name}</h2>
+            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+              Via {booking.hotel_address || booking.hotel_city || "N/A"}
+              <ChevronLeft className="w-4 h-4 rotate-180" />
+            </p>
+          </div>
+
+          {/* Details */}
           <div className="space-y-4 mb-6">
-            <h3 className="text-sm font-semibold">Booking details</h3>
-            
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">{booking.hotel_name}</p>
-                  {booking.hotel_city && (
-                    <p className="text-xs text-gray-400">{booking.hotel_city}</p>
-                  )}
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Calendar className="w-5 h-5" />
+                <span className="text-sm">Date</span>
               </div>
+              <span className="text-sm font-medium text-foreground">
+                {format(new Date(booking.booking_date), "d MMMM yyyy")}
+              </span>
+            </div>
 
-              <div className="flex items-start gap-3">
-                <Clock className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)}
-                  </p>
-                  {relativeDay && (
-                    <p className="text-xs text-gray-400">{relativeDay}</p>
-                  )}
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Clock className="w-5 h-5" />
+                <span className="text-sm">Time</span>
               </div>
+              <span className="text-sm font-medium text-foreground">
+                {booking.booking_time.substring(0, 5)}
+              </span>
+            </div>
 
-              <div className="flex items-start gap-3">
-                <CreditCard className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">€{totalPrice}</p>
-                  <p className="text-xs text-gray-400">Payout</p>
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Timer className="w-5 h-5" />
+                <span className="text-sm">Duration</span>
               </div>
+              <span className="text-sm font-medium text-foreground">
+                {totalDuration} Min
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Euro className="w-5 h-5" />
+                <span className="text-sm">Price</span>
+              </div>
+              <span className="text-sm font-medium text-foreground">
+                {totalPrice}€
+              </span>
             </div>
           </div>
 
           {/* Treatments */}
-          <div className="space-y-4 mb-6">
-            <h3 className="text-sm font-semibold">Treatments</h3>
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Treatments</h3>
             {treatments.length === 0 ? (
-              <p className="text-sm text-gray-400">Aucun traitement ajouté</p>
+              <p className="text-sm text-muted-foreground">Aucun traitement ajouté</p>
             ) : (
               <div className="space-y-3">
                 {treatments.map((treatment) => (
                   <div key={treatment.id} className="flex items-start gap-3">
-                    <Avatar className="w-10 h-10 flex-shrink-0">
-                      {treatment.treatment_menus?.image ? (
-                        <AvatarImage src={treatment.treatment_menus.image} alt={treatment.treatment_menus.name} />
-                      ) : null}
-                      <AvatarFallback className="bg-gray-200 text-xs">
-                        {treatment.treatment_menus?.name?.[0] || 'T'}
-                      </AvatarFallback>
-                    </Avatar>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">{treatment.treatment_menus?.name || 'Treatment'}</p>
-                      {treatment.treatment_menus?.description && (
-                        <p className="text-xs text-gray-500 mt-0.5">{treatment.treatment_menus.description}</p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        €{treatment.treatment_menus?.price || 0} • {treatment.treatment_menus?.duration || 0} min
+                      <p className="text-sm font-medium text-foreground">{treatment.treatment_menus?.name || 'Treatment'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
                       </p>
                     </div>
                   </div>
@@ -445,190 +345,134 @@ const PwaBookingDetail = () => {
 
           {/* Add Treatment Button */}
           {(booking.status === "Assigné" || booking.status === "Confirmé" || (booking.hairdresser_id && booking.status === "En attente")) && (
-            <div className="pt-4">
-              <button
-                onClick={() => setShowAddTreatmentDialog(true)}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter une prestation
-              </button>
+            <button
+              onClick={() => setShowAddTreatmentDialog(true)}
+              className="w-full text-sm text-foreground font-medium py-3 border-t border-border"
+            >
+              + Add treatment
+            </button>
+          )}
+
+          {/* Hairdresser Avatar */}
+          {hairdresserProfile && (
+            <div className="flex justify-center mt-6">
+              <Avatar className="w-16 h-16">
+                {hairdresserProfile.profile_image ? (
+                  <AvatarImage src={hairdresserProfile.profile_image} alt={`${hairdresserProfile.first_name} ${hairdresserProfile.last_name}`} />
+                ) : null}
+                <AvatarFallback className="bg-muted text-foreground">
+                  {hairdresserProfile.first_name?.[0]}{hairdresserProfile.last_name?.[0]}
+                </AvatarFallback>
+              </Avatar>
             </div>
           )}
         </div>
 
-        {/* Action Buttons */}
-        {booking.status === "En attente" && (
-          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-4">
-            <div className="flex items-center gap-3">
+        {/* Bottom Actions */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4">
+          <div className="flex items-center gap-3">
+            {/* Contact Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
+                  <MoreVertical className="w-5 h-5 text-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                {conciergeContact && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <a href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`} className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span>Appeler le concierge</span>
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`} className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span>SMS au concierge</span>
+                      </a>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {adminContact && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <a href={`tel:${adminContact.country_code}${adminContact.phone}`} className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span>Appeler OOM admin</span>
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href={`sms:${adminContact.country_code}${adminContact.phone}`} className="flex items-center gap-2">
+                        <Mail className="w-4 h-4" />
+                        <span>SMS à OOM admin</span>
+                      </a>
+                    </DropdownMenuItem>
+                  </>
+                )}
+                <DropdownMenuItem asChild>
+                  <a href={`tel:${booking.phone}`} className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <span>Appeler le client</span>
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Main Action Button */}
+            {booking.status === "Assigné" || booking.status === "Confirmé" ? (
               <button
-                onClick={() => setShowRejectDialog(true)}
-                className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50"
+                onClick={() => toast.info("Fonctionnalité à venir")}
+                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90"
               >
-                <X className="w-5 h-5 text-red-500" />
+                Request to mark complete
               </button>
+            ) : booking.status === "En attente" && !booking.hairdresser_id ? (
               <button
-                onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center hover:bg-gray-50"
+                onClick={() => toast.info("Fonctionnalité à venir")}
+                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90"
               >
-                <MoreVertical className="w-5 h-5 text-black" />
+                Accept booking
               </button>
+            ) : (
               <button
-                onClick={() => setShowConfirmDialog(true)}
-                disabled={updating}
-                className="flex-1 bg-black text-white rounded-full py-3 px-6 text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={() => setShowCancelDialog(true)}
+                className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90"
               >
-                <span className="text-lg">✓</span>
-                Accept
+                Annuler
               </button>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Actions Menu */}
-      {showActionsMenu && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50" onClick={() => setShowActionsMenu(false)}>
-          <div className="bg-white rounded-t-3xl w-full max-w-sm p-6 pb-8" onClick={(e) => e.stopPropagation()}>
-            <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-6" />
-            <h3 className="text-lg font-semibold mb-4">Actions</h3>
-            
-            <div className="space-y-2">
-              <a
-                href={`tel:${booking.phone}`}
-                className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
-                onClick={() => setShowActionsMenu(false)}
-              >
-                <Phone className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="font-medium">Contacter le client</p>
-                  <p className="text-sm text-gray-500">{booking.phone}</p>
-                </div>
-              </a>
-              
-              {conciergeContact && (
-                <a
-                  href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
-                  className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
-                  onClick={() => setShowActionsMenu(false)}
-                >
-                  <Phone className="w-5 h-5 text-gray-600" />
-                  <div>
-                    <p className="font-medium">Contacter le concierge</p>
-                    <p className="text-sm text-gray-500">
-                      {conciergeContact.first_name} {conciergeContact.last_name} • {conciergeContact.country_code}{conciergeContact.phone}
-                    </p>
-                  </div>
-                </a>
-              )}
-
-              {adminContact && (
-                <a
-                  href={`tel:${adminContact.country_code}${adminContact.phone}`}
-                  className="flex items-center gap-3 p-4 hover:bg-gray-50 rounded-lg transition-colors"
-                  onClick={() => setShowActionsMenu(false)}
-                >
-                  <Phone className="w-5 h-5 text-gray-600" />
-                  <div>
-                    <p className="font-medium">Contacter OOM</p>
-                    <p className="text-sm text-gray-500">
-                      {adminContact.first_name} {adminContact.last_name} • {adminContact.country_code}{adminContact.phone}
-                    </p>
-                  </div>
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Dialog */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-semibold mb-3">Please confirm again</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              You are about to accept this booking order. We will send you a confirmation reminder 1 hour before the booking start time.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmDialog(false)}
-                className="flex-1 border border-gray-300 rounded-full py-2.5 px-4 text-sm font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAcceptBooking}
-                disabled={updating}
-                className="flex-1 bg-black text-white rounded-full py-2.5 px-4 text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
-              >
-                {updating ? "..." : "Yes, confirm"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Dialog */}
-      {showRejectDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
-          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-semibold mb-3">Are you sure you want to decline this booking?</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              If you decline this order, you will no longer deliver your services for this appointment.
-            </p>
-            <div className="mb-6">
-              <label className="text-xs text-gray-500 mb-2 block">Reason for Decline (Optional)</label>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Optional"
-                className="w-full min-h-[80px] text-sm"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRejectDialog(false)}
-                className="flex-1 border border-gray-300 rounded-full py-2.5 px-4 text-sm font-medium hover:bg-gray-50"
-              >
-                No
-              </button>
-              <button
-                onClick={handleRejectBooking}
-                disabled={updating}
-                className="flex-1 bg-red-500 text-white rounded-full py-2.5 px-4 text-sm font-medium hover:bg-red-600 disabled:opacity-50"
-              >
-                {updating ? "..." : "Yes, decline"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add Treatment Dialog */}
-      {booking && (
-        <AddTreatmentDialog
-          open={showAddTreatmentDialog}
-          onOpenChange={setShowAddTreatmentDialog}
-          bookingId={booking.id}
-          hotelId={booking.hotel_id}
-          onTreatmentsAdded={fetchBookingDetail}
-        />
-      )}
+      <AddTreatmentDialog
+        open={showAddTreatmentDialog}
+        onOpenChange={setShowAddTreatmentDialog}
+        bookingId={booking.id}
+        hotelId={booking.hotel_id}
+        onTreatmentsAdded={fetchBookingDetail}
+      />
 
-      {/* Success Animation */}
-      {showSuccessAnimation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-8 flex flex-col items-center animate-scale-in">
-            <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center mb-4">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold">Réservation acceptée !</h3>
-          </div>
-        </div>
-      )}
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir annuler cette réservation ? Cette action ne peut pas être annulée.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non, garder</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelBooking}>
+              Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
