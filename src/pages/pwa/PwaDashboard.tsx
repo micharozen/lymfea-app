@@ -400,6 +400,65 @@ const PwaDashboard = () => {
     });
   };
 
+  const handleAcceptBooking = async (bookingId: string) => {
+    if (!hairdresser) return;
+
+    try {
+      const totalPrice = calculateTotalPrice(allBookings.find(b => b.id === bookingId)!);
+      
+      const { data, error } = await supabase.rpc('accept_booking', {
+        _booking_id: bookingId,
+        _hairdresser_id: hairdresser.id,
+        _hairdresser_name: `${hairdresser.first_name} ${hairdresser.last_name}`,
+        _total_price: totalPrice
+      });
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string } | null;
+      
+      if (result && !result.success) {
+        toast.error("Réservation déjà prise par un autre coiffeur");
+        fetchAllBookings(hairdresser.id);
+        return;
+      }
+
+      toast.success("Réservation acceptée !");
+      fetchAllBookings(hairdresser.id);
+    } catch (error) {
+      console.error("Error accepting booking:", error);
+      toast.error("Erreur lors de l'acceptation");
+    }
+  };
+
+  const handleDeclineBooking = async (bookingId: string) => {
+    if (!hairdresser) return;
+
+    try {
+      const { data: currentBooking } = await supabase
+        .from("bookings")
+        .select("declined_by")
+        .eq("id", bookingId)
+        .single();
+
+      const currentDeclined = currentBooking?.declined_by || [];
+      const updatedDeclined = [...currentDeclined, hairdresser.id];
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({ declined_by: updatedDeclined })
+        .eq("id", bookingId);
+
+      if (error) throw error;
+
+      toast.success("Réservation refusée");
+      fetchAllBookings(hairdresser.id);
+    } catch (error) {
+      console.error("Error declining booking:", error);
+      toast.error("Erreur");
+    }
+  };
+
   const calculateTotalPrice = (booking: Booking) => {
     if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
       return booking.total_price || 0;
@@ -625,26 +684,49 @@ const PwaDashboard = () => {
                   <div className="space-y-4">
                     {bookings.map((booking, index) => (
                       <div key={booking.id}>
-                        <div
-                          onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                          className="flex items-center gap-3 cursor-pointer"
-                        >
-                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
-                              {booking.hairdresser_id && booking.status === "En attente" && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                                  À confirmer
-                                </Badge>
-                              )}
+                        <div className="flex items-center gap-3">
+                          {/* Booking Info */}
+                          <div 
+                            onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                            className="flex items-center gap-3 flex-1 cursor-pointer"
+                          >
+                            <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
+                              </div>
+                              <p className="text-[13px] text-gray-500">
+                                {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
+                              </p>
+                              <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                             </div>
-                            <p className="text-[13px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
-                            </p>
-                            <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                          
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleDeclineBooking(booking.id)}
+                              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/pwa/booking/${booking.id}`)}
+                              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"
+                            >
+                              <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleAcceptBooking(booking.id)}
+                              className="px-4 h-8 rounded-full bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+                            >
+                              Accepter
+                            </button>
+                          </div>
                         </div>
                         {index < bookings.length - 1 && (
                           <div className="h-px bg-gray-100 mt-4" />
