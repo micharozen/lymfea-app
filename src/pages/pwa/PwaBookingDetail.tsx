@@ -308,16 +308,9 @@ const PwaBookingDetail = () => {
           <div className="w-6" />
         </div>
 
-        {/* Status Badge */}
         <div className="px-6 pt-6">
-          {getStatusBadge() && (
-            <div className="flex justify-center mb-4">
-              {getStatusBadge()}
-            </div>
-          )}
-
           {/* Hotel Image */}
-          <div className="relative w-24 h-24 mx-auto mb-3">
+          <div className="relative w-24 h-24 mx-auto mb-4">
             {booking.hotel_image_url ? (
               <img 
                 src={booking.hotel_image_url} 
@@ -329,15 +322,26 @@ const PwaBookingDetail = () => {
             )}
           </div>
 
-          {/* Hotel Name and Address */}
+          {/* Status Badge */}
+          {getStatusBadge() && (
+            <div className="flex justify-center mb-4">
+              {getStatusBadge()}
+            </div>
+          )}
+
+          {/* Hotel Name */}
+          <div className="text-center mb-2">
+            <h2 className="font-semibold text-lg text-foreground">{booking.hotel_name}</h2>
+          </div>
+
+          {/* Address */}
           <div className="text-center mb-6">
-            <h2 className="font-semibold text-lg text-foreground mb-1">{booking.hotel_name}</h2>
             <button 
               onClick={openInMaps}
-              className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors"
+              className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors mx-auto"
             >
               <Navigation className="w-3.5 h-3.5" />
-              Via {booking.hotel_address || booking.hotel_city || "N/A"}
+              8 Rue Louis Armand, 75015 Paris
               <ChevronLeft className="w-4 h-4 rotate-180" />
             </button>
           </div>
