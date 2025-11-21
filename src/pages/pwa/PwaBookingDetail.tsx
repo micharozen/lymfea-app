@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +79,8 @@ const PwaBookingDetail = () => {
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showContactDrawer, setShowContactDrawer] = useState(false);
+  const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
@@ -232,6 +234,35 @@ const PwaBookingDetail = () => {
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur");
+    }
+  };
+
+  const handleUnassignBooking = async () => {
+    if (!booking) return;
+    
+    setUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ 
+          status: "En attente",
+          hairdresser_id: null,
+          hairdresser_name: null,
+          assigned_at: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Réservation remise en attente");
+      setShowUnassignDialog(false);
+      navigate("/pwa/dashboard");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -430,54 +461,79 @@ const PwaBookingDetail = () => {
         {/* Bottom Actions */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4">
           <div className="flex items-center gap-3">
-            {/* Contact Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            {/* Contact Drawer */}
+            <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
+              <DrawerTrigger asChild>
                 <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
                   <MoreVertical className="w-5 h-5 text-foreground" />
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                {conciergeContact && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <a href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`} className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        <span>Appeler le concierge</span>
+              </DrawerTrigger>
+              <DrawerContent className="pb-safe">
+                <div className="p-6 space-y-2">
+                  {adminContact && (
+                    <>
+                      <a
+                        href={`tel:${adminContact.country_code}${adminContact.phone}`}
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter OOM</span>
                       </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`} className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        <span>SMS au concierge</span>
+                      <a
+                        href={`sms:${adminContact.country_code}${adminContact.phone}`}
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Mail className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">SMS à OOM</span>
                       </a>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                {adminContact && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <a href={`tel:${adminContact.country_code}${adminContact.phone}`} className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        <span>Appeler OOM admin</span>
+                    </>
+                  )}
+                  {conciergeContact && (
+                    <>
+                      <a
+                        href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter concierge</span>
                       </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href={`sms:${adminContact.country_code}${adminContact.phone}`} className="flex items-center gap-2">
-                        <Mail className="w-4 h-4" />
-                        <span>SMS à OOM admin</span>
+                      <a
+                        href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`}
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Mail className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">SMS au concierge</span>
                       </a>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuItem asChild>
-                  <a href={`tel:${booking.phone}`} className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    <span>Appeler le client</span>
+                    </>
+                  )}
+                  <a
+                    href={`tel:${booking.phone}`}
+                    onClick={() => setShowContactDrawer(false)}
+                    className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <Phone className="w-5 h-5 text-primary" />
+                    <span className="text-base font-medium">Contacter le client</span>
                   </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  
+                  <div className="h-px bg-border my-2" />
+                  
+                  <button
+                    onClick={() => {
+                      setShowContactDrawer(false);
+                      setShowUnassignDialog(true);
+                    }}
+                    className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
+                  >
+                    <X className="w-5 h-5 text-destructive" />
+                    <span className="text-base font-medium text-destructive">Annuler</span>
+                  </button>
+                </div>
+              </DrawerContent>
+            </Drawer>
 
             {/* Main Action Button */}
             {booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente" ? (
@@ -558,6 +614,28 @@ const PwaBookingDetail = () => {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unassign Booking Confirmation Dialog */}
+      <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La réservation sera remise en attente et proposée à d'autres coiffeurs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non, garder</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleUnassignBooking}
+              disabled={updating}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, annuler
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
