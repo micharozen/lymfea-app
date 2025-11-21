@@ -281,6 +281,10 @@ const PwaDashboard = () => {
       .eq("hairdresser_id", hairdresserId)
       .in("hotel_id", hotelIds);
 
+    if (myError) {
+      console.error('❌ Error fetching my bookings:', myError);
+    }
+
     console.log('👤 My bookings:', myBookings?.length || 0, myBookings?.map(b => ({ 
       id: b.booking_id, 
       status: b.status, 
@@ -304,6 +308,10 @@ const PwaDashboard = () => {
       .is("hairdresser_id", null)
       .in("status", ["En attente", "Pending"]);
 
+    if (pendingError) {
+      console.error('❌ Error fetching pending bookings:', pendingError);
+    }
+
     console.log('⏳ Pending bookings:', pendingBookings?.length || 0, pendingBookings?.map(b => ({ 
       id: b.booking_id, 
       status: b.status, 
@@ -311,8 +319,10 @@ const PwaDashboard = () => {
       hotel_id: b.hotel_id 
     })));
 
-    if (myError || pendingError) {
-      console.error('❌ Error fetching bookings:', myError || pendingError);
+    // Only return if BOTH queries failed
+    if (myError && pendingError) {
+      console.error('❌ Both queries failed');
+      setAllBookings([]);
       return;
     }
 
