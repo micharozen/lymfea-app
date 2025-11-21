@@ -420,10 +420,10 @@ const PwaDashboard = () => {
       const isStatusPending = b.status === "En attente" || b.status === "Pending";
       const isUnassigned = b.hairdresser_id === null;
       
-      // Temporairement désactivé pour debug
-      // const hasDeclined = hairdresser && (b as any).declined_by?.includes(hairdresser.id);
+      // Exclure les réservations que ce coiffeur a déjà refusées
+      const hasDeclined = hairdresser && b.declined_by?.includes(hairdresser.id);
       
-      return isStatusPending && isUnassigned;
+      return isStatusPending && isUnassigned && !hasDeclined;
     });
     
     return pending;
