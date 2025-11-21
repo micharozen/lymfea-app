@@ -194,6 +194,13 @@ const PwaBookingDetail = () => {
 
       // Assign booking to current hairdresser and update total_price using atomic function
       const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
+      
+      console.log('🔄 Attempting to accept booking:', {
+        booking_id: booking.id,
+        booking_number: booking.booking_id,
+        new_hairdresser: hairdresserData.id
+      });
+
       const { data: result, error: updateError } = await supabase
         .rpc('accept_booking', {
           _booking_id: booking.id,
@@ -202,11 +209,19 @@ const PwaBookingDetail = () => {
           _total_price: totalPrice
         });
 
-      if (updateError) throw updateError;
+      console.log('📥 RPC result:', { result, error: updateError });
+
+      if (updateError) {
+        console.error('❌ Update error:', updateError);
+        throw updateError;
+      }
 
       // Check if the booking was successfully accepted
       const resultData = result as { success: boolean; error?: string; data?: any };
+      console.log('✅ Result data:', resultData);
+      
       if (!resultData?.success) {
+        console.log('⚠️ Booking already taken:', resultData);
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
         setShowConfirmDialog(false);
         setUpdating(false);
