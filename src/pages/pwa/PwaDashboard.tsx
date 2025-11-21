@@ -84,18 +84,40 @@ const PwaDashboard = () => {
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
-          // Booking was assigned - remove from pending list immediately
-          if (oldData.hairdresser_id === null && newData.hairdresser_id !== null) {
-            console.log('⚡ Booking #' + newData.booking_id + ' assigned, removing immediately');
-            setAllBookings(prev => {
-              const filtered = prev.filter(b => b.id !== newData.id);
-              console.log('Before:', prev.length, 'After:', filtered.length);
-              return filtered;
-            });
+          // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
+          if (newData.hairdresser_id !== null && 
+              newData.hairdresser_id !== hairdresser.id &&
+              (newData.status === 'En attente' || newData.status === 'Pending' || newData.status === 'Confirmé' || newData.status === 'Assigné')) {
+            console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
+            setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
-            if (newData.hairdresser_id !== hairdresser.id) {
-              toast.info('Une demande a été prise');
+            if (oldData.hairdresser_id === null) {
+              toast.info(`Réservation #${newData.booking_id} prise par un autre coiffeur`);
             }
+            return;
+          }
+          
+          // Cas 2: Réservation non assignée mais statut change (refusée, annulée, etc.) - retirer
+          if (newData.hairdresser_id === null && 
+              newData.status !== 'En attente' && 
+              newData.status !== 'Pending') {
+            console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
+            setAllBookings(prev => prev.filter(b => b.id !== newData.id));
+            return;
+          }
+          
+          // Cas 3: Ma réservation confirmée - mettre à jour dans la liste
+          if (newData.hairdresser_id === hairdresser.id) {
+            console.log('✅ My booking #' + newData.booking_id + ' updated');
+            setAllBookings(prev => {
+              const index = prev.findIndex(b => b.id === newData.id);
+              if (index !== -1) {
+                const updated = [...prev];
+                updated[index] = { ...updated[index], ...newData };
+                return updated;
+              }
+              return prev;
+            });
           }
         }
       )
@@ -251,7 +273,12 @@ const PwaDashboard = () => {
       .eq("hairdresser_id", hairdresserId)
       .in("hotel_id", hotelIds);
 
-    console.log('👤 My bookings:', myBookings?.length || 0, myBookings?.map(b => ({ id: b.booking_id, status: b.status, hairdresser_id: b.hairdresser_id })));
+    console.log('👤 My bookings:', myBookings?.length || 0, myBookings?.map(b => ({ 
+      id: b.booking_id, 
+      status: b.status, 
+      hairdresser_id: b.hairdresser_id,
+      hotel_id: b.hotel_id 
+    })));
 
     // 2. Get ONLY pending bookings (not assigned to anyone)
     const { data: pendingBookings, error: pendingError } = await supabase
@@ -269,7 +296,12 @@ const PwaDashboard = () => {
       .is("hairdresser_id", null)
       .in("status", ["En attente", "Pending"]);
 
-    console.log('⏳ Pending bookings:', pendingBookings?.length || 0, pendingBookings?.map(b => ({ id: b.booking_id, status: b.status, hairdresser_id: b.hairdresser_id })));
+    console.log('⏳ Pending bookings:', pendingBookings?.length || 0, pendingBookings?.map(b => ({ 
+      id: b.booking_id, 
+      status: b.status, 
+      hairdresser_id: b.hairdresser_id,
+      hotel_id: b.hotel_id 
+    })));
 
     if (myError || pendingError) {
       console.error('❌ Error fetching bookings:', myError || pendingError);
@@ -363,12 +395,24 @@ const PwaDashboard = () => {
 
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
-      const isPending = (b.status === "En attente" || b.status === "Pending") && b.hairdresser_id === null;
-      if (!isPending && (b.status === "En attente" || b.status === "Pending")) {
-        console.log('⚠️ Booking with "En attente" status but has hairdresser_id:', b.booking_id, 'hairdresser_id:', b.hairdresser_id);
+      const isStatusPending = b.status === "En attente" || b.status === "Pending";
+      
+      // Cas 1: Réservation non assignée (disponible pour tous)
+      const isUnassigned = b.hairdresser_id === null;
+      
+      // Cas 2: Réservation assignée à ce coiffeur (il doit l'accepter)
+      const isAssignedToMe = hairdresser && b.hairdresser_id === hairdresser.id;
+      
+      const isPending = isStatusPending && (isUnassigned || isAssignedToMe);
+      
+      // Log pour debug si une réservation "En attente" a un autre coiffeur
+      if (!isPending && isStatusPending && b.hairdresser_id !== null && b.hairdresser_id !== hairdresser?.id) {
+        console.log('⚠️ Booking assigned to another hairdresser:', b.booking_id, 'hairdresser_id:', b.hairdresser_id);
       }
+      
       return isPending;
     });
+    
     console.log('📊 Total bookings:', allBookings.length, 'Pending:', pending.length);
     return pending;
   };

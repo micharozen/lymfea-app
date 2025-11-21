@@ -250,11 +250,11 @@ const PwaBookingDetail = () => {
 
       // Show success animation
       setShowSuccessAnimation(true);
-      toast.success("Réservation acceptée");
+      toast.success(`✅ Réservation #${booking.booking_id} confirmée !`);
       
-      // Navigate after animation
+      // Navigate after animation with delay for DB sync
       setTimeout(() => {
-        navigate("/pwa/dashboard");
+        navigate("/pwa/dashboard", { replace: true, state: { forceRefresh: true } });
       }, 1500);
     } catch (error) {
       console.error("Error:", error);
