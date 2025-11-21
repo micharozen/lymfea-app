@@ -196,7 +196,7 @@ const PwaBookingDetail = () => {
       const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
       const { data: updateData, error: updateError } = await supabase
         .from("bookings")
-        .update({ 
+        .update({
           status: "Confirmé",
           hairdresser_id: hairdresserData.id,
           hairdresser_name: hairdresserName,
@@ -204,7 +204,7 @@ const PwaBookingDetail = () => {
           total_price: totalPrice
         })
         .eq("id", booking.id)
-        .is("hairdresser_id", null) // Only update if still unassigned
+        .or(`hairdresser_id.is.null,hairdresser_id.eq.${hairdresserData.id}`) // Accept if unassigned OR already assigned to me
         .select(); // Return the updated row to verify it worked
 
       if (updateError) throw updateError;
