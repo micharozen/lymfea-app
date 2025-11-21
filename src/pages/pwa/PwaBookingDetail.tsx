@@ -203,14 +203,14 @@ const PwaBookingDetail = () => {
           assigned_at: new Date().toISOString(),
           total_price: totalPrice
         })
-        .eq("id", booking.id)
-        .or(`hairdresser_id.is.null,hairdresser_id.eq.${hairdresserData.id}`) // Accept if unassigned OR already assigned to me
-        .select(); // Return the updated row to verify it worked
+        .or(`and(id.eq.${booking.id},hairdresser_id.is.null),and(id.eq.${booking.id},hairdresser_id.eq.${hairdresserData.id})`)
+        .select()
+        .single();
 
       if (updateError) throw updateError;
 
       // Check if the update actually affected any rows
-      if (!updateData || updateData.length === 0) {
+      if (!updateData) {
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
         setShowConfirmDialog(false);
         setUpdating(false);
@@ -219,7 +219,7 @@ const PwaBookingDetail = () => {
         return;
       }
 
-      console.log('✅ Booking updated successfully:', updateData[0]);
+      console.log('✅ Booking updated successfully:', updateData);
 
       // Get other hairdressers from the same hotel to notify them
       const { data: otherHairdressers } = await supabase
