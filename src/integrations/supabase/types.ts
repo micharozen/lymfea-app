@@ -533,6 +533,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_booking: {
+        Args: {
+          _booking_id: string
+          _hairdresser_id: string
+          _hairdresser_name: string
+          _total_price: number
+        }
+        Returns: Json
+      }
       get_concierge_hotels: {
         Args: { _user_id: string }
         Returns: {

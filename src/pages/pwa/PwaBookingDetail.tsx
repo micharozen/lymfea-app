@@ -192,25 +192,21 @@ const PwaBookingDetail = () => {
       // Calculate total price from treatments
       const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
 
-      // Assign booking to current hairdresser and update total_price
+      // Assign booking to current hairdresser and update total_price using atomic function
       const hairdresserName = `${hairdresserData.first_name || ''} ${hairdresserData.last_name || ''}`.trim();
-      const { data: updateData, error: updateError } = await supabase
-        .from("bookings")
-        .update({
-          status: "Confirmé",
-          hairdresser_id: hairdresserData.id,
-          hairdresser_name: hairdresserName,
-          assigned_at: new Date().toISOString(),
-          total_price: totalPrice
-        })
-        .eq("id", booking.id)
-        .or(`hairdresser_id.is.null,hairdresser_id.eq.${hairdresserData.id}`)
-        .select();
+      const { data: result, error: updateError } = await supabase
+        .rpc('accept_booking', {
+          _booking_id: booking.id,
+          _hairdresser_id: hairdresserData.id,
+          _hairdresser_name: hairdresserName,
+          _total_price: totalPrice
+        });
 
       if (updateError) throw updateError;
 
-      // Check if the update actually affected any rows
-      if (!updateData || updateData.length === 0) {
+      // Check if the booking was successfully accepted
+      const resultData = result as { success: boolean; error?: string; data?: any };
+      if (!resultData?.success) {
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
         setShowConfirmDialog(false);
         setUpdating(false);
@@ -218,7 +214,7 @@ const PwaBookingDetail = () => {
         return;
       }
 
-      console.log('✅ Booking updated successfully:', updateData[0]);
+      console.log('✅ Booking updated successfully:', resultData.data);
 
       // Get other hairdressers from the same hotel to notify them
       const { data: otherHairdressers } = await supabase
