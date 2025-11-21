@@ -569,7 +569,7 @@ const PwaDashboard = () => {
             
             {filteredBookings.length > 3 && (
               <button className="text-sm text-black font-medium w-full text-center py-3">
-                Show 4 More
+                Show {filteredBookings.length - 3} More
               </button>
             )}
           </div>
