@@ -11,96 +11,114 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasHairdresserRole, setHasHairdresserRole] = useState<boolean | null>(null);
+  const [isHairdresser, setIsHairdresser] = useState<boolean>(false);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+    let mounted = true;
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Validate session with backend
-  useEffect(() => {
-    if (!loading && session) {
-      setTimeout(() => {
-        supabase.auth.getUser().then(({ error }) => {
-          if (error) {
-            console.warn("Session invalide, déconnexion:", error.message);
-            supabase.auth.signOut();
-            setUser(null);
-            setSession(null);
-          }
-        }).catch(() => {});
-      }, 0);
-    }
-  }, [loading, session]);
-
-  // Check user role
-  useEffect(() => {
-    const checkRole = async () => {
-      if (!user) {
-        setHasHairdresserRole(null);
-        return;
-      }
-
+    const initAuth = async () => {
       try {
-        // Check if user has hairdresser role
-        const { data, error } = await supabase
+        console.log("🔐 HairdresserProtectedRoute: Starting auth check");
+        
+        // Get current session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("❌ Session error:", sessionError);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (!session) {
+          console.log("❌ No session found");
+          if (mounted) {
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        console.log("✅ Session found for user:", session.user.email);
+        
+        if (mounted) {
+          setSession(session);
+          setUser(session.user);
+        }
+
+        // Check hairdresser role
+        console.log("🔍 Checking hairdresser role...");
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', user.id)
+          .eq('user_id', session.user.id)
           .eq('role', 'hairdresser')
           .maybeSingle();
 
-        if (error || !data) {
-          console.log("No hairdresser role found or error:", error);
-          setHasHairdresserRole(false);
-        } else {
-          console.log("Hairdresser role found!");
-          setHasHairdresserRole(true);
+        if (roleError) {
+          console.error("❌ Role check error:", roleError);
+        }
+
+        const hasRole = !!roleData;
+        console.log("✅ Has hairdresser role:", hasRole);
+
+        if (mounted) {
+          setIsHairdresser(hasRole);
+          setLoading(false);
         }
       } catch (error) {
-        console.error("Erreur lors de la vérification du rôle:", error);
-        setHasHairdresserRole(false);
+        console.error("❌ Init auth error:", error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    if (user) {
-      checkRole();
-    }
-  }, [user]);
+    initAuth();
 
-  if (loading || hasHairdresserRole === null) {
+    // Set up auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log("🔄 Auth state changed:", event);
+        if (mounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          if (!session) {
+            setLoading(false);
+          }
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  console.log("📊 Current state:", { loading, user: !!user, session: !!session, isHairdresser });
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-lg">Chargement...</div>
       </div>
     );
   }
 
   if (!user || !session) {
+    console.log("➡️ Redirecting to /pwa/login (no session)");
     return <Navigate to="/pwa/login" replace />;
   }
 
-  // If user is admin/concierge, redirect to Dashboard
-  if (hasHairdresserRole === false) {
+  if (!isHairdresser) {
+    console.log("➡️ Redirecting to /auth (not hairdresser)");
     return <Navigate to="/auth" replace />;
   }
 
+  console.log("✅ Rendering protected content");
   return <>{children}</>;
 };
 
