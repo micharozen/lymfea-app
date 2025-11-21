@@ -259,9 +259,13 @@ const PwaBookingDetail = () => {
     const address = `${booking.hotel_name}, ${booking.hotel_address || ''}, ${booking.hotel_city || ''}`;
     const encodedAddress = encodeURIComponent(address);
     
-    // Try to open in Google Maps app, fallback to web
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-    window.open(mapsUrl, '_blank');
+    // Use geo: protocol for native apps, fallback to Google Maps web
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const mapsUrl = isMobile 
+      ? `geo:0,0?q=${encodedAddress}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    
+    window.location.href = mapsUrl;
   };
 
   if (loading) {
