@@ -103,6 +103,7 @@ export type Database = {
           client_last_name: string
           client_signature: string | null
           created_at: string
+          declined_by: string[] | null
           hairdresser_id: string | null
           hairdresser_name: string | null
           hotel_id: string
@@ -125,6 +126,7 @@ export type Database = {
           client_last_name: string
           client_signature?: string | null
           created_at?: string
+          declined_by?: string[] | null
           hairdresser_id?: string | null
           hairdresser_name?: string | null
           hotel_id: string
@@ -147,6 +149,7 @@ export type Database = {
           client_last_name?: string
           client_signature?: string | null
           created_at?: string
+          declined_by?: string[] | null
           hairdresser_id?: string | null
           hairdresser_name?: string | null
           hotel_id?: string

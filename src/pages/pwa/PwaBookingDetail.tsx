@@ -38,6 +38,7 @@ interface Booking {
   phone: string;
   total_price: number;
   hairdresser_id: string | null;
+  declined_by?: string[];
   hotel_image_url?: string;
   hotel_address?: string;
   hotel_city?: string;
@@ -242,18 +243,43 @@ const PwaBookingDetail = () => {
     
     setUpdating(true);
     try {
+      // Get current user to add to declined_by array
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: hairdresserData } = await supabase
+        .from("hairdressers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!hairdresserData) return;
+
+      // Get current declined_by array
+      const { data: currentBooking } = await supabase
+        .from("bookings")
+        .select("declined_by")
+        .eq("id", booking.id)
+        .single();
+
+      const currentDeclined = currentBooking?.declined_by || [];
+      const updatedDeclined = [...currentDeclined, hairdresserData.id];
+
       const { error } = await supabase
         .from("bookings")
         .update({ 
-          status: "Annulé",
-          cancellation_reason: "Annulé par le coiffeur",
+          status: "En attente",
+          hairdresser_id: null,
+          hairdresser_name: null,
+          assigned_at: null,
+          declined_by: updatedDeclined,
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      toast.success("Réservation annulée");
+      toast.success("Réservation remise en attente pour d'autres coiffeurs");
       setShowUnassignDialog(false);
       navigate("/pwa/dashboard");
     } catch (error) {
