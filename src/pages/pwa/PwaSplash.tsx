@@ -9,26 +9,48 @@ const PwaSplash = () => {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        console.log("🔍 Checking session...");
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error("❌ Session error:", sessionError);
+          navigate("/pwa/welcome", { replace: true });
+          return;
+        }
         
         if (session) {
+          console.log("✅ Session found, checking roles...");
           // Check if user is a hairdresser
-          const { data: roles } = await supabase
+          const { data: roles, error: rolesError } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
             .eq('role', 'hairdresser')
             .maybeSingle();
 
+          if (rolesError) {
+            console.error("❌ Roles error:", rolesError);
+            navigate("/pwa/welcome", { replace: true });
+            return;
+          }
+
           if (roles) {
+            console.log("✅ Hairdresser role found, checking status...");
             // Get hairdresser status
-            const { data: hairdresser } = await supabase
+            const { data: hairdresser, error: hairdresserError } = await supabase
               .from('hairdressers')
               .select('status')
               .eq('user_id', session.user.id)
               .maybeSingle();
 
+            if (hairdresserError) {
+              console.error("❌ Hairdresser error:", hairdresserError);
+              navigate("/pwa/welcome", { replace: true });
+              return;
+            }
+
             if (hairdresser) {
+              console.log("✅ Hairdresser found, status:", hairdresser.status);
               // Redirect based on status
               if (hairdresser.status === "En attente") {
                 navigate("/pwa/onboarding", { replace: true });
@@ -40,18 +62,17 @@ const PwaSplash = () => {
           }
         }
         
-        // No valid session, show welcome screen
+        // No valid session or not a hairdresser, show welcome screen
+        console.log("ℹ️ No valid session, redirecting to welcome");
         navigate("/pwa/welcome", { replace: true });
       } catch (error) {
-        console.error("Error checking session:", error);
+        console.error("❌ Error checking session:", error);
         // On error, redirect to welcome
         navigate("/pwa/welcome", { replace: true });
       }
     };
 
-    // Small delay to show splash screen briefly
-    const timer = setTimeout(checkSession, 500);
-    return () => clearTimeout(timer);
+    checkSession();
   }, [navigate]);
 
   return (
