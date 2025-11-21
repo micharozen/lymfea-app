@@ -203,23 +203,22 @@ const PwaBookingDetail = () => {
           assigned_at: new Date().toISOString(),
           total_price: totalPrice
         })
-        .or(`and(id.eq.${booking.id},hairdresser_id.is.null),and(id.eq.${booking.id},hairdresser_id.eq.${hairdresserData.id})`)
-        .select()
-        .single();
+        .eq("id", booking.id)
+        .or(`hairdresser_id.is.null,hairdresser_id.eq.${hairdresserData.id}`)
+        .select();
 
       if (updateError) throw updateError;
 
       // Check if the update actually affected any rows
-      if (!updateData) {
+      if (!updateData || updateData.length === 0) {
         toast.error("Cette réservation a déjà été prise par un autre coiffeur");
         setShowConfirmDialog(false);
         setUpdating(false);
-        // Force immediate navigation and let the dashboard refresh
         navigate("/pwa/dashboard", { replace: true, state: { forceRefresh: true } });
         return;
       }
 
-      console.log('✅ Booking updated successfully:', updateData);
+      console.log('✅ Booking updated successfully:', updateData[0]);
 
       // Get other hairdressers from the same hotel to notify them
       const { data: otherHairdressers } = await supabase
