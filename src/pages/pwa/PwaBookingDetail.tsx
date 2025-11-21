@@ -256,16 +256,12 @@ const PwaBookingDetail = () => {
   const openInMaps = () => {
     if (!booking) return;
     
-    const address = `${booking.hotel_name}, ${booking.hotel_address || ''}, ${booking.hotel_city || ''}`;
+    const address = `8 Rue Louis Armand, 75015 Paris`;
     const encodedAddress = encodeURIComponent(address);
     
-    // Use geo: protocol for native apps, fallback to Google Maps web
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const mapsUrl = isMobile 
-      ? `geo:0,0?q=${encodedAddress}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-    
-    window.location.href = mapsUrl;
+    // Open in new tab
+    const mapsUrl = `https://maps.google.com/?q=${encodedAddress}`;
+    window.open(mapsUrl, '_blank', 'noopener,noreferrer');
   };
 
   if (loading) {
