@@ -42,6 +42,43 @@ const PwaLogin = () => {
   const [isCodeExpired, setIsCodeExpired] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        // Check if user is a hairdresser
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .eq('role', 'hairdresser')
+          .maybeSingle();
+
+        if (roles) {
+          // Get hairdresser status
+          const { data: hairdresser } = await supabase
+            .from('hairdressers')
+            .select('status')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (hairdresser) {
+            // Redirect based on status
+            if (hairdresser.status === "En attente") {
+              navigate("/pwa/onboarding", { replace: true });
+            } else {
+              navigate("/pwa/dashboard", { replace: true });
+            }
+          }
+        }
+      }
+    };
+
+    checkSession();
+  }, [navigate]);
+
   // Timer countdown
   useEffect(() => {
     if (step === "otp" && timer > 0) {
