@@ -174,14 +174,14 @@ const PwaBookingDetail = () => {
 
       if (!hairdresserData) throw new Error("Hairdresser not found");
 
-      // Check if booking is still available (no hairdresser assigned)
+      // Check if booking is assigned to another hairdresser
       const { data: currentBooking } = await supabase
         .from("bookings")
         .select("hairdresser_id, hairdresser_name, hotel_id")
         .eq("id", booking.id)
         .single();
 
-      if (currentBooking?.hairdresser_id) {
+      if (currentBooking?.hairdresser_id && currentBooking.hairdresser_id !== hairdresserData.id) {
         toast.error(`Cette réservation a déjà été acceptée par ${currentBooking.hairdresser_name}`);
         setShowConfirmDialog(false);
         setUpdating(false);
