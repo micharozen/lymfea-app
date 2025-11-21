@@ -16,32 +16,30 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
   useEffect(() => {
     let mounted = true;
 
+    // SAFETY TIMEOUT: Force stop loading after 5 seconds
+    const safetyTimeout = setTimeout(() => {
+      console.warn("⚠️ SAFETY TIMEOUT: Forcing loading to stop");
+      if (mounted) {
+        setLoading(false);
+      }
+    }, 5000);
+
     const initAuth = async () => {
       try {
-        console.log("🔐 HairdresserProtectedRoute: Starting auth check");
+        console.log("🔐 Starting auth check");
         
         // Get current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (sessionError) {
-          console.error("❌ Session error:", sessionError);
-          if (mounted) {
-            setLoading(false);
-          }
-          return;
-        }
-
         if (!session) {
-          console.log("❌ No session found");
+          console.log("No session");
           if (mounted) {
-            setSession(null);
-            setUser(null);
             setLoading(false);
           }
           return;
         }
 
-        console.log("✅ Session found for user:", session.user.email);
+        console.log("✅ Session found");
         
         if (mounted) {
           setSession(session);
@@ -49,29 +47,26 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
         }
 
         // Check hairdresser role
-        console.log("🔍 Checking hairdresser role...");
-        const { data: roleData, error: roleError } = await supabase
+        const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
           .eq('role', 'hairdresser')
           .maybeSingle();
 
-        if (roleError) {
-          console.error("❌ Role check error:", roleError);
-        }
-
         const hasRole = !!roleData;
-        console.log("✅ Has hairdresser role:", hasRole);
+        console.log("Has role:", hasRole);
 
         if (mounted) {
           setIsHairdresser(hasRole);
           setLoading(false);
+          clearTimeout(safetyTimeout);
         }
       } catch (error) {
-        console.error("❌ Init auth error:", error);
+        console.error("Auth error:", error);
         if (mounted) {
           setLoading(false);
+          clearTimeout(safetyTimeout);
         }
       }
     };
@@ -81,19 +76,16 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
     // Set up auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("🔄 Auth state changed:", event);
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          if (!session) {
-            setLoading(false);
-          }
         }
       }
     );
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
   }, []);
