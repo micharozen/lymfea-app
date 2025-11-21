@@ -290,6 +290,93 @@ const PwaBookingDetail = () => {
     }
   };
 
+  const handleAcceptBooking = async () => {
+    if (!booking) return;
+    
+    setUpdating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: hairdresserData } = await supabase
+        .from("hairdressers")
+        .select("id, first_name, last_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!hairdresserData) return;
+
+      const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+      
+      const { data, error } = await supabase.rpc('accept_booking', {
+        _booking_id: booking.id,
+        _hairdresser_id: hairdresserData.id,
+        _hairdresser_name: `${hairdresserData.first_name} ${hairdresserData.last_name}`,
+        _total_price: totalPrice
+      });
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string } | null;
+      
+      if (result && !result.success) {
+        toast.error("Réservation déjà prise par un autre coiffeur");
+        navigate("/pwa/dashboard");
+        return;
+      }
+
+      toast.success("Réservation acceptée !");
+      navigate("/pwa/dashboard");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur lors de l'acceptation");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeclineBooking = async () => {
+    if (!booking) return;
+    
+    setUpdating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: hairdresserData } = await supabase
+        .from("hairdressers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!hairdresserData) return;
+
+      const { data: currentBooking } = await supabase
+        .from("bookings")
+        .select("declined_by")
+        .eq("id", booking.id)
+        .single();
+
+      const currentDeclined = currentBooking?.declined_by || [];
+      const updatedDeclined = [...currentDeclined, hairdresserData.id];
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({ declined_by: updatedDeclined })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Réservation refusée");
+      navigate("/pwa/dashboard");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleDeleteTreatment = async (treatmentId: string) => {
     try {
       const { error } = await supabase
@@ -485,97 +572,161 @@ const PwaBookingDetail = () => {
         {/* Bottom Actions */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4">
           <div className="flex items-center gap-3">
-            {/* Contact Drawer */}
-            <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
-              <DrawerTrigger asChild>
-                <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
-                  <MoreVertical className="w-5 h-5 text-foreground" />
+            {/* For Pending Requests (not assigned to anyone) */}
+            {booking.status === "En attente" && !booking.hairdresser_id ? (
+              <>
+                {/* Decline Button */}
+                <button
+                  onClick={handleDeclineBooking}
+                  disabled={updating}
+                  className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted disabled:opacity-50"
+                >
+                  <X className="w-5 h-5 text-foreground" />
                 </button>
-              </DrawerTrigger>
-              <DrawerContent className="pb-safe">
-                <div className="p-6 space-y-2">
-                  {adminContact && (
-                    <>
-                      <a
-                        href={`tel:${adminContact.country_code}${adminContact.phone}`}
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">Contacter OOM</span>
-                      </a>
-                      <a
-                        href={`sms:${adminContact.country_code}${adminContact.phone}`}
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Mail className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">SMS à OOM</span>
-                      </a>
-                    </>
-                  )}
-                  {conciergeContact && (
-                    <>
-                      <a
-                        href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">Contacter concierge</span>
-                      </a>
-                      <a
-                        href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`}
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Mail className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">SMS au concierge</span>
-                      </a>
-                    </>
-                  )}
-                  <a
-                    href={`tel:${booking.phone}`}
-                    onClick={() => setShowContactDrawer(false)}
-                    className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    <Phone className="w-5 h-5 text-primary" />
-                    <span className="text-base font-medium">Contacter le client</span>
-                  </a>
-                  
-                  <div className="h-px bg-border my-2" />
-                  
-                  <button
-                    onClick={() => {
-                      setShowContactDrawer(false);
-                      setShowUnassignDialog(true);
-                    }}
-                    className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
-                  >
-                    <X className="w-5 h-5 text-destructive" />
-                    <span className="text-base font-medium text-destructive">Annuler la réservation</span>
-                  </button>
-                </div>
-              </DrawerContent>
-            </Drawer>
 
-            {/* Main Action Button */}
-            {booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente" ? (
-              <button
-                onClick={() => setShowCompleteDialog(true)}
-                disabled={updating}
-                className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-              >
-                Request to mark complete
-              </button>
-            ) : booking.status === "Complété" ? (
-              <button
-                onClick={() => setShowCancelDialog(true)}
-                className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90"
-              >
-                Annuler
-              </button>
-            ) : null}
+                {/* More Options Button */}
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
+                      <MoreVertical className="w-5 h-5 text-foreground" />
+                    </button>
+                  </DrawerTrigger>
+                  <DrawerContent className="pb-safe">
+                    <div className="p-6 space-y-2">
+                      {adminContact && (
+                        <a
+                          href={`tel:${adminContact.country_code}${adminContact.phone}`}
+                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-5 h-5 text-primary" />
+                          <span className="text-base font-medium">Contacter OOM</span>
+                        </a>
+                      )}
+                      {conciergeContact && (
+                        <a
+                          href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
+                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-5 h-5 text-primary" />
+                          <span className="text-base font-medium">Contacter concierge</span>
+                        </a>
+                      )}
+                      <a
+                        href={`tel:${booking.phone}`}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter le client</span>
+                      </a>
+                    </div>
+                  </DrawerContent>
+                </Drawer>
+
+                {/* Accept Button */}
+                <button
+                  onClick={handleAcceptBooking}
+                  disabled={updating}
+                  className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                >
+                  Accepter
+                </button>
+              </>
+            ) : (
+              /* For Accepted Bookings */
+              <>
+                {/* Contact Drawer */}
+                <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
+                  <DrawerTrigger asChild>
+                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
+                      <MoreVertical className="w-5 h-5 text-foreground" />
+                    </button>
+                  </DrawerTrigger>
+                  <DrawerContent className="pb-safe">
+                    <div className="p-6 space-y-2">
+                      {adminContact && (
+                        <>
+                          <a
+                            href={`tel:${adminContact.country_code}${adminContact.phone}`}
+                            onClick={() => setShowContactDrawer(false)}
+                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <Phone className="w-5 h-5 text-primary" />
+                            <span className="text-base font-medium">Contacter OOM</span>
+                          </a>
+                          <a
+                            href={`sms:${adminContact.country_code}${adminContact.phone}`}
+                            onClick={() => setShowContactDrawer(false)}
+                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <Mail className="w-5 h-5 text-primary" />
+                            <span className="text-base font-medium">SMS à OOM</span>
+                          </a>
+                        </>
+                      )}
+                      {conciergeContact && (
+                        <>
+                          <a
+                            href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
+                            onClick={() => setShowContactDrawer(false)}
+                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <Phone className="w-5 h-5 text-primary" />
+                            <span className="text-base font-medium">Contacter concierge</span>
+                          </a>
+                          <a
+                            href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`}
+                            onClick={() => setShowContactDrawer(false)}
+                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          >
+                            <Mail className="w-5 h-5 text-primary" />
+                            <span className="text-base font-medium">SMS au concierge</span>
+                          </a>
+                        </>
+                      )}
+                      <a
+                        href={`tel:${booking.phone}`}
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter le client</span>
+                      </a>
+                      
+                      <div className="h-px bg-border my-2" />
+                      
+                      <button
+                        onClick={() => {
+                          setShowContactDrawer(false);
+                          setShowUnassignDialog(true);
+                        }}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
+                      >
+                        <X className="w-5 h-5 text-destructive" />
+                        <span className="text-base font-medium text-destructive">Annuler la réservation</span>
+                      </button>
+                    </div>
+                  </DrawerContent>
+                </Drawer>
+
+                {/* Main Action Button */}
+                {booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente" ? (
+                  <button
+                    onClick={() => setShowCompleteDialog(true)}
+                    disabled={updating}
+                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    Request to mark complete
+                  </button>
+                ) : booking.status === "Complété" ? (
+                  <button
+                    onClick={() => setShowCancelDialog(true)}
+                    className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90"
+                  >
+                    Annuler
+                  </button>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       </div>
