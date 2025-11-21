@@ -529,7 +529,7 @@ const PwaBookingDetail = () => {
                     className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
                   >
                     <X className="w-5 h-5 text-destructive" />
-                    <span className="text-base font-medium text-destructive">Annuler</span>
+                    <span className="text-base font-medium text-destructive">Annuler la réservation</span>
                   </button>
                 </div>
               </DrawerContent>

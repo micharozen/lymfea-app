@@ -18,7 +18,7 @@ const PwaSplash = () => {
             .select('role')
             .eq('user_id', session.user.id)
             .eq('role', 'hairdresser')
-            .single();
+            .maybeSingle();
 
           if (roles) {
             // Get hairdresser status
@@ -26,36 +26,32 @@ const PwaSplash = () => {
               .from('hairdressers')
               .select('status')
               .eq('user_id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (hairdresser) {
-              // Redirect based on status after a short delay
-              setTimeout(() => {
-                if (hairdresser.status === "En attente") {
-                  navigate("/pwa/onboarding", { replace: true });
-                } else {
-                  navigate("/pwa/dashboard", { replace: true });
-                }
-              }, 1500);
+              // Redirect based on status
+              if (hairdresser.status === "En attente") {
+                navigate("/pwa/onboarding", { replace: true });
+              } else {
+                navigate("/pwa/dashboard", { replace: true });
+              }
               return;
             }
           }
         }
         
-        // No valid session, show welcome screen after delay
-        setTimeout(() => {
-          navigate("/pwa/welcome", { replace: true });
-        }, 1500);
+        // No valid session, show welcome screen
+        navigate("/pwa/welcome", { replace: true });
       } catch (error) {
         console.error("Error checking session:", error);
         // On error, redirect to welcome
-        setTimeout(() => {
-          navigate("/pwa/welcome", { replace: true });
-        }, 1500);
+        navigate("/pwa/welcome", { replace: true });
       }
     };
 
-    checkSession();
+    // Small delay to show splash screen briefly
+    const timer = setTimeout(checkSession, 500);
+    return () => clearTimeout(timer);
   }, [navigate]);
 
   return (
