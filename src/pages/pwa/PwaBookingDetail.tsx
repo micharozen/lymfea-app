@@ -82,6 +82,7 @@ const PwaBookingDetail = () => {
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
+  const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
@@ -577,11 +578,11 @@ const PwaBookingDetail = () => {
               <>
                 {/* Decline Button */}
                 <button
-                  onClick={handleDeclineBooking}
+                  onClick={() => setShowDeclineDialog(true)}
                   disabled={updating}
-                  className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted disabled:opacity-50"
+                  className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                 >
-                  <X className="w-5 h-5 text-foreground" />
+                  <X className="w-5 h-5 text-destructive" />
                 </button>
 
                 {/* More Options Button */}
@@ -811,6 +812,28 @@ const PwaBookingDetail = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Decline Booking Confirmation Dialog */}
+      <AlertDialog open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Refuser cette réservation ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir refuser cette réservation ? Elle restera visible pour les autres coiffeurs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeclineBooking}
+              disabled={updating}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, refuser
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
