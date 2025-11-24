@@ -160,15 +160,13 @@ const PwaDashboard = () => {
       if (!user) return;
 
       // Initial fetch of unread count
-      const { data: unreadData } = await supabase
+      const { count } = await supabase
         .from("notifications")
-        .select("id", { count: "exact", head: true })
+        .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("read", false);
 
-      if (unreadData !== null) {
-        setUnreadNotifications(unreadData.length);
-      }
+      setUnreadNotifications(count || 0);
       
       const notifChannel = supabase
         .channel('notifications-changes')
