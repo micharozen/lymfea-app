@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Mail, Phone, LogOut, Star } from "lucide-react";
+import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 interface Hairdresser {
@@ -21,6 +23,14 @@ interface Hairdresser {
 const PwaProfile = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone: "",
+    email: "",
+    skills: [] as string[],
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,11 +54,51 @@ const PwaProfile = () => {
 
       if (error) throw error;
       setHairdresser(data);
+      setEditForm({
+        first_name: data.first_name,
+        last_name: data.last_name,
+        phone: data.phone,
+        email: data.email,
+        skills: data.skills || [],
+      });
     } catch (error) {
       console.error("Error fetching profile:", error);
       toast.error("Erreur lors du chargement du profil");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("hairdressers")
+        .update({
+          first_name: editForm.first_name,
+          last_name: editForm.last_name,
+          phone: editForm.phone,
+          skills: editForm.skills,
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setHairdresser({
+        ...hairdresser!,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        phone: editForm.phone,
+        skills: editForm.skills,
+      });
+
+      setIsEditDialogOpen(false);
+      toast.success("Profil mis à jour");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Erreur lors de la mise à jour du profil");
     }
   };
 
@@ -72,10 +122,19 @@ const PwaProfile = () => {
 
   const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();
 
+  const menuItems = [
+    { icon: User, label: "Personalisation", onClick: () => setIsEditDialogOpen(true) },
+    { icon: Hotel, label: "Hotels", onClick: () => {} },
+    { icon: Package, label: "OMM product", onClick: () => {} },
+    { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/notifications") },
+    { icon: Shield, label: "Account security", onClick: () => {} },
+    { icon: HelpCircle, label: "Support", onClick: () => {} },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-black text-white p-6">
+      <div className="bg-black text-white p-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -85,98 +144,128 @@ const PwaProfile = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">Mon Profil</h1>
+          <h1 className="text-lg font-semibold">Profile</h1>
         </div>
       </div>
 
       {/* Content */}
       <div className="p-6 space-y-6">
         {/* Profile Header */}
-        <Card className="p-6">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <Avatar className="h-24 w-24 border-4 border-black">
-              <AvatarImage src={hairdresser.profile_image || undefined} />
-              <AvatarFallback className="bg-black text-white text-2xl font-bold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="text-2xl font-bold">
-                {hairdresser.first_name} {hairdresser.last_name}
-              </h2>
-              <p className="text-muted-foreground">Coiffeur professionnel</p>
+        <div className="flex flex-col items-center text-center space-y-3">
+          <Avatar className="h-20 w-20">
+            <AvatarImage src={hairdresser.profile_image || undefined} />
+            <AvatarFallback className="bg-black text-white text-xl font-bold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h2 className="text-xl font-bold">
+              {hairdresser.first_name} {hairdresser.last_name}
+            </h2>
+            <div className="flex items-center justify-center gap-1 mt-1">
+              <span className="text-yellow-500">⭐</span>
+              <span className="text-sm font-medium">3.0</span>
             </div>
           </div>
-        </Card>
-
-        {/* Contact Info */}
-        <Card className="p-4 space-y-4">
-          <h3 className="font-semibold">Informations de contact</h3>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-10 w-10 rounded-full bg-muted">
-                <Mail className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Email</div>
-                <div className="font-medium">{hairdresser.email}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-10 w-10 rounded-full bg-muted">
-                <Phone className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Téléphone</div>
-                <div className="font-medium">
-                  {hairdresser.country_code} {hairdresser.phone}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Skills */}
-        {hairdresser.skills && hairdresser.skills.length > 0 && (
-          <Card className="p-4 space-y-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Star className="h-5 w-5" />
-              Compétences
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {hairdresser.skills.map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-black text-white rounded-full text-sm font-medium"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        {/* Actions */}
-        <div className="space-y-3 pt-4">
-          <Button
-            variant="outline"
-            className="w-full"
-            size="lg"
-            onClick={() => navigate("/pwa/bookings")}
-          >
-            Voir mes réservations
-          </Button>
-          <Button
-            variant="destructive"
-            className="w-full"
-            size="lg"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-5 w-5 mr-2" />
-            Se déconnecter
-          </Button>
         </div>
+
+        {/* Menu Items */}
+        <div className="space-y-1">
+          {menuItems.map((item, index) => (
+            <button
+              key={index}
+              onClick={item.onClick}
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <item.icon className="h-5 w-5" />
+                <span className="font-medium">{item.label}</span>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={handleLogout}
+        >
+          Log out
+        </Button>
       </div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Personalisation</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First name</Label>
+              <Input
+                id="first_name"
+                value={editForm.first_name}
+                onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last name</Label>
+              <Input
+                id="last_name"
+                value={editForm.last_name}
+                onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone number</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                value={editForm.email}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="skills">Skills</Label>
+              <Input
+                id="skills"
+                value={editForm.skills.join(", ")}
+                onChange={(e) => setEditForm({ 
+                  ...editForm, 
+                  skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
+                })}
+                placeholder="Coupe, Coloration, etc."
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 bg-black hover:bg-black/90"
+              onClick={handleSaveProfile}
+            >
+              Save changes
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
