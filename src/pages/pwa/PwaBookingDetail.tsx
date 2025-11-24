@@ -307,6 +307,49 @@ const PwaBookingDetail = () => {
 
       if (!hairdresserData) return;
 
+      // Check for conflicts with existing confirmed bookings
+      const { data: existingBookings } = await supabase
+        .from("bookings")
+        .select(`
+          *,
+          booking_treatments (
+            treatment_menus (
+              duration
+            )
+          )
+        `)
+        .eq("hairdresser_id", hairdresserData.id)
+        .eq("booking_date", booking.booking_date)
+        .in("status", ["Confirmé", "Assigné"]);
+
+      if (existingBookings && existingBookings.length > 0) {
+        const newBookingStart = new Date(`${booking.booking_date}T${booking.booking_time}`);
+        const newBookingDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
+        const newBookingEnd = new Date(newBookingStart.getTime() + newBookingDuration * 60000);
+
+        for (const existingBooking of existingBookings) {
+          const existingStart = new Date(`${existingBooking.booking_date}T${existingBooking.booking_time}`);
+          const existingDuration = existingBooking.booking_treatments.reduce(
+            (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 
+            0
+          );
+          const existingEnd = new Date(existingStart.getTime() + existingDuration * 60000);
+
+          // Check if bookings overlap
+          if (
+            (newBookingStart >= existingStart && newBookingStart < existingEnd) ||
+            (newBookingEnd > existingStart && newBookingEnd <= existingEnd) ||
+            (newBookingStart <= existingStart && newBookingEnd >= existingEnd)
+          ) {
+            toast.error(
+              `⚠️ Conflit d'horaire détecté avec une réservation existante à ${existingBooking.booking_time.substring(0, 5)}`
+            );
+            setUpdating(false);
+            return;
+          }
+        }
+      }
+
       const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
       
       const { data, error } = await supabase.rpc('accept_booking', {
@@ -527,6 +570,36 @@ const PwaBookingDetail = () => {
               <span className="text-sm font-medium text-foreground">
                 {totalPrice}€
               </span>
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Client Information</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Name</span>
+                <span className="text-sm font-medium text-foreground">
+                  {booking.client_first_name} {booking.client_last_name}
+                </span>
+              </div>
+              {booking.room_number && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Room</span>
+                  <span className="text-sm font-medium text-foreground">
+                    {booking.room_number}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Phone</span>
+                <a 
+                  href={`tel:${booking.phone}`}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {booking.phone}
+                </a>
+              </div>
             </div>
           </div>
 
