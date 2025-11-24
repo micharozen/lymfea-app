@@ -646,7 +646,7 @@ const PwaBookingDetail = () => {
                     {booking.status !== "Complété" && (
                       <button
                         onClick={() => setTreatmentToDelete(treatment.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+                        className="p-1 hover:bg-destructive/10 rounded"
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </button>
