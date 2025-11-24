@@ -87,6 +87,7 @@ const PwaBookingDetail = () => {
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hairdresserProfile, setHairdresserProfile] = useState<any>(null);
+  const [showNavigationDrawer, setShowNavigationDrawer] = useState(false);
 
   useEffect(() => {
     fetchBookingDetail();
@@ -439,13 +440,28 @@ const PwaBookingDetail = () => {
     }
   };
 
-  const openInMaps = () => {
+  const openInMaps = (app: 'apple' | 'google' | 'waze') => {
     if (!booking) return;
     
     const address = `8 Rue Louis Armand, 75015 Paris`;
+    const coords = '48.8415,2.2886'; // Coordinates for the address
     
-    // Use native map URI that works on all platforms
-    window.location.href = `maps://maps.apple.com/?q=${encodeURIComponent(address)}`;
+    let url = '';
+    
+    switch (app) {
+      case 'apple':
+        url = `maps://maps.apple.com/?q=${encodeURIComponent(address)}`;
+        break;
+      case 'google':
+        url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+        break;
+      case 'waze':
+        url = `https://waze.com/ul?ll=${coords}&navigate=yes`;
+        break;
+    }
+    
+    window.open(url, '_blank');
+    setShowNavigationDrawer(false);
   };
 
   if (loading) {
@@ -521,7 +537,7 @@ const PwaBookingDetail = () => {
           {/* Address */}
           <div className="text-center mb-6">
             <button 
-              onClick={openInMaps}
+              onClick={() => setShowNavigationDrawer(true)}
               className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors mx-auto"
             >
               <Navigation className="w-3.5 h-3.5" />
@@ -796,6 +812,36 @@ const PwaBookingDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Navigation App Selector Drawer */}
+      <Drawer open={showNavigationDrawer} onOpenChange={setShowNavigationDrawer}>
+        <DrawerContent className="pb-safe">
+          <div className="p-6 space-y-2">
+            <h3 className="text-lg font-semibold mb-4">Choisir une application</h3>
+            <button
+              onClick={() => openInMaps('apple')}
+              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+            >
+              <Navigation className="w-5 h-5 text-primary" />
+              <span className="text-base font-medium">Apple Maps</span>
+            </button>
+            <button
+              onClick={() => openInMaps('google')}
+              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+            >
+              <Navigation className="w-5 h-5 text-primary" />
+              <span className="text-base font-medium">Google Maps</span>
+            </button>
+            <button
+              onClick={() => openInMaps('waze')}
+              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+            >
+              <Navigation className="w-5 h-5 text-primary" />
+              <span className="text-base font-medium">Waze</span>
+            </button>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Add Treatment Dialog */}
       <AddTreatmentDialog
