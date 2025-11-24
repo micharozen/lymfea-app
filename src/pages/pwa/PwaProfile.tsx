@@ -7,6 +7,9 @@ import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface Hairdresser {
@@ -19,6 +22,13 @@ interface Hairdresser {
   profile_image: string | null;
   skills: string[] | null;
 }
+
+const SKILLS_OPTIONS = [
+  { value: "men", label: "👨 Hommes" },
+  { value: "women", label: "👩 Femmes" },
+  { value: "barber", label: "💈 Barbier" },
+  { value: "beauty", label: "💅 Beauté" },
+];
 
 const PwaProfile = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
@@ -231,7 +241,7 @@ const PwaProfile = () => {
             <button
               key={index}
               onClick={item.onClick}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg transition-colors"
+              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg transition-all active:scale-[0.98] active:bg-muted"
             >
               <div className="flex items-center gap-3">
                 <item.icon className="h-5 w-5" />
@@ -245,7 +255,7 @@ const PwaProfile = () => {
         {/* Logout Button */}
         <Button
           variant="ghost"
-          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
           onClick={handleLogout}
         >
           Log out
@@ -293,28 +303,57 @@ const PwaProfile = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="skills">Skills</Label>
-              <Input
-                id="skills"
-                value={editForm.skills.join(", ")}
-                onChange={(e) => setEditForm({ 
-                  ...editForm, 
-                  skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean)
-                })}
-                placeholder="Coupe, Coloration, etc."
-              />
+              <Label>Skills</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal"
+                  >
+                    {editForm.skills.length === 0
+                      ? "Sélectionnez vos compétences"
+                      : `${editForm.skills.length} compétence(s) sélectionnée(s)`}
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
+                  <div className="space-y-2">
+                    {SKILLS_OPTIONS.map((skill) => (
+                      <div key={skill.value} className="flex items-center justify-between gap-2">
+                        <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal">
+                          {skill.label}
+                        </Label>
+                        <Checkbox
+                          id={`skill-${skill.value}`}
+                          checked={editForm.skills.includes(skill.value)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setEditForm({ ...editForm, skills: [...editForm.skills, skill.value] });
+                            } else {
+                              setEditForm({ 
+                                ...editForm, 
+                                skills: editForm.skills.filter((s) => s !== skill.value)
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
-              className="flex-1"
+              className="flex-1 transition-all active:scale-[0.98]"
               onClick={() => setIsEditDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              className="flex-1"
+              className="flex-1 transition-all active:scale-[0.98]"
               onClick={handleSaveProfile}
             >
               Save changes

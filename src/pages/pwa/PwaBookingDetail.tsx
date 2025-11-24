@@ -625,7 +625,7 @@ const PwaBookingDetail = () => {
               {(booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente") && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
-                  className="text-sm text-primary hover:text-primary/80 font-medium"
+                  className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
                 >
                   + Ajouter
                 </button>
@@ -646,7 +646,7 @@ const PwaBookingDetail = () => {
                     {booking.status !== "Complété" && (
                       <button
                         onClick={() => setTreatmentToDelete(treatment.id)}
-                        className="p-1 hover:bg-destructive/10 rounded"
+                        className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </button>
@@ -668,7 +668,7 @@ const PwaBookingDetail = () => {
                 <button
                   onClick={() => setShowDeclineDialog(true)}
                   disabled={updating}
-                  className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                  className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-95"
                 >
                   <X className="w-5 h-5 text-destructive" />
                 </button>
@@ -676,7 +676,7 @@ const PwaBookingDetail = () => {
                 {/* More Options Button */}
                 <Drawer>
                   <DrawerTrigger asChild>
-                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
+                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
                       <MoreVertical className="w-5 h-5 text-foreground" />
                     </button>
                   </DrawerTrigger>
@@ -715,7 +715,7 @@ const PwaBookingDetail = () => {
                 <button
                   onClick={handleAcceptBooking}
                   disabled={updating}
-                  className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                  className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   Accepter
                 </button>
@@ -726,7 +726,7 @@ const PwaBookingDetail = () => {
                 {/* Contact Drawer */}
                 <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
                   <DrawerTrigger asChild>
-                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted">
+                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
                       <MoreVertical className="w-5 h-5 text-foreground" />
                     </button>
                   </DrawerTrigger>
@@ -802,14 +802,14 @@ const PwaBookingDetail = () => {
                   <button
                     onClick={() => setShowCompleteDialog(true)}
                     disabled={updating}
-                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                     Request to mark complete
                   </button>
                 ) : booking.status === "Complété" ? (
                   <button
                     onClick={() => setShowCancelDialog(true)}
-                    className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90"
+                    className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90 transition-all active:scale-[0.98]"
                   >
                     Annuler
                   </button>
