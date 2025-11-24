@@ -54,7 +54,21 @@ const Auth = () => {
       // Otherwise check if already authenticated
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/", { replace: true });
+        // Check user role to redirect appropriately
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (roles?.role === 'admin' || roles?.role === 'concierge') {
+          navigate("/admin", { replace: true });
+        } else if (roles?.role === 'hairdresser') {
+          navigate("/pwa/dashboard", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
+        return;
       }
     };
 
@@ -159,7 +173,7 @@ const Auth = () => {
       });
       
       // After signup, sign in immediately
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: emailToUse,
         password: password,
       });
@@ -173,7 +187,24 @@ const Auth = () => {
         return;
       }
 
-      navigate("/");
+      // Check user role to redirect appropriately
+      if (signInData?.user) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', signInData.user.id)
+          .single();
+
+        if (roles?.role === 'admin' || roles?.role === 'concierge') {
+          navigate("/admin", { replace: true });
+        } else if (roles?.role === 'hairdresser') {
+          navigate("/pwa/dashboard", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
+      } else {
+        navigate("/");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -228,7 +259,21 @@ const Auth = () => {
         title: "Connexion réussie",
         description: "Bienvenue !",
       });
-      navigate("/");
+      
+      // Check user role to redirect appropriately
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', data.user.id)
+        .single();
+
+      if (roles?.role === 'admin' || roles?.role === 'concierge') {
+        navigate("/admin", { replace: true });
+      } else if (roles?.role === 'hairdresser') {
+        navigate("/pwa/dashboard", { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     } finally {
       setIsLoading(false);
     }
