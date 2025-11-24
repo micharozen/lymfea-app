@@ -112,7 +112,7 @@ const PwaNotifications = () => {
     }
     
     if (notification.booking_id) {
-      navigate(`/pwa/booking/${notification.booking_id}`);
+      navigate(`/pwa/booking/${notification.booking_id}`, { state: { from: 'notifications' } });
     }
   };
 

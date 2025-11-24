@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel } from "lucide-react";
 import { toast } from "sonner";
@@ -73,6 +73,7 @@ interface AdminContact {
 const PwaBookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -501,7 +502,13 @@ const PwaBookingDetail = () => {
       <div className="min-h-screen bg-background pb-24">
         {/* Header */}
         <div className="bg-background px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-border">
-          <button onClick={() => navigate("/pwa/dashboard")} className="p-1">
+          <button 
+            onClick={() => {
+              const from = (location.state as any)?.from;
+              navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
+            }} 
+            className="p-1"
+          >
             <ChevronLeft className="w-6 h-6 text-foreground" />
           </button>
           <h1 className="text-base font-semibold text-foreground">My booking</h1>
