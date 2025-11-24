@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package } from "lucide-react";
+import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ const PwaProfile = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -31,6 +32,7 @@ const PwaProfile = () => {
     email: "",
     skills: [] as string[],
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -66,6 +68,45 @@ const PwaProfile = () => {
       toast.error("Erreur lors du chargement du profil");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      setUploading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}-${Math.random()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from("hairdressers")
+        .update({ profile_image: publicUrl })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      setHairdresser({ ...hairdresser!, profile_image: publicUrl });
+      toast.success("Photo de profil mise à jour");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Erreur lors de l'upload de l'image");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -127,20 +168,19 @@ const PwaProfile = () => {
     { icon: Hotel, label: "Hotels", onClick: () => {} },
     { icon: Package, label: "OMM product", onClick: () => {} },
     { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/notifications") },
-    { icon: Shield, label: "Account security", onClick: () => {} },
+    { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => {} },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-black text-white p-4">
+      <div className="bg-background border-b p-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/pwa/dashboard")}
-            className="text-white hover:bg-white/20"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -152,12 +192,28 @@ const PwaProfile = () => {
       <div className="p-6 space-y-6">
         {/* Profile Header */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <Avatar className="h-20 w-20">
-            <AvatarImage src={hairdresser.profile_image || undefined} />
-            <AvatarFallback className="bg-black text-white text-xl font-bold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <div className="relative">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={hairdresser.profile_image || undefined} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute bottom-0 right-0 p-1.5 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
+            >
+              <Camera className="h-3.5 w-3.5" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
           <div>
             <h2 className="text-xl font-bold">
               {hairdresser.first_name} {hairdresser.last_name}
@@ -258,7 +314,7 @@ const PwaProfile = () => {
               Cancel
             </Button>
             <Button
-              className="flex-1 bg-black hover:bg-black/90"
+              className="flex-1"
               onClick={handleSaveProfile}
             >
               Save changes
