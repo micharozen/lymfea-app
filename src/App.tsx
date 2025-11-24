@@ -27,6 +27,7 @@ import PwaBookings from "./pages/pwa/PwaBookings";
 import PwaBookingDetail from "./pages/pwa/PwaBookingDetail";
 import PwaProfile from "./pages/pwa/PwaProfile";
 import PwaAccountSecurity from "./pages/pwa/PwaAccountSecurity";
+import PwaHotels from "./pages/pwa/PwaHotels";
 import PwaSplash from "./pages/pwa/PwaSplash";
 import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
@@ -71,6 +72,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                   <Route path="/notifications" element={<PwaNotifications />} />
                   <Route path="/profile" element={<PwaProfile />} />
                   <Route path="/account-security" element={<PwaAccountSecurity />} />
+                  <Route path="/hotels" element={<PwaHotels />} />
                   <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
                 </Routes>
               </HairdresserProtectedRoute>

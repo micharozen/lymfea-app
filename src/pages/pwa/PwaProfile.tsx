@@ -165,8 +165,8 @@ const PwaProfile = () => {
 
   const menuItems = [
     { icon: User, label: "Personalisation", onClick: () => setIsEditDialogOpen(true) },
-    { icon: Hotel, label: "Hotels", onClick: () => {} },
-    { icon: Package, label: "OMM product", onClick: () => {} },
+    { icon: Hotel, label: "Hotels", onClick: () => navigate("/pwa/hotels") },
+    { icon: Package, label: "OOM product", onClick: () => {} },
     { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/notifications") },
     { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => {} },
