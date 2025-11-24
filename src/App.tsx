@@ -30,6 +30,7 @@ import PwaSplash from "./pages/pwa/PwaSplash";
 import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 import PwaNotifications from "./pages/pwa/PwaNotifications";
+import Home from "./pages/Home";
 
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
@@ -38,8 +39,8 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Root redirect to PWA splash */}
-          <Route path="/" element={<Navigate to="/pwa" replace />} />
+          {/* Root - Smart redirect based on user type */}
+          <Route path="/" element={<Home />} />
           
           {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
