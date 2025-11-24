@@ -38,6 +38,9 @@ const App = () => <QueryClientProvider client={queryClient}>
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Root redirect to PWA splash */}
+          <Route path="/" element={<Navigate to="/pwa" replace />} />
+          
           {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/login" element={<Auth />} />
@@ -73,7 +76,7 @@ const App = () => <QueryClientProvider client={queryClient}>
           
           {/* Admin Dashboard Routes */}
           <Route
-            path="/*"
+            path="/admin/*"
             element={
               <AdminProtectedRoute>
                 <SidebarProvider>
@@ -83,6 +86,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                       <main className="flex-1">
                         <Routes>
                           <Route path="/" element={<Dashboard />} />
+                          <Route path="/dashboard" element={<Dashboard />} />
                           <Route path="/booking" element={<Booking />} />
                           <Route path="/hair-dresser" element={<HairDresser />} />
                           <Route path="/hotels" element={<Hotels />} />
