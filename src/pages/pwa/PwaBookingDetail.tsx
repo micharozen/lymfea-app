@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -574,6 +574,7 @@ const PwaBookingDetail = () => {
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
+                <User className="w-5 h-5" />
                 <span className="text-sm">Name</span>
               </div>
               <span className="text-sm font-medium text-foreground">
@@ -584,6 +585,7 @@ const PwaBookingDetail = () => {
             {booking.room_number && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-muted-foreground">
+                  <Hotel className="w-5 h-5" />
                   <span className="text-sm">Room</span>
                 </div>
                 <span className="text-sm font-medium text-foreground">
