@@ -571,36 +571,26 @@ const PwaBookingDetail = () => {
                 {totalPrice}€
               </span>
             </div>
-          </div>
 
-          {/* Client Info */}
-          <div className="mb-6 p-4 bg-muted/30 rounded-lg">
-            <h3 className="text-sm font-semibold text-foreground mb-3">Client Information</h3>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <span className="text-sm">Name</span>
+              </div>
+              <span className="text-sm font-medium text-foreground">
+                {booking.client_first_name} {booking.client_last_name}
+              </span>
+            </div>
+
+            {booking.room_number && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Name</span>
+                <div className="flex items-center gap-3 text-muted-foreground">
+                  <span className="text-sm">Room</span>
+                </div>
                 <span className="text-sm font-medium text-foreground">
-                  {booking.client_first_name} {booking.client_last_name}
+                  {booking.room_number}
                 </span>
               </div>
-              {booking.room_number && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Room</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {booking.room_number}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Phone</span>
-                <a 
-                  href={`tel:${booking.phone}`}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  {booking.phone}
-                </a>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Treatments */}
