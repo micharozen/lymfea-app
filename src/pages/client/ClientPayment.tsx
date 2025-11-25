@@ -54,15 +54,20 @@ export default function ClientPayment() {
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Stripe checkout error:', error);
+          throw error;
+        }
 
         // Redirect to Stripe Checkout
         if (data?.url) {
+          console.log('Redirecting to Stripe:', data.url);
+          // Don't set isProcessing to false, let the redirect happen
           window.location.href = data.url;
+          return; // Exit immediately to prevent further execution
         } else {
           throw new Error('No checkout URL received');
         }
-        return;
       }
 
       // For room payment, create booking directly
