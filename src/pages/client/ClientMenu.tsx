@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
+import { useState, useEffect } from 'react';
 
 export default function ClientMenu() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -13,6 +14,8 @@ export default function ClientMenu() {
   const [searchParams] = useSearchParams();
   const gender = searchParams.get('gender') || 'women';
   const { addItem, itemCount } = useBasket();
+  const [showAdded, setShowAdded] = useState(false);
+  const [bounceKey, setBounceKey] = useState(0);
 
   const { data: hotel } = useQuery({
     queryKey: ['hotel', hotelId],
@@ -55,7 +58,19 @@ export default function ClientMenu() {
       image: treatment.image || undefined,
       category: treatment.category,
     });
+    
+    // Trigger animation
+    setShowAdded(true);
+    setBounceKey(prev => prev + 1);
+    setTimeout(() => setShowAdded(false), 2000);
   };
+
+  useEffect(() => {
+    if (bounceKey > 0) {
+      const timer = setTimeout(() => setBounceKey(0), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [bounceKey]);
 
   if (isLoading) {
     return (
@@ -88,19 +103,33 @@ export default function ClientMenu() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-white text-xl font-semibold">{hotel?.name}</h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/client/${hotelId}/basket`)}
-              className="text-white hover:bg-white/20 relative"
-            >
-              <ShoppingBag className="h-5 w-5" />
-              {itemCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground text-xs">
-                  {itemCount}
-                </Badge>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(`/client/${hotelId}/basket`)}
+                className="text-white hover:bg-white/20 relative"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <Badge 
+                    key={bounceKey}
+                    className={`absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-primary text-primary-foreground text-xs ${
+                      bounceKey > 0 ? 'animate-[bounce_0.5s_ease-in-out]' : ''
+                    }`}
+                  >
+                    {itemCount}
+                  </Badge>
+                )}
+              </Button>
+              
+              {/* Added indicator */}
+              {showAdded && (
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-success text-success-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap animate-[fade-in_0.3s_ease-out] shadow-lg">
+                  Added +1
+                </div>
               )}
-            </Button>
+            </div>
           </div>
         </div>
       </div>
