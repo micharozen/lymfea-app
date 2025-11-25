@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState } from 'react';
+import BookingProgressBar from '@/components/BookingProgressBar';
 
 export default function ClientBasket() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -38,6 +39,7 @@ export default function ClientBasket() {
             </Button>
             <h1 className="text-xl font-semibold">Your Basket</h1>
           </div>
+          <BookingProgressBar currentStep={1} totalSteps={4} />
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -70,6 +72,7 @@ export default function ClientBasket() {
           </Button>
           <h1 className="text-xl font-semibold">Your Basket</h1>
         </div>
+        <BookingProgressBar currentStep={1} totalSteps={4} />
       </div>
 
       {/* Items List */}

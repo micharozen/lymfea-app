@@ -5,6 +5,7 @@ import { useBasket } from './context/BasketContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import BookingProgressBar from '@/components/BookingProgressBar';
 
 export default function ClientPayment() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -90,6 +91,7 @@ export default function ClientPayment() {
           </Button>
           <h1 className="text-xl font-semibold">Payment</h1>
         </div>
+        <BookingProgressBar currentStep={4} totalSteps={4} />
       </div>
 
       <div className="p-4 space-y-6">

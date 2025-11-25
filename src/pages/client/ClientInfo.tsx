@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import BookingProgressBar from '@/components/BookingProgressBar';
 
 export default function ClientInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -65,6 +66,7 @@ export default function ClientInfo() {
           </Button>
           <h1 className="text-xl font-semibold">Your Information</h1>
         </div>
+        <BookingProgressBar currentStep={3} totalSteps={4} />
       </div>
 
       <div className="p-4 space-y-6">

@@ -7,6 +7,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import BookingProgressBar from '@/components/BookingProgressBar';
 
 export default function ClientDateTime() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -17,6 +18,7 @@ export default function ClientDateTime() {
   const [selectedTime, setSelectedTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
+  const [noHairdressers, setNoHairdressers] = useState(false);
 
   // Generate date options (next 14 days)
   const dateOptions = useMemo(() => {
@@ -66,6 +68,7 @@ export default function ClientDateTime() {
       if (!selectedDate || !hotelId) return;
 
       setLoadingAvailability(true);
+      setNoHairdressers(false);
       try {
         const { data, error } = await supabase.functions.invoke('check-availability', {
           body: { hotelId, date: selectedDate }
@@ -73,10 +76,16 @@ export default function ClientDateTime() {
 
         if (error) throw error;
         
-        setAvailableSlots(data?.availableSlots || []);
+        const slots = data?.availableSlots || [];
+        setAvailableSlots(slots);
+        
+        // Check if no hairdressers are available
+        if (slots.length === 0 && data) {
+          setNoHairdressers(true);
+        }
         
         // Clear time if it's no longer available
-        if (selectedTime && !data?.availableSlots.includes(selectedTime)) {
+        if (selectedTime && !slots.includes(selectedTime)) {
           setSelectedTime('');
         }
       } catch (error) {
@@ -129,6 +138,7 @@ export default function ClientDateTime() {
           </Button>
           <h1 className="text-xl font-semibold">Select Date & Time</h1>
         </div>
+        <BookingProgressBar currentStep={2} totalSteps={4} />
       </div>
 
       <div className="p-4 space-y-6">
@@ -175,6 +185,15 @@ export default function ClientDateTime() {
           </Label>
           {!selectedDate ? (
             <p className="text-sm text-muted-foreground">Please select a date first</p>
+          ) : noHairdressers ? (
+            <div className="bg-muted/50 border border-border rounded-lg p-6 text-center">
+              <p className="text-sm text-muted-foreground mb-2">
+                No hairdressers are currently available for this hotel.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Please contact the hotel reception for assistance.
+              </p>
+            </div>
           ) : (
             <div className="relative">
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
