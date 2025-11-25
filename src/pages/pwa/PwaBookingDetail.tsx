@@ -79,7 +79,7 @@ const PwaBookingDetail = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
@@ -252,27 +252,6 @@ const PwaBookingDetail = () => {
     }
   };
 
-  const handleCancelBooking = async () => {
-    if (!booking) return;
-    
-    try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "Annulé",
-          cancellation_reason: "Annulé par le coiffeur"
-        })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-
-      toast.success("Réservation annulée");
-      navigate("/pwa/dashboard");
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur");
-    }
-  };
 
   const handleUnassignBooking = async () => {
     if (!booking) return;
@@ -815,7 +794,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
                       >
                         <X className="w-5 h-5 text-destructive" />
-                        <span className="text-base font-medium text-destructive">Annuler la réservation</span>
+                        <span className="text-base font-medium text-destructive">Se désister de la réservation</span>
                       </button>
                     </div>
                   </DrawerContent>
@@ -836,13 +815,6 @@ const PwaBookingDetail = () => {
                     className="flex-1 bg-primary/50 text-primary-foreground rounded-full py-3 px-6 text-sm font-medium cursor-not-allowed"
                   >
                     En attente de validation admin
-                  </button>
-                ) : booking.status === "Complété" ? (
-                  <button
-                    onClick={() => setShowCancelDialog(true)}
-                    className="flex-1 bg-destructive text-destructive-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-destructive/90 transition-all active:scale-[0.98]"
-                  >
-                    Annuler
                   </button>
                 ) : null}
               </>
@@ -908,23 +880,6 @@ const PwaBookingDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cancel Confirmation Dialog */}
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir annuler cette réservation ? Cette action ne peut pas être annulée.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non, garder</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancelBooking}>
-              Oui, annuler
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete Treatment Confirmation Dialog */}
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}>
@@ -948,7 +903,7 @@ const PwaBookingDetail = () => {
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Annuler la réservation ?</AlertDialogTitle>
+            <AlertDialogTitle>Se désister de la réservation ?</AlertDialogTitle>
             <AlertDialogDescription>
               La réservation sera remise en attente et proposée à d'autres coiffeurs.
             </AlertDialogDescription>
@@ -960,7 +915,7 @@ const PwaBookingDetail = () => {
               disabled={updating}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Oui, annuler
+              Oui, me désister
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
