@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState, useEffect } from 'react';
+import { Minus, Plus } from 'lucide-react';
 
 export default function ClientMenu() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -14,8 +15,8 @@ export default function ClientMenu() {
   const [searchParams] = useSearchParams();
   const gender = searchParams.get('gender') || 'women';
   const { addItem, itemCount } = useBasket();
-  const [showAdded, setShowAdded] = useState(false);
   const [bounceKey, setBounceKey] = useState(0);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const { data: hotel } = useQuery({
     queryKey: ['hotel', hotelId],
@@ -49,20 +50,28 @@ export default function ClientMenu() {
 
   const categories = [...new Set(treatments.map(t => t.category))];
 
-  const handleAddToBasket = (treatment: typeof treatments[0]) => {
-    addItem({
-      id: treatment.id,
-      name: treatment.name,
-      price: Number(treatment.price),
-      duration: treatment.duration || 0,
-      image: treatment.image || undefined,
-      category: treatment.category,
-    });
+  const handleAddToBasket = (treatment: typeof treatments[0], quantity: number = 1) => {
+    for (let i = 0; i < quantity; i++) {
+      addItem({
+        id: treatment.id,
+        name: treatment.name,
+        price: Number(treatment.price),
+        duration: treatment.duration || 0,
+        image: treatment.image || undefined,
+        category: treatment.category,
+      });
+    }
     
-    // Trigger animation
-    setShowAdded(true);
+    // Haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    
+    // Badge bounce animation
     setBounceKey(prev => prev + 1);
-    setTimeout(() => setShowAdded(false), 2000);
+    
+    // Reset quantity
+    setQuantities(prev => ({ ...prev, [treatment.id]: 1 }));
   };
 
   useEffect(() => {
@@ -71,6 +80,14 @@ export default function ClientMenu() {
       return () => clearTimeout(timer);
     }
   }, [bounceKey]);
+
+  const updateQuantity = (treatmentId: string, delta: number) => {
+    setQuantities(prev => {
+      const current = prev[treatmentId] || 1;
+      const newValue = Math.max(1, Math.min(10, current + delta));
+      return { ...prev, [treatmentId]: newValue };
+    });
+  };
 
   if (isLoading) {
     return (
@@ -120,16 +137,9 @@ export default function ClientMenu() {
                   >
                     {itemCount}
                   </Badge>
-                )}
-              </Button>
-              
-              {/* Added indicator */}
-              {showAdded && (
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-success text-success-foreground text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap animate-[fade-in_0.3s_ease-out] shadow-lg">
-                  Added +1
-                </div>
               )}
-            </div>
+            </Button>
+          </div>
           </div>
         </div>
       </div>
@@ -181,13 +191,42 @@ export default function ClientMenu() {
                           )}
                         </div>
                       </div>
-                      <Button
-                        onClick={() => handleAddToBasket(treatment)}
-                        size="sm"
-                        className="flex-shrink-0"
-                      >
-                        Select
-                      </Button>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(treatment.id, -1);
+                            }}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center font-semibold">
+                            {quantities[treatment.id] || 1}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateQuantity(treatment.id, 1);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => handleAddToBasket(treatment, quantities[treatment.id] || 1)}
+                          size="sm"
+                          className="w-full"
+                        >
+                          Add
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
