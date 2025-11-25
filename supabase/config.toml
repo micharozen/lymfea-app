@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.check-availability]
 verify_jwt = false
+
+[functions.generate-monthly-invoices]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
