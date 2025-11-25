@@ -82,7 +82,7 @@ export default function ClientConfirmation() {
         </h1>
         
         <p className="text-muted-foreground mb-8 animate-fade-in max-w-md">
-          A confirmation SMS will be sent to your phone. 
+          A confirmation email has been sent to your inbox. 
           A hairdresser will be assigned to your booking shortly.
         </p>
 
