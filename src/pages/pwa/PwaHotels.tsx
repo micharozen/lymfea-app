@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, Phone, Mail } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 interface Hotel {
@@ -87,69 +87,71 @@ const PwaHotels = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-background border-b p-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate("/pwa/profile")}
+            className="h-10 w-10"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <ArrowLeft className="h-6 w-6" />
           </Button>
-          <h1 className="text-lg font-semibold">Mes Hôtels</h1>
+          <h1 className="text-xl font-semibold">Hotels</h1>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6 space-y-4">
+      {/* Hotels List */}
+      <div className="divide-y">
         {hotels.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-4">
             <p className="text-muted-foreground">Aucun hôtel associé</p>
           </div>
         ) : (
-          hotels.map((hotel) => (
-            <div
-              key={hotel.id}
-              className="bg-card border rounded-lg overflow-hidden"
-            >
-              {hotel.image && (
-                <div className="w-full h-40 overflow-hidden">
-                  <img
-                    src={hotel.image}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="p-4 space-y-3">
-                <div>
-                  <h3 className="font-semibold text-lg">{hotel.name}</h3>
-                  {hotel.status && (
-                    <span className={`inline-block px-2 py-1 rounded-full text-xs mt-1 ${
-                      hotel.status === "Active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}>
-                      {hotel.status}
-                    </span>
+          hotels.map((hotel) => {
+            const fullAddress = [
+              hotel.address,
+              hotel.postal_code,
+              hotel.city,
+              hotel.country
+            ]
+              .filter(Boolean)
+              .join(", ");
+
+            return (
+              <div
+                key={hotel.id}
+                className="flex items-center gap-4 p-4 bg-background hover:bg-accent/5 transition-colors"
+              >
+                {/* Hotel Image */}
+                <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                  {hotel.image ? (
+                    <img
+                      src={hotel.image}
+                      alt={hotel.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <MapPin className="h-6 w-6" />
+                    </div>
                   )}
                 </div>
-                
-                {(hotel.address || hotel.city || hotel.country) && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <div>
-                      {hotel.address && <p>{hotel.address}</p>}
-                      <p>
-                        {[hotel.postal_code, hotel.city, hotel.country]
-                          .filter(Boolean)
-                          .join(", ")}
-                      </p>
+
+                {/* Hotel Info */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-base text-foreground mb-1 truncate">
+                    {hotel.name}
+                  </h3>
+                  {fullAddress && (
+                    <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <p className="line-clamp-2">{fullAddress}</p>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
