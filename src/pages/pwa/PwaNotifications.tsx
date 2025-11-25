@@ -19,6 +19,7 @@ interface Notification {
 const PwaNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -106,8 +107,10 @@ const PwaNotifications = () => {
     }
   };
 
-  const deleteNotification = async (notificationId: string, event: React.MouseEvent) => {
-    event.stopPropagation();
+  const deleteNotification = async (notificationId: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
     
     try {
       const { error } = await supabase
@@ -123,6 +126,44 @@ const PwaNotifications = () => {
       console.error("Error deleting notification:", error);
       toast.error("Erreur lors de la suppression");
     }
+  };
+
+  const handleTouchStart = (notificationId: string, event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    setSwipeStates(prev => ({
+      ...prev,
+      [notificationId]: touch.clientX
+    }));
+  };
+
+  const handleTouchMove = (notificationId: string, event: React.TouchEvent) => {
+    const touch = event.touches[0];
+    const startX = swipeStates[notificationId];
+    if (startX !== undefined) {
+      const diff = startX - touch.clientX;
+      if (diff > 0) { // Only allow swipe left
+        setSwipeStates(prev => ({
+          ...prev,
+          [notificationId]: -Math.min(diff, 100)
+        }));
+      }
+    }
+  };
+
+  const handleTouchEnd = async (notificationId: string) => {
+    const swipeDistance = Math.abs(swipeStates[notificationId] || 0);
+    
+    if (swipeDistance > 80) {
+      // Delete if swiped far enough
+      await deleteNotification(notificationId);
+    }
+    
+    // Reset swipe state
+    setSwipeStates(prev => {
+      const newState = { ...prev };
+      delete newState[notificationId];
+      return newState;
+    });
   };
 
   const handleNotificationClick = async (notification: Notification) => {
@@ -208,48 +249,67 @@ const PwaNotifications = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {notifications.map((notification) => (
-              <button
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className={`w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors ${
-                  !notification.read ? "bg-blue-50" : "bg-white"
-                }`}
-              >
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0 text-2xl">
-                    {getNotificationIcon(notification.type)}
+            {notifications.map((notification) => {
+              const swipeOffset = swipeStates[notification.id] || 0;
+              const isSwipingNumber = typeof swipeOffset === 'number' && swipeOffset < 0;
+              
+              return (
+                <div key={notification.id} className="relative overflow-hidden">
+                  {/* Delete background that shows when swiping */}
+                  <div className="absolute inset-0 bg-destructive flex items-center justify-end px-6">
+                    <Trash2 className="h-5 w-5 text-white" />
                   </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${!notification.read ? "font-semibold text-gray-900" : "text-gray-700"}`}>
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {formatDistanceToNow(new Date(notification.created_at), {
-                        addSuffix: true,
-                        locale: fr
-                      })}
-                    </p>
-                  </div>
+                  {/* Notification content */}
+                  <button
+                    onClick={() => handleNotificationClick(notification)}
+                    onTouchStart={(e) => handleTouchStart(notification.id, e)}
+                    onTouchMove={(e) => handleTouchMove(notification.id, e)}
+                    onTouchEnd={() => handleTouchEnd(notification.id)}
+                    style={{
+                      transform: isSwipingNumber ? `translateX(${swipeOffset}px)` : 'translateX(0)',
+                      transition: isSwipingNumber ? 'none' : 'transform 0.3s ease-out'
+                    }}
+                    className={`w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors relative ${
+                      !notification.read ? "bg-blue-50" : "bg-white"
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 text-2xl">
+                        {getNotificationIcon(notification.type)}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${!notification.read ? "font-semibold text-gray-900" : "text-gray-700"}`}>
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: fr
+                          })}
+                        </p>
+                      </div>
 
-                  <div className="flex-shrink-0 flex items-center gap-2">
-                    {!notification.read ? (
-                      <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
-                    ) : (
-                      <Check className="h-4 w-4 text-gray-400" />
-                    )}
-                    <button
-                      onClick={(e) => deleteNotification(notification.id, e)}
-                      className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
-                      aria-label="Supprimer la notification"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </button>
-                  </div>
+                      <div className="flex-shrink-0 flex items-center gap-2">
+                        {!notification.read ? (
+                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                        ) : (
+                          <Check className="h-4 w-4 text-gray-400" />
+                        )}
+                        <button
+                          onClick={(e) => deleteNotification(notification.id, e)}
+                          className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
+                          aria-label="Supprimer la notification"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  </button>
                 </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
