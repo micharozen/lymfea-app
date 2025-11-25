@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { AddHotelDialog } from "@/components/AddHotelDialog";
 import { EditHotelDialog } from "@/components/EditHotelDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HotelQRCode } from "@/components/HotelQRCode";
 
 interface Concierge {
   id: string;
@@ -267,6 +268,9 @@ export default function Hotels() {
                     Réservations
                   </div>
                 </TableHead>
+                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
+                  QR Code
+                </TableHead>
                 {isAdmin && (
                   <TableHead className="font-semibold w-[100px] text-right whitespace-nowrap">Actions</TableHead>
                 )}
@@ -275,7 +279,7 @@ export default function Hotels() {
             <TableBody>
               {filteredHotels.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     Aucun hôtel trouvé
                   </TableCell>
                 </TableRow>
@@ -339,6 +343,9 @@ export default function Hotels() {
                     </TableCell>
                     <TableCell className="align-middle text-center">
                       <span className="text-muted-foreground">0</span>
+                    </TableCell>
+                    <TableCell className="align-middle text-center">
+                      <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="align-middle">
