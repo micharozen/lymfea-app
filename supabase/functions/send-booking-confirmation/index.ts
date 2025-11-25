@@ -54,22 +54,52 @@ serve(async (req) => {
       })
     );
 
-    const { data, error } = await resend.emails.send({
+    // Send email to client
+    const { data: clientData, error: clientError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: [email],
       subject: `Booking Confirmation #${bookingNumber} - ${hotelName}`,
       html,
     });
 
-    if (error) {
-      console.error('Error sending email:', error);
-      throw error;
+    if (clientError) {
+      console.error('Error sending client email:', clientError);
+      throw clientError;
     }
 
-    console.log('Email sent successfully:', data);
+    console.log('Client email sent successfully:', clientData);
+
+    // Send notification email to booking@oomworld.com
+    const adminHtml = await renderAsync(
+      React.createElement(BookingConfirmationEmail, {
+        bookingNumber,
+        clientName,
+        hotelName,
+        roomNumber,
+        bookingDate: formattedDate,
+        bookingTime,
+        treatments,
+        totalPrice,
+        currency,
+      })
+    );
+
+    const { data: adminData, error: adminError } = await resend.emails.send({
+      from: 'OOM World <bookings@oomworld.com>',
+      to: ['booking@oomworld.com'],
+      subject: `New Booking #${bookingNumber} - ${hotelName}`,
+      html: adminHtml,
+    });
+
+    if (adminError) {
+      console.error('Error sending admin email:', adminError);
+      // Don't throw - client email already sent
+    } else {
+      console.log('Admin notification email sent successfully:', adminData);
+    }
 
     return new Response(
-      JSON.stringify({ success: true, data }),
+      JSON.stringify({ success: true, data: clientData }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
