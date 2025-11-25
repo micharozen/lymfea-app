@@ -159,10 +159,11 @@ export default function ClientBasket() {
           <span className="font-bold">€{total.toFixed(2)}</span>
         </div>
         <Button
-          onClick={() => navigate(`/client/${hotelId}/checkout`)}
+          onClick={() => navigate(`/client/${hotelId}/datetime`)}
+          disabled={items.length === 0}
           className="w-full h-14 text-lg"
         >
-          Checkout
+          Continue
         </Button>
       </div>
     </div>

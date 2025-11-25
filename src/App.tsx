@@ -37,6 +37,8 @@ import ClientWelcome from "./pages/client/ClientWelcome";
 import ClientMenu from "./pages/client/ClientMenu";
 import ClientBasket from "./pages/client/ClientBasket";
 import ClientCheckout from "./pages/client/ClientCheckout";
+import ClientDateTime from "./pages/client/ClientDateTime";
+import ClientInfo from "./pages/client/ClientInfo";
 import ClientPayment from "./pages/client/ClientPayment";
 import ClientConfirmation from "./pages/client/ClientConfirmation";
 import { BasketProvider } from "./pages/client/context/BasketContext";
@@ -58,8 +60,10 @@ const App = () => <QueryClientProvider client={queryClient}>
               <Routes>
                 <Route path="/menu" element={<ClientMenu />} />
                 <Route path="/basket" element={<ClientBasket />} />
-                <Route path="/checkout" element={<ClientCheckout />} />
+                <Route path="/datetime" element={<ClientDateTime />} />
+                <Route path="/info" element={<ClientInfo />} />
                 <Route path="/payment" element={<ClientPayment />} />
+                <Route path="/checkout" element={<ClientCheckout />} />
                 <Route path="/confirmation/:bookingId" element={<ClientConfirmation />} />
               </Routes>
             </BasketProvider>

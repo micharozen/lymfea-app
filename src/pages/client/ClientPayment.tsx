@@ -14,14 +14,17 @@ export default function ClientPayment() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePayment = async () => {
-    const checkoutData = sessionStorage.getItem('checkoutData');
-    if (!checkoutData) {
-      toast.error('Checkout data not found');
-      navigate(`/client/${hotelId}/checkout`);
+    const dateTimeStr = sessionStorage.getItem('bookingDateTime');
+    const clientInfoStr = sessionStorage.getItem('clientInfo');
+    
+    if (!dateTimeStr || !clientInfoStr) {
+      toast.error('Missing booking information');
+      navigate(`/client/${hotelId}/basket`);
       return;
     }
 
-    const formData = JSON.parse(checkoutData);
+    const dateTime = JSON.parse(dateTimeStr);
+    const clientInfo = JSON.parse(clientInfoStr);
     setIsProcessing(true);
 
     try {
@@ -30,15 +33,15 @@ export default function ClientPayment() {
         body: {
           hotelId,
           clientData: {
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            phone: `${formData.countryCode}${formData.phone}`,
-            email: formData.email,
-            roomNumber: formData.roomNumber,
+            firstName: clientInfo.firstName,
+            lastName: clientInfo.lastName,
+            phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+            email: clientInfo.email,
+            roomNumber: clientInfo.roomNumber,
           },
           bookingData: {
-            date: formData.date,
-            time: formData.time,
+            date: dateTime.date,
+            time: dateTime.time,
           },
           treatments: items.map(item => ({
             treatmentId: item.id,
@@ -60,7 +63,8 @@ export default function ClientPayment() {
 
       // Clear basket and navigate to confirmation
       clearBasket();
-      sessionStorage.removeItem('checkoutData');
+      sessionStorage.removeItem('bookingDateTime');
+      sessionStorage.removeItem('clientInfo');
       navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
       
     } catch (error: any) {
@@ -79,7 +83,7 @@ export default function ClientPayment() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/checkout`)}
+            onClick={() => navigate(`/client/${hotelId}/info`)}
             disabled={isProcessing}
           >
             <ArrowLeft className="h-5 w-5" />
