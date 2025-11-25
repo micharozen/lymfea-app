@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +92,39 @@ const PwaBookingDetail = () => {
 
   useEffect(() => {
     fetchBookingDetail();
+
+    // Set up real-time subscriptions
+    const bookingChannel = supabase
+      .channel('booking-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `id=eq.${id}`
+        },
+        () => {
+          fetchBookingDetail();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'booking_treatments',
+          filter: `booking_id=eq.${id}`
+        },
+        () => {
+          fetchBookingDetail();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(bookingChannel);
+    };
   }, [id]);
 
   const fetchBookingDetail = async () => {
@@ -708,7 +741,7 @@ const PwaBookingDetail = () => {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <Phone className="w-5 h-5 text-primary" />
+                        <MessageCircle className="w-5 h-5 text-[#25D366]" />
                         <span className="text-base font-medium">Contacter OOM</span>
                       </a>
                     </div>
@@ -765,7 +798,7 @@ const PwaBookingDetail = () => {
                         onClick={() => setShowContactDrawer(false)}
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <Phone className="w-5 h-5 text-primary" />
+                        <MessageCircle className="w-5 h-5 text-[#25D366]" />
                         <span className="text-base font-medium">Contacter OOM</span>
                       </a>
                       
