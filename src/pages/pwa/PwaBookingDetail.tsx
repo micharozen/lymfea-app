@@ -682,18 +682,11 @@ const PwaBookingDetail = () => {
                   </DrawerTrigger>
                   <DrawerContent className="pb-safe">
                     <div className="p-6 space-y-2">
-                      {adminContact && (
-                        <a
-                          href={`tel:${adminContact.country_code}${adminContact.phone}`}
-                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                        >
-                          <Phone className="w-5 h-5 text-primary" />
-                          <span className="text-base font-medium">Contacter OOM</span>
-                        </a>
-                      )}
                       {conciergeContact && (
                         <a
-                          href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
+                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                         >
                           <Phone className="w-5 h-5 text-primary" />
@@ -701,11 +694,22 @@ const PwaBookingDetail = () => {
                         </a>
                       )}
                       <a
-                        href={`tel:${booking.phone}`}
+                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <Phone className="w-5 h-5 text-primary" />
                         <span className="text-base font-medium">Contacter le client</span>
+                      </a>
+                      <a
+                        href="https://wa.me/33769627754"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter OOM</span>
                       </a>
                     </div>
                   </DrawerContent>
@@ -732,53 +736,37 @@ const PwaBookingDetail = () => {
                   </DrawerTrigger>
                   <DrawerContent className="pb-safe">
                     <div className="p-6 space-y-2">
-                      {adminContact && (
-                        <>
-                          <a
-                            href={`tel:${adminContact.country_code}${adminContact.phone}`}
-                            onClick={() => setShowContactDrawer(false)}
-                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <Phone className="w-5 h-5 text-primary" />
-                            <span className="text-base font-medium">Contacter OOM</span>
-                          </a>
-                          <a
-                            href={`sms:${adminContact.country_code}${adminContact.phone}`}
-                            onClick={() => setShowContactDrawer(false)}
-                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <Mail className="w-5 h-5 text-primary" />
-                            <span className="text-base font-medium">SMS à OOM</span>
-                          </a>
-                        </>
-                      )}
                       {conciergeContact && (
-                        <>
-                          <a
-                            href={`tel:${conciergeContact.country_code}${conciergeContact.phone}`}
-                            onClick={() => setShowContactDrawer(false)}
-                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <Phone className="w-5 h-5 text-primary" />
-                            <span className="text-base font-medium">Contacter concierge</span>
-                          </a>
-                          <a
-                            href={`sms:${conciergeContact.country_code}${conciergeContact.phone}`}
-                            onClick={() => setShowContactDrawer(false)}
-                            className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
-                          >
-                            <Mail className="w-5 h-5 text-primary" />
-                            <span className="text-base font-medium">SMS au concierge</span>
-                          </a>
-                        </>
+                        <a
+                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShowContactDrawer(false)}
+                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-5 h-5 text-primary" />
+                          <span className="text-base font-medium">Contacter concierge</span>
+                        </a>
                       )}
                       <a
-                        href={`tel:${booking.phone}`}
+                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={() => setShowContactDrawer(false)}
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <Phone className="w-5 h-5 text-primary" />
                         <span className="text-base font-medium">Contacter le client</span>
+                      </a>
+                      <a
+                        href="https://wa.me/33769627754"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setShowContactDrawer(false)}
+                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <Phone className="w-5 h-5 text-primary" />
+                        <span className="text-base font-medium">Contacter OOM</span>
                       </a>
                       
                       <div className="h-px bg-border my-2" />
