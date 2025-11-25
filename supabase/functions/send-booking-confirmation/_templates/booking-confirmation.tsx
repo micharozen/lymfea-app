@@ -36,55 +36,81 @@ export const BookingConfirmationEmail = ({
 }: BookingConfirmationEmailProps) => (
   <Html>
     <Head />
-    <Preview>Your booking #{bookingNumber} is confirmed - {hotelName}</Preview>
+    <Preview>Booking Confirmation #{bookingNumber} - OOM World</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Heading style={h1}>Your booking is confirmed!</Heading>
-        
-        <Text style={text}>
-          Dear {clientName},
-        </Text>
-        
-        <Text style={text}>
-          Thank you for your booking. A hairdresser will be assigned to your booking shortly.
-        </Text>
-
-        <Section style={bookingBox}>
-          <Text style={label}>Booking Number</Text>
-          <Text style={value}>#{bookingNumber}</Text>
-          
-          <Hr style={hr} />
-          
-          <Text style={label}>Location</Text>
-          <Text style={value}>{hotelName}</Text>
-          <Text style={subValue}>Room {roomNumber}</Text>
-          
-          <Hr style={hr} />
-          
-          <Text style={label}>Date</Text>
-          <Text style={value}>{bookingDate}</Text>
-          
-          <Hr style={hr} />
-          
-          <Text style={label}>Time</Text>
-          <Text style={value}>{bookingTime}</Text>
-          
-          <Hr style={hr} />
-          
-          <Text style={label}>Services</Text>
-          {treatments.map((treatment, index) => (
-            <Text key={index} style={treatmentItem}>• {treatment}</Text>
-          ))}
-          
-          <Hr style={hr} />
-          
-          <Text style={label}>Total Price</Text>
-          <Text style={totalValue}>{totalPrice} {currency}</Text>
+        {/* Header with Logo */}
+        <Section style={header}>
+          <Text style={logoText}>OOM</Text>
+          <Text style={logoSubtext}>WORLD</Text>
         </Section>
 
-        <Text style={footer}>
-          We look forward to serving you!
-        </Text>
+        {/* Main Content */}
+        <Section style={content}>
+          <Heading style={h1}>Booking Confirmed</Heading>
+          
+          <Text style={greeting}>
+            Dear {clientName},
+          </Text>
+          
+          <Text style={text}>
+            Your booking has been successfully confirmed. A hairdresser will be assigned to your appointment shortly and you will receive a notification.
+          </Text>
+
+          {/* Booking Details Card */}
+          <Section style={bookingCard}>
+            <Section style={bookingHeader}>
+              <Text style={bookingNumberStyle}>Booking #{bookingNumber}</Text>
+            </Section>
+
+            <Hr style={divider} />
+
+            <Section style={detailsSection}>
+              <Text style={label}>Location</Text>
+              <Text style={value}>{hotelName}</Text>
+              {roomNumber && <Text style={subValue}>Room {roomNumber}</Text>}
+            </Section>
+
+            <Hr style={divider} />
+
+            <Section style={detailsSection}>
+              <Text style={label}>Date & Time</Text>
+              <Text style={value}>{bookingDate}</Text>
+              <Text style={subValue}>{bookingTime}</Text>
+            </Section>
+
+            <Hr style={divider} />
+
+            <Section style={detailsSection}>
+              <Text style={label}>Services</Text>
+              {treatments.map((treatment, index) => (
+                <Text key={index} style={treatmentItem}>• {treatment}</Text>
+              ))}
+            </Section>
+
+            <Hr style={divider} />
+
+            <Section style={totalSection}>
+              <Text style={label}>Total</Text>
+              <Text style={totalPriceStyle}>{totalPrice} {currency}</Text>
+            </Section>
+          </Section>
+
+          <Text style={thankYou}>
+            We look forward to providing you with an exceptional experience.
+          </Text>
+        </Section>
+
+        {/* Footer */}
+        <Section style={footer}>
+          <Hr style={footerDivider} />
+          <Text style={footerText}>
+            OOM World - Premium Hairdressing Services
+          </Text>
+          <Text style={footerSubtext}>
+            Questions? Contact us at booking@oomworld.com
+          </Text>
+        </Section>
       </Container>
     </Body>
   </Html>
@@ -93,89 +119,173 @@ export const BookingConfirmationEmail = ({
 export default BookingConfirmationEmail
 
 const main = {
-  backgroundColor: '#f6f9fc',
+  backgroundColor: '#ffffff',
   fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+  padding: '0',
+  margin: '0',
 }
 
 const container = {
-  backgroundColor: '#ffffff',
+  maxWidth: '600px',
   margin: '0 auto',
-  padding: '20px 0 48px',
-  marginBottom: '64px',
+  backgroundColor: '#ffffff',
+}
+
+const header = {
+  backgroundColor: '#1a1a1a',
+  padding: '40px 0',
+  textAlign: 'center' as const,
+}
+
+const logoText = {
+  color: '#ffffff',
+  fontSize: '48px',
+  fontWeight: 'bold',
+  letterSpacing: '4px',
+  margin: '0',
+  padding: '0',
+  lineHeight: '1',
+}
+
+const logoSubtext = {
+  color: '#ffffff',
+  fontSize: '12px',
+  fontWeight: '400',
+  letterSpacing: '8px',
+  margin: '8px 0 0 0',
+  padding: '0',
+}
+
+const content = {
+  padding: '48px 40px',
 }
 
 const h1 = {
   color: '#1a1a1a',
-  fontSize: '32px',
-  fontWeight: 'bold',
-  margin: '40px 0',
-  padding: '0 48px',
-  textAlign: 'center' as const,
+  fontSize: '28px',
+  fontWeight: '700',
+  margin: '0 0 24px 0',
+  padding: '0',
+  letterSpacing: '-0.5px',
+}
+
+const greeting = {
+  color: '#1a1a1a',
+  fontSize: '16px',
+  lineHeight: '24px',
+  margin: '0 0 16px 0',
 }
 
 const text = {
   color: '#525252',
-  fontSize: '16px',
+  fontSize: '15px',
   lineHeight: '24px',
-  textAlign: 'left' as const,
-  padding: '0 48px',
+  margin: '0 0 32px 0',
 }
 
-const bookingBox = {
-  backgroundColor: '#f8f8f8',
+const bookingCard = {
+  backgroundColor: '#fafafa',
+  border: '1px solid #e5e5e5',
   borderRadius: '8px',
-  margin: '32px 48px',
-  padding: '24px',
+  overflow: 'hidden',
+  margin: '32px 0',
+}
+
+const bookingHeader = {
+  backgroundColor: '#1a1a1a',
+  padding: '16px 24px',
+}
+
+const bookingNumberStyle = {
+  color: '#ffffff',
+  fontSize: '18px',
+  fontWeight: '600',
+  margin: '0',
+  letterSpacing: '0.5px',
+}
+
+const detailsSection = {
+  padding: '20px 24px',
 }
 
 const label = {
   color: '#737373',
-  fontSize: '14px',
-  fontWeight: '500',
-  marginBottom: '8px',
-  marginTop: '0',
+  fontSize: '12px',
+  fontWeight: '600',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '1px',
+  margin: '0 0 8px 0',
 }
 
 const value = {
   color: '#1a1a1a',
-  fontSize: '18px',
+  fontSize: '16px',
   fontWeight: '600',
-  marginTop: '0',
-  marginBottom: '4px',
+  margin: '0 0 4px 0',
 }
 
 const subValue = {
   color: '#525252',
-  fontSize: '16px',
-  marginTop: '0',
-  marginBottom: '0',
-}
-
-const totalValue = {
-  color: '#1a1a1a',
-  fontSize: '24px',
-  fontWeight: 'bold',
-  marginTop: '0',
-  marginBottom: '0',
+  fontSize: '14px',
+  margin: '0',
 }
 
 const treatmentItem = {
   color: '#1a1a1a',
-  fontSize: '16px',
-  marginTop: '4px',
-  marginBottom: '4px',
+  fontSize: '15px',
+  lineHeight: '26px',
+  margin: '0',
 }
 
-const hr = {
+const totalSection = {
+  padding: '20px 24px',
+  backgroundColor: '#f5f5f5',
+}
+
+const totalPriceStyle = {
+  color: '#1a1a1a',
+  fontSize: '28px',
+  fontWeight: '700',
+  margin: '0',
+  letterSpacing: '-0.5px',
+}
+
+const divider = {
   borderColor: '#e5e5e5',
-  margin: '20px 0',
+  borderTop: '1px solid #e5e5e5',
+  margin: '0',
+}
+
+const thankYou = {
+  color: '#525252',
+  fontSize: '14px',
+  lineHeight: '22px',
+  margin: '32px 0 0 0',
+  textAlign: 'center' as const,
 }
 
 const footer = {
-  color: '#737373',
+  padding: '32px 40px',
+  backgroundColor: '#fafafa',
+}
+
+const footerDivider = {
+  borderColor: '#e5e5e5',
+  borderTop: '1px solid #e5e5e5',
+  margin: '0 0 24px 0',
+}
+
+const footerText = {
+  color: '#1a1a1a',
   fontSize: '14px',
-  lineHeight: '24px',
+  fontWeight: '600',
   textAlign: 'center' as const,
-  padding: '0 48px',
-  marginTop: '32px',
+  margin: '0 0 8px 0',
+}
+
+const footerSubtext = {
+  color: '#737373',
+  fontSize: '12px',
+  textAlign: 'center' as const,
+  margin: '0',
 }
