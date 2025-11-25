@@ -108,18 +108,41 @@ serve(async (req) => {
     try {
       await supabase.functions.invoke('send-booking-confirmation', {
         body: {
-          bookingId: booking.id,
-          clientEmail: metadata?.client_email,
+          email: metadata?.client_email,
+          bookingNumber: booking.booking_id.toString(),
           clientName: `${metadata?.client_first_name} ${metadata?.client_last_name}`,
           hotelName: hotel?.name,
+          roomNumber: metadata?.room_number,
           bookingDate: metadata?.booking_date,
           bookingTime: metadata?.booking_time,
           treatments: treatmentNames,
+          totalPrice: parseFloat(metadata?.total_price || '0'),
+          currency: 'EUR',
         },
       });
       console.log("[CHECKOUT-SUCCESS] Confirmation email sent");
     } catch (emailError) {
       console.error("[CHECKOUT-SUCCESS] Email error:", emailError);
+    }
+
+    // Envoyer WhatsApp au client
+    if (metadata?.client_phone) {
+      try {
+        await supabase.functions.invoke('send-booking-whatsapp', {
+          body: {
+            phone: metadata.client_phone,
+            bookingNumber: booking.booking_id.toString(),
+            clientName: `${metadata?.client_first_name} ${metadata?.client_last_name}`,
+            hotelName: hotel?.name,
+            bookingDate: metadata?.booking_date,
+            bookingTime: metadata?.booking_time,
+            treatments: treatmentNames,
+          },
+        });
+        console.log("[CHECKOUT-SUCCESS] WhatsApp sent");
+      } catch (whatsappError) {
+        console.error("[CHECKOUT-SUCCESS] WhatsApp error:", whatsappError);
+      }
     }
 
     return new Response(
