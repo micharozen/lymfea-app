@@ -234,14 +234,14 @@ const PwaBookingDetail = () => {
       const { error } = await supabase
         .from("bookings")
         .update({ 
-          status: "Complété",
+          status: "En attente de validation",
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      toast.success("Réservation marquée comme complétée");
+      toast.success("Demande de validation envoyée à l'admin");
       setShowCompleteDialog(false);
       fetchBookingDetail();
     } catch (error) {
@@ -523,6 +523,9 @@ const PwaBookingDetail = () => {
     }
     if (booking.status === "Assigné" || booking.status === "Confirmé") {
       return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
+    }
+    if (booking.status === "En attente de validation") {
+      return <Badge variant="outline" className="border-primary text-primary-foreground bg-primary/10">Waiting validation</Badge>;
     }
     if (booking.status === "Complété") {
       return <Badge variant="outline" className="border-success text-success-foreground bg-success/10">Completed</Badge>;
@@ -827,6 +830,13 @@ const PwaBookingDetail = () => {
                   >
                     Request to mark complete
                   </button>
+                ) : booking.status === "En attente de validation" ? (
+                  <button
+                    disabled
+                    className="flex-1 bg-primary/50 text-primary-foreground rounded-full py-3 px-6 text-sm font-medium cursor-not-allowed"
+                  >
+                    En attente de validation admin
+                  </button>
                 ) : booking.status === "Complété" ? (
                   <button
                     onClick={() => setShowCancelDialog(true)}
@@ -884,15 +894,15 @@ const PwaBookingDetail = () => {
       <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Marquer comme complétée ?</AlertDialogTitle>
+            <AlertDialogTitle>Demander la validation ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Confirmez-vous que cette réservation est terminée ?
+              Une notification sera envoyée à l'admin pour valider la complétion de cette réservation.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={handleMarkComplete} disabled={updating}>
-              Confirmer
+              Envoyer la demande
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

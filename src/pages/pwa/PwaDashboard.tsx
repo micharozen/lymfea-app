@@ -382,15 +382,16 @@ const PwaDashboard = () => {
       });
       
       if (activeTab === "upcoming") {
-        return (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && 
+        return (booking.status === "Confirmé" || booking.status === "Assigné" || booking.status === "En attente de validation" || isAssignedToMe) && 
                bookingDate >= today;
       } else if (activeTab === "past") {
-        return (bookingDate < today || booking.status === "Terminé") && 
+        return (bookingDate < today || booking.status === "Terminé" || booking.status === "Complété") && 
                booking.status !== "Annulé" &&
                booking.status !== "En attente" &&
                booking.status !== "Pending" &&
                booking.status !== "Confirmé" &&
-               booking.status !== "Assigné";
+               booking.status !== "Assigné" &&
+               booking.status !== "En attente de validation";
       } else {
         return booking.status === "Annulé";
       }
