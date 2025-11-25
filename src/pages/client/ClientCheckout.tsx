@@ -5,9 +5,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function ClientCheckout() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -24,6 +25,9 @@ export default function ClientCheckout() {
     date: '',
     time: '',
   });
+
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
 
   const countryCodes = [
     { code: '+33', country: 'France' },
@@ -75,6 +79,36 @@ export default function ClientCheckout() {
     }
     return slots;
   }, []);
+
+  // Fetch available slots when date changes
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      if (!formData.date || !hotelId) return;
+
+      setLoadingAvailability(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('check-availability', {
+          body: { hotelId, date: formData.date }
+        });
+
+        if (error) throw error;
+        
+        setAvailableSlots(data?.availableSlots || []);
+        
+        // Clear time if it's no longer available
+        if (formData.time && !data?.availableSlots.includes(formData.time)) {
+          setFormData(prev => ({ ...prev, time: '' }));
+        }
+      } catch (error) {
+        console.error('Error checking availability:', error);
+        toast.error('Unable to check availability');
+      } finally {
+        setLoadingAvailability(false);
+      }
+    };
+
+    fetchAvailability();
+  }, [formData.date, hotelId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,25 +263,40 @@ export default function ClientCheckout() {
           </div>
 
           <div className="space-y-3">
-            <Label className="text-base font-semibold">Time</Label>
-            <div className="relative">
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-                {timeSlots.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, time: value }))}
-                    className={`flex-shrink-0 snap-start px-6 py-3 rounded-xl border-2 transition-all font-medium ${
-                      formData.time === value
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background border-border hover:border-primary/50'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+            <Label className="text-base font-semibold">
+              Time
+              {loadingAvailability && (
+                <span className="ml-2 text-xs text-muted-foreground">(Loading...)</span>
+              )}
+            </Label>
+            {!formData.date ? (
+              <p className="text-sm text-muted-foreground">Please select a date first</p>
+            ) : (
+              <div className="relative">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                  {timeSlots.map(({ value, label }) => {
+                    const isAvailable = availableSlots.includes(value);
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => isAvailable && setFormData(prev => ({ ...prev, time: value }))}
+                        disabled={!isAvailable || loadingAvailability}
+                        className={`flex-shrink-0 snap-start px-6 py-3 rounded-xl border-2 transition-all font-medium ${
+                          formData.time === value
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : isAvailable
+                            ? 'bg-background border-border hover:border-primary/50'
+                            : 'bg-muted border-border text-muted-foreground cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
