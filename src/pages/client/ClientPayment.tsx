@@ -59,12 +59,17 @@ export default function ClientPayment() {
           throw error;
         }
 
-        // Redirect to Stripe Checkout
+        // Open Stripe Checkout in new tab
         if (data?.url) {
-          console.log('Redirecting to Stripe:', data.url);
-          // Don't set isProcessing to false, let the redirect happen
-          window.location.href = data.url;
-          return; // Exit immediately to prevent further execution
+          console.log('Opening Stripe in new tab:', data.url);
+          const stripeWindow = window.open(data.url, '_blank');
+          if (!stripeWindow) {
+            toast.error('Please allow popups to proceed with payment');
+          } else {
+            toast.success('Stripe Checkout opened in new tab');
+          }
+          setIsProcessing(false);
+          return;
         } else {
           throw new Error('No checkout URL received');
         }
