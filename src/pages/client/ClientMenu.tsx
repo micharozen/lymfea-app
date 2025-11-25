@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
-import { toast } from 'sonner';
 
 export default function ClientMenu() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -56,7 +55,6 @@ export default function ClientMenu() {
       image: treatment.image || undefined,
       category: treatment.category,
     });
-    toast.success('Added to basket');
   };
 
   if (isLoading) {
