@@ -145,6 +145,14 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
       if (error) throw error;
 
       toast.success("Hôtel ajouté avec succès");
+      
+      // Show success message with QR code info
+      const bookingUrl = `${window.location.origin}/client/${values.id}`;
+      toast.success(
+        `Hôtel créé ! Le QR code de réservation est disponible dans la liste.`,
+        { duration: 5000 }
+      );
+      
       form.reset();
       setHotelImage("");
       setCoverImage("");
