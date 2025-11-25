@@ -341,6 +341,7 @@ export type Database = {
           profile_image: string | null
           skills: string[] | null
           status: string
+          stripe_account_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -356,6 +357,7 @@ export type Database = {
           profile_image?: string | null
           skills?: string[] | null
           status?: string
+          stripe_account_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -371,6 +373,7 @@ export type Database = {
           profile_image?: string | null
           skills?: string[] | null
           status?: string
+          stripe_account_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
