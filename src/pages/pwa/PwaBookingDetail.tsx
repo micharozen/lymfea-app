@@ -653,38 +653,38 @@ const PwaBookingDetail = () => {
 
           {/* Treatments */}
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-foreground">Treatments</h3>
-              {(booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente") && (
-                <button
-                  onClick={() => setShowAddTreatmentDialog(true)}
-                  className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
-                >
-                  + Ajouter
-                </button>
-              )}
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Treatments</h3>
+            {(booking.status === "Assigné" || booking.status === "Confirmé") && (
+              <button
+                onClick={() => setShowAddTreatmentDialog(true)}
+                className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
+              >
+                + Ajouter
+              </button>
+            )}
+          </div>
             {treatments.length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucun traitement ajouté</p>
             ) : (
               <div className="space-y-3">
                 {treatments.map((treatment) => (
                   <div key={treatment.id} className="flex items-start gap-3 group">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{treatment.treatment_menus?.name || 'Treatment'}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
-                      </p>
-                    </div>
-                    {booking.status !== "Complété" && (
-                      <button
-                        onClick={() => setTreatmentToDelete(treatment.id)}
-                        className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </button>
-                    )}
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{treatment.treatment_menus?.name || 'Treatment'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
+                    </p>
                   </div>
+                  {(booking.status !== "Complété" && booking.status !== "En attente") && (
+                    <button
+                      onClick={() => setTreatmentToDelete(treatment.id)}
+                      className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </button>
+                  )}
+                </div>
                 ))}
               </div>
             )}
