@@ -97,6 +97,51 @@ serve(async (req) => {
 
     console.log('Booking treatments created');
 
+    // Get treatment names for email
+    const { data: treatmentDetails } = await supabase
+      .from('treatment_menus')
+      .select('name')
+      .in('id', treatments.map((t: any) => t.treatmentId));
+
+    const treatmentNames = treatmentDetails?.map(t => t.name) || [];
+
+    // Send confirmation email
+    if (clientData.email) {
+      try {
+        const emailResponse = await fetch(
+          `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-confirmation`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+            },
+            body: JSON.stringify({
+              email: clientData.email,
+              bookingNumber: booking.booking_id.toString(),
+              clientName: `${clientData.firstName} ${clientData.lastName}`,
+              hotelName: hotel.name,
+              roomNumber: clientData.roomNumber,
+              bookingDate: bookingData.date,
+              bookingTime: bookingData.time,
+              treatments: treatmentNames,
+              totalPrice: totalPrice,
+              currency: 'EUR',
+            }),
+          }
+        );
+
+        if (!emailResponse.ok) {
+          console.error('Failed to send confirmation email:', await emailResponse.text());
+        } else {
+          console.log('Confirmation email sent successfully');
+        }
+      } catch (emailError) {
+        console.error('Error sending confirmation email:', emailError);
+        // Continue even if email fails
+      }
+    }
+
     // The trigger notify_hairdressers_new_booking will automatically notify all hairdressers
 
     return new Response(
