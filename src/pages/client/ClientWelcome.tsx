@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
-import welcomeBg from '@/assets/welcome-bg-luxury.jpg';
+import welcomeBg from '@/assets/welcome-bg-couple.jpg';
 
 export default function ClientWelcome() {
   const { hotelId } = useParams<{ hotelId: string }>();
