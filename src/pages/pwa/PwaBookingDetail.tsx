@@ -525,7 +525,7 @@ const PwaBookingDetail = () => {
       return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
     }
     if (booking.status === "En attente de validation") {
-      return <Badge variant="outline" className="border-primary text-primary-foreground bg-primary/10">Waiting validation</Badge>;
+      return <Badge variant="outline" className="border-primary text-primary bg-primary/10">Waiting validation</Badge>;
     }
     if (booking.status === "Complété") {
       return <Badge variant="outline" className="border-success text-success-foreground bg-success/10">Completed</Badge>;
