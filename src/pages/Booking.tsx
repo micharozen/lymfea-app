@@ -215,7 +215,10 @@ export default function Booking() {
     "En attente": "En attente",
     "Assigné": "Assigné",
     "Terminé": "Terminé",
-    "Annulé": "Annulé"
+    "Annulé": "Annulé",
+    "Confirmé": "Confirmé",
+    "Complété": "Complété",
+    "En attente de validation": "En attente de validation"
   };
 
   const getTranslatedStatus = (status: string) => {
@@ -234,6 +237,9 @@ export default function Booking() {
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
       return "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20";
     }
+    if (normalizedStatus.includes("validation")) {
+      return "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20";
+    }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
       return "bg-warning/10 text-warning border-warning/30 hover:bg-warning/20";
     }
@@ -251,6 +257,9 @@ export default function Booking() {
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
       return "bg-destructive border-destructive hover:bg-destructive/90";
+    }
+    if (normalizedStatus.includes("validation")) {
+      return "bg-primary border-primary hover:bg-primary/90";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
       return "bg-warning border-warning hover:bg-warning/90";
