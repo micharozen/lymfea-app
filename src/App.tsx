@@ -49,6 +49,19 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route path="/login" element={<Auth />} />
           <Route path="/set-password" element={<SetPassword />} />
           
+          {/* Legacy route redirects to admin routes */}
+          <Route path="/booking" element={<Navigate to="/admin/booking" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/hair-dresser" element={<Navigate to="/admin/hair-dresser" replace />} />
+          <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
+          <Route path="/treatment-menus" element={<Navigate to="/admin/treatment-menus" replace />} />
+          <Route path="/boxes" element={<Navigate to="/admin/boxes" replace />} />
+          <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
+          <Route path="/oom-products" element={<Navigate to="/admin/oom-products" replace />} />
+          <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
+          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
+          
           {/* PWA Routes */}
           <Route path="/pwa" element={<PwaSplash />} />
           <Route path="/pwa/welcome" element={<PwaWelcome />} />
