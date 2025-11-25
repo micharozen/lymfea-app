@@ -163,7 +163,7 @@ const PwaProfile = () => {
     { icon: Package, label: "OOM product", onClick: () => {} },
     { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/notifications") },
     { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
-    { icon: HelpCircle, label: "Support", onClick: () => {} },
+    { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
   ];
 
   return (
