@@ -1,17 +1,54 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Calendar, Clock, MapPin, Phone } from 'lucide-react';
+import { CheckCircle2, Calendar, Clock, MapPin, Phone, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export default function ClientConfirmation() {
-  const { hotelId, bookingId } = useParams<{ hotelId: string; bookingId: string }>();
+  const { hotelId, bookingId } = useParams<{ hotelId: string; bookingId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [finalBookingId, setFinalBookingId] = useState<number | null>(
+    bookingId ? parseInt(bookingId) : null
+  );
+  const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+
+  // Handle Stripe checkout success
+  useEffect(() => {
+    const handleStripeSuccess = async () => {
+      const sessionId = searchParams.get('session_id');
+      
+      if (sessionId && !finalBookingId) {
+        setIsProcessingStripe(true);
+        try {
+          const { data, error } = await supabase.functions.invoke('handle-checkout-success', {
+            body: { sessionId },
+          });
+
+          if (error) throw error;
+
+          if (data?.bookingId) {
+            setFinalBookingId(data.bookingId);
+            toast.success('Payment successful!');
+          }
+        } catch (error: any) {
+          console.error('Stripe success handling error:', error);
+          toast.error('Failed to process payment confirmation');
+          navigate(`/client/${hotelId}/basket`);
+        } finally {
+          setIsProcessingStripe(false);
+        }
+      }
+    };
+
+    handleStripeSuccess();
+  }, [searchParams, finalBookingId, hotelId, navigate]);
 
   const { data: booking, isLoading } = useQuery({
-    queryKey: ['booking', bookingId],
+    queryKey: ['booking', finalBookingId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
@@ -25,13 +62,13 @@ export default function ClientConfirmation() {
             )
           )
         `)
-        .eq('id', bookingId)
+        .eq('booking_id', finalBookingId)
         .single();
       
       if (error) throw error;
       return data;
     },
-    enabled: !!bookingId,
+    enabled: !!finalBookingId,
   });
 
   useEffect(() => {
@@ -45,10 +82,13 @@ export default function ClientConfirmation() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || isProcessingStripe) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">
+          {isProcessingStripe ? 'Processing payment...' : 'Loading...'}
+        </p>
       </div>
     );
   }

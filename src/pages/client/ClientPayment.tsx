@@ -29,7 +29,43 @@ export default function ClientPayment() {
     setIsProcessing(true);
 
     try {
-      // Call edge function to create booking
+      // If card payment, create Stripe checkout session
+      if (selectedMethod === 'card') {
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+            },
+            bookingData: {
+              date: dateTime.date,
+              time: dateTime.time,
+            },
+            treatments: items.map(item => ({
+              id: item.id,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+            totalPrice: total,
+          },
+        });
+
+        if (error) throw error;
+
+        // Redirect to Stripe Checkout
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error('No checkout URL received');
+        }
+        return;
+      }
+
+      // For room payment, create booking directly
       const { data, error } = await supabase.functions.invoke('create-client-booking', {
         body: {
           hotelId,
@@ -55,12 +91,6 @@ export default function ClientPayment() {
       });
 
       if (error) throw error;
-
-      if (selectedMethod === 'card') {
-        // TODO: Integrate Stripe checkout
-        toast.info('Stripe integration coming soon');
-        return;
-      }
 
       // Clear basket and navigate to confirmation
       clearBasket();
