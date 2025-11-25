@@ -7,9 +7,6 @@ import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel,
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface Hairdresser {
@@ -23,13 +20,6 @@ interface Hairdresser {
   skills: string[] | null;
 }
 
-const SKILLS_OPTIONS = [
-  { value: "men", label: "👨 Hommes" },
-  { value: "women", label: "👩 Femmes" },
-  { value: "barber", label: "💈 Barbier" },
-  { value: "beauty", label: "💅 Beauté" },
-];
-
 const PwaProfile = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +30,6 @@ const PwaProfile = () => {
     last_name: "",
     phone: "",
     email: "",
-    skills: [] as string[],
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -71,7 +60,6 @@ const PwaProfile = () => {
         last_name: data.last_name,
         phone: data.phone,
         email: data.email,
-        skills: data.skills || [],
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
@@ -131,7 +119,6 @@ const PwaProfile = () => {
           first_name: editForm.first_name,
           last_name: editForm.last_name,
           phone: editForm.phone,
-          skills: editForm.skills,
         })
         .eq("user_id", user.id);
 
@@ -142,7 +129,6 @@ const PwaProfile = () => {
         first_name: editForm.first_name,
         last_name: editForm.last_name,
         phone: editForm.phone,
-        skills: editForm.skills,
       });
 
       setIsEditDialogOpen(false);
@@ -301,47 +287,6 @@ const PwaProfile = () => {
                 disabled
                 className="bg-muted"
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Skills</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal"
-                  >
-                    {editForm.skills.length === 0
-                      ? "Sélectionnez vos compétences"
-                      : `${editForm.skills.length} compétence(s) sélectionnée(s)`}
-                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-3" align="start">
-                  <div className="space-y-2">
-                    {SKILLS_OPTIONS.map((skill) => (
-                      <div key={skill.value} className="flex items-center justify-between gap-2">
-                        <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal">
-                          {skill.label}
-                        </Label>
-                        <Checkbox
-                          id={`skill-${skill.value}`}
-                          checked={editForm.skills.includes(skill.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setEditForm({ ...editForm, skills: [...editForm.skills, skill.value] });
-                            } else {
-                              setEditForm({ 
-                                ...editForm, 
-                                skills: editForm.skills.filter((s) => s !== skill.value)
-                              });
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
           </div>
           <div className="flex gap-3">
