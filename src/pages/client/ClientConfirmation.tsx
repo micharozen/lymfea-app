@@ -15,40 +15,47 @@ export default function ClientConfirmation() {
     bookingId ? parseInt(bookingId) : null
   );
   const [isProcessingStripe, setIsProcessingStripe] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+
+  const addDebug = (message: string) => {
+    console.log(message);
+    setDebugInfo(prev => [...prev, `${new Date().toISOString()}: ${message}`]);
+  };
 
   // Handle Stripe checkout success
   useEffect(() => {
     const handleStripeSuccess = async () => {
       const sessionId = searchParams.get('session_id');
       
-      console.log('[ClientConfirmation] Session ID from URL:', sessionId);
-      console.log('[ClientConfirmation] Final booking ID:', finalBookingId);
+      addDebug(`[ClientConfirmation] Component mounted`);
+      addDebug(`[ClientConfirmation] Session ID from URL: ${sessionId}`);
+      addDebug(`[ClientConfirmation] Final booking ID: ${finalBookingId}`);
       
       if (sessionId && !finalBookingId) {
         setIsProcessingStripe(true);
-        console.log('[ClientConfirmation] Calling handle-checkout-success...');
+        addDebug('[ClientConfirmation] Calling handle-checkout-success...');
         try {
           const { data, error } = await supabase.functions.invoke('handle-checkout-success', {
             body: { sessionId },
           });
 
-          console.log('[ClientConfirmation] Response:', { data, error });
+          addDebug(`[ClientConfirmation] Response: ${JSON.stringify({ data, error })}`);
 
           if (error) {
-            console.error('[ClientConfirmation] Function error:', error);
+            addDebug(`[ClientConfirmation] Function error: ${JSON.stringify(error)}`);
             throw error;
           }
 
           if (data?.bookingId) {
-            console.log('[ClientConfirmation] Booking created with ID:', data.bookingId);
+            addDebug(`[ClientConfirmation] Booking created with ID: ${data.bookingId}`);
             setFinalBookingId(data.bookingId);
             toast.success('Paiement réussi !');
           } else {
-            console.error('[ClientConfirmation] No booking ID in response');
+            addDebug('[ClientConfirmation] No booking ID in response');
             throw new Error('No booking ID received');
           }
         } catch (error: any) {
-          console.error('[ClientConfirmation] Error processing payment:', error);
+          addDebug(`[ClientConfirmation] Error: ${error.message || String(error)}`);
           toast.error(`Erreur: ${error.message || 'Impossible de confirmer le paiement'}`);
           // Navigate after a delay to let user see the error
           setTimeout(() => {
@@ -57,6 +64,8 @@ export default function ClientConfirmation() {
         } finally {
           setIsProcessingStripe(false);
         }
+      } else {
+        addDebug(`[ClientConfirmation] Not calling function - sessionId: ${sessionId}, finalBookingId: ${finalBookingId}`);
       }
     };
 
@@ -112,8 +121,23 @@ export default function ClientConfirmation() {
   if (!booking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">Booking not found</h1>
+        <div className="text-center max-w-2xl">
+          <h1 className="text-2xl font-semibold mb-4">Booking not found</h1>
+          
+          {/* Debug Info */}
+          <div className="mb-6 p-4 bg-muted rounded-lg text-left">
+            <h2 className="font-semibold mb-2">Debug Info:</h2>
+            <div className="text-sm space-y-1 max-h-60 overflow-auto">
+              {debugInfo.length === 0 ? (
+                <p className="text-muted-foreground">No debug info yet...</p>
+              ) : (
+                debugInfo.map((info, i) => (
+                  <p key={i} className="font-mono">{info}</p>
+                ))
+              )}
+            </div>
+          </div>
+          
           <Button onClick={() => navigate(`/client/${hotelId}`)}>
             Back to Home
           </Button>
