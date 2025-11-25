@@ -54,7 +54,7 @@ serve(async (req) => {
     const hairdresserIds = hairdressers.map(h => h.hairdresser_id);
     console.log(`Found ${hairdresserIds.length} active hairdressers`);
 
-    // Get all bookings for these hairdressers on this date
+    // Get all confirmed bookings for these hairdressers on this date
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('booking_time, hairdresser_id')
@@ -83,7 +83,12 @@ serve(async (req) => {
       // Count how many hairdressers are busy at this time
       const busyHairdressers = new Set(
         (bookings || [])
-          .filter(b => b.booking_time === slot)
+          .filter(b => {
+            // Format booking time to match our slot format
+            const bookingTime = b.booking_time;
+            console.log(`Comparing slot ${slot} with booking time ${bookingTime}`);
+            return bookingTime === slot;
+          })
           .map(b => b.hairdresser_id)
       );
 
