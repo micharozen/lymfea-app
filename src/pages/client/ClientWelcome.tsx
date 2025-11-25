@@ -46,11 +46,15 @@ export default function ClientWelcome() {
   }
 
   const backgroundImage = hotel.cover_image || hotel.image || welcomeBg;
+  // Add timestamp to force cache refresh
+  const bgImageUrl = backgroundImage.startsWith('http') 
+    ? backgroundImage 
+    : `${backgroundImage}?v=${Date.now()}`;
 
   return (
     <div 
       className="h-screen bg-cover bg-center relative flex flex-col overflow-hidden"
-      style={{ backgroundImage: `url(${backgroundImage})` }}
+      style={{ backgroundImage: `url(${bgImageUrl})` }}
     >
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
