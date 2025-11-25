@@ -1,5 +1,8 @@
 project_id = "xbkvmrqanoqdqvqwldio"
 
+[functions.create-client-booking]
+verify_jwt = false
+
 [functions.contact-admin]
 verify_jwt = false
 
