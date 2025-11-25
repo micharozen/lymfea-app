@@ -21,6 +21,7 @@ export default function ClientWelcome() {
       if (error) throw error;
       return data;
     },
+    enabled: !!hotelId,
   });
 
   if (isLoading) {
