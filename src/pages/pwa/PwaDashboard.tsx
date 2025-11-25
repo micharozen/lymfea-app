@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
-import oomLogo from "@/assets/oom-monogram-black.svg";
 
 interface Hairdresser {
   id: string;
@@ -518,8 +517,8 @@ const PwaDashboard = () => {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <img src={oomLogo} alt="OOM" className="h-8 w-auto" />
-        <Avatar 
+        <h1 className="text-3xl font-bold font-cormorant">OOM</h1>
+        <Avatar
           className="h-9 w-9 ring-2 ring-gray-200 cursor-pointer"
           onClick={() => navigate("/pwa/profile")}
         >
