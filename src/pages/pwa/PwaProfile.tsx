@@ -118,7 +118,6 @@ const PwaProfile = () => {
         .update({
           first_name: editForm.first_name,
           last_name: editForm.last_name,
-          phone: editForm.phone,
         })
         .eq("user_id", user.id);
 
@@ -128,7 +127,6 @@ const PwaProfile = () => {
         ...hairdresser!,
         first_name: editForm.first_name,
         last_name: editForm.last_name,
-        phone: editForm.phone,
       });
 
       setIsEditDialogOpen(false);
@@ -276,7 +274,8 @@ const PwaProfile = () => {
               <Input
                 id="phone"
                 value={editForm.phone}
-                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                disabled
+                className="bg-muted"
               />
             </div>
             <div className="space-y-2">
