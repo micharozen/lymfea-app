@@ -64,7 +64,7 @@ const App = () => <QueryClientProvider client={queryClient}>
                 <Route path="/info" element={<ClientInfo />} />
                 <Route path="/payment" element={<ClientPayment />} />
                 <Route path="/checkout" element={<ClientCheckout />} />
-                <Route path="/confirmation/:bookingId" element={<ClientConfirmation />} />
+                <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
               </Routes>
             </BasketProvider>
           } />
