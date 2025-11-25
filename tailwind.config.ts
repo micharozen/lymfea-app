@@ -71,7 +71,7 @@ export default {
         },
       },
       fontFamily: {
-        'cormorant': ['Cormorant', 'serif'],
+        'kormelink': ['Kormelink', 'serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
