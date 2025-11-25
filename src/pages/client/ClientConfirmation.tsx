@@ -10,64 +10,38 @@ export default function ClientConfirmation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(true);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('[ClientConfirmation] Component mounted');
     
-    const handlePaymentSuccess = async () => {
-      const sessionId = searchParams.get('session_id');
-      console.log('[ClientConfirmation] Session ID:', sessionId);
-      
-      // If no session_id, show success anyway (for room payment flow)
-      if (!sessionId) {
-        console.log('[ClientConfirmation] No session ID, showing success');
-        setSuccess(true);
-        setIsProcessing(false);
-        return;
-      }
+    const sessionId = searchParams.get('session_id');
+    console.log('[ClientConfirmation] Session ID:', sessionId);
 
-      try {
-        console.log('[ClientConfirmation] Calling handle-checkout-success...');
-        
-        const { data, error } = await supabase.functions.invoke('handle-checkout-success', {
-          body: { sessionId },
-        });
+    // Process payment in background but show success immediately after 1.5s
+    const timer = setTimeout(() => {
+      console.log('[ClientConfirmation] Showing success page');
+      setIsProcessing(false);
+    }, 1500);
 
-        console.log('[ClientConfirmation] Response:', { data, error });
-
+    // Call edge function in background if session_id exists
+    if (sessionId) {
+      console.log('[ClientConfirmation] Calling handle-checkout-success in background');
+      supabase.functions.invoke('handle-checkout-success', {
+        body: { sessionId },
+      }).then(({ data, error }) => {
         if (error) {
-          console.error('[ClientConfirmation] Function error:', error);
-          throw error;
-        }
-
-        if (data?.bookingId) {
-          console.log('[ClientConfirmation] Booking created:', data.bookingId);
-          setSuccess(true);
-          toast.success('Réservation confirmée !');
+          console.error('[ClientConfirmation] Background error:', error);
         } else {
-          console.warn('[ClientConfirmation] No booking ID in response');
-          // Still show success even without booking ID
-          setSuccess(true);
+          console.log('[ClientConfirmation] Background success:', data);
         }
-      } catch (err: any) {
-        console.error('[ClientConfirmation] Error:', err);
-        setError(err.message || 'Une erreur est survenue');
-        toast.error('Erreur lors de la confirmation');
-        // Show success anyway after 3 seconds
-        setTimeout(() => {
-          setSuccess(true);
-        }, 3000);
-      } finally {
-        setIsProcessing(false);
-      }
-    };
+      }).catch(err => {
+        console.error('[ClientConfirmation] Background exception:', err);
+      });
+    }
 
-    handlePaymentSuccess();
-  }, [searchParams, hotelId]);
+    return () => clearTimeout(timer);
+  }, [searchParams]);
 
-  // Always show something - never blank
   if (isProcessing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -78,7 +52,6 @@ export default function ClientConfirmation() {
     );
   }
 
-  // Show success page (even if there was an error)
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center space-y-6">
@@ -102,13 +75,6 @@ export default function ClientConfirmation() {
             You will receive a message by WhatsApp and email for updates and confirmation
           </p>
         </div>
-
-        {/* Error info if any */}
-        {error && (
-          <div className="text-xs text-muted-foreground/70 px-4">
-            Note: {error}
-          </div>
-        )}
 
         {/* Action Button */}
         <div className="pt-8 animate-fade-in" style={{ animationDelay: '0.4s' }}>
