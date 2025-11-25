@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Check, CheckCheck } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -103,6 +103,25 @@ const PwaNotifications = () => {
     } catch (error) {
       console.error("Error marking all as read:", error);
       toast.error("Erreur");
+    }
+  };
+
+  const deleteNotification = async (notificationId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+
+      if (error) throw error;
+
+      setNotifications(prev => prev.filter(n => n.id !== notificationId));
+      toast.success("Notification supprimée");
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -214,12 +233,19 @@ const PwaNotifications = () => {
                     </p>
                   </div>
 
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0 flex items-center gap-2">
                     {!notification.read ? (
                       <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
                     ) : (
                       <Check className="h-4 w-4 text-gray-400" />
                     )}
+                    <button
+                      onClick={(e) => deleteNotification(notification.id, e)}
+                      className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
+                      aria-label="Supprimer la notification"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </button>
                   </div>
                 </div>
               </button>
