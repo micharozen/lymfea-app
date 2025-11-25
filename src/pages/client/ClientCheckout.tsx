@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { format, addDays } from 'date-fns';
 
 export default function ClientCheckout() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -33,12 +34,47 @@ export default function ClientCheckout() {
     { code: '+39', country: 'Italy' },
   ];
 
-  // Generate time slots (24/7 every 30 minutes)
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? '00' : '30';
-    return `${hour.toString().padStart(2, '0')}:${minute}`;
-  });
+  // Generate date options (next 14 days)
+  const dateOptions = useMemo(() => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 14; i++) {
+      const date = addDays(today, i);
+      let label = format(date, 'd MMM');
+      
+      if (i === 0) label = 'Today';
+      else if (i === 1) label = 'Tomorrow';
+      
+      dates.push({
+        value: format(date, 'yyyy-MM-dd'),
+        label,
+        dayLabel: format(date, 'EEEE'),
+        fullLabel: format(date, 'd MMM'),
+      });
+    }
+    
+    return dates;
+  }, []);
+
+  // Generate time slots (6AM to 11PM every 30 minutes)
+  const timeSlots = useMemo(() => {
+    const slots = [];
+    for (let hour = 6; hour < 23; hour++) {
+      for (let minute of [0, 30]) {
+        const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
+        
+        slots.push({
+          value: time24,
+          label: time12,
+        });
+      }
+    }
+    return slots;
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,45 +195,58 @@ export default function ClientCheckout() {
         </div>
 
         {/* Booking Date & Time */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Booking Date & Time</h2>
-          
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Label className="text-base font-semibold">Date</Label>
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                min={new Date().toISOString().split('T')[0]}
-                className="pl-10"
-                required
-              />
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                {dateOptions.map(({ value, label, dayLabel, fullLabel }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, date: value }))}
+                    className={`flex-shrink-0 snap-start px-4 py-3 rounded-xl border-2 transition-all ${
+                      formData.date === value
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-sm font-semibold whitespace-nowrap">
+                        {label === 'Today' || label === 'Tomorrow' ? label : dayLabel}
+                      </div>
+                      {(label === 'Today' || label === 'Tomorrow') && (
+                        <div className="text-xs opacity-80 whitespace-nowrap">{fullLabel}</div>
+                      )}
+                      {label !== 'Today' && label !== 'Tomorrow' && (
+                        <div className="text-xs opacity-80 whitespace-nowrap">{fullLabel}</div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="time">Time</Label>
+          <div className="space-y-3">
+            <Label className="text-base font-semibold">Time</Label>
             <div className="relative">
-              <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
-              <Select
-                value={formData.time}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, time: value }))}
-                required
-              >
-                <SelectTrigger className="pl-10">
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {timeSlots.map(time => (
-                    <SelectItem key={time} value={time}>
-                      {time}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                {timeSlots.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, time: value }))}
+                    className={`flex-shrink-0 snap-start px-6 py-3 rounded-xl border-2 transition-all font-medium ${
+                      formData.time === value
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
