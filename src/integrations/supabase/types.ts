@@ -99,6 +99,7 @@ export type Database = {
           booking_id: number
           booking_time: string
           cancellation_reason: string | null
+          client_email: string | null
           client_first_name: string
           client_last_name: string
           client_signature: string | null
@@ -109,6 +110,8 @@ export type Database = {
           hotel_id: string
           hotel_name: string | null
           id: string
+          payment_method: string | null
+          payment_status: string | null
           phone: string
           room_number: string | null
           signed_at: string | null
@@ -122,6 +125,7 @@ export type Database = {
           booking_id?: number
           booking_time: string
           cancellation_reason?: string | null
+          client_email?: string | null
           client_first_name: string
           client_last_name: string
           client_signature?: string | null
@@ -132,6 +136,8 @@ export type Database = {
           hotel_id: string
           hotel_name?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string | null
           phone: string
           room_number?: string | null
           signed_at?: string | null
@@ -145,6 +151,7 @@ export type Database = {
           booking_id?: number
           booking_time?: string
           cancellation_reason?: string | null
+          client_email?: string | null
           client_first_name?: string
           client_last_name?: string
           client_signature?: string | null
@@ -155,6 +162,8 @@ export type Database = {
           hotel_id?: string
           hotel_name?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string | null
           phone?: string
           room_number?: string | null
           signed_at?: string | null

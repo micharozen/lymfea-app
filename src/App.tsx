@@ -33,6 +33,13 @@ import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 import PwaNotifications from "./pages/pwa/PwaNotifications";
 import Home from "./pages/Home";
+import ClientWelcome from "./pages/client/ClientWelcome";
+import ClientMenu from "./pages/client/ClientMenu";
+import ClientBasket from "./pages/client/ClientBasket";
+import ClientCheckout from "./pages/client/ClientCheckout";
+import ClientPayment from "./pages/client/ClientPayment";
+import ClientConfirmation from "./pages/client/ClientConfirmation";
+import { BasketProvider } from "./pages/client/context/BasketContext";
 
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
@@ -43,6 +50,20 @@ const App = () => <QueryClientProvider client={queryClient}>
         <Routes>
           {/* Root - Smart redirect based on user type */}
           <Route path="/" element={<Home />} />
+          
+          {/* Client Routes (QR Code - Public Access) */}
+          <Route path="/client/:hotelId" element={<ClientWelcome />} />
+          <Route path="/client/:hotelId/*" element={
+            <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
+              <Routes>
+                <Route path="/menu" element={<ClientMenu />} />
+                <Route path="/basket" element={<ClientBasket />} />
+                <Route path="/checkout" element={<ClientCheckout />} />
+                <Route path="/payment" element={<ClientPayment />} />
+                <Route path="/confirmation/:bookingId" element={<ClientConfirmation />} />
+              </Routes>
+            </BasketProvider>
+          } />
           
           {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
