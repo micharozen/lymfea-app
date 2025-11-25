@@ -21,23 +21,39 @@ export default function ClientConfirmation() {
     const handleStripeSuccess = async () => {
       const sessionId = searchParams.get('session_id');
       
+      console.log('[ClientConfirmation] Session ID from URL:', sessionId);
+      console.log('[ClientConfirmation] Final booking ID:', finalBookingId);
+      
       if (sessionId && !finalBookingId) {
         setIsProcessingStripe(true);
+        console.log('[ClientConfirmation] Calling handle-checkout-success...');
         try {
           const { data, error } = await supabase.functions.invoke('handle-checkout-success', {
             body: { sessionId },
           });
 
-          if (error) throw error;
+          console.log('[ClientConfirmation] Response:', { data, error });
+
+          if (error) {
+            console.error('[ClientConfirmation] Function error:', error);
+            throw error;
+          }
 
           if (data?.bookingId) {
+            console.log('[ClientConfirmation] Booking created with ID:', data.bookingId);
             setFinalBookingId(data.bookingId);
-            toast.success('Payment successful!');
+            toast.success('Paiement réussi !');
+          } else {
+            console.error('[ClientConfirmation] No booking ID in response');
+            throw new Error('No booking ID received');
           }
         } catch (error: any) {
-          console.error('Stripe success handling error:', error);
-          toast.error('Failed to process payment confirmation');
-          navigate(`/client/${hotelId}/basket`);
+          console.error('[ClientConfirmation] Error processing payment:', error);
+          toast.error(`Erreur: ${error.message || 'Impossible de confirmer le paiement'}`);
+          // Navigate after a delay to let user see the error
+          setTimeout(() => {
+            navigate(`/client/${hotelId}/payment`);
+          }, 3000);
         } finally {
           setIsProcessingStripe(false);
         }
