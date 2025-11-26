@@ -35,9 +35,6 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
               </p>
             </div>
           )}
-          {!trend && (
-            <p className="text-xs text-muted-foreground">Cliquez pour voir la liste</p>
-          )}
         </div>
       </CardContent>
     </Card>
