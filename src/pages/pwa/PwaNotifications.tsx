@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Check, CheckCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Trash2, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Notification {
   id: string;
@@ -21,6 +24,7 @@ const PwaNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const navigate = useNavigate();
+  const { permission, isSubscribed, requestPermission, unsubscribe } = usePushNotifications();
 
   useEffect(() => {
     fetchNotifications();
@@ -189,6 +193,17 @@ const PwaNotifications = () => {
     }
   };
 
+  const handleTogglePushNotifications = async (enabled: boolean) => {
+    if (enabled) {
+      const success = await requestPermission();
+      if (!success) {
+        toast.error('Impossible d\'activer les notifications');
+      }
+    } else {
+      await unsubscribe();
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   if (loading) {
@@ -232,6 +247,28 @@ const PwaNotifications = () => {
               Tout marquer comme lu
             </Button>
           )}
+        </div>
+      </div>
+
+      {/* Push Notifications Settings */}
+      <div className="bg-white border-b border-gray-200 px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Bell className="h-5 w-5 text-gray-500" />
+            <div>
+              <Label htmlFor="push-notifications" className="text-sm font-medium">
+                Notifications Push
+              </Label>
+              <p className="text-xs text-gray-500">
+                Recevez des alertes en temps réel
+              </p>
+            </div>
+          </div>
+          <Switch
+            id="push-notifications"
+            checked={permission === 'granted' && isSubscribed}
+            onCheckedChange={handleTogglePushNotifications}
+          />
         </div>
       </div>
 
