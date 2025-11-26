@@ -28,18 +28,25 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
       try {
         console.log("🔐 Starting auth check");
         
-        // Get current session
+        // Try to refresh session first if it exists
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.log("Session refresh failed:", refreshError.message);
+        }
+        
+        // Get current session (either refreshed or existing)
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
-          console.log("No session");
+          console.log("No session found");
           if (mounted) {
             setLoading(false);
           }
           return;
         }
 
-        console.log("✅ Session found");
+        console.log("✅ Session found, expires at:", new Date(session.expires_at! * 1000).toLocaleString());
         
         if (mounted) {
           setSession(session);
@@ -55,7 +62,7 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
           .maybeSingle();
 
         const hasRole = !!roleData;
-        console.log("Has role:", hasRole);
+        console.log("Has hairdresser role:", hasRole);
 
         if (mounted) {
           setIsHairdresser(hasRole);
@@ -73,12 +80,31 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
 
     initAuth();
 
-    // Set up auth listener
+    // Set up auth listener for real-time changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("🔄 Auth state changed:", event);
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          
+          // Re-check role when session changes
+          if (session) {
+            setTimeout(async () => {
+              const { data: roleData } = await supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', session.user.id)
+                .eq('role', 'hairdresser')
+                .maybeSingle();
+              
+              if (mounted) {
+                setIsHairdresser(!!roleData);
+              }
+            }, 0);
+          } else {
+            setIsHairdresser(false);
+          }
         }
       }
     );
