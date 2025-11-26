@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de clés VAPID</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      padding: 12px 30px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .key-section {
+      display: none;
+      margin-top: 20px;
+    }
+    .key-section.active {
+      display: block;
+    }
+    .key-box {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+    }
+    .key-box h3 {
+      margin-top: 0;
+      color: #555;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .key-value {
+      font-family: 'Courier New', monospace;
+      word-break: break-all;
+      background: white;
+      padding: 10px;
+      border-radius: 3px;
+      border: 1px solid #e0e0e0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .copy-btn {
+      background: #2196F3;
+      padding: 8px 15px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .copy-btn:hover {
+      background: #0b7dda;
+    }
+    .instructions {
+      background: #e3f2fd;
+      padding: 20px;
+      border-radius: 5px;
+      border-left: 4px solid #2196F3;
+      margin-top: 20px;
+    }
+    .instructions h3 {
+      margin-top: 0;
+      color: #1976d2;
+    }
+    .instructions ol {
+      margin-bottom: 0;
+    }
+    .instructions li {
+      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    .success {
+      color: #4CAF50;
+      margin-top: 5px;
+      font-size: 14px;
+      display: none;
+    }
+    .success.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔑 Générateur de clés VAPID</h1>
+    <p class="subtitle">Générez de nouvelles clés VAPID pour les notifications push Web</p>
+    
+    <button id="generateBtn" onclick="generateKeys()">Générer de nouvelles clés</button>
+    
+    <div id="keysSection" class="key-section">
+      <div class="key-box">
+        <h3>Clé publique (VAPID_PUBLIC_KEY)</h3>
+        <div class="key-value" id="publicKey"></div>
+        <button class="copy-btn" onclick="copyToClipboard('publicKey', 'publicCopyMsg')">Copier</button>
+        <div class="success" id="publicCopyMsg">✓ Copié !</div>
+      </div>
+      
+      <div class="key-box">
+        <h3>Clé privée (VAPID_PRIVATE_KEY)</h3>
+        <div class="key-value" id="privateKey"></div>
+        <button class="copy-btn" onclick="copyToClipboard('privateKey', 'privateCopyMsg')">Copier</button>
+        <div class="success" id="privateCopyMsg">✓ Copié !</div>
+      </div>
+      
+      <div class="instructions">
+        <h3>📝 Étapes suivantes :</h3>
+        <ol>
+          <li><strong>Mettez à jour les secrets Supabase :</strong>
+            <ul>
+              <li>Copiez la clé publique et mettez à jour le secret <code>VAPID_PUBLIC_KEY</code></li>
+              <li>Copiez la clé privée et mettez à jour le secret <code>VAPID_PRIVATE_KEY</code></li>
+            </ul>
+          </li>
+          <li><strong>Mettez à jour le code frontend :</strong>
+            <ul>
+              <li>Copiez la clé publique dans <code>usePushNotifications.ts</code> (constante VITE_VAPID_PUBLIC_KEY)</li>
+            </ul>
+          </li>
+          <li><strong>Testez les notifications :</strong> Créez une nouvelle réservation pour vérifier que les notifications fonctionnent</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Helper pour convertir ArrayBuffer en base64url
+    function arrayBufferToBase64Url(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    }
+
+    async function generateKeys() {
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Génération en cours...';
+
+      try {
+        // Générer une paire de clés ECDSA P-256
+        const keyPair = await window.crypto.subtle.generateKey(
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-256'
+          },
+          true,
+          ['sign', 'verify']
+        );
+
+        // Exporter la clé publique en format raw
+        const publicKeyBuffer = await window.crypto.subtle.exportKey('raw', keyPair.publicKey);
+        const publicKeyBase64Url = arrayBufferToBase64Url(publicKeyBuffer);
+
+        // Exporter la clé privée en format JWK puis extraire 'd'
+        const privateKeyJwk = await window.crypto.subtle.exportKey('jwk', keyPair.privateKey);
+        const privateKeyBase64Url = privateKeyJwk.d;
+
+        // Afficher les clés
+        document.getElementById('publicKey').textContent = publicKeyBase64Url;
+        document.getElementById('privateKey').textContent = privateKeyBase64Url;
+        document.getElementById('keysSection').classList.add('active');
+
+        btn.textContent = 'Régénérer les clés';
+        btn.disabled = false;
+      } catch (error) {
+        console.error('Erreur lors de la génération des clés:', error);
+        alert('Erreur lors de la génération des clés. Veuillez réessayer.');
+        btn.textContent = 'Générer de nouvelles clés';
+        btn.disabled = false;
+      }
+    }
+
+    function copyToClipboard(elementId, messageId) {
+      const text = document.getElementById(elementId).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const msg = document.getElementById(messageId);
+        msg.classList.add('show');
+        setTimeout(() => {
+          msg.classList.remove('show');
+        }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
