@@ -2,29 +2,18 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import oomLogo from "@/assets/oom-monogram.svg";
 import welcomeBg from "@/assets/welcome-bg.png";
-
 const PwaWelcome = () => {
   const navigate = useNavigate();
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-
-  return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
+  return <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Background Image */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url(${welcomeBg})`,
-        }}
-      >
+      <div className="absolute inset-0 bg-cover bg-center" style={{
+      backgroundImage: `url(${welcomeBg})`
+    }}>
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
       </div>
 
@@ -33,21 +22,9 @@ const PwaWelcome = () => {
         {/* Top Logo and Install Button */}
         <div className="pt-12 flex justify-between items-start">
           <div className="flex-1" />
-          <img 
-            src={oomLogo} 
-            alt="OOM" 
-            className="w-16 h-16"
-          />
+          <img src={oomLogo} alt="OOM" className="w-16 h-16" />
           <div className="flex-1 flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/pwa/install")}
-              className="text-white hover:bg-white/20"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Installer
-            </Button>
+            
           </div>
         </div>
 
@@ -62,27 +39,17 @@ const PwaWelcome = () => {
             </p>
           </div>
 
-          <Button
-            onClick={() => navigate("/pwa/login")}
-            className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full"
-            size="lg"
-          >
+          <Button onClick={() => navigate("/pwa/login")} className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
             Get Started
           </Button>
 
           <p className="text-xs text-center text-white/70 px-4">
             By continuing, you agree to our{" "}
-            <button 
-              onClick={() => setShowTerms(true)}
-              className="underline hover:text-white transition-colors"
-            >
+            <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
               Terms of Use
             </button>
             {" "}and{" "}
-            <button 
-              onClick={() => setShowPrivacy(true)}
-              className="underline hover:text-white transition-colors"
-            >
+            <button onClick={() => setShowPrivacy(true)} className="underline hover:text-white transition-colors">
               Privacy Policy
             </button>
           </p>
@@ -147,8 +114,6 @@ const PwaWelcome = () => {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
-  );
+    </div>;
 };
-
 export default PwaWelcome;
