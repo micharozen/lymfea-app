@@ -223,16 +223,14 @@ export default function CreateBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
 
-      // Déclencher les notifications push si un coiffeur est assigné
-      if (data.hairdresserId) {
-        try {
-          await supabase.functions.invoke('trigger-new-booking-notifications', {
-            body: { bookingId: bookingData.id }
-          });
-        } catch (notifError) {
-          console.error('Error triggering notifications:', notifError);
-          // Ne pas bloquer la création de la réservation si les notifications échouent
-        }
+      // Déclencher les notifications push pour les coiffeurs
+      try {
+        await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingData.id }
+        });
+      } catch (notifError) {
+        console.error('Error triggering notifications:', notifError);
+        // Ne pas bloquer la création de la réservation si les notifications échouent
       }
 
       return bookingData;
