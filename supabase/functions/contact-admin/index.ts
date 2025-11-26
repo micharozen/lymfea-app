@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -7,6 +8,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const ContactAdminSchema = z.object({
+  emailOrPhone: z.string().trim().min(1).max(255),
+});
+
+// HTML escape function to prevent XSS
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 interface ContactAdminRequest {
   emailOrPhone: string;
@@ -19,9 +35,16 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { emailOrPhone }: ContactAdminRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validated = ContactAdminSchema.parse(requestBody);
+    const { emailOrPhone } = validated;
 
     console.log("Sending access request email for:", emailOrPhone);
+    
+    // Escape HTML to prevent XSS in email content
+    const safeEmailOrPhone = escapeHtml(emailOrPhone);
 
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -35,7 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
         subject: "Demande d'accès au panel OOM",
         html: `
           <h2>Nouvelle demande d'accès au panel</h2>
-          <p><strong>Email ou téléphone :</strong> ${emailOrPhone}</p>
+          <p><strong>Email ou téléphone :</strong> ${safeEmailOrPhone}</p>
           <p>Cette personne a tenté de se connecter au panel OOM mais n'a pas de compte.</p>
           <p><strong>Note :</strong> Cet email est envoyé à tom@oomworld.com. Pour recevoir les emails sur booking@oomworld.com, veuillez vérifier votre domaine sur resend.com/domains.</p>
         `,

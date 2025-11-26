@@ -94,7 +94,8 @@ serve(async (req) => {
     }
 
     if (!userEmail) {
-      return new Response(JSON.stringify({ exists: false, hasAccount: false, email: null, role: null }), {
+      // Return generic response without revealing account existence
+      return new Response(JSON.stringify({ exists: false }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -134,8 +135,13 @@ serve(async (req) => {
       }
     }
 
+    // Return minimal information - only what's needed for login flow
+    // Don't reveal account existence details, role, or setup status
     return new Response(
-      JSON.stringify({ exists: true, hasAccount, email: userEmail, role: userRole }),
+      JSON.stringify({ 
+        exists: true, 
+        email: userEmail
+      }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
