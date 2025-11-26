@@ -125,25 +125,6 @@ serve(async (req) => {
       console.error("[CHECKOUT-SUCCESS] Email error:", emailError);
     }
 
-    // Envoyer WhatsApp au client
-    if (metadata?.client_phone) {
-      try {
-        await supabase.functions.invoke('send-booking-whatsapp', {
-          body: {
-            phone: metadata.client_phone,
-            bookingNumber: booking.booking_id.toString(),
-            clientName: `${metadata?.client_first_name} ${metadata?.client_last_name}`,
-            hotelName: hotel?.name,
-            bookingDate: metadata?.booking_date,
-            bookingTime: metadata?.booking_time,
-            treatments: treatmentNames,
-          },
-        });
-        console.log("[CHECKOUT-SUCCESS] WhatsApp sent");
-      } catch (whatsappError) {
-        console.error("[CHECKOUT-SUCCESS] WhatsApp error:", whatsappError);
-      }
-    }
 
     return new Response(
       JSON.stringify({ 
