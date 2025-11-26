@@ -66,7 +66,7 @@ serve(async (req) => {
     }
 
     // Filter active hairdressers who haven't declined this booking
-    const eligibleHairdressers = hairdressers.filter(hh => {
+    let eligibleHairdressers = hairdressers.filter(hh => {
       const h = hh.hairdressers as any;
       return h && 
              h.user_id && 
@@ -74,7 +74,16 @@ serve(async (req) => {
              !(booking.declined_by || []).includes(h.id);
     });
 
-    console.log(`Found ${eligibleHairdressers.length} eligible hairdressers`);
+    // Si un hairdresser est assigné, ne notifier que lui
+    if (booking.hairdresser_id) {
+      eligibleHairdressers = eligibleHairdressers.filter(hh => {
+        const h = hh.hairdressers as any;
+        return h && h.id === booking.hairdresser_id;
+      });
+      console.log(`Notifying assigned hairdresser only`);
+    } else {
+      console.log(`Notifying all ${eligibleHairdressers.length} eligible hairdressers`);
+    }
 
     // Send push notifications to each hairdresser
     const notifications = await Promise.allSettled(
