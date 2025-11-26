@@ -135,12 +135,12 @@ serve(async (req) => {
       }
     }
 
-    // Return minimal information - only what's needed for login flow
-    // Don't reveal account existence details, role, or setup status
+    // Return information needed for login flow
     return new Response(
       JSON.stringify({ 
         exists: true, 
-        email: userEmail
+        email: userEmail,
+        hasAccount: hasAccount
       }),
       {
         status: 200,
