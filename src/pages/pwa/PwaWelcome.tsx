@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -29,13 +30,25 @@ const PwaWelcome = () => {
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 text-white">
-        {/* Top Logo */}
-        <div className="pt-12 flex justify-center">
+        {/* Top Logo and Install Button */}
+        <div className="pt-12 flex justify-between items-start">
+          <div className="flex-1" />
           <img 
             src={oomLogo} 
             alt="OOM" 
             className="w-16 h-16"
           />
+          <div className="flex-1 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/pwa/install")}
+              className="text-white hover:bg-white/20"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Installer
+            </Button>
+          </div>
         </div>
 
         {/* Bottom Content */}
