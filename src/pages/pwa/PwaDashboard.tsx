@@ -175,16 +175,24 @@ const PwaDashboard = () => {
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'notifications'
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('New notification:', payload);
+            console.log('🔔 New notification:', payload);
             const notification = payload.new as any;
             
-            if (notification.user_id === user.id) {
-              toast.info(notification.message);
-              setUnreadNotifications(prev => prev + 1);
-            }
+            // Show toast with action button if there's a booking
+            toast.info(notification.message, {
+              duration: 5000,
+              action: notification.booking_id ? {
+                label: 'Voir',
+                onClick: () => navigate(`/pwa/booking/${notification.booking_id}`)
+              } : undefined
+            });
+            
+            // Increment unread count
+            setUnreadNotifications(prev => prev + 1);
           }
         )
         .on(
