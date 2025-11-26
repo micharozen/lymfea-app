@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
 interface Hairdresser {
   id: string;
@@ -739,6 +740,9 @@ const PwaDashboard = () => {
         </div>
         <div className="h-1 w-32 bg-black rounded-full mx-auto mb-1" />
       </div>
+
+      {/* Push Notification Prompt */}
+      <PushNotificationPrompt />
     </div>
   );
 };
