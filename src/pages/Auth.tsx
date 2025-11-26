@@ -151,11 +151,13 @@ const Auth = () => {
       });
 
       if (error) {
-        if ((error.message || "").includes("User already registered")) {
+        if ((error.message || "").includes("User already registered") || error.message?.includes("already_exists")) {
           toast({
             title: "Compte existant",
-            description: "Un compte existe déjà. Veuillez vous connecter.",
+            description: "Ce compte existe déjà. Redirection vers la connexion...",
           });
+          // Clear password and switch to login
+          setPassword("");
           setStep("password");
           return;
         }
