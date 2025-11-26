@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatCard } from "@/components/StatCard";
 import { PeriodSelector } from "@/components/PeriodSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,89 +11,155 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import { format, differenceInDays, addDays } from "date-fns";
+import { format, differenceInDays, addDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() - 30)));
   const [endDate, setEndDate] = useState<Date>(new Date());
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('*')
+        .order('booking_date', { ascending: true });
+
+      if (bookingsError) throw bookingsError;
+
+      // Fetch hotels
+      const { data: hotelsData, error: hotelsError } = await supabase
+        .from('hotels')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (hotelsError) throw hotelsError;
+
+      setBookings(bookingsData || []);
+      setHotels(hotelsData || []);
+    } catch (error: any) {
+      console.error('Error fetching dashboard data:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les données",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePeriodChange = (start: Date, end: Date) => {
     setStartDate(start);
     setEndDate(end);
   };
 
-  // Générer des données de ventes basées sur la période
+  // Filtrer les réservations par période
+  const filteredBookings = bookings.filter(booking => {
+    const bookingDate = parseISO(booking.booking_date);
+    return isWithinInterval(bookingDate, { start: startDate, end: endDate });
+  });
+
+  // Générer des données de ventes basées sur les vraies réservations
   const generateSalesData = () => {
     const days = differenceInDays(endDate, startDate);
     
-    // Seed basé sur les dates pour cohérence
-    const seed = startDate.getTime() + endDate.getTime();
-    const seededRandom = (index: number) => {
-      const x = Math.sin(seed + index * 100) * 10000;
-      return x - Math.floor(x);
-    };
-    
+    if (filteredBookings.length === 0) {
+      return [];
+    }
+
     // Pour "Aujourd'hui", générer des points horaires
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
-        const hour = 9 + i * 2; // De 9h à 23h
-        const randomSales = Math.floor(seededRandom(i) * 300) + 50;
+        const hour = 9 + i * 2;
+        const hourBookings = filteredBookings.filter(b => {
+          const bookingHour = parseInt(b.booking_time?.split(':')[0] || '0');
+          return bookingHour >= hour && bookingHour < hour + 2;
+        });
+        const sales = hourBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
         return {
           date: `${hour}h`,
-          sales: randomSales,
+          sales: sales,
         };
       });
     }
     
-    const dataPoints = Math.min(days, 10); // Maximum 10 points sur le graphique
+    const dataPoints = Math.min(days + 1, 10);
     const interval = Math.max(1, Math.floor(days / dataPoints));
     
     return Array.from({ length: dataPoints }, (_, i) => {
       const date = addDays(startDate, i * interval);
-      const randomSales = Math.floor(seededRandom(i + 10) * 500) + 100;
+      const dayBookings = filteredBookings.filter(b => {
+        const bookingDate = parseISO(b.booking_date);
+        return format(bookingDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+      });
+      const sales = dayBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
       return {
         date: format(date, "dd MMM", { locale: fr }),
-        sales: randomSales,
+        sales: sales,
       };
     });
   };
 
-  // Calculer les statistiques basées sur la période (utilisé useMemo pour éviter la regénération aléatoire)
+  // Calculer les statistiques basées sur les vraies données
   const calculateStats = () => {
-    const days = Math.max(1, differenceInDays(endDate, startDate)); // Au minimum 1 jour
-    const baseMultiplier = days / 30; // Normaliser par rapport à 30 jours
-    
-    // Utiliser les dates comme seed pour générer des nombres cohérents
-    const seed = startDate.getTime() + endDate.getTime();
-    const seededRandom = (index: number) => {
-      const x = Math.sin(seed + index) * 10000;
-      return x - Math.floor(x);
-    };
+    const totalSales = filteredBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+    const upcomingBookings = filteredBookings.filter(b => {
+      const bookingDate = parseISO(b.booking_date);
+      return bookingDate > new Date() && b.status === 'Confirmé';
+    }).length;
+    const totalBookings = filteredBookings.length;
+    const completedBookings = filteredBookings.filter(b => b.status === 'Terminé').length;
     
     return {
-      totalSales: (seededRandom(1) * 5000 * baseMultiplier + 100).toFixed(2),
-      upcomingBookings: Math.floor(seededRandom(2) * 50 * baseMultiplier + 5),
-      totalBookings: Math.floor(seededRandom(3) * 100 * baseMultiplier + 10),
-      totalSessions: Math.floor(seededRandom(4) * 150 * baseMultiplier + 15),
-      salesTrend: ((seededRandom(5) - 0.5) * 20).toFixed(1),
-      bookingsTrend: ((seededRandom(6) - 0.5) * 20).toFixed(1),
-      sessionsTrend: ((seededRandom(7) - 0.5) * 20).toFixed(1),
+      totalSales: totalSales.toFixed(2),
+      upcomingBookings: upcomingBookings,
+      totalBookings: totalBookings,
+      totalSessions: completedBookings,
+      salesTrend: "0",
+      bookingsTrend: "0",
+      sessionsTrend: "0",
     };
   };
 
   const salesData = generateSalesData();
   const stats = calculateStats();
 
-  const hotelData = [
-    {
-      name: "Hôtel Sofitel Paris le Faubourg",
-      totalSales: `${stats.totalSales} €`,
-      totalBookings: stats.totalBookings,
-      totalSessions: stats.totalSessions,
-      totalCancelled: Math.floor(stats.totalBookings * 0.1),
-    },
-  ];
+  const hotelData = hotels.map(hotel => {
+    const hotelBookings = filteredBookings.filter(b => b.hotel_id === hotel.id);
+    const totalSales = hotelBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+    const totalCancelled = hotelBookings.filter(b => b.status === 'Annulé').length;
+    const totalSessions = hotelBookings.filter(b => b.status === 'Terminé').length;
+    
+    return {
+      name: hotel.name,
+      totalSales: `${totalSales.toFixed(2)} ${hotel.currency || 'EUR'}`,
+      totalBookings: hotelBookings.length,
+      totalSessions: totalSessions,
+      totalCancelled: totalCancelled,
+    };
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <p className="text-muted-foreground">Chargement...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -113,8 +179,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-4 gap-3 mb-6">
         <StatCard
           title="Ventes totales"
-          value={`${stats.totalSales} €`}
-          trend={{ value: `${Math.abs(parseFloat(stats.salesTrend))}%`, isPositive: parseFloat(stats.salesTrend) > 0 }}
+          value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
+          trend={parseFloat(stats.salesTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.salesTrend))}%`, isPositive: parseFloat(stats.salesTrend) > 0 } : undefined}
         />
         <StatCard
           title="Réservations à venir"
@@ -123,77 +189,91 @@ export default function Dashboard() {
         <StatCard
           title="Réservations totales"
           value={stats.totalBookings}
-          trend={{ value: `${Math.abs(parseFloat(stats.bookingsTrend))}%`, isPositive: parseFloat(stats.bookingsTrend) > 0 }}
+          trend={parseFloat(stats.bookingsTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.bookingsTrend))}%`, isPositive: parseFloat(stats.bookingsTrend) > 0 } : undefined}
         />
         <StatCard
           title="Sessions totales"
           value={stats.totalSessions}
-          trend={{ value: `${Math.abs(parseFloat(stats.sessionsTrend))}%`, isPositive: parseFloat(stats.sessionsTrend) > 0 }}
+          trend={parseFloat(stats.sessionsTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.sessionsTrend))}%`, isPositive: parseFloat(stats.sessionsTrend) > 0 } : undefined}
         />
       </div>
 
-      <Card className="mb-6 border border-border bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-foreground">Ventes totales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={salesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                stroke="#666"
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                stroke="#666"
-                tickFormatter={(value) => `${value} €`}
-              />
-              <Line
-                type="monotone"
-                dataKey="sales"
-                stroke="#000000"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {salesData.length > 0 ? (
+        <Card className="mb-6 border border-border bg-card shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-foreground">Ventes totales</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+                <XAxis 
+                  dataKey="date" 
+                  tick={{ fontSize: 12 }}
+                  stroke="#666"
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  stroke="#666"
+                  tickFormatter={(value) => `${value} €`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#000000"
+                  strokeWidth={2}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="mb-6 border border-border bg-card shadow-sm">
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Aucune donnée de vente pour cette période</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl font-bold text-foreground">Vue d&apos;ensemble</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-muted-foreground font-normal">Nom de l&apos;hôtel</TableHead>
-                <TableHead className="text-muted-foreground font-normal">Ventes totales</TableHead>
-                <TableHead className="text-muted-foreground font-normal">Réservations totales</TableHead>
-                <TableHead className="text-muted-foreground font-normal">Sessions totales</TableHead>
-                <TableHead className="text-muted-foreground font-normal">Annulations totales</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {hotelData.map((hotel, index) => (
-                <TableRow key={index}>
-                  <TableCell className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-muted rounded flex items-center justify-center text-xs">
-                      🏨
-                    </div>
-                    <span className="font-medium">{hotel.name}</span>
-                  </TableCell>
-                  <TableCell>{hotel.totalSales}</TableCell>
-                  <TableCell>{hotel.totalBookings}</TableCell>
-                  <TableCell>{hotel.totalSessions}</TableCell>
-                  <TableCell>{hotel.totalCancelled}</TableCell>
+          {hotelData.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-muted-foreground font-normal">Nom de l&apos;hôtel</TableHead>
+                  <TableHead className="text-muted-foreground font-normal">Ventes totales</TableHead>
+                  <TableHead className="text-muted-foreground font-normal">Réservations totales</TableHead>
+                  <TableHead className="text-muted-foreground font-normal">Sessions totales</TableHead>
+                  <TableHead className="text-muted-foreground font-normal">Annulations totales</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {hotelData.map((hotel, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center text-xs">
+                        🏨
+                      </div>
+                      <span className="font-medium">{hotel.name}</span>
+                    </TableCell>
+                    <TableCell>{hotel.totalSales}</TableCell>
+                    <TableCell>{hotel.totalBookings}</TableCell>
+                    <TableCell>{hotel.totalSessions}</TableCell>
+                    <TableCell>{hotel.totalCancelled}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">Aucun hôtel trouvé</p>
+            </div>
+          )}
         </CardContent>
       </Card>
       </div>
