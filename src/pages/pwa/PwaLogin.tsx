@@ -405,7 +405,7 @@ const PwaLogin = () => {
             <p className="text-sm text-gray-500 mb-8">We sent a SMS to ***{phone.slice(-4)}</p>
 
             {/* OTP Input - 6 separate boxes */}
-            <div className="flex justify-center gap-2 mb-4">
+            <div className="flex justify-center gap-1.5 sm:gap-2 mb-4 px-2">
               {otp.map((digit, index) => (
                 <Input
                   key={index}
@@ -418,7 +418,7 @@ const PwaLogin = () => {
                   onKeyDown={(e) => handleOtpKeyDown(index, e)}
                   disabled={isCodeExpired}
                   className={cn(
-                    "w-14 h-16 text-center text-2xl font-semibold rounded-lg border-2 transition-all",
+                    "w-12 sm:w-14 h-14 sm:h-16 text-center text-xl sm:text-2xl font-semibold rounded-lg border-2 transition-all flex-shrink-0",
                     isCodeExpired 
                       ? "border-orange-300 bg-orange-50 text-gray-400 cursor-not-allowed"
                       : "border-blue-500 bg-white"
