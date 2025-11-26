@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 // VAPID public key
-const VAPID_PUBLIC_KEY = 'BEGgKRqD3gDld_UxaMHEOwQrtg7amygHtaInsfe2nmmu6UbWv10MLLjs35KQl17UL15_rdH2MVlxc3HupML6efk';
+const VAPID_PUBLIC_KEY = 'BGOl9pHeTk1xJn1jBoN1d0zyWjTCgRnJZW7bAMP8058y1LhhANGs6YxIUH4V7R1O68MM-B2Iw7uF_P6mpexm5Y0';
 
 export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
