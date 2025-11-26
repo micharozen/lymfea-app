@@ -217,12 +217,24 @@ const PwaDashboard = () => {
 
   const checkAuth = async () => {
     try {
+      // Try to refresh the session first
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        console.log("⚠️ Session refresh failed:", refreshError.message);
+      } else if (refreshedSession) {
+        console.log("✅ Session refreshed successfully");
+      }
+      
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        console.log("❌ No user found, redirecting to login");
         navigate("/pwa/login");
         return;
       }
+
+      console.log("✅ User authenticated:", user.email);
 
       const { data: hairdresserData, error } = await supabase
         .from("hairdressers")

@@ -261,7 +261,7 @@ const PwaLogin = () => {
         return;
       }
 
-      // Sign in with the session
+      // Sign in with the session and ensure it persists
       const { error: signInError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
@@ -272,13 +272,20 @@ const PwaLogin = () => {
         throw signInError;
       }
 
+      // Verify session was properly saved
+      const { data: { session: savedSession } } = await supabase.auth.getSession();
+      console.log('✅ Session saved:', !!savedSession);
+
       toast.success("✅ Connexion réussie !");
+      
+      // Small delay to ensure session is fully persisted
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Redirect based on hairdresser status
       if (data.hairdresser.status === "En attente") {
-        navigate("/pwa/onboarding");
+        navigate("/pwa/onboarding", { replace: true });
       } else {
-        navigate("/pwa/dashboard");
+        navigate("/pwa/dashboard", { replace: true });
       }
     } catch (error: any) {
       console.error('Verification error:', error);
