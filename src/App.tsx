@@ -33,6 +33,7 @@ import PwaWelcome from "./pages/pwa/PwaWelcome";
 import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 import PwaNotifications from "./pages/pwa/PwaNotifications";
 import PwaInstall from "./pages/pwa/PwaInstall";
+import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
 import Home from "./pages/Home";
 import ClientWelcome from "./pages/client/ClientWelcome";
 import ClientMenu from "./pages/client/ClientMenu";
@@ -93,6 +94,7 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route path="/pwa/welcome" element={<PwaWelcome />} />
           <Route path="/pwa/install" element={<PwaInstall />} />
           <Route path="/pwa/login" element={<PwaLogin />} />
+          <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
           <Route
             path="/pwa/onboarding"
             element={
