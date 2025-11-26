@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// VAPID public key - this will be generated when you set up VAPID keys
-const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE';
+// VAPID public key
+const VAPID_PUBLIC_KEY = 'BEGgKRqD3gDld_UxaMHEOwQrtg7amygHtaInsfe2nmmu6UbWv10MLLjs35KQl17UL15_rdH2MVlxc3HupML6efk';
 
 export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
