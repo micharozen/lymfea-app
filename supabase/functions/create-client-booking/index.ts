@@ -142,7 +142,22 @@ serve(async (req) => {
       }
     }
 
-    // The trigger notify_hairdressers_new_booking will automatically notify all hairdressers
+    // Trigger push notifications for hairdressers
+    try {
+      console.log('Triggering push notifications for booking:', booking.id);
+      const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+        body: { bookingId: booking.id }
+      });
+
+      if (pushResponse.error) {
+        console.error('Failed to trigger push notifications:', pushResponse.error);
+      } else {
+        console.log('Push notifications triggered:', pushResponse.data);
+      }
+    } catch (pushError) {
+      console.error('Error triggering push notifications:', pushError);
+      // Continue even if push notifications fail
+    }
 
     return new Response(
       JSON.stringify({ 
