@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,13 +60,19 @@ serve(async (req) => {
       throw new Error("VAPID keys not configured");
     }
 
+    // Configure web-push
+    webpush.setVapidDetails(
+      "mailto:support@oomworld.com",
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+
     // Send notification to each token
     const results = await Promise.allSettled(
       tokens.map(async ({ token, endpoint }) => {
         try {
           const subscription: PushSubscription = JSON.parse(token);
           
-          // Use web-push library equivalent
           const payload = JSON.stringify({
             title,
             body,
@@ -75,36 +82,24 @@ serve(async (req) => {
             },
           });
 
-          // For now, we'll use a simple fetch approach
-          // In production, you might want to use a proper web-push library
-          const response = await fetch(subscription.endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "TTL": "86400",
-            },
-            body: payload,
-          });
-
-          if (!response.ok) {
-            console.error(`Failed to send to ${endpoint}:`, response.status);
-            
-            // If token is invalid (410 Gone), remove it
-            if (response.status === 410) {
-              await supabaseClient
-                .from("push_tokens")
-                .delete()
-                .eq("endpoint", endpoint);
-              console.log("Removed invalid token:", endpoint);
-            }
-            
-            return { success: false, endpoint };
-          }
+          console.log("Sending to endpoint:", endpoint);
+          
+          await webpush.sendNotification(subscription, payload);
 
           console.log("Successfully sent notification to:", endpoint);
           return { success: true, endpoint };
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error sending to token:", error);
+          
+          // If token is invalid (410 Gone), remove it
+          if (error?.statusCode === 410) {
+            await supabaseClient
+              .from("push_tokens")
+              .delete()
+              .eq("endpoint", endpoint);
+            console.log("Removed invalid token:", endpoint);
+          }
+          
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           return { success: false, endpoint, error: errorMessage };
         }
