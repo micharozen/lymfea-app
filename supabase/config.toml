@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.trigger-new-booking-notifications]
 verify_jwt = false
+
+[functions.generate-vapid-keys]
+verify_jwt = false
