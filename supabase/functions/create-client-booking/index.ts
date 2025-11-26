@@ -144,40 +144,6 @@ serve(async (req) => {
 
     // The trigger notify_hairdressers_new_booking will automatically notify all hairdressers
 
-    // Send WhatsApp notification to client
-    if (clientData.phone) {
-      try {
-        const whatsappResponse = await fetch(
-          `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-whatsapp`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-            },
-            body: JSON.stringify({
-              phone: clientData.phone,
-              bookingNumber: booking.booking_id.toString(),
-              clientName: `${clientData.firstName} ${clientData.lastName}`,
-              hotelName: hotel.name,
-              bookingDate: bookingData.date,
-              bookingTime: bookingData.time,
-              treatments: treatmentNames,
-            }),
-          }
-        );
-
-        if (!whatsappResponse.ok) {
-          console.error('Failed to send WhatsApp:', await whatsappResponse.text());
-        } else {
-          console.log('WhatsApp sent successfully');
-        }
-      } catch (whatsappError) {
-        console.error('Error sending WhatsApp:', whatsappError);
-        // Continue even if WhatsApp fails
-      }
-    }
-
     return new Response(
       JSON.stringify({ 
         success: true, 

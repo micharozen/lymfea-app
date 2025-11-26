@@ -27,7 +27,7 @@ export default function ClientConfirmation() {
           </h1>
           
           <p className="text-gray-600 leading-relaxed px-4">
-            You will receive a message by WhatsApp and email for updates and confirmation
+            You will receive a confirmation email with all the details of your booking
           </p>
         </div>
 
