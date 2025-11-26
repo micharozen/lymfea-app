@@ -67,7 +67,7 @@ serve(async (req) => {
 
     // Filter active hairdressers who haven't declined this booking
     const eligibleHairdressers = hairdressers.filter(hh => {
-      const h = hh.hairdressers;
+      const h = hh.hairdressers as any;
       return h && 
              h.user_id && 
              h.status === "Actif" &&
@@ -79,7 +79,7 @@ serve(async (req) => {
     // Send push notifications to each hairdresser
     const notifications = await Promise.allSettled(
       eligibleHairdressers.map(async (hh) => {
-        const h = hh.hairdressers;
+        const h = hh.hairdressers as any;
         if (!h || !h.user_id) return { success: false };
 
         try {
