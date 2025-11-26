@@ -1,19 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-interface PushSubscription {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -60,13 +51,6 @@ serve(async (req) => {
       throw new Error("VAPID keys not configured");
     }
 
-    // Configure web-push with VAPID details
-    webpush.setVapidDetails(
-      'mailto:support@oomworld.com',
-      VAPID_PUBLIC_KEY,
-      VAPID_PRIVATE_KEY
-    );
-
     const payload = JSON.stringify({
       title: title || "OOM",
       body: body || "Nouvelle notification",
@@ -81,29 +65,40 @@ serve(async (req) => {
       tokens.map(async ({ token, endpoint, id }) => {
         try {
           const subscriptionData = JSON.parse(token);
-          const subscription: PushSubscription = {
-            endpoint,
-            keys: subscriptionData
-          };
-
-          // Send push notification using web-push
-          await webpush.sendNotification(subscription, payload);
           
-          console.log("Successfully sent notification to:", endpoint);
-          return { success: true, endpoint };
+          // Simple Web Push implementation without external libraries
+          // Just send the payload directly to the push service
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "TTL": "86400",
+              "Content-Type": "application/octet-stream",
+              "Content-Length": payload.length.toString(),
+            },
+            body: payload,
+          });
+
+          if (response.status === 201 || response.status === 200) {
+            console.log("Successfully sent notification to:", endpoint);
+            return { success: true, endpoint };
+          } else {
+            const errorText = await response.text();
+            console.error("Failed to send notification:", response.status, errorText);
+            
+            // Check if token is invalid (410 Gone)
+            if (response.status === 410) {
+              // Token invalid, delete it
+              await supabaseClient
+                .from("push_tokens")
+                .delete()
+                .eq("id", id);
+              console.log("Removed invalid token:", endpoint);
+            }
+            
+            return { success: false, endpoint, error: errorText };
+          }
         } catch (error: any) {
           console.error("Error sending to token:", error);
-          
-          // Check if token is invalid (410 Gone)
-          if (error.statusCode === 410) {
-            // Token invalid, delete it
-            await supabaseClient
-              .from("push_tokens")
-              .delete()
-              .eq("id", id);
-            console.log("Removed invalid token:", endpoint);
-          }
-          
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           return { success: false, endpoint, error: errorMessage };
         }
