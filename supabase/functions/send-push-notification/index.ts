@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,13 @@ serve(async (req) => {
       throw new Error("VAPID keys not configured");
     }
 
+    // Configure web-push with VAPID keys
+    webpush.setVapidDetails(
+      'mailto:support@oomworld.com',
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+
     const payload = JSON.stringify({
       title: title || "OOM",
       body: body || "Nouvelle notification",
@@ -66,39 +74,30 @@ serve(async (req) => {
         try {
           const subscriptionData = JSON.parse(token);
           
-          // Simple Web Push implementation without external libraries
-          // Just send the payload directly to the push service
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-              "TTL": "86400",
-              "Content-Type": "application/octet-stream",
-              "Content-Length": payload.length.toString(),
-            },
-            body: payload,
-          });
+          // Construct subscription object for web-push
+          const subscription = {
+            endpoint: endpoint,
+            keys: subscriptionData
+          };
 
-          if (response.status === 201 || response.status === 200) {
-            console.log("Successfully sent notification to:", endpoint);
-            return { success: true, endpoint };
-          } else {
-            const errorText = await response.text();
-            console.error("Failed to send notification:", response.status, errorText);
-            
-            // Check if token is invalid (410 Gone)
-            if (response.status === 410) {
-              // Token invalid, delete it
-              await supabaseClient
-                .from("push_tokens")
-                .delete()
-                .eq("id", id);
-              console.log("Removed invalid token:", endpoint);
-            }
-            
-            return { success: false, endpoint, error: errorText };
-          }
+          // Send using web-push library which handles VAPID signing
+          await webpush.sendNotification(subscription, payload);
+          
+          console.log("Successfully sent notification to:", endpoint);
+          return { success: true, endpoint };
         } catch (error: any) {
           console.error("Error sending to token:", error);
+          
+          // Check if token is invalid (410 Gone)
+          if (error.statusCode === 410) {
+            // Token invalid, delete it
+            await supabaseClient
+              .from("push_tokens")
+              .delete()
+              .eq("id", id);
+            console.log("Removed invalid token:", endpoint);
+          }
+          
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           return { success: false, endpoint, error: errorMessage };
         }
