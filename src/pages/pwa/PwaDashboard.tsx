@@ -540,8 +540,22 @@ const PwaDashboard = () => {
 
           {/* Bookings List */}
           <div className="space-y-3">
-            {filteredBookings.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-8">No bookings found</p>
+            {loading ? null : filteredBookings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <div className="text-6xl mb-4">
+                  {activeTab === "upcoming" ? "📅" : activeTab === "past" ? "✅" : "🚫"}
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {activeTab === "upcoming" ? "Aucune réservation à venir" : 
+                   activeTab === "past" ? "Aucune réservation passée" : 
+                   "Aucune annulation"}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {activeTab === "upcoming" ? "Les nouvelles réservations apparaîtront ici" : 
+                   activeTab === "past" ? "Vos réservations terminées apparaîtront ici" : 
+                   "Les réservations annulées apparaîtront ici"}
+                </p>
+              </div>
             ) : (
               <>
                 {filteredBookings.slice(0, showAllBookings ? filteredBookings.length : 3).map((booking, index) => (
@@ -610,8 +624,16 @@ const PwaDashboard = () => {
             </div>
           </div>
           
-          {pendingRequests.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No pending requests</p>
+          {loading ? null : pendingRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              <div className="text-6xl mb-4">⏱️</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Aucune demande en attente
+              </h3>
+              <p className="text-sm text-gray-500">
+                Les nouvelles demandes de réservation apparaîtront ici
+              </p>
+            </div>
           ) : (
             <div className="space-y-6">
               {groupedPendingRequests.map(([date, bookings]) => (
