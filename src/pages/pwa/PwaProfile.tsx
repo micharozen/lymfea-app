@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera } from "lucide-react";
+import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Settings } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,7 +162,7 @@ const PwaProfile = () => {
     { icon: Hotel, label: "Hotels", onClick: () => navigate("/pwa/profile/hotels") },
     { icon: Package, label: "OOM product", onClick: () => {} },
     { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/profile/notifications") },
-    { icon: Bell, label: "Test Notifications", onClick: () => navigate("/pwa/test-notifications") },
+    { icon: Settings, label: "Diagnostic Push", onClick: () => navigate("/pwa/push-diagnostic") },
     { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
   ];

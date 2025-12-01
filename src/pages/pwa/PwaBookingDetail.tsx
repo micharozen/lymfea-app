@@ -310,18 +310,33 @@ const PwaBookingDetail = () => {
     
     setUpdating(true);
     try {
+      console.log('[Booking] 🎯 Starting accept booking process...');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.error('[Booking] ❌ No user found');
+        toast.error('Non authentifié');
+        setUpdating(false);
+        return;
+      }
 
+      console.log('[Booking] 👤 User authenticated:', user.id);
       const { data: hairdresserData } = await supabase
         .from("hairdressers")
         .select("id, first_name, last_name")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) return;
+      if (!hairdresserData) {
+        console.error('[Booking] ❌ No hairdresser found for user');
+        toast.error('Profil coiffeur non trouvé');
+        setUpdating(false);
+        return;
+      }
+
+      console.log('[Booking] 💇 Hairdresser found:', hairdresserData.id);
 
       // Check for conflicts with existing confirmed bookings
+      console.log('[Booking] 🔍 Checking for schedule conflicts...');
       const { data: existingBookings } = await supabase
         .from("bookings")
         .select(`
@@ -335,6 +350,8 @@ const PwaBookingDetail = () => {
         .eq("hairdresser_id", hairdresserData.id)
         .eq("booking_date", booking.booking_date)
         .in("status", ["Confirmé", "Assigné"]);
+
+      console.log('[Booking] 📅 Existing bookings:', existingBookings?.length || 0);
 
       if (existingBookings && existingBookings.length > 0) {
         const newBookingStart = new Date(`${booking.booking_date}T${booking.booking_time}`);
@@ -355,6 +372,7 @@ const PwaBookingDetail = () => {
             (newBookingEnd > existingStart && newBookingEnd <= existingEnd) ||
             (newBookingStart <= existingStart && newBookingEnd >= existingEnd)
           ) {
+            console.warn('[Booking] ⚠️ Schedule conflict detected');
             toast.error(
               `⚠️ Conflit d'horaire détecté avec une réservation existante à ${existingBooking.booking_time.substring(0, 5)}`
             );
@@ -365,7 +383,9 @@ const PwaBookingDetail = () => {
       }
 
       const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+      console.log('[Booking] 💰 Total price:', totalPrice);
       
+      console.log('[Booking] 📞 Calling accept_booking RPC...');
       const { data, error } = await supabase.rpc('accept_booking', {
         _booking_id: booking.id,
         _hairdresser_id: hairdresserData.id,
@@ -373,7 +393,12 @@ const PwaBookingDetail = () => {
         _total_price: totalPrice
       });
 
-      if (error) throw error;
+      console.log('[Booking] 📥 RPC response:', { data, error });
+
+      if (error) {
+        console.error('[Booking] ❌ RPC error:', error);
+        throw error;
+      }
 
       const result = data as { success: boolean; error?: string } | null;
       
