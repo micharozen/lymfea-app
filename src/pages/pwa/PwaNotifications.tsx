@@ -30,7 +30,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { permission, isSubscribed, requestPermission, unsubscribe } = usePushNotifications();
+  const { permission, isSubscribed, isLoading, requestPermission, unsubscribe } = usePushNotifications();
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -288,6 +288,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
             id="push-notifications"
             checked={permission === 'granted' && isSubscribed}
             onCheckedChange={handleTogglePushNotifications}
+            disabled={isLoading}
           />
         </div>
       </div>

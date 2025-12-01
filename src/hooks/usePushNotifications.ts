@@ -9,59 +9,76 @@ export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkExistingSubscription = async () => {
-      // Check if browser supports notifications
-      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        return;
-      }
-      
-      setIsSupported(true);
-      setPermission(Notification.permission);
-      
-      // If permission is granted, check for existing subscription
-      if (Notification.permission === 'granted') {
-        try {
-          const registration = await navigator.serviceWorker.ready;
-          const subscription = await registration.pushManager.getSubscription();
-          
-          if (subscription) {
-            // Verify subscription exists in database
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              const { data: existingToken } = await supabase
-                .from('push_tokens')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('endpoint', subscription.endpoint)
-                .maybeSingle();
-              
-              if (existingToken) {
-                setIsSubscribed(true);
-                console.log('[Push] Existing subscription found');
-              } else {
-                // Subscription exists in browser but not in DB - re-save it
-                const { error } = await supabase
-                  .from('push_tokens')
-                  .upsert({
-                    user_id: user.id,
-                    token: JSON.stringify(subscription.toJSON()),
-                    endpoint: subscription.endpoint,
-                  }, {
-                    onConflict: 'user_id,endpoint',
-                  });
+      try {
+        // Check if browser supports notifications
+        if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+          console.log('[Push] Browser does not support notifications or service workers');
+          setIsLoading(false);
+          return;
+        }
+        
+        setIsSupported(true);
+        setPermission(Notification.permission);
+        
+        console.log('[Push] Current permission:', Notification.permission);
+        
+        // If permission is granted, check for existing subscription
+        if (Notification.permission === 'granted') {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            console.log('[Push] Service worker ready');
+            
+            const subscription = await registration.pushManager.getSubscription();
+            console.log('[Push] Current subscription:', subscription ? 'exists' : 'none');
+            
+            if (subscription) {
+              // Verify subscription exists in database
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                console.log('[Push] Checking DB for user:', user.id);
                 
-                if (!error) {
+                const { data: existingToken } = await supabase
+                  .from('push_tokens')
+                  .select('id')
+                  .eq('user_id', user.id)
+                  .eq('endpoint', subscription.endpoint)
+                  .maybeSingle();
+                
+                if (existingToken) {
                   setIsSubscribed(true);
-                  console.log('[Push] Re-saved existing subscription to DB');
+                  console.log('[Push] ✅ Subscription found in DB');
+                } else {
+                  // Subscription exists in browser but not in DB - re-save it
+                  console.log('[Push] 💾 Saving subscription to DB...');
+                  const { error } = await supabase
+                    .from('push_tokens')
+                    .upsert({
+                      user_id: user.id,
+                      token: JSON.stringify(subscription.toJSON()),
+                      endpoint: subscription.endpoint,
+                    }, {
+                      onConflict: 'user_id,endpoint',
+                    });
+                  
+                  if (!error) {
+                    setIsSubscribed(true);
+                    console.log('[Push] ✅ Subscription saved to DB');
+                  } else {
+                    console.error('[Push] ❌ Error saving to DB:', error);
+                  }
                 }
               }
             }
+          } catch (error) {
+            console.error('[Push] Error checking existing subscription:', error);
           }
-        } catch (error) {
-          console.error('[Push] Error checking existing subscription:', error);
         }
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -109,17 +126,22 @@ export const usePushNotifications = () => {
 
   const subscribeToPush = async () => {
     try {
+      console.log('[Push] 🔔 Starting subscription process...');
       const registration = await navigator.serviceWorker.ready;
+      console.log('[Push] Service worker ready');
       
       // Check if already subscribed
       let subscription = await registration.pushManager.getSubscription();
+      console.log('[Push] Current subscription:', subscription ? 'exists' : 'none');
       
       if (!subscription) {
         // Subscribe to push notifications
+        console.log('[Push] Creating new subscription...');
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
+        console.log('[Push] ✅ New subscription created');
       }
 
       // Save subscription to database
@@ -129,23 +151,30 @@ export const usePushNotifications = () => {
         throw new Error('User not authenticated');
       }
 
+      console.log('[Push] 💾 Saving to database for user:', user.id);
+      const subscriptionData = {
+        user_id: user.id,
+        token: JSON.stringify(subscription.toJSON()),
+        endpoint: subscription.endpoint,
+      };
+      console.log('[Push] Subscription data:', subscriptionData);
+
       const { error } = await supabase
         .from('push_tokens')
-        .upsert({
-          user_id: user.id,
-          token: JSON.stringify(subscription.toJSON()),
-          endpoint: subscription.endpoint,
-        }, {
+        .upsert(subscriptionData, {
           onConflict: 'user_id,endpoint',
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Push] ❌ Error saving to DB:', error);
+        throw error;
+      }
 
       setIsSubscribed(true);
       toast.success('Notifications activées !');
-      console.log('Push subscription saved:', subscription.endpoint);
+      console.log('[Push] ✅ Subscription saved successfully');
     } catch (error) {
-      console.error('Error subscribing to push:', error);
+      console.error('[Push] ❌ Error subscribing to push:', error);
       toast.error('Erreur lors de l\'activation des notifications');
       setIsSubscribed(false);
     }
@@ -182,6 +211,7 @@ export const usePushNotifications = () => {
     isSupported,
     permission,
     isSubscribed,
+    isLoading,
     requestPermission,
     unsubscribe,
   };
