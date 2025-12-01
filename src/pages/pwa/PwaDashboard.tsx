@@ -54,12 +54,7 @@ const PwaDashboard = () => {
     checkAuth();
   }, []);
 
-  // Reset show all bookings when changing tabs
-  useEffect(() => {
-    setShowAllBookings(false);
-  }, [activeTab]);
-
-  // Single useEffect to handle all refresh scenarios
+  // Single useEffect to handle all refresh scenarios  
   useEffect(() => {
     if (!hairdresser) return;
 
