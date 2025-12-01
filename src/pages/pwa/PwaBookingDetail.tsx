@@ -539,7 +539,7 @@ const PwaBookingDetail = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-background pb-40">
+      <div className="min-h-screen bg-background pb-24">
         {/* Header */}
         <div className="bg-background px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-border">
           <button 
@@ -699,7 +699,7 @@ const PwaBookingDetail = () => {
         </div>
 
         {/* Bottom Actions */}
-        <div className="fixed bottom-[72px] left-0 right-0 bg-background border-t border-border px-6 py-4 z-10">
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4 z-10">
           <div className="flex items-center gap-3">
             {/* For Pending Requests (not assigned to anyone) */}
             {booking.status === "En attente" && !booking.hairdresser_id ? (
