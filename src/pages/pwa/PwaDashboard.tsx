@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Hairdresser {
   id: string;
@@ -540,7 +541,21 @@ const PwaDashboard = () => {
 
           {/* Bookings List */}
           <div className="space-y-3">
-            {loading ? null : filteredBookings.length === 0 ? (
+            {loading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 py-2">
+                    <Skeleton className="w-14 h-14 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <Skeleton className="w-5 h-5 rounded" />
+                  </div>
+                ))}
+              </>
+            ) : filteredBookings.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                 <div className="text-6xl mb-4">
                   {activeTab === "upcoming" ? "📅" : activeTab === "past" ? "✅" : "🚫"}
@@ -624,7 +639,21 @@ const PwaDashboard = () => {
             </div>
           </div>
           
-          {loading ? null : pendingRequests.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-14 h-14 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                    <Skeleton className="h-3 w-16" />
+                  </div>
+                  <Skeleton className="w-5 h-5 rounded" />
+                </div>
+              ))}
+            </div>
+          ) : pendingRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
               <div className="text-6xl mb-4">⏱️</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
