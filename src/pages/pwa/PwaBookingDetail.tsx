@@ -306,9 +306,16 @@ const PwaBookingDetail = () => {
   };
 
   const handleAcceptBooking = async () => {
-    if (!booking) return;
+    console.log('[Booking] 🚀 BUTTON CLICKED - Function called!');
     
+    if (!booking) {
+      console.log('[Booking] ❌ No booking data');
+      return;
+    }
+    
+    console.log('[Booking] ✅ Booking exists:', booking.id);
     setUpdating(true);
+    
     try {
       console.log('[Booking] 🎯 Starting accept booking process...');
       const { data: { user } } = await supabase.auth.getUser();
