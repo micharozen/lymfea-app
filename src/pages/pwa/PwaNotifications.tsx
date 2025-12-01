@@ -206,7 +206,6 @@ const PwaNotifications = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-
   return (
     <div className="min-h-full bg-gray-50">
       {/* Header */}
@@ -259,7 +258,7 @@ const PwaNotifications = () => {
 
       {/* Notifications List */}
       <div className="pb-4">
-        {notifications.length === 0 ? (
+        {loading ? null : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
