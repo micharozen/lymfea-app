@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
-import TabBar from "@/components/pwa/TabBar";
 
 interface Notification {
   id: string;
@@ -209,9 +208,8 @@ const PwaNotifications = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="flex-1 flex items-center justify-center bg-white">
         <div className="text-sm text-gray-500">Loading...</div>
-        <TabBar unreadCount={0} />
       </div>
     );
   }
@@ -267,7 +265,7 @@ const PwaNotifications = () => {
       </div>
 
       {/* Notifications List */}
-      <div className="pb-20">
+      <div className="pb-4">
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>
@@ -344,8 +342,6 @@ const PwaNotifications = () => {
           </div>
         )}
       </div>
-
-      <TabBar unreadCount={unreadCount} />
     </div>
   );
 };

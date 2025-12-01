@@ -7,6 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
+import PwaLayout from "./components/pwa/PwaLayout";
 import Dashboard from "./pages/Dashboard";
 import Booking from "./pages/Booking";
 import HairDresser from "./pages/HairDresser";
@@ -89,8 +90,8 @@ const App = () => <QueryClientProvider client={queryClient}>
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
           
-          {/* PWA Routes */}
-          <Route path="/pwa" element={<PwaSplash />} />
+          {/* PWA Public Routes (no TabBar, no auth) */}
+          <Route path="/pwa/splash" element={<PwaSplash />} />
           <Route path="/pwa/welcome" element={<PwaWelcome />} />
           <Route path="/pwa/install" element={<PwaInstall />} />
           <Route path="/pwa/login" element={<PwaLogin />} />
@@ -103,20 +104,36 @@ const App = () => <QueryClientProvider client={queryClient}>
               </HairdresserProtectedRoute>
             }
           />
+          {/* PWA routes with TabBar */}
           <Route
-            path="/pwa/*"
+            path="/pwa"
             element={
               <HairdresserProtectedRoute>
-                <Routes>
-                  <Route path="/dashboard" element={<PwaDashboard />} />
-                  <Route path="/bookings" element={<PwaBookings />} />
-                  <Route path="/booking/:id" element={<PwaBookingDetail />} />
-                  <Route path="/notifications" element={<PwaNotifications />} />
-                  <Route path="/profile" element={<PwaProfile />} />
-                  <Route path="/account-security" element={<PwaAccountSecurity />} />
-                  <Route path="/hotels" element={<PwaHotels />} />
-                  <Route path="*" element={<Navigate to="/pwa/dashboard" replace />} />
-                </Routes>
+                <PwaLayout />
+              </HairdresserProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/pwa/dashboard" replace />} />
+            <Route path="dashboard" element={<PwaDashboard />} />
+            <Route path="bookings" element={<PwaBookings />} />
+            <Route path="booking/:id" element={<PwaBookingDetail />} />
+            <Route path="notifications" element={<PwaNotifications />} />
+            <Route path="hotels" element={<PwaHotels />} />
+          </Route>
+          {/* PWA routes without TabBar (still protected) */}
+          <Route
+            path="/pwa/profile"
+            element={
+              <HairdresserProtectedRoute>
+                <PwaProfile />
+              </HairdresserProtectedRoute>
+            }
+          />
+          <Route
+            path="/pwa/account-security"
+            element={
+              <HairdresserProtectedRoute>
+                <PwaAccountSecurity />
               </HairdresserProtectedRoute>
             }
           />

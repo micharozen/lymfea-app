@@ -5,9 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { format, isPast, isFuture, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
-import TabBar from "@/components/pwa/TabBar";
 
 interface Hairdresser {
   id: string;
@@ -46,7 +45,6 @@ const PwaDashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [showAllBookings, setShowAllBookings] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,77 +150,6 @@ const PwaDashboard = () => {
     };
   }, [hairdresser]);
 
-  // Realtime listener for notifications
-  useEffect(() => {
-    if (!hairdresser) return;
-
-    const setupNotificationListener = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Initial fetch of unread count
-      const { count } = await supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("read", false);
-
-      setUnreadNotifications(count || 0);
-      
-      const notifChannel = supabase
-        .channel('notifications-changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            console.log('🔔 New notification:', payload);
-            const notification = payload.new as any;
-            
-            // Show toast with action button if there's a booking
-            toast.info(notification.message, {
-              duration: 5000,
-              action: notification.booking_id ? {
-                label: 'Voir',
-                onClick: () => navigate(`/pwa/booking/${notification.booking_id}`)
-              } : undefined
-            });
-            
-            // Increment unread count
-            setUnreadNotifications(prev => prev + 1);
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'notifications'
-          },
-          async () => {
-            // Refetch unread count when notifications are updated
-            const { count } = await supabase
-              .from("notifications")
-              .select("*", { count: "exact", head: true })
-              .eq("user_id", user.id)
-              .eq("read", false);
-
-            setUnreadNotifications(count || 0);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(notifChannel);
-      };
-    };
-
-    setupNotificationListener();
-  }, [hairdresser]);
 
   const checkAuth = async () => {
     try {
@@ -732,8 +659,6 @@ const PwaDashboard = () => {
           )}
         </div>
       </div>
-
-      <TabBar unreadCount={unreadNotifications} />
 
       {/* Push Notification Prompt */}
       <PushNotificationPrompt />
