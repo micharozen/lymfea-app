@@ -2,16 +2,43 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// VAPID public key (generated for this project)
-const VAPID_PUBLIC_KEY = 'BJ5Qp7YsNV9wEid7H3Hv_RcjBUmfgr7QwjQOilnv19G7Cz2VlQVfgOYcYSqYEqugzGpRFogqelULhE4zkAth7Ns';
-
 export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [vapidPublicKey, setVapidPublicKey] = useState<string | null>(null);
 
   useEffect(() => {
+    const fetchVapidKey = async () => {
+      try {
+        console.log('[Push] Fetching VAPID public key...');
+        const { data, error } = await supabase.functions.invoke('get-vapid-public-key');
+        
+        if (error) {
+          console.error('[Push] Error fetching VAPID key:', error);
+          throw error;
+        }
+        
+        if (data?.publicKey) {
+          setVapidPublicKey(data.publicKey);
+          console.log('[Push] ✅ VAPID public key loaded');
+        } else {
+          throw new Error('No public key received');
+        }
+      } catch (error) {
+        console.error('[Push] Failed to fetch VAPID key:', error);
+        toast.error('Erreur de configuration des notifications');
+        setIsLoading(false);
+      }
+    };
+    
+    fetchVapidKey();
+  }, []);
+
+  useEffect(() => {
+    if (!vapidPublicKey) return;
+    
     const checkExistingSubscription = async () => {
       try {
         // Check if browser supports notifications
@@ -83,7 +110,7 @@ export const usePushNotifications = () => {
     };
     
     checkExistingSubscription();
-  }, []);
+  }, [vapidPublicKey]);
 
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -125,6 +152,11 @@ export const usePushNotifications = () => {
   };
 
   const subscribeToPush = async () => {
+    if (!vapidPublicKey) {
+      toast.error('Configuration des notifications non disponible');
+      return;
+    }
+
     try {
       console.log('[Push] 🔔 Starting subscription process...');
       const registration = await navigator.serviceWorker.ready;
@@ -136,10 +168,10 @@ export const usePushNotifications = () => {
       
       if (!subscription) {
         // Subscribe to push notifications
-        console.log('[Push] Creating new subscription...');
+        console.log('[Push] Creating new subscription with VAPID key...');
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
         console.log('[Push] ✅ New subscription created');
       }
@@ -157,7 +189,7 @@ export const usePushNotifications = () => {
         token: JSON.stringify(subscription.toJSON()),
         endpoint: subscription.endpoint,
       };
-      console.log('[Push] Subscription data:', subscriptionData);
+      console.log('[Push] Subscription endpoint:', subscription.endpoint.substring(0, 50) + '...');
 
       const { error } = await supabase
         .from('push_tokens')
