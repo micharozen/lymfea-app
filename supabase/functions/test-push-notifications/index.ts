@@ -15,95 +15,44 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('🧪 Starting push notification test...');
+    console.log('🧪 Starting push notification test for Aaron Coiffeur...');
 
-    // 1. Create test hotel if it doesn't exist
-    const testHotelId = 'test-hotel-123';
-    const { data: existingHotel } = await supabase
+    // 1. Find Aaron Coiffeur
+    const { data: aaronHairdresser, error: findError } = await supabase
+      .from('hairdressers')
+      .select('id, user_id, first_name, last_name, email')
+      .eq('email', 'test.coiffeur@oomworld.com')
+      .single();
+
+    if (findError || !aaronHairdresser) {
+      throw new Error('Aaron Coiffeur not found. Please make sure the hairdresser exists with email: test.coiffeur@oomworld.com');
+    }
+
+    console.log('✅ Found hairdresser:', aaronHairdresser.first_name, aaronHairdresser.last_name);
+
+    // 2. Get Aaron's hotel
+    const { data: hotelAssignment, error: hotelError } = await supabase
+      .from('hairdresser_hotels')
+      .select('hotel_id')
+      .eq('hairdresser_id', aaronHairdresser.id)
+      .limit(1)
+      .single();
+
+    if (hotelError || !hotelAssignment) {
+      throw new Error('No hotel found for Aaron Coiffeur');
+    }
+
+    const testHotelId = hotelAssignment.hotel_id;
+    console.log('✅ Hotel ID:', testHotelId);
+
+    // Get hotel details
+    const { data: hotelDetails } = await supabase
       .from('hotels')
-      .select('id')
+      .select('name')
       .eq('id', testHotelId)
       .single();
 
-    if (!existingHotel) {
-      console.log('📍 Creating test hotel...');
-      await supabase.from('hotels').insert({
-        id: testHotelId,
-        name: 'Hôtel Test Push',
-        status: 'Active',
-        currency: 'EUR',
-        hairdresser_commission: 70,
-        hotel_commission: 30,
-        vat: 20,
-      });
-    }
-
-    // 2. Create test user and hairdresser if they don't exist
-    const testEmail = 'coiffeur.test@oom.app';
-    const testPhone = '674678293';
-    
-    // Check if user exists
-    const { data: existingUser } = await supabase.auth.admin.listUsers();
-    let testUser = existingUser?.users?.find(u => u.email === testEmail);
-
-    if (!testUser) {
-      console.log('👤 Creating test user...');
-      const { data: newUser, error: userError } = await supabase.auth.admin.createUser({
-        email: testEmail,
-        password: 'Test123456!',
-        email_confirm: true,
-      });
-      
-      if (userError) {
-        console.error('Error creating user:', userError);
-        throw userError;
-      }
-      testUser = newUser.user;
-    }
-
-    // Check if hairdresser exists
-    const { data: existingHairdresser } = await supabase
-      .from('hairdressers')
-      .select('id')
-      .eq('user_id', testUser.id)
-      .single();
-
-    let hairdresserId = existingHairdresser?.id;
-
-    if (!existingHairdresser) {
-      console.log('💇 Creating test hairdresser...');
-      const { data: newHairdresser, error: hairdresserError } = await supabase
-        .from('hairdressers')
-        .insert({
-          email: testEmail,
-          first_name: 'Test',
-          last_name: 'Coiffeur',
-          phone: testPhone,
-          country_code: '+33',
-          status: 'Actif',
-          user_id: testUser.id,
-        })
-        .select()
-        .single();
-
-      if (hairdresserError) {
-        console.error('Error creating hairdresser:', hairdresserError);
-        throw hairdresserError;
-      }
-      hairdresserId = newHairdresser.id;
-
-      // Assign hairdresser to hotel
-      await supabase.from('hairdresser_hotels').insert({
-        hairdresser_id: hairdresserId,
-        hotel_id: testHotelId,
-      });
-
-      // Assign hairdresser role
-      await supabase.from('user_roles').insert({
-        user_id: testUser.id,
-        role: 'hairdresser',
-      });
-    }
+    const hairdresserId = aaronHairdresser.id;
 
     // 3. Create test treatment menu if it doesn't exist
     const { data: existingMenu } = await supabase
@@ -149,7 +98,7 @@ Deno.serve(async (req) => {
       .from('bookings')
       .insert({
         hotel_id: testHotelId,
-        hotel_name: 'Hôtel Test Push',
+        hotel_name: hotelDetails?.name || 'Hôtel Test',
         client_first_name: 'Client',
         client_last_name: 'Test',
         client_email: 'client.test@example.com',
@@ -206,9 +155,8 @@ Deno.serve(async (req) => {
           time: booking.booking_time,
         },
         hairdresser: {
-          email: testEmail,
-          phone: `+33${testPhone}`,
-          message: 'Connectez-vous avec ce compte pour voir les notifications',
+          name: `${aaronHairdresser.first_name} ${aaronHairdresser.last_name}`,
+          email: aaronHairdresser.email,
         },
         notifications: notifResult,
       }),
