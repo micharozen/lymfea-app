@@ -11,11 +11,61 @@ export const usePushNotifications = () => {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    // Check if browser supports notifications
-    if ('Notification' in window && 'serviceWorker' in navigator) {
+    const checkExistingSubscription = async () => {
+      // Check if browser supports notifications
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        return;
+      }
+      
       setIsSupported(true);
       setPermission(Notification.permission);
-    }
+      
+      // If permission is granted, check for existing subscription
+      if (Notification.permission === 'granted') {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          
+          if (subscription) {
+            // Verify subscription exists in database
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: existingToken } = await supabase
+                .from('push_tokens')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('endpoint', subscription.endpoint)
+                .maybeSingle();
+              
+              if (existingToken) {
+                setIsSubscribed(true);
+                console.log('[Push] Existing subscription found');
+              } else {
+                // Subscription exists in browser but not in DB - re-save it
+                const { error } = await supabase
+                  .from('push_tokens')
+                  .upsert({
+                    user_id: user.id,
+                    token: JSON.stringify(subscription.toJSON()),
+                    endpoint: subscription.endpoint,
+                  }, {
+                    onConflict: 'user_id,endpoint',
+                  });
+                
+                if (!error) {
+                  setIsSubscribed(true);
+                  console.log('[Push] Re-saved existing subscription to DB');
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[Push] Error checking existing subscription:', error);
+        }
+      }
+    };
+    
+    checkExistingSubscription();
   }, []);
 
   const urlBase64ToUint8Array = (base64String: string) => {
