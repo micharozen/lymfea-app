@@ -401,20 +401,25 @@ const PwaBookingDetail = () => {
       });
 
       console.log('[Booking] 📥 RPC response:', { data, error });
+      console.log('[Booking] 📦 Data content:', data);
 
       if (error) {
         console.error('[Booking] ❌ RPC error:', error);
         throw error;
       }
 
-      const result = data as { success: boolean; error?: string } | null;
+      const result = data as { success: boolean; error?: string; data?: any } | null;
+      console.log('[Booking] 🔍 Parsed result:', result);
+      console.log('[Booking] ✅ Result success?', result?.success);
       
       if (result && !result.success) {
+        console.log('[Booking] ❌ Booking already taken by another hairdresser');
         toast.error("Réservation déjà prise par un autre coiffeur");
         navigate("/pwa/dashboard");
         return;
       }
 
+      console.log('[Booking] 🎉 Booking accepted successfully!');
       toast.success("Réservation acceptée !");
       navigate("/pwa/dashboard");
     } catch (error) {
