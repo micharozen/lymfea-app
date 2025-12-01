@@ -44,8 +44,8 @@ const PwaLayout = () => {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <div className="flex-1 overflow-auto">
+    <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <Outlet />
       </div>
       <TabBar unreadCount={unreadCount} />
