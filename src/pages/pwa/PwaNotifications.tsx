@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Check, CheckCheck, Trash2, Bell } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Trash2, Bell, Home, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -221,7 +221,7 @@ const PwaNotifications = () => {
         <div className="px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/pwa/profile")}
+              onClick={() => navigate("/pwa/dashboard")}
               className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -349,6 +349,28 @@ const PwaNotifications = () => {
             })}
           </div>
         )}
+      </div>
+
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-pb">
+        <div className="flex items-center justify-around h-16">
+          <button 
+            onClick={() => navigate("/pwa/dashboard")}
+            className="flex flex-col items-center justify-center gap-1 flex-1"
+          >
+            <Home className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium text-gray-400">Home</span>
+          </button>
+          <button className="flex flex-col items-center justify-center gap-1 flex-1">
+            <Wallet className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium text-gray-400">Wallet</span>
+          </button>
+          <button className="flex flex-col items-center justify-center gap-1 flex-1">
+            <Bell className="w-6 h-6 text-black" strokeWidth={1.5} />
+            <span className="text-[10px] font-medium text-black">Notifications</span>
+          </button>
+        </div>
+        <div className="h-1 w-32 bg-black rounded-full mx-auto mb-1" />
       </div>
     </div>
   );
