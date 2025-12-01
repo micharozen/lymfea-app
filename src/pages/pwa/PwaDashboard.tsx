@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight } from "lucide-react";
@@ -49,14 +50,32 @@ const PwaDashboard = () => {
   const [showAllBookings, setShowAllBookings] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAuth();
   }, []);
 
-  // Single useEffect to handle all refresh scenarios  
+  // Single useEffect to handle initial load
   useEffect(() => {
     if (!hairdresser) return;
+
+    // Check if we have cached bookings
+    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", hairdresser.id]);
+    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", hairdresser.id]);
+
+    if (cachedMyBookings && cachedPendingBookings) {
+      console.log('📦 Using cached bookings data');
+      const allData = [...cachedMyBookings, ...cachedPendingBookings];
+      const sortedData = allData.sort((a, b) => {
+        const dateCompare = a.booking_date.localeCompare(b.booking_date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.booking_time.localeCompare(b.booking_time);
+      });
+      setAllBookings(sortedData);
+      setLoading(false);
+      return;
+    }
 
     console.log('🔄 Fetching initial bookings...');
     fetchAllBookings(hairdresser.id);
@@ -168,6 +187,16 @@ const PwaDashboard = () => {
 
       console.log("✅ User authenticated:", user.email);
 
+      // Use cached data if available
+      const cachedData = queryClient.getQueryData<any>(["hairdresser", user.id]);
+      
+      if (cachedData) {
+        console.log("📦 Using cached hairdresser data");
+        setHairdresser(cachedData);
+        setLoading(false);
+        return;
+      }
+
       const { data: hairdresserData, error } = await supabase
         .from("hairdressers")
         .select("*")
@@ -181,8 +210,9 @@ const PwaDashboard = () => {
         return;
       }
 
+      // Cache hairdresser data
+      queryClient.setQueryData(["hairdresser", user.id], hairdresserData);
       setHairdresser(hairdresserData);
-      fetchAllBookings(hairdresserData.id);
     } catch (error) {
       console.error("Auth error:", error);
       navigate("/pwa/login");
@@ -202,6 +232,7 @@ const PwaDashboard = () => {
     if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
       console.error("❌ Error fetching affiliated hotels:", hotelsError);
       setAllBookings([]);
+      setLoading(false);
       return;
     }
 
@@ -225,14 +256,12 @@ const PwaDashboard = () => {
 
     if (myError) {
       console.error('❌ Error fetching my bookings:', myError);
+    } else {
+      // Cache my bookings
+      queryClient.setQueryData(["myBookings", hairdresserId], myBookings);
     }
 
-    console.log('👤 My bookings:', myBookings?.length || 0, myBookings?.map(b => ({ 
-      id: b.booking_id, 
-      status: b.status, 
-      hairdresser_id: b.hairdresser_id,
-      hotel_id: b.hotel_id 
-    })));
+    console.log('👤 My bookings:', myBookings?.length || 0);
 
     // 2. Get ONLY pending bookings (not assigned to anyone)
     const { data: pendingBookings, error: pendingError } = await supabase
@@ -252,19 +281,18 @@ const PwaDashboard = () => {
 
     if (pendingError) {
       console.error('❌ Error fetching pending bookings:', pendingError);
+    } else {
+      // Cache pending bookings
+      queryClient.setQueryData(["pendingBookings", hairdresserId], pendingBookings);
     }
 
-    console.log('⏳ Pending bookings:', pendingBookings?.length || 0, pendingBookings?.map(b => ({ 
-      id: b.booking_id, 
-      status: b.status, 
-      hairdresser_id: b.hairdresser_id,
-      hotel_id: b.hotel_id 
-    })));
+    console.log('⏳ Pending bookings:', pendingBookings?.length || 0);
 
     // Only return if BOTH queries failed
     if (myError && pendingError) {
       console.error('❌ Both queries failed');
       setAllBookings([]);
+      setLoading(false);
       return;
     }
 
@@ -278,6 +306,7 @@ const PwaDashboard = () => {
 
     console.log('✅ Total bookings loaded:', sortedData.length);
     setAllBookings(sortedData);
+    setLoading(false);
   };
 
   const handleRefresh = async () => {

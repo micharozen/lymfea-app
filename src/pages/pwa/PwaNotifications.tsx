@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCheck, Trash2, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -24,10 +25,28 @@ const PwaNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { permission, isSubscribed, requestPermission, unsubscribe } = usePushNotifications();
 
   useEffect(() => {
-    fetchNotifications();
+    const loadNotifications = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if we have cached notifications
+      const cachedNotifications = queryClient.getQueryData<Notification[]>(["notifications", user.id]);
+      
+      if (cachedNotifications) {
+        console.log('📦 Using cached notifications data');
+        setNotifications(cachedNotifications);
+        setLoading(false);
+        return;
+      }
+
+      fetchNotifications();
+    };
+
+    loadNotifications();
   }, []);
 
   // Realtime listener for new notifications
@@ -64,6 +83,9 @@ const PwaNotifications = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+      
+      // Cache notifications
+      queryClient.setQueryData(["notifications", user.id], data);
       setNotifications(data || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
