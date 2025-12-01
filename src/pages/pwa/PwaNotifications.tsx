@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, Trash2, Bell } from "lucide-react";
+import { Check, CheckCheck, Trash2, Bell, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -20,7 +20,11 @@ interface Notification {
   created_at: string;
 }
 
-const PwaNotifications = () => {
+interface PwaNotificationsProps {
+  standalone?: boolean;
+}
+
+const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
@@ -233,7 +237,17 @@ const PwaNotifications = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-4 py-4 flex items-center justify-between">
-          <div>
+          {standalone && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/pwa/profile")}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
+          <div className="flex-1">
             <h1 className="text-xl font-semibold">Notifications</h1>
             {unreadCount > 0 && (
               <p className="text-xs text-gray-500">
