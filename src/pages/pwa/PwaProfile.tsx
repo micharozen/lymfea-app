@@ -159,9 +159,9 @@ const PwaProfile = () => {
 
   const menuItems = [
     { icon: User, label: "Personalisation", onClick: () => setIsEditDialogOpen(true) },
-    { icon: Hotel, label: "Hotels", onClick: () => navigate("/pwa/hotels", { replace: true }) },
+    { icon: Hotel, label: "Hotels", onClick: () => navigate("/pwa/profile/hotels") },
     { icon: Package, label: "OOM product", onClick: () => {} },
-    { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/notifications", { replace: true }) },
+    { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
   ];

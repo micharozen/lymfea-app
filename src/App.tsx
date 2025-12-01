@@ -138,6 +138,22 @@ const App = () => <QueryClientProvider client={queryClient}>
             }
           />
           <Route
+            path="/pwa/profile/notifications"
+            element={
+              <HairdresserProtectedRoute>
+                <PwaNotifications standalone />
+              </HairdresserProtectedRoute>
+            }
+          />
+          <Route
+            path="/pwa/profile/hotels"
+            element={
+              <HairdresserProtectedRoute>
+                <PwaHotels standalone />
+              </HairdresserProtectedRoute>
+            }
+          />
+          <Route
             path="/pwa/account-security"
             element={
               <HairdresserProtectedRoute>

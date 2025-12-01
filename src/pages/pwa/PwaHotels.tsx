@@ -16,7 +16,11 @@ interface Hotel {
   status: string | null;
 }
 
-const PwaHotels = () => {
+interface PwaHotelsProps {
+  standalone?: boolean;
+}
+
+const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -88,14 +92,16 @@ const PwaHotels = () => {
       {/* Header */}
       <div className="bg-background border-b p-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/pwa/profile")}
-            className="h-10 w-10"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
+          {standalone && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate("/pwa/profile")}
+              className="h-10 w-10"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          )}
           <h1 className="text-xl font-semibold">Hotels</h1>
         </div>
       </div>
