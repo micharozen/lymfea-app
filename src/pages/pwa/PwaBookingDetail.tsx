@@ -838,7 +838,7 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button */}
-                {booking.status === "Assigné" || booking.status === "Confirmé" || booking.status === "En attente" ? (
+                {booking.status === "Assigné" || booking.status === "Confirmé" ? (
                   <button
                     onClick={() => setShowCompleteDialog(true)}
                     disabled={updating}
