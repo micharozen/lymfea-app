@@ -3,10 +3,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Home, Wallet, Bell, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { format, isPast, isFuture, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
+import TabBar from "@/components/pwa/TabBar";
 
 interface Hairdresser {
   id: string;
@@ -536,7 +537,7 @@ const PwaDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white animate-fade-in">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <h1 className="text-4xl font-bold font-kormelink tracking-wider">OOM</h1>
@@ -732,34 +733,7 @@ const PwaDashboard = () => {
         </div>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 safe-area-pb">
-        <div className="flex items-center justify-around h-16">
-          <button className="flex flex-col items-center justify-center gap-1 flex-1">
-            <Home className="w-6 h-6 text-black" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium text-black">Home</span>
-          </button>
-          <button className="flex flex-col items-center justify-center gap-1 flex-1">
-            <Wallet className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
-            <span className="text-[10px] font-medium text-gray-400">Wallet</span>
-          </button>
-          <button 
-            onClick={() => navigate("/pwa/notifications")}
-            className="flex flex-col items-center justify-center gap-1 flex-1 relative"
-          >
-            <div className="relative">
-              <Bell className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
-              {unreadNotifications > 0 && (
-                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
-                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                </div>
-              )}
-            </div>
-            <span className="text-[10px] font-medium text-gray-400">Notifications</span>
-          </button>
-        </div>
-        <div className="h-1 w-32 bg-black rounded-full mx-auto mb-1" />
-      </div>
+      <TabBar unreadCount={unreadNotifications} />
 
       {/* Push Notification Prompt */}
       <PushNotificationPrompt />
