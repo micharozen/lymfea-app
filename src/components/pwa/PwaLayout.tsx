@@ -151,6 +151,9 @@ const PwaLayout = () => {
     };
   }, []);
 
+  // Hide TabBar on booking detail pages
+  const shouldShowTabBar = !location.pathname.includes('/pwa/booking/');
+
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
       <div 
@@ -166,7 +169,7 @@ const PwaLayout = () => {
       >
         <Outlet key={displayLocation.pathname} />
       </div>
-      <TabBar unreadCount={unreadCount} />
+      {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
     </div>
   );
 };
