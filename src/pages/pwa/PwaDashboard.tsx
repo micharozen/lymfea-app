@@ -455,16 +455,8 @@ const PwaDashboard = () => {
   const pendingRequests = getPendingRequests();
   const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-sm text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-white animate-fade-in">
+    <div className="min-h-full bg-white">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
         <h1 className="text-4xl font-bold font-kormelink tracking-wider">OOM</h1>
@@ -494,8 +486,7 @@ const PwaDashboard = () => {
 
       {/* Content */}
       <div 
-        className="pb-20 overflow-y-auto"
-        style={{ maxHeight: 'calc(100vh - 80px)' }}
+        className="pb-4"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
