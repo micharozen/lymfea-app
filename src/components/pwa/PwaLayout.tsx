@@ -1,10 +1,19 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import TabBar from "./TabBar";
 
 const PwaLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
+  const location = useLocation();
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [transitionStage, setTransitionStage] = useState("fadeIn");
+
+  useEffect(() => {
+    if (location !== displayLocation) {
+      setTransitionStage("fadeOut");
+    }
+  }, [location, displayLocation]);
 
   useEffect(() => {
     const fetchUnreadCount = async () => {
@@ -45,8 +54,18 @@ const PwaLayout = () => {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <Outlet />
+      <div 
+        className={`flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-150 ${
+          transitionStage === "fadeOut" ? "opacity-0" : "opacity-100"
+        }`}
+        onTransitionEnd={() => {
+          if (transitionStage === "fadeOut") {
+            setDisplayLocation(location);
+            setTransitionStage("fadeIn");
+          }
+        }}
+      >
+        <Outlet key={displayLocation.pathname} />
       </div>
       <TabBar unreadCount={unreadCount} />
     </div>

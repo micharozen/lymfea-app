@@ -46,7 +46,15 @@ import ClientPayment from "./pages/client/ClientPayment";
 import ClientConfirmation from "./pages/client/ClientConfirmation";
 import { BasketProvider } from "./pages/client/context/BasketContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000, // 30 seconds
+      gcTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />

@@ -13,7 +13,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   const handleNavigation = (path: string) => {
     if (location.pathname !== path) {
-      navigate(path, { replace: true });
+      navigate(path);
     }
   };
 
