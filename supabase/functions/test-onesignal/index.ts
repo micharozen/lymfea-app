@@ -18,7 +18,17 @@ serve(async (req) => {
       throw new Error("OneSignal credentials not configured");
     }
 
-    const { userId } = await req.json();
+    // Handle empty body gracefully
+    let userId: string | undefined;
+    try {
+      const body = await req.text();
+      if (body && body.trim()) {
+        const parsed = JSON.parse(body);
+        userId = parsed.userId;
+      }
+    } catch {
+      // Empty or invalid body - proceed without userId
+    }
 
     console.log("[OneSignal Test] Sending test notification");
     console.log("[OneSignal Test] App ID:", ONESIGNAL_APP_ID);
