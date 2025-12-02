@@ -290,6 +290,8 @@ serve(async (req) => {
     const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
     const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
 
+    console.log("VAPID_PUBLIC_KEY being used:", VAPID_PUBLIC_KEY?.substring(0, 20) + "...");
+
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       throw new Error("VAPID keys not configured");
     }
