@@ -80,11 +80,18 @@ export const useOneSignal = () => {
 
           // Add listener for notification clicks
           OneSignal.Notifications.addEventListener('click', (event: any) => {
-            console.log('[OneSignal] Notification clicked:', event);
-            const url = event?.notification?.launchURL || event?.notification?.data?.url;
+            console.log('[OneSignal] Notification clicked:', JSON.stringify(event, null, 2));
+            // Try multiple possible URL locations
+            const url = event?.notification?.launchURL 
+              || event?.notification?.data?.launchUrl
+              || event?.notification?.data?.url
+              || event?.result?.url;
+            console.log('[OneSignal] Extracted URL:', url);
             if (url && notificationClickHandler) {
-              console.log('[OneSignal] Navigating to:', url);
-              notificationClickHandler(url);
+              // Handle both full URLs and relative paths
+              const path = url.startsWith('http') ? new URL(url).pathname : url;
+              console.log('[OneSignal] Navigating to path:', path);
+              notificationClickHandler(path);
             }
           });
           
