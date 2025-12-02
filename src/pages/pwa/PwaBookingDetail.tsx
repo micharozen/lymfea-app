@@ -547,16 +547,16 @@ const PwaBookingDetail = () => {
 
   const getStatusBadge = () => {
     if (booking.status === "En attente") {
-      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
+      return <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-500/10">En attente</Badge>;
     }
     if (booking.status === "Assigné" || booking.status === "Confirmé") {
-      return <Badge variant="outline" className="border-warning text-warning-foreground bg-warning/10">Treatment ongoing</Badge>;
+      return <Badge variant="outline" className="border-primary text-primary bg-primary/10">Confirmé</Badge>;
     }
     if (booking.status === "En attente de validation") {
-      return <Badge variant="outline" className="border-primary text-primary bg-primary/10">Waiting validation</Badge>;
+      return <Badge variant="outline" className="border-blue-500 text-blue-600 bg-blue-500/10">En attente de validation</Badge>;
     }
     if (booking.status === "Complété") {
-      return <Badge variant="outline" className="border-success text-success-foreground bg-success/10">Completed</Badge>;
+      return <Badge variant="outline" className="border-green-500 text-green-600 bg-green-500/10">Complété</Badge>;
     }
     return null;
   };
@@ -575,7 +575,7 @@ const PwaBookingDetail = () => {
           >
             <ChevronLeft className="w-6 h-6 text-foreground" />
           </button>
-          <h1 className="text-base font-semibold text-foreground">My booking</h1>
+          <h1 className="text-base font-semibold text-foreground">Ma réservation</h1>
           <div className="w-6" />
         </div>
 
@@ -856,7 +856,7 @@ const PwaBookingDetail = () => {
                     disabled={updating}
                     className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
-                    Request to mark complete
+                    Demander validation
                   </button>
                 ) : booking.status === "En attente de validation" ? (
                   <button
