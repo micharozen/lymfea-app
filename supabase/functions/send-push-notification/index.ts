@@ -34,10 +34,10 @@ serve(async (req) => {
       app_id: ONESIGNAL_APP_ID,
       headings: { en: title || "OOM" },
       contents: { en: body || "Nouvelle notification" },
-      // Include URL in data for SDK click handler
-      data: { ...data, launchUrl: clickUrl },
-      // web_url for when notification opens browser directly
-      web_url: clickUrl,
+      // Primary URL for notification click (OneSignal REST API uses 'url')
+      url: clickUrl,
+      // Include URL in data as backup for SDK click handler
+      data: { ...data, launchUrl: clickUrl, url: data?.url },
       // Target by external user ID (the Supabase user_id)
       include_aliases: {
         external_id: [userId]
