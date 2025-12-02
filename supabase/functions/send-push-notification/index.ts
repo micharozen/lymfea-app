@@ -42,7 +42,9 @@ serve(async (req) => {
       include_aliases: {
         external_id: [userId]
       },
-      target_channel: "push"
+      target_channel: "push",
+      // Explicit short collapse_id to prevent OneSignal from generating one that's too long
+      collapse_id: data?.bookingId ? `b-${data.bookingId.substring(0, 8)}` : `n-${Date.now()}`
     };
 
     console.log("[OneSignal] Payload:", JSON.stringify(notificationPayload, null, 2));
