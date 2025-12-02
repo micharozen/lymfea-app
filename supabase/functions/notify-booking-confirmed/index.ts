@@ -2,6 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
+// 🧪 TEST MODE - All notifications go to test addresses
+const TEST_MODE = true;
+const TEST_EMAIL = 'aaron@oomworld.com';
+const TEST_PHONE = '+33674678293';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,6 +19,8 @@ serve(async (req) => {
 
   try {
     const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
+    
+    console.log('[notify-booking-confirmed] TEST_MODE:', TEST_MODE, '- Emails to:', TEST_EMAIL);
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -148,25 +155,28 @@ serve(async (req) => {
 
     if (admins && admins.length > 0) {
       for (const admin of admins) {
+        const targetEmail = TEST_MODE ? TEST_EMAIL : admin.email;
         try {
           const { error: emailError } = await resend.emails.send({
             from: 'OOM App <booking@oomworld.com>',
-            to: [admin.email],
-            subject: `✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
+            to: [targetEmail],
+            subject: `${TEST_MODE ? '[TEST] ' : ''}✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
             html: createEmailHtml('admin'),
           });
 
           if (emailError) {
-            console.error(`[notify-booking-confirmed] Error sending to admin ${admin.email}:`, emailError);
-            errors.push(`admin:${admin.email}`);
+            console.error(`[notify-booking-confirmed] Error sending to admin ${targetEmail}:`, emailError);
+            errors.push(`admin:${targetEmail}`);
           } else {
-            console.log(`[notify-booking-confirmed] Email sent to admin: ${admin.email}`);
-            emailsSent.push(`admin:${admin.email}`);
+            console.log(`[notify-booking-confirmed] Email sent to admin: ${targetEmail} (original: ${admin.email})`);
+            emailsSent.push(`admin:${targetEmail}`);
           }
         } catch (e) {
-          console.error(`[notify-booking-confirmed] Exception sending to admin ${admin.email}:`, e);
-          errors.push(`admin:${admin.email}`);
+          console.error(`[notify-booking-confirmed] Exception sending to admin ${targetEmail}:`, e);
+          errors.push(`admin:${targetEmail}`);
         }
+        // En mode test, on n'envoie qu'un seul email
+        if (TEST_MODE) break;
       }
     }
 
@@ -187,25 +197,28 @@ serve(async (req) => {
 
       if (concierges && concierges.length > 0) {
         for (const concierge of concierges) {
+          const targetEmail = TEST_MODE ? TEST_EMAIL : concierge.email;
           try {
             const { error: emailError } = await resend.emails.send({
               from: 'OOM App <booking@oomworld.com>',
-              to: [concierge.email],
-              subject: `✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
+              to: [targetEmail],
+              subject: `${TEST_MODE ? '[TEST] ' : ''}✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
               html: createEmailHtml('concierge'),
             });
 
             if (emailError) {
-              console.error(`[notify-booking-confirmed] Error sending to concierge ${concierge.email}:`, emailError);
-              errors.push(`concierge:${concierge.email}`);
+              console.error(`[notify-booking-confirmed] Error sending to concierge ${targetEmail}:`, emailError);
+              errors.push(`concierge:${targetEmail}`);
             } else {
-              console.log(`[notify-booking-confirmed] Email sent to concierge: ${concierge.email}`);
-              emailsSent.push(`concierge:${concierge.email}`);
+              console.log(`[notify-booking-confirmed] Email sent to concierge: ${targetEmail} (original: ${concierge.email})`);
+              emailsSent.push(`concierge:${targetEmail}`);
             }
           } catch (e) {
-            console.error(`[notify-booking-confirmed] Exception sending to concierge ${concierge.email}:`, e);
-            errors.push(`concierge:${concierge.email}`);
+            console.error(`[notify-booking-confirmed] Exception sending to concierge ${targetEmail}:`, e);
+            errors.push(`concierge:${targetEmail}`);
           }
+          // En mode test, on n'envoie qu'un seul email
+          if (TEST_MODE) break;
         }
       }
     }
