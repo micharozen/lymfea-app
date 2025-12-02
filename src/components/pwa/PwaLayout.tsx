@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
-import { setNotificationClickHandler } from "@/hooks/useOneSignal";
+import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 
 const PwaLayout = () => {
   const navigate = useNavigate();
@@ -15,6 +15,14 @@ const PwaLayout = () => {
 
   // Set up notification click handler for push notifications
   useEffect(() => {
+    // Check for any pending notification URL first
+    const pendingUrl = getPendingNotificationUrl();
+    if (pendingUrl) {
+      console.log('[PwaLayout] Found pending notification URL on mount:', pendingUrl);
+      navigate(pendingUrl);
+    }
+    
+    // Set up the handler for future clicks
     setNotificationClickHandler((url: string) => {
       console.log('[PwaLayout] Push notification clicked, navigating to:', url);
       // Navigate to the URL from the push notification

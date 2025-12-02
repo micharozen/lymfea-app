@@ -4,10 +4,25 @@ import OneSignal from 'react-onesignal';
 let isOneSignalInitialized = false;
 let initializationPromise: Promise<boolean> | null = null;
 let notificationClickHandler: ((url: string) => void) | null = null;
+let pendingNotificationUrl: string | null = null;
 
 // Set the handler for notification clicks (call this from your router component)
 export const setNotificationClickHandler = (handler: (url: string) => void) => {
   notificationClickHandler = handler;
+  
+  // If there's a pending URL from a notification clicked before handler was set, navigate now
+  if (pendingNotificationUrl) {
+    console.log('[OneSignal] Processing pending notification URL:', pendingNotificationUrl);
+    handler(pendingNotificationUrl);
+    pendingNotificationUrl = null;
+  }
+};
+
+// Get pending notification URL (for checking on app mount)
+export const getPendingNotificationUrl = (): string | null => {
+  const url = pendingNotificationUrl;
+  pendingNotificationUrl = null;
+  return url;
 };
 
 export const useOneSignal = () => {
@@ -87,11 +102,19 @@ export const useOneSignal = () => {
               || event?.notification?.data?.url
               || event?.result?.url;
             console.log('[OneSignal] Extracted URL:', url);
-            if (url && notificationClickHandler) {
+            
+            if (url) {
               // Handle both full URLs and relative paths
               const path = url.startsWith('http') ? new URL(url).pathname : url;
-              console.log('[OneSignal] Navigating to path:', path);
-              notificationClickHandler(path);
+              console.log('[OneSignal] Path to navigate:', path);
+              
+              if (notificationClickHandler) {
+                console.log('[OneSignal] Handler available, navigating immediately');
+                notificationClickHandler(path);
+              } else {
+                console.log('[OneSignal] Handler not set, storing URL for later');
+                pendingNotificationUrl = path;
+              }
             }
           });
           
