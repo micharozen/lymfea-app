@@ -12,6 +12,7 @@ export const useWebPush = () => {
     // Check if Push API is supported
     const supported = 'serviceWorker' in navigator && 'PushManager' in window;
     setIsSupported(supported);
+    console.log('[Web Push] Supported:', supported);
 
     if (!supported) {
       console.log('[Web Push] Push notifications not supported');
@@ -19,15 +20,19 @@ export const useWebPush = () => {
     }
 
     // Get current permission
-    setPermission(Notification.permission);
+    const currentPermission = Notification.permission;
+    setPermission(currentPermission);
+    console.log('[Web Push] Current permission:', currentPermission);
 
     // Fetch VAPID public key
     const fetchVapidKey = async () => {
       try {
+        console.log('[Web Push] Fetching VAPID key...');
         const { data, error } = await supabase.functions.invoke('get-vapid-public-key');
+        console.log('[Web Push] VAPID response:', { data, error });
         if (error) throw error;
         setVapidPublicKey(data.publicKey);
-        console.log('[Web Push] VAPID key fetched');
+        console.log('[Web Push] VAPID key fetched:', data.publicKey?.substring(0, 20) + '...');
       } catch (error) {
         console.error('[Web Push] Failed to fetch VAPID key:', error);
       }
@@ -104,6 +109,10 @@ export const useWebPush = () => {
   };
 
   const subscribeToPush = async (): Promise<boolean> => {
+    console.log('[Web Push] subscribeToPush called');
+    console.log('[Web Push] isSupported:', isSupported);
+    console.log('[Web Push] vapidPublicKey:', vapidPublicKey ? vapidPublicKey.substring(0, 20) + '...' : 'null');
+    
     if (!isSupported) {
       console.error('[Web Push] Push notifications not supported');
       return false;
@@ -118,9 +127,12 @@ export const useWebPush = () => {
 
     try {
       // Request permission if not granted
+      console.log('[Web Push] Current permission:', Notification.permission);
       if (Notification.permission === 'default') {
+        console.log('[Web Push] Requesting permission...');
         const permissionResult = await Notification.requestPermission();
         setPermission(permissionResult);
+        console.log('[Web Push] Permission result:', permissionResult);
         
         if (permissionResult !== 'granted') {
           console.log('[Web Push] Permission denied');
@@ -134,11 +146,13 @@ export const useWebPush = () => {
       }
 
       // Register service worker
+      console.log('[Web Push] Registering service worker...');
       const registration = await navigator.serviceWorker.register('/service-worker.js');
       await navigator.serviceWorker.ready;
       console.log('[Web Push] Service worker registered');
 
       // Subscribe to push notifications
+      console.log('[Web Push] Subscribing to push with VAPID key...');
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -146,10 +160,13 @@ export const useWebPush = () => {
       });
 
       console.log('[Web Push] Subscribed to push notifications');
+      console.log('[Web Push] Subscription endpoint:', subscription.endpoint);
 
       // Save subscription to database
+      console.log('[Web Push] Saving subscription to database...');
       await saveSubscription(subscription);
       setIsSubscribed(true);
+      console.log('[Web Push] Subscription saved successfully');
       
       return true;
     } catch (error) {
