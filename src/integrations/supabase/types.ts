@@ -649,6 +649,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      unassign_booking: {
+        Args: { _booking_id: string; _hairdresser_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "concierge" | "hairdresser"
