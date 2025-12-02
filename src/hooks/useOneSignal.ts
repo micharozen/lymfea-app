@@ -65,7 +65,7 @@ export const useOneSignal = () => {
             appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
             allowLocalhostAsSecureOrigin: true,
             notificationClickHandlerMatch: "origin",
-            notificationClickHandlerAction: "focus",
+            notificationClickHandlerAction: "navigate",
           });
 
           // Wait for init with timeout
