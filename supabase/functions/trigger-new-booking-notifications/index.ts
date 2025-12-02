@@ -85,52 +85,80 @@ serve(async (req) => {
       console.log(`Notifying all ${eligibleHairdressers.length} eligible hairdressers`);
     }
 
-    // Send push notifications to each hairdresser (SMS removed)
-    const notifications = await Promise.allSettled(
-      eligibleHairdressers.map(async (hh) => {
-        const h = hh.hairdressers as any;
-        if (!h || !h.user_id) return { success: false };
+    // Send push notifications to each hairdresser (with DB deduplication)
+    let notificationsSent = 0;
+    let skippedDuplicates = 0;
 
-        try {
-          const { error: pushError } = await supabaseClient.functions.invoke(
-            "send-push-notification",
-            {
-              body: {
-                userId: h.user_id,
-                title: "🎉 Nouvelle réservation !",
-                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
-                data: {
-                  bookingId: booking.id,
-                  url: `/pwa/bookings/${booking.id}`,
-                },
-              },
-            }
-          );
+    for (const hh of eligibleHairdressers) {
+      const h = hh.hairdressers as any;
+      if (!h || !h.user_id) continue;
 
-          if (pushError) {
-            console.error(`Error sending push to ${h.first_name}:`, pushError);
-            return { success: false, hairdresserId: h.id };
-          }
+      // Check if notification already sent for this booking+user
+      const { data: existingLog } = await supabaseClient
+        .from("push_notification_logs")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("user_id", h.user_id)
+        .single();
 
-          console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);
-          return { success: true, hairdresserId: h.id };
-        } catch (error) {
-          console.error("Error sending notification:", error);
-          return { success: false, hairdresserId: h.id };
+      if (existingLog) {
+        console.log(`[DEDUP] Skipping duplicate for user ${h.first_name} - already notified`);
+        skippedDuplicates++;
+        continue;
+      }
+
+      // Insert log BEFORE sending to prevent race conditions
+      const { error: logError } = await supabaseClient
+        .from("push_notification_logs")
+        .insert({
+          booking_id: bookingId,
+          user_id: h.user_id,
+        });
+
+      if (logError) {
+        // If insert fails due to unique constraint, another instance already processed this
+        if (logError.code === "23505") {
+          console.log(`[DEDUP] Race condition caught for user ${h.first_name}`);
+          skippedDuplicates++;
+          continue;
         }
-      })
-    );
+        console.error("Error logging notification:", logError);
+      }
 
-    const successful = notifications.filter(
-      (r) => r.status === "fulfilled" && r.value.success
-    ).length;
+      try {
+        const { error: pushError } = await supabaseClient.functions.invoke(
+          "send-push-notification",
+          {
+            body: {
+              userId: h.user_id,
+              title: "🎉 Nouvelle réservation !",
+              body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
+              data: {
+                bookingId: booking.id,
+                url: `/pwa/bookings/${booking.id}`,
+              },
+            },
+          }
+        );
 
-    console.log(`Push notifications sent: ${successful}/${eligibleHairdressers.length}`);
+        if (pushError) {
+          console.error(`Error sending push to ${h.first_name}:`, pushError);
+        } else {
+          console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);
+          notificationsSent++;
+        }
+      } catch (error) {
+        console.error("Error sending notification:", error);
+      }
+    }
+
+    console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        notificationsSent: successful,
+        notificationsSent,
+        skippedDuplicates,
         totalEligible: eligibleHairdressers.length,
       }),
       {

@@ -471,6 +471,27 @@ export type Database = {
           },
         ]
       }
+      push_notification_logs: {
+        Row: {
+          booking_id: string
+          id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_id: string
+          id?: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string
+          id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
