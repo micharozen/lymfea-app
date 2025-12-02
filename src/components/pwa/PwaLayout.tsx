@@ -1,15 +1,28 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
+import { setNotificationClickHandler } from "@/hooks/useOneSignal";
 
 const PwaLayout = () => {
+  const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const [displayLocation, setDisplayLocation] = useState(location);
   const [transitionStage, setTransitionStage] = useState("fadeIn");
   const queryClient = useQueryClient();
+
+  // Set up notification click handler for push notifications
+  useEffect(() => {
+    setNotificationClickHandler((url: string) => {
+      console.log('[PwaLayout] Push notification clicked, navigating to:', url);
+      // Navigate to the URL from the push notification
+      if (url.startsWith('/')) {
+        navigate(url);
+      }
+    });
+  }, [navigate]);
 
   useEffect(() => {
     if (location !== displayLocation) {
