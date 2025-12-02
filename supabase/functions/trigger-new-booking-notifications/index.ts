@@ -47,9 +47,7 @@ serve(async (req) => {
           user_id,
           status,
           first_name,
-          last_name,
-          phone,
-          country_code
+          last_name
         )
       `)
       .eq("hotel_id", booking.hotel_id);
@@ -87,69 +85,34 @@ serve(async (req) => {
       console.log(`Notifying all ${eligibleHairdressers.length} eligible hairdressers`);
     }
 
-    // Get Twilio credentials
-    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
-
-    // Send SMS notifications to each hairdresser
+    // Send push notifications to each hairdresser (SMS removed)
     const notifications = await Promise.allSettled(
       eligibleHairdressers.map(async (hh) => {
         const h = hh.hairdressers as any;
-        if (!h) return { success: false };
+        if (!h || !h.user_id) return { success: false };
 
         try {
-          // Send SMS via Twilio
-          if (h.phone && h.country_code && twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
-            const fullPhone = `${h.country_code}${h.phone}`;
-            const smsMessage = `🎉 Nouvelle réservation !\n\nRéservation #${booking.booking_id}\nHôtel: ${booking.hotel_name}\nDate: ${new Date(booking.booking_date).toLocaleDateString('fr-FR')}\nHeure: ${booking.booking_time}\n\nConsultez l'app OOM pour accepter.`;
-
-            const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-            const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
-            const smsResponse = await fetch(twilioUrl, {
-              method: "POST",
-              headers: {
-                "Authorization": `Basic ${twilioAuth}`,
-                "Content-Type": "application/x-www-form-urlencoded",
-              },
-              body: new URLSearchParams({
-                From: twilioPhoneNumber,
-                To: fullPhone,
-                Body: smsMessage,
-              }),
-            });
-
-            if (!smsResponse.ok) {
-              const errorText = await smsResponse.text();
-              console.error(`Error sending SMS to ${h.first_name} (${fullPhone}):`, errorText);
-            } else {
-              console.log(`✅ SMS sent to ${h.first_name} ${h.last_name} (${fullPhone})`);
-            }
-          }
-
-          // Also send push notification if user_id exists
-          if (h.user_id) {
-            const { error: pushError } = await supabaseClient.functions.invoke(
-              "send-push-notification",
-              {
-                body: {
-                  userId: h.user_id,
-                  title: "🎉 Nouvelle réservation !",
-                  body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
-                  data: {
-                    bookingId: booking.id,
-                    url: `/pwa/bookings/${booking.id}`,
-                  },
+          const { error: pushError } = await supabaseClient.functions.invoke(
+            "send-push-notification",
+            {
+              body: {
+                userId: h.user_id,
+                title: "🎉 Nouvelle réservation !",
+                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
+                data: {
+                  bookingId: booking.id,
+                  url: `/pwa/bookings/${booking.id}`,
                 },
-              }
-            );
-
-            if (pushError) {
-              console.error(`Error sending push to ${h.first_name}:`, pushError);
+              },
             }
+          );
+
+          if (pushError) {
+            console.error(`Error sending push to ${h.first_name}:`, pushError);
+            return { success: false, hairdresserId: h.id };
           }
 
+          console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);
           return { success: true, hairdresserId: h.id };
         } catch (error) {
           console.error("Error sending notification:", error);
@@ -162,7 +125,7 @@ serve(async (req) => {
       (r) => r.status === "fulfilled" && r.value.success
     ).length;
 
-    console.log(`Notifications sent: ${successful}/${eligibleHairdressers.length}`);
+    console.log(`Push notifications sent: ${successful}/${eligibleHairdressers.length}`);
 
     return new Response(
       JSON.stringify({
