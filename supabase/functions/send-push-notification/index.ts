@@ -30,20 +30,20 @@ serve(async (req) => {
     console.log("[OneSignal] Click URL:", clickUrl);
 
     // Send notification via OneSignal REST API
-    // IMPORTANT: Use only web_url, NOT url field - OneSignal rejects if both are present
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
       headings: { en: title || "OOM" },
       contents: { en: body || "Nouvelle notification" },
-      data: { ...data },
-      // Use web_url only for web push notifications
+      // Include URL in data for SDK click handler
+      data: { ...data, launchUrl: clickUrl },
+      // web_url for when notification opens browser directly
       web_url: clickUrl,
       // Target by external user ID (the Supabase user_id)
       include_aliases: {
         external_id: [userId]
       },
       target_channel: "push",
-      // Explicit short collapse_id to prevent OneSignal from generating one that's too long
+      // Explicit short collapse_id
       collapse_id: data?.bookingId ? `b-${data.bookingId.substring(0, 8)}` : `n-${Date.now()}`
     };
 
