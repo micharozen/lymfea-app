@@ -166,7 +166,7 @@ export const oneSignalSubscribe = async (): Promise<boolean> => {
 
     console.log('[OneSignal] Requesting push subscription...');
     
-    // Check current permission
+    // Check if permission was previously denied
     const currentPermission = Notification.permission;
     console.log('[OneSignal] Current browser permission:', currentPermission);
     
@@ -175,20 +175,11 @@ export const oneSignalSubscribe = async (): Promise<boolean> => {
       return false;
     }
     
-    // Request permission first (this triggers the native prompt)
-    const permission = await OneSignal.Notifications.requestPermission();
-    console.log('[OneSignal] Permission result:', permission);
-    
-    if (!permission) {
-      console.warn('[OneSignal] Permission denied');
-      return false;
-    }
-
-    // Then opt in
+    // Use optIn() only - it handles permission request internally
     await OneSignal.User.PushSubscription.optIn();
     
     // Wait a bit for subscription to be processed
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     const subscribed = OneSignal.User.PushSubscription.optedIn;
     const token = OneSignal.User.PushSubscription.token;
