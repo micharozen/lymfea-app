@@ -66,7 +66,7 @@ serve(async (req) => {
 
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
-    // Create email HTML content
+    // Create email HTML content for admin/concierge
     const createEmailHtml = (recipientType: string) => `
       <!DOCTYPE html>
       <html>
@@ -138,6 +138,101 @@ serve(async (req) => {
           
           <div class="footer">
             <p>OOM App - Booking Management</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create email HTML content for client
+    const createClientEmailHtml = () => `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; margin-bottom: 30px; padding: 30px 0; }
+          .logo { font-size: 28px; font-weight: bold; color: #000; }
+          .badge { background: #22c55e; color: white; padding: 8px 20px; border-radius: 20px; font-size: 14px; display: inline-block; margin-top: 16px; }
+          .card { background: #ffffff; border-radius: 16px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+          .greeting { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+          .intro { color: #6b7280; margin-bottom: 24px; }
+          .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
+          .detail-label { color: #6b7280; font-size: 14px; }
+          .detail-value { font-weight: 500; font-size: 14px; text-align: right; }
+          .treatments-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #374151; }
+          .treatment { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+          .treatment-name { font-size: 14px; }
+          .treatment-price { font-size: 14px; font-weight: 500; }
+          .total-row { display: flex; justify-content: space-between; padding: 16px 0 0 0; margin-top: 8px; border-top: 2px solid #e5e7eb; }
+          .total-label { font-size: 16px; font-weight: 600; }
+          .total-value { font-size: 20px; font-weight: bold; color: #000; }
+          .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px; padding: 20px 0; }
+          .highlight-box { background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border-radius: 12px; padding: 20px; margin: 16px 0; border-left: 4px solid #000; }
+          .highlight-title { font-size: 12px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; letter-spacing: 0.5px; }
+          .highlight-value { font-size: 18px; font-weight: 600; color: #000; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">OOM</div>
+            <div class="badge">✓ Réservation Confirmée</div>
+          </div>
+          
+          <div class="card">
+            <div class="greeting">Bonjour ${booking.client_first_name},</div>
+            <div class="intro">Votre rendez-vous a été confirmé. Un coiffeur vous attend !</div>
+            
+            <div class="highlight-box">
+              <div class="highlight-title">Date & Heure</div>
+              <div class="highlight-value">${formattedDate} à ${formattedTime}</div>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Numéro de réservation</span>
+              <span class="detail-value">#${booking.booking_id}</span>
+            </div>
+            
+            <div class="detail-row">
+              <span class="detail-label">Hôtel</span>
+              <span class="detail-value">${booking.hotel_name || '-'}</span>
+            </div>
+            
+            ${booking.room_number ? `
+            <div class="detail-row">
+              <span class="detail-label">Chambre</span>
+              <span class="detail-value">${booking.room_number}</span>
+            </div>
+            ` : ''}
+            
+            <div class="detail-row">
+              <span class="detail-label">Votre coiffeur</span>
+              <span class="detail-value">${booking.hairdresser_name || '-'}</span>
+            </div>
+          </div>
+          
+          ${treatments.length > 0 ? `
+          <div class="card">
+            <div class="treatments-title">Vos prestations</div>
+            ${treatments.map(t => `
+              <div class="treatment">
+                <span class="treatment-name">${t.name}</span>
+                <span class="treatment-price">${t.price}€</span>
+              </div>
+            `).join('')}
+            <div class="total-row">
+              <span class="total-label">Total</span>
+              <span class="total-value">${booking.total_price || 0}€</span>
+            </div>
+          </div>
+          ` : ''}
+          
+          <div class="footer">
+            <p>Merci de votre confiance.</p>
+            <p style="margin-top: 8px;">OOM - Beauty & Wellness</p>
           </div>
         </div>
       </body>
@@ -221,6 +316,32 @@ serve(async (req) => {
           if (TEST_MODE) break;
         }
       }
+    }
+
+    // 3. Send confirmation email to client (if email available)
+    if (booking.client_email) {
+      const clientEmail = TEST_MODE ? TEST_EMAIL : booking.client_email;
+      try {
+        const { error: emailError } = await resend.emails.send({
+          from: 'OOM <booking@oomworld.com>',
+          to: [clientEmail],
+          subject: `${TEST_MODE ? '[TEST CLIENT] ' : ''}Votre rendez-vous est confirmé - ${formattedDate}`,
+          html: createClientEmailHtml(),
+        });
+
+        if (emailError) {
+          console.error(`[notify-booking-confirmed] Error sending to client ${clientEmail}:`, emailError);
+          errors.push(`client:${clientEmail}`);
+        } else {
+          console.log(`[notify-booking-confirmed] Email sent to client: ${clientEmail} (original: ${booking.client_email})`);
+          emailsSent.push(`client:${clientEmail}`);
+        }
+      } catch (e) {
+        console.error(`[notify-booking-confirmed] Exception sending to client ${clientEmail}:`, e);
+        errors.push(`client:${clientEmail}`);
+      }
+    } else {
+      console.log('[notify-booking-confirmed] No client email available, skipping client notification');
     }
 
     console.log('[notify-booking-confirmed] Summary - Sent:', emailsSent.length, 'Errors:', errors.length);
