@@ -153,91 +153,112 @@ serve(async (req) => {
       <html>
       <head>
         <meta charset="utf-8">
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { text-align: center; margin-bottom: 30px; padding: 30px 0; }
-          .logo { font-size: 28px; font-weight: bold; color: #000; }
-          .badge { background: #22c55e; color: white; padding: 8px 20px; border-radius: 20px; font-size: 14px; display: inline-block; margin-top: 16px; }
-          .card { background: #ffffff; border-radius: 16px; padding: 24px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-          .greeting { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
-          .intro { color: #6b7280; margin-bottom: 24px; }
-          .detail-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
-          .detail-label { color: #6b7280; font-size: 14px; }
-          .detail-value { font-weight: 500; font-size: 14px; text-align: right; }
-          .treatments-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #374151; }
-          .treatment { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
-          .treatment-name { font-size: 14px; }
-          .treatment-price { font-size: 14px; font-weight: 500; }
-          .total-row { display: flex; justify-content: space-between; padding: 16px 0 0 0; margin-top: 8px; border-top: 2px solid #e5e7eb; }
-          .total-label { font-size: 16px; font-weight: 600; }
-          .total-value { font-size: 20px; font-weight: bold; color: #000; }
-          .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 30px; padding: 20px 0; }
-          .highlight-box { background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border-radius: 12px; padding: 20px; margin: 16px 0; border-left: 4px solid #000; }
-          .highlight-title { font-size: 12px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; letter-spacing: 0.5px; }
-          .highlight-value { font-size: 18px; font-weight: 600; color: #000; }
-        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div class="logo">OOM</div>
-            <div class="badge">✓ Réservation Confirmée</div>
-          </div>
-          
-          <div class="card">
-            <div class="greeting">Bonjour ${booking.client_first_name},</div>
-            <div class="intro">Votre rendez-vous a été confirmé. Un coiffeur vous attend !</div>
-            
-            <div class="highlight-box">
-              <div class="highlight-title">Date & Heure</div>
-              <div class="highlight-value">${formattedDate} à ${formattedTime}</div>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Numéro de réservation</span>
-              <span class="detail-value">#${booking.booking_id}</span>
-            </div>
-            
-            <div class="detail-row">
-              <span class="detail-label">Hôtel</span>
-              <span class="detail-value">${booking.hotel_name || '-'}</span>
-            </div>
-            
-            ${booking.room_number ? `
-            <div class="detail-row">
-              <span class="detail-label">Chambre</span>
-              <span class="detail-value">${booking.room_number}</span>
-            </div>
-            ` : ''}
-            
-            <div class="detail-row">
-              <span class="detail-label">Votre coiffeur</span>
-              <span class="detail-value">${booking.hairdresser_name || '-'}</span>
-            </div>
-          </div>
-          
-          ${treatments.length > 0 ? `
-          <div class="card">
-            <div class="treatments-title">Vos prestations</div>
-            ${treatments.map(t => `
-              <div class="treatment">
-                <span class="treatment-name">${t.name}</span>
-                <span class="treatment-price">${t.price}€</span>
-              </div>
-            `).join('')}
-            <div class="total-row">
-              <span class="total-label">Total</span>
-              <span class="total-value">${booking.total_price || 0}€</span>
-            </div>
-          </div>
-          ` : ''}
-          
-          <div class="footer">
-            <p>Merci de votre confiance.</p>
-            <p style="margin-top: 8px;">OOM - Beauty & Wellness</p>
-          </div>
-        </div>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+          <tr>
+            <td align="center">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                <!-- Header -->
+                <tr>
+                  <td style="text-align: center; padding: 40px 30px 20px;">
+                    <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">OOM</h1>
+                    <div style="margin-top: 16px;">
+                      <span style="display: inline-block; background-color: #22c55e; color: white; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 600;">✓ Réservation Confirmée</span>
+                    </div>
+                  </td>
+                </tr>
+                
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 30px;">
+                    <h2 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 600; color: #111;">Bonjour ${booking.client_first_name},</h2>
+                    <p style="margin: 0 0 24px 0; font-size: 16px; color: #6b7280;">Votre rendez-vous a été confirmé. Un coiffeur vous attend !</p>
+                    
+                    <!-- Date/Time Highlight -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #000;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 600;">Date & Heure</p>
+                          <p style="margin: 0; font-size: 20px; font-weight: 600; color: #000;">${formattedDate}</p>
+                          <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 600; color: #000;">à ${formattedTime}</p>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <!-- Details -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                      <tr>
+                        <td style="padding: 16px 0; border-bottom: 1px solid #f3f4f6;">
+                          <span style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Numéro de réservation</span>
+                          <span style="font-size: 16px; font-weight: 600; color: #111;">#${booking.booking_id}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 16px 0; border-bottom: 1px solid #f3f4f6;">
+                          <span style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Hôtel</span>
+                          <span style="font-size: 16px; font-weight: 600; color: #111;">${booking.hotel_name || '-'}</span>
+                        </td>
+                      </tr>
+                      ${booking.room_number ? `
+                      <tr>
+                        <td style="padding: 16px 0; border-bottom: 1px solid #f3f4f6;">
+                          <span style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Chambre</span>
+                          <span style="font-size: 16px; font-weight: 600; color: #111;">${booking.room_number}</span>
+                        </td>
+                      </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="padding: 16px 0; border-bottom: 1px solid #f3f4f6;">
+                          <span style="display: block; font-size: 13px; color: #6b7280; margin-bottom: 4px;">Votre coiffeur</span>
+                          <span style="font-size: 16px; font-weight: 600; color: #111;">${booking.hairdresser_name || '-'}</span>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    ${treatments.length > 0 ? `
+                    <!-- Treatments -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                      <tr>
+                        <td style="padding: 20px;">
+                          <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">Vos prestations</p>
+                          ${treatments.map(t => `
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
+                              <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                                  <span style="font-size: 15px; color: #374151;">${t.name}</span>
+                                </td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb; text-align: right;">
+                                  <span style="font-size: 15px; font-weight: 600; color: #374151;">${t.price}€</span>
+                                </td>
+                              </tr>
+                            </table>
+                          `).join('')}
+                          <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; border-top: 2px solid #e5e7eb; padding-top: 16px;">
+                            <tr>
+                              <td style="font-size: 18px; font-weight: 600; color: #111;">Total</td>
+                              <td style="text-align: right; font-size: 24px; font-weight: bold; color: #000;">${booking.total_price || 0}€</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : ''}
+                  </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                  <td style="text-align: center; padding: 30px; background-color: #fafafa; border-top: 1px solid #f0f0f0;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">Merci de votre confiance.</p>
+                    <p style="margin: 0; font-size: 12px; color: #9ca3af;">OOM - Beauty & Wellness</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
