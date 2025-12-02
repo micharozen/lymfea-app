@@ -262,16 +262,6 @@ const Auth = () => {
         description: "Bienvenue !",
       });
       
-      // Register for push notifications
-      if (data.user.id) {
-        try {
-          const { registerForPushNotifications } = await import("@/lib/despia");
-          await registerForPushNotifications(data.user.id);
-        } catch (error) {
-          console.error('[Push] Registration failed:', error);
-        }
-      }
-      
       // Check user role to redirect appropriately
       const { data: roles } = await supabase
         .from('user_roles')

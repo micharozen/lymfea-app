@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useDespiaToken } from "@/hooks/useDespiaToken";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
 import PwaLayout from "./components/pwa/PwaLayout";
@@ -56,11 +57,19 @@ const queryClient = new QueryClient({
     },
   },
 });
-const App = () => <QueryClientProvider client={queryClient}>
+
+const DespiaPushTokenHandler = () => {
+  useDespiaToken();
+  return null;
+};
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <DespiaPushTokenHandler />
         <Routes>
           {/* Root - Smart redirect based on user type */}
           <Route path="/" element={<Home />} />
@@ -199,5 +208,7 @@ const App = () => <QueryClientProvider client={queryClient}>
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>;
+  </QueryClientProvider>
+);
+
 export default App;
