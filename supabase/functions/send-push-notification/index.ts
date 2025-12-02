@@ -265,26 +265,26 @@ serve(async (req) => {
 
     console.log("Sending push notification to user:", userId);
 
-    // Get user's push tokens
-    const { data: tokens, error: tokensError } = await supabaseClient
-      .from("push_tokens")
-      .select("token, endpoint, id")
+    // Get user's push subscriptions
+    const { data: subscriptions, error: subscriptionsError } = await supabaseClient
+      .from("push_subscriptions")
+      .select("endpoint, p256dh, auth, id")
       .eq("user_id", userId);
 
-    if (tokensError) {
-      console.error("Error fetching tokens:", tokensError);
-      throw tokensError;
+    if (subscriptionsError) {
+      console.error("Error fetching subscriptions:", subscriptionsError);
+      throw subscriptionsError;
     }
 
-    if (!tokens || tokens.length === 0) {
-      console.log("No push tokens found for user:", userId);
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log("No push subscriptions found for user:", userId);
       return new Response(
-        JSON.stringify({ success: true, message: "No tokens to send to" }),
+        JSON.stringify({ success: true, message: "No subscriptions to send to" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Found ${tokens.length} token(s) for user`);
+    console.log(`Found ${subscriptions.length} subscription(s) for user`);
 
     // Get VAPID keys from environment
     const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
@@ -300,18 +300,16 @@ serve(async (req) => {
       data: { ...data, url: data?.url || "/pwa/dashboard" },
     });
 
-    // Send notification to each token
+    // Send notification to each subscription
     const results = await Promise.allSettled(
-      tokens.map(async ({ token, endpoint, id }) => {
+      subscriptions.map(async ({ endpoint, p256dh, auth, id }) => {
         try {
-          const subscriptionData = JSON.parse(token);
-          
           // Construct subscription object
           const subscription = {
             endpoint: endpoint,
             keys: {
-              p256dh: subscriptionData.keys?.p256dh || subscriptionData.p256dh,
-              auth: subscriptionData.keys?.auth || subscriptionData.auth,
+              p256dh: p256dh,
+              auth: auth,
             }
           };
 
@@ -331,8 +329,8 @@ serve(async (req) => {
             console.error(`Push failed with status ${response.status}:`, errorText);
             
             if (response.status === 410 || response.status === 404) {
-              await supabaseClient.from("push_tokens").delete().eq("id", id);
-              console.log("Removed invalid token");
+              await supabaseClient.from("push_subscriptions").delete().eq("id", id);
+              console.log("Removed invalid subscription");
             }
             
             throw new Error(`Push failed: ${response.status}`);
@@ -342,7 +340,7 @@ serve(async (req) => {
           return { success: true, endpoint };
         } catch (error: unknown) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-          console.error("Error sending to token:", errorMsg);
+          console.error("Error sending to subscription:", errorMsg);
           return { success: false, endpoint, error: errorMsg };
         }
       })
