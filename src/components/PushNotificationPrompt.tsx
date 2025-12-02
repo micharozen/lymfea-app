@@ -1,29 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, X } from 'lucide-react';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { oneSignalSubscribe, isOneSignalSubscribed } from '@/hooks/useOneSignal';
 
 export default function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
-  const { isSupported, permission, requestPermission } = usePushNotifications();
 
   useEffect(() => {
-    // Show prompt only if notifications are supported and not yet decided
     const hasSeenPrompt = localStorage.getItem('push-notification-prompt-seen');
+    const isSubscribed = isOneSignalSubscribed();
     
-    if (isSupported && permission === 'default' && !hasSeenPrompt) {
-      // Show after 3 seconds
+    if (!isSubscribed && !hasSeenPrompt) {
       const timer = setTimeout(() => {
         setShowPrompt(true);
       }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [isSupported, permission]);
+  }, []);
 
   const handleAccept = async () => {
-    const granted = await requestPermission();
-    if (granted) {
+    const success = await oneSignalSubscribe();
+    if (success) {
       localStorage.setItem('push-notification-prompt-seen', 'true');
       setShowPrompt(false);
     }
@@ -38,7 +36,7 @@ export default function PushNotificationPrompt() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in slide-in-from-bottom duration-300">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in slide-in-from-bottom duration-300 relative">
         <button
           onClick={handleDecline}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"

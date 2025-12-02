@@ -9,7 +9,7 @@ import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useWebPush } from "@/hooks/useWebPush";
+import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed } from "@/hooks/useOneSignal";
 
 interface Notification {
   id: string;
@@ -28,16 +28,21 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { permission, isSubscribed, isLoading, subscribeToPush, unsubscribe } = useWebPush();
+
+  // Check initial push subscription status
+  useEffect(() => {
+    setPushEnabled(isOneSignalSubscribed());
+  }, []);
 
   useEffect(() => {
     const loadNotifications = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if we have cached notifications
       const cachedNotifications = queryClient.getQueryData<Notification[]>(["notifications", user.id]);
       
       if (cachedNotifications) {
@@ -53,7 +58,6 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     loadNotifications();
   }, []);
 
-  // Realtime listener for new notifications
   useEffect(() => {
     const channel = supabase
       .channel('notifications-live')
@@ -88,7 +92,6 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
       if (error) throw error;
       
-      // Cache notifications
       queryClient.setQueryData(["notifications", user.id], data);
       setNotifications(data || []);
     } catch (error) {
@@ -171,7 +174,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     const startX = swipeStates[notificationId];
     if (startX !== undefined) {
       const diff = startX - touch.clientX;
-      if (diff > 0) { // Only allow swipe left
+      if (diff > 0) {
         setSwipeStates(prev => ({
           ...prev,
           [notificationId]: -Math.min(diff, 100)
@@ -184,11 +187,9 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     const swipeDistance = Math.abs(swipeStates[notificationId] || 0);
     
     if (swipeDistance > 80) {
-      // Delete if swiped far enough
       await deleteNotification(notificationId);
     }
     
-    // Reset swipe state
     setSwipeStates(prev => {
       const newState = { ...prev };
       delete newState[notificationId];
@@ -220,38 +221,26 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   };
 
   const handleTogglePushNotifications = async (enabled: boolean) => {
-    if (enabled) {
-      try {
-        const success = await subscribeToPush();
-        if (!success) {
-          toast.error('Impossible d\'activer les notifications. Vérifiez les permissions.');
+    setPushLoading(true);
+    try {
+      if (enabled) {
+        const success = await oneSignalSubscribe();
+        if (success) {
+          setPushEnabled(true);
+          toast.success('Notifications push activées');
         } else {
-          // Verify the subscription was saved
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data, error } = await supabase
-              .from('push_subscriptions')
-              .select('id')
-              .eq('user_id', user.id)
-              .maybeSingle();
-            
-            if (error) {
-              console.error('[PwaNotifications] Error verifying subscription:', error);
-              toast.error('Erreur lors de la vérification');
-            } else if (data) {
-              toast.success('Notifications activées et enregistrées');
-            } else {
-              toast.error('La souscription n\'a pas été enregistrée');
-            }
-          }
+          toast.error('Impossible d\'activer les notifications');
         }
-      } catch (error) {
-        console.error('[PwaNotifications] Error:', error);
-        toast.error('Erreur: ' + (error instanceof Error ? error.message : 'Inconnue'));
+      } else {
+        await oneSignalUnsubscribe();
+        setPushEnabled(false);
+        toast.success('Notifications push désactivées');
       }
-    } else {
-      await unsubscribe();
-      toast.success('Notifications désactivées');
+    } catch (error) {
+      console.error('[PwaNotifications] Error:', error);
+      toast.error('Erreur: ' + (error instanceof Error ? error.message : 'Inconnue'));
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -311,9 +300,9 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
           </div>
           <Switch
             id="push-notifications"
-            checked={permission === 'granted' && isSubscribed}
+            checked={pushEnabled}
             onCheckedChange={handleTogglePushNotifications}
-            disabled={isLoading}
+            disabled={pushLoading}
           />
         </div>
       </div>
@@ -338,12 +327,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
               
               return (
                 <div key={notification.id} className="relative overflow-hidden">
-                  {/* Delete background that shows when swiping */}
                   <div className="absolute inset-0 bg-destructive flex items-center justify-end px-6">
                     <Trash2 className="h-5 w-5 text-white" />
                   </div>
                   
-                  {/* Notification content */}
                   <button
                     onClick={() => handleNotificationClick(notification)}
                     onTouchStart={(e) => handleTouchStart(notification.id, e)}
