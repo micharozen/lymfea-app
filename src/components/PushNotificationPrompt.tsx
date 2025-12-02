@@ -1,30 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Bell, X } from 'lucide-react';
-import { oneSignalSubscribe, isOneSignalSubscribed } from '@/hooks/useOneSignal';
+import { oneSignalSubscribe, isOneSignalSubscribed, isOneSignalReady } from '@/hooks/useOneSignal';
 
 export default function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
-    const hasSeenPrompt = localStorage.getItem('push-notification-prompt-seen');
-    const isSubscribed = isOneSignalSubscribed();
-    
-    if (!isSubscribed && !hasSeenPrompt) {
-      const timer = setTimeout(() => {
+    // Prevent double execution (React StrictMode)
+    if (checkedRef.current) return;
+    checkedRef.current = true;
+
+    const checkAndShowPrompt = async () => {
+      const hasSeenPrompt = localStorage.getItem('push-notification-prompt-seen');
+      
+      // Don't show if already seen
+      if (hasSeenPrompt) return;
+
+      // Wait for OneSignal to be ready (max 5 seconds)
+      let attempts = 0;
+      while (!isOneSignalReady() && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      // Check if already subscribed
+      if (isOneSignalSubscribed()) {
+        localStorage.setItem('push-notification-prompt-seen', 'true');
+        return;
+      }
+
+      // Show prompt after 3 seconds
+      setTimeout(() => {
         setShowPrompt(true);
       }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
+    };
+
+    checkAndShowPrompt();
   }, []);
 
   const handleAccept = async () => {
-    const success = await oneSignalSubscribe();
-    if (success) {
-      localStorage.setItem('push-notification-prompt-seen', 'true');
-      setShowPrompt(false);
-    }
+    setShowPrompt(false);
+    localStorage.setItem('push-notification-prompt-seen', 'true');
+    await oneSignalSubscribe();
   };
 
   const handleDecline = () => {
