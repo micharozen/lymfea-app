@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
 
 let isOneSignalInitialized = false;
-let initializationPromise: Promise<void> | null = null;
+let initializationPromise: Promise<boolean> | null = null;
 
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);
@@ -24,39 +24,71 @@ export const useOneSignal = () => {
       // If initialization is in progress, wait for it
       if (initializationPromise) {
         console.log('[OneSignal] Waiting for existing initialization...');
-        await initializationPromise;
-        setIsInitialized(true);
+        const result = await initializationPromise;
+        setIsInitialized(result);
         return;
       }
 
-      // Start new initialization
+      // Check if we're in a supported environment
+      if (typeof window === 'undefined') {
+        console.log('[OneSignal] Not in browser environment');
+        return;
+      }
+
+      // Check if service workers are supported
+      if (!('serviceWorker' in navigator)) {
+        console.warn('[OneSignal] Service workers not supported');
+        return;
+      }
+
+      // Check if notifications are supported
+      if (!('Notification' in window)) {
+        console.warn('[OneSignal] Notifications not supported');
+        return;
+      }
+
       console.log('[OneSignal] Starting initialization...');
+      console.log('[OneSignal] User Agent:', navigator.userAgent);
+      console.log('[OneSignal] Notification permission:', Notification.permission);
+
+      // Start new initialization
       initializationPromise = (async () => {
         try {
-          await OneSignal.init({
+          // Set a timeout for init
+          const initPromise = OneSignal.init({
             appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
             allowLocalhostAsSecureOrigin: true,
           });
+
+          // Wait for init with timeout
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Init timeout after 15s')), 15000);
+          });
+
+          await Promise.race([initPromise, timeoutPromise]);
           
           isOneSignalInitialized = true;
           console.log('[OneSignal] ✅ Initialized successfully');
           
           // Log current subscription status
           try {
-            const subscribed = OneSignal.User.PushSubscription.optedIn;
-            const token = OneSignal.User.PushSubscription.token;
-            console.log('[OneSignal] Current subscription status:', { subscribed, hasToken: !!token });
+            const subscribed = OneSignal.User?.PushSubscription?.optedIn;
+            const token = OneSignal.User?.PushSubscription?.token;
+            console.log('[OneSignal] Subscription status:', { subscribed, hasToken: !!token });
           } catch (e) {
-            console.log('[OneSignal] Could not get subscription status:', e);
+            console.log('[OneSignal] Could not get subscription status');
           }
+          
+          return true;
         } catch (error) {
           console.error('[OneSignal] ❌ Initialization error:', error);
           initializationPromise = null;
+          return false;
         }
       })();
 
-      await initializationPromise;
-      setIsInitialized(isOneSignalInitialized);
+      const result = await initializationPromise;
+      setIsInitialized(result);
     };
 
     initOneSignal();
@@ -66,14 +98,22 @@ export const useOneSignal = () => {
 };
 
 // Helper to wait for initialization
-const waitForInitialization = async (timeout = 10000): Promise<boolean> => {
+const waitForInitialization = async (timeout = 5000): Promise<boolean> => {
   if (isOneSignalInitialized) return true;
+  
+  // If init promise exists, wait for it
+  if (initializationPromise) {
+    try {
+      return await initializationPromise;
+    } catch {
+      return false;
+    }
+  }
   
   console.log('[OneSignal] Waiting for initialization...');
   const start = Date.now();
   while (Date.now() - start < timeout) {
     if (isOneSignalInitialized) {
-      console.log('[OneSignal] Initialization completed');
       return true;
     }
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -126,6 +166,15 @@ export const oneSignalSubscribe = async (): Promise<boolean> => {
 
     console.log('[OneSignal] Requesting push subscription...');
     
+    // Check current permission
+    const currentPermission = Notification.permission;
+    console.log('[OneSignal] Current browser permission:', currentPermission);
+    
+    if (currentPermission === 'denied') {
+      console.warn('[OneSignal] Permission previously denied. User must enable in browser settings.');
+      return false;
+    }
+    
     // Request permission first (this triggers the native prompt)
     const permission = await OneSignal.Notifications.requestPermission();
     console.log('[OneSignal] Permission result:', permission);
@@ -143,7 +192,7 @@ export const oneSignalSubscribe = async (): Promise<boolean> => {
     
     const subscribed = OneSignal.User.PushSubscription.optedIn;
     const token = OneSignal.User.PushSubscription.token;
-    console.log('[OneSignal] ✅ Subscription result:', { subscribed, hasToken: !!token, token: token?.substring(0, 20) + '...' });
+    console.log('[OneSignal] ✅ Subscription result:', { subscribed, hasToken: !!token });
     
     return subscribed ?? false;
   } catch (error) {
@@ -169,15 +218,11 @@ export const oneSignalUnsubscribe = async (): Promise<void> => {
 
 export const isOneSignalSubscribed = (): boolean => {
   if (!isOneSignalInitialized) {
-    console.log('[OneSignal] Not initialized yet, returning false for subscription check');
     return false;
   }
   try {
-    const subscribed = OneSignal.User.PushSubscription.optedIn ?? false;
-    console.log('[OneSignal] Subscription check:', subscribed);
-    return subscribed;
-  } catch (e) {
-    console.error('[OneSignal] Error checking subscription:', e);
+    return OneSignal.User?.PushSubscription?.optedIn ?? false;
+  } catch {
     return false;
   }
 };
@@ -185,4 +230,15 @@ export const isOneSignalSubscribed = (): boolean => {
 // Check if initialized (for UI display)
 export const isOneSignalReady = (): boolean => {
   return isOneSignalInitialized;
+};
+
+// Get diagnostic info
+export const getOneSignalDiagnostics = () => {
+  return {
+    initialized: isOneSignalInitialized,
+    serviceWorkerSupported: 'serviceWorker' in navigator,
+    notificationsSupported: 'Notification' in window,
+    notificationPermission: typeof Notification !== 'undefined' ? Notification.permission : 'unknown',
+    userAgent: navigator.userAgent,
+  };
 };
