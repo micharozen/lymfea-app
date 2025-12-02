@@ -37,6 +37,7 @@ import PwaNotifications from "./pages/pwa/PwaNotifications";
 import PwaInstall from "./pages/pwa/PwaInstall";
 import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
 import PwaPushDiagnostic from "./pages/pwa/PwaPushDiagnostic";
+import PwaDespiaDiagnostic from "./pages/pwa/PwaDespiaDiagnostic";
 import Home from "./pages/Home";
 import ClientWelcome from "./pages/client/ClientWelcome";
 import ClientMenu from "./pages/client/ClientMenu";
@@ -115,6 +116,7 @@ const App = () => (
           <Route path="/pwa/login" element={<PwaLogin />} />
           <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
           <Route path="/pwa/push-diagnostic" element={<PwaPushDiagnostic />} />
+          <Route path="/pwa/despia-diagnostic" element={<PwaDespiaDiagnostic />} />
           <Route
             path="/pwa/onboarding"
             element={
