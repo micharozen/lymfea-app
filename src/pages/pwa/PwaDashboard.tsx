@@ -399,6 +399,15 @@ const PwaDashboard = () => {
         return;
       }
 
+      // Trigger email notifications to admins and concierges
+      try {
+        await supabase.functions.invoke('notify-booking-confirmed', {
+          body: { bookingId }
+        });
+      } catch (notifError) {
+        console.error("Email notification error (non-blocking):", notifError);
+      }
+
       toast.success("Réservation acceptée !");
       fetchAllBookings(hairdresser.id);
     } catch (error) {

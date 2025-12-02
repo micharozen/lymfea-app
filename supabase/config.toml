@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.test-onesignal]
 verify_jwt = false
+
+[functions.notify-booking-confirmed]
+verify_jwt = false
