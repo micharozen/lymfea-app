@@ -258,7 +258,7 @@ const PwaBookingDetail = () => {
     
     setUpdating(true);
     try {
-      // Get current user to add to declined_by array
+      // Get current user's hairdresser ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -270,29 +270,19 @@ const PwaBookingDetail = () => {
 
       if (!hairdresserData) return;
 
-      // Get current declined_by array
-      const { data: currentBooking } = await supabase
-        .from("bookings")
-        .select("declined_by")
-        .eq("id", booking.id)
-        .single();
-
-      const currentDeclined = currentBooking?.declined_by || [];
-      const updatedDeclined = [...currentDeclined, hairdresserData.id];
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "En attente",
-          hairdresser_id: null,
-          hairdresser_name: null,
-          assigned_at: null,
-          declined_by: updatedDeclined,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", booking.id);
+      // Use RPC function to unassign booking (bypasses RLS issues)
+      const { data, error } = await supabase.rpc('unassign_booking', {
+        _booking_id: booking.id,
+        _hairdresser_id: hairdresserData.id
+      });
 
       if (error) throw error;
+
+      const result = data as { success: boolean; error?: string } | null;
+      if (result && !result.success) {
+        toast.error("Cette réservation ne vous est pas assignée");
+        return;
+      }
 
       toast.success("Réservation remise en attente pour d'autres coiffeurs");
       setShowUnassignDialog(false);
