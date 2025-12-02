@@ -7,6 +7,9 @@ const TEST_MODE = true;
 const TEST_EMAIL = 'aaron@oomworld.com';
 const TEST_PHONE = '+33674678293';
 
+// Delay function to respect Resend rate limit (2 req/sec)
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -272,8 +275,13 @@ serve(async (req) => {
         }
         // En mode test, on n'envoie qu'un seul email
         if (TEST_MODE) break;
+        // Delay to respect rate limit
+        await delay(600);
       }
     }
+
+    // Delay before next batch
+    await delay(600);
 
     // 2. Send to concierges of this hotel
     const { data: conciergeHotels } = await supabase
@@ -314,9 +322,14 @@ serve(async (req) => {
           }
           // En mode test, on n'envoie qu'un seul email
           if (TEST_MODE) break;
+          // Delay to respect rate limit
+          await delay(600);
         }
       }
     }
+
+    // Delay before client email
+    await delay(600);
 
     // 3. Send confirmation email to client (if email available)
     if (booking.client_email) {
