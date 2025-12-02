@@ -545,21 +545,6 @@ const PwaBookingDetail = () => {
   const totalDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
   const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
 
-  const getStatusBadge = () => {
-    if (booking.status === "En attente") {
-      return <Badge variant="outline" className="border-orange-500 text-orange-600 bg-orange-500/10">En attente</Badge>;
-    }
-    if (booking.status === "Assigné" || booking.status === "Confirmé") {
-      return <Badge variant="outline" className="border-primary text-primary bg-primary/10">Confirmé</Badge>;
-    }
-    if (booking.status === "En attente de validation") {
-      return <Badge variant="outline" className="border-blue-500 text-blue-600 bg-blue-500/10">En attente de validation</Badge>;
-    }
-    if (booking.status === "Complété") {
-      return <Badge variant="outline" className="border-green-500 text-green-600 bg-green-500/10">Complété</Badge>;
-    }
-    return null;
-  };
 
   return (
     <>
@@ -592,13 +577,6 @@ const PwaBookingDetail = () => {
               <div className="w-full h-full bg-muted rounded-2xl" />
             )}
           </div>
-
-          {/* Status Badge */}
-          {getStatusBadge() && (
-            <div className="flex justify-center mb-4">
-              {getStatusBadge()}
-            </div>
-          )}
 
           {/* Hotel Name */}
           <div className="text-center mb-2">
