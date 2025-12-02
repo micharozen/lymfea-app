@@ -9,8 +9,7 @@ import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
-import { isDespia, registerForPush } from "@/lib/despia";
+import { useWebPush } from "@/hooks/useWebPush";
 
 interface Notification {
   id: string;
@@ -31,7 +30,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { permission, isSubscribed, isLoading, requestPermission, unsubscribe } = usePushNotifications();
+  const { permission, isSubscribed, isLoading, subscribeToPush, unsubscribe } = useWebPush();
 
   useEffect(() => {
     const loadNotifications = async () => {
@@ -222,22 +221,15 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
   const handleTogglePushNotifications = async (enabled: boolean) => {
     if (enabled) {
-      // Try Despia native push first
-      if (isDespia()) {
-        const success = registerForPush();
-        if (success) {
-          toast.success("Demande d'activation envoyée");
-          return;
-        }
-      }
-      
-      // Fallback to VAPID Web Push for standard browsers
-      const success = await requestPermission();
+      const success = await subscribeToPush();
       if (!success) {
         toast.error('Impossible d\'activer les notifications');
+      } else {
+        toast.success('Notifications activées');
       }
     } else {
       await unsubscribe();
+      toast.success('Notifications désactivées');
     }
   };
 
