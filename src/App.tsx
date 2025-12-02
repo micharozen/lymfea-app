@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { useDespiaToken } from "@/hooks/useDespiaToken";
+
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
 import PwaLayout from "./components/pwa/PwaLayout";
@@ -37,7 +37,7 @@ import PwaNotifications from "./pages/pwa/PwaNotifications";
 import PwaInstall from "./pages/pwa/PwaInstall";
 import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
 import PwaPushDiagnostic from "./pages/pwa/PwaPushDiagnostic";
-import PwaDespiaDiagnostic from "./pages/pwa/PwaDespiaDiagnostic";
+
 import Home from "./pages/Home";
 import ClientWelcome from "./pages/client/ClientWelcome";
 import ClientMenu from "./pages/client/ClientMenu";
@@ -59,10 +59,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const DespiaPushTokenHandler = () => {
-  useDespiaToken();
-  return null;
-};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -70,7 +66,6 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <DespiaPushTokenHandler />
         <Routes>
           {/* Root - Smart redirect based on user type */}
           <Route path="/" element={<Home />} />
@@ -116,7 +111,6 @@ const App = () => (
           <Route path="/pwa/login" element={<PwaLogin />} />
           <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
           <Route path="/pwa/push-diagnostic" element={<PwaPushDiagnostic />} />
-          <Route path="/pwa/despia-diagnostic" element={<PwaDespiaDiagnostic />} />
           <Route
             path="/pwa/onboarding"
             element={
