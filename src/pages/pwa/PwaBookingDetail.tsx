@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
+import { SignatureDialog } from "@/components/SignatureDialog";
 import {
   Drawer,
   DrawerClose,
@@ -42,6 +43,7 @@ interface Booking {
   hotel_image_url?: string;
   hotel_address?: string;
   hotel_city?: string;
+  client_signature?: string | null;
 }
 
 interface Treatment {
@@ -89,6 +91,8 @@ const PwaBookingDetail = () => {
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
   const [hairdresserProfile, setHairdresserProfile] = useState<any>(null);
   const [showNavigationDrawer, setShowNavigationDrawer] = useState(false);
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
+  const [signingLoading, setSigningLoading] = useState(false);
 
   useEffect(() => {
     fetchBookingDetail();
@@ -226,8 +230,41 @@ const PwaBookingDetail = () => {
     }
   };
 
+  const handleSignatureConfirm = async (signatureData: string) => {
+    if (!booking) return;
+    
+    setSigningLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({ 
+          client_signature: signatureData,
+          signed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Signature enregistrée");
+      setShowSignatureDialog(false);
+      fetchBookingDetail();
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Erreur lors de l'enregistrement de la signature");
+    } finally {
+      setSigningLoading(false);
+    }
+  };
+
   const handleMarkComplete = async () => {
     if (!booking) return;
+    
+    // Vérifier que la signature existe
+    if (!booking.client_signature) {
+      toast.error("La signature du client est requise");
+      return;
+    }
     
     setUpdating(true);
     try {
@@ -821,13 +858,24 @@ const PwaBookingDetail = () => {
 
                 {/* Main Action Button */}
                 {booking.status === "Assigné" || booking.status === "Confirmé" ? (
-                  <button
-                    onClick={() => setShowCompleteDialog(true)}
-                    disabled={updating}
-                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
-                  >
-                    Demander validation
-                  </button>
+                  !booking.client_signature ? (
+                    <button
+                      onClick={() => setShowSignatureDialog(true)}
+                      disabled={updating}
+                      className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <Pen className="w-4 h-4" />
+                      Signature client
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowCompleteDialog(true)}
+                      disabled={updating}
+                      className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                    >
+                      Demander validation
+                    </button>
+                  )
                 ) : booking.status === "En attente de validation" ? (
                   <button
                     disabled
@@ -879,6 +927,14 @@ const PwaBookingDetail = () => {
         bookingId={booking.id}
         hotelId={booking.hotel_id}
         onTreatmentsAdded={fetchBookingDetail}
+      />
+
+      {/* Signature Dialog */}
+      <SignatureDialog
+        open={showSignatureDialog}
+        onOpenChange={setShowSignatureDialog}
+        onConfirm={handleSignatureConfirm}
+        loading={signingLoading}
       />
 
       {/* Complete Confirmation Dialog */}
