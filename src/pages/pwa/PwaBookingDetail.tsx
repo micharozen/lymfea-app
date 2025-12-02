@@ -420,6 +420,18 @@ const PwaBookingDetail = () => {
       }
 
       console.log('[Booking] 🎉 Booking accepted successfully!');
+      
+      // Trigger email notifications to admins and concierges
+      try {
+        console.log('[Booking] 📧 Sending email notifications...');
+        await supabase.functions.invoke('notify-booking-confirmed', {
+          body: { bookingId: booking.id }
+        });
+        console.log('[Booking] 📧 Email notifications sent');
+      } catch (notifError) {
+        console.error('[Booking] ⚠️ Email notification error (non-blocking):', notifError);
+      }
+      
       toast.success("Réservation acceptée !");
       navigate("/pwa/dashboard");
     } catch (error) {
