@@ -138,7 +138,7 @@ serve(async (req) => {
       .select('*')
       .eq('country_code', countryCode)
       .or(`phone.eq.${normalizedPhone},phone.eq.${phoneNumber}`)
-      .single();
+      .maybeSingle();
 
     if (dbError || !hairdresser) {
       console.error('Hairdresser not found:', dbError);
