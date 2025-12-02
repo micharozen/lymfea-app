@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +13,7 @@ serve(async (req) => {
   try {
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
+    const SITE_URL = Deno.env.get("SITE_URL") || "https://oom-clone-genesis.lovable.app";
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       throw new Error("OneSignal credentials not configured");
@@ -25,13 +25,19 @@ serve(async (req) => {
     console.log("[OneSignal] Title:", title);
     console.log("[OneSignal] Body:", body);
 
+    // Build the full URL for notification click
+    const clickUrl = data?.url ? `${SITE_URL}${data.url}` : SITE_URL;
+    console.log("[OneSignal] Click URL:", clickUrl);
+
     // Send notification via OneSignal REST API
-    // Using "external_id" to target specific user (we'll use user_id as external_id)
+    // IMPORTANT: Use only web_url, NOT url field - OneSignal rejects if both are present
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
       headings: { en: title || "OOM" },
       contents: { en: body || "Nouvelle notification" },
-      data: { ...data, url: data?.url || "/pwa/dashboard" },
+      data: { ...data },
+      // Use web_url only for web push notifications
+      web_url: clickUrl,
       // Target by external user ID (the Supabase user_id)
       include_aliases: {
         external_id: [userId]
