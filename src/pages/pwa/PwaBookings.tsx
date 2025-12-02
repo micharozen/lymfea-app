@@ -131,7 +131,7 @@ const PwaBookings = () => {
               <Card
                 key={booking.id}
                 className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate(`/pwa/bookings/${booking.id}`)}
+                onClick={() => navigate(`/pwa/booking/${booking.id}`)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>

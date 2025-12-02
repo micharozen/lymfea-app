@@ -3,6 +3,12 @@ import OneSignal from 'react-onesignal';
 
 let isOneSignalInitialized = false;
 let initializationPromise: Promise<boolean> | null = null;
+let notificationClickHandler: ((url: string) => void) | null = null;
+
+// Set the handler for notification clicks (call this from your router component)
+export const setNotificationClickHandler = (handler: (url: string) => void) => {
+  notificationClickHandler = handler;
+};
 
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);
@@ -58,6 +64,8 @@ export const useOneSignal = () => {
           const initPromise = OneSignal.init({
             appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
             allowLocalhostAsSecureOrigin: true,
+            notificationClickHandlerMatch: "origin",
+            notificationClickHandlerAction: "focus",
           });
 
           // Wait for init with timeout
@@ -69,6 +77,16 @@ export const useOneSignal = () => {
           
           isOneSignalInitialized = true;
           console.log('[OneSignal] ✅ Initialized successfully');
+
+          // Add listener for notification clicks
+          OneSignal.Notifications.addEventListener('click', (event: any) => {
+            console.log('[OneSignal] Notification clicked:', event);
+            const url = event?.notification?.launchURL || event?.notification?.data?.url;
+            if (url && notificationClickHandler) {
+              console.log('[OneSignal] Navigating to:', url);
+              notificationClickHandler(url);
+            }
+          });
           
           // Log current subscription status
           try {

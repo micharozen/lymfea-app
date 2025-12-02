@@ -125,21 +125,21 @@ serve(async (req) => {
         console.error("Error logging notification:", logError);
       }
 
-      try {
-        const { error: pushError } = await supabaseClient.functions.invoke(
-          "send-push-notification",
-          {
-            body: {
-              userId: h.user_id,
-              title: "🎉 Nouvelle réservation !",
-              body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
-              data: {
-                bookingId: booking.id,
-                url: `/pwa/bookings/${booking.id}`,
+        try {
+          const { error: pushError } = await supabaseClient.functions.invoke(
+            "send-push-notification",
+            {
+              body: {
+                userId: h.user_id,
+                title: "🎉 Nouvelle réservation !",
+                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
+                data: {
+                  bookingId: booking.id,
+                  url: `/pwa/booking/${booking.id}`,
+                },
               },
-            },
-          }
-        );
+            }
+          );
 
         if (pushError) {
           console.error(`Error sending push to ${h.first_name}:`, pushError);
