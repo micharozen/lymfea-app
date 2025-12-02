@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.get-vapid-public-key]
 verify_jwt = false
+
+[functions.test-onesignal]
+verify_jwt = false

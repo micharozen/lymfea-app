@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { Skeleton } from "@/components/ui/skeleton";
+import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
 
 interface Hairdresser {
   id: string;
@@ -186,6 +187,9 @@ const PwaDashboard = () => {
       }
 
       console.log("✅ User authenticated:", user.email);
+
+      // Set OneSignal external user ID for push notification targeting
+      setOneSignalExternalUserId(user.id);
 
       // Use cached data if available
       const cachedData = queryClient.getQueryData<any>(["hairdresser", user.id]);

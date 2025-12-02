@@ -25,6 +25,26 @@ export const useOneSignal = () => {
   return { isInitialized };
 };
 
+// Set the external user ID (Supabase user_id) for targeting
+export const setOneSignalExternalUserId = async (userId: string): Promise<void> => {
+  try {
+    await OneSignal.login(userId);
+    console.log('[OneSignal] External user ID set:', userId);
+  } catch (error) {
+    console.error('[OneSignal] Error setting external user ID:', error);
+  }
+};
+
+// Clear the external user ID on logout
+export const clearOneSignalExternalUserId = async (): Promise<void> => {
+  try {
+    await OneSignal.logout();
+    console.log('[OneSignal] External user ID cleared');
+  } catch (error) {
+    console.error('[OneSignal] Error clearing external user ID:', error);
+  }
+};
+
 // Helper functions for push notification management
 export const oneSignalSubscribe = async (): Promise<boolean> => {
   try {
