@@ -221,11 +221,33 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
   const handleTogglePushNotifications = async (enabled: boolean) => {
     if (enabled) {
-      const success = await subscribeToPush();
-      if (!success) {
-        toast.error('Impossible d\'activer les notifications');
-      } else {
-        toast.success('Notifications activées');
+      try {
+        const success = await subscribeToPush();
+        if (!success) {
+          toast.error('Impossible d\'activer les notifications. Vérifiez les permissions.');
+        } else {
+          // Verify the subscription was saved
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data, error } = await supabase
+              .from('push_subscriptions')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            
+            if (error) {
+              console.error('[PwaNotifications] Error verifying subscription:', error);
+              toast.error('Erreur lors de la vérification');
+            } else if (data) {
+              toast.success('Notifications activées et enregistrées');
+            } else {
+              toast.error('La souscription n\'a pas été enregistrée');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[PwaNotifications] Error:', error);
+        toast.error('Erreur: ' + (error instanceof Error ? error.message : 'Inconnue'));
       }
     } else {
       await unsubscribe();

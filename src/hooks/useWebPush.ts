@@ -88,24 +88,50 @@ export const useWebPush = () => {
   };
 
   const saveSubscription = async (subscription: PushSubscription) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
-
-    const subscriptionJSON = subscription.toJSON();
+    console.log('[Web Push] saveSubscription called');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     
-    const { error } = await supabase
-      .from('push_subscriptions')
-      .upsert({
-        user_id: user.id,
-        endpoint: subscription.endpoint,
-        p256dh: subscriptionJSON.keys?.p256dh || '',
-        auth: subscriptionJSON.keys?.auth || ''
-      }, {
-        onConflict: 'endpoint'
-      });
+    if (userError) {
+      console.error('[Web Push] Error getting user:', userError);
+      throw new Error('Failed to get user: ' + userError.message);
+    }
+    
+    if (!user) {
+      console.error('[Web Push] No user found');
+      throw new Error('User not authenticated');
+    }
 
-    if (error) throw error;
-    console.log('[Web Push] Subscription saved to database');
+    console.log('[Web Push] User ID:', user.id);
+    
+    const subscriptionJSON = subscription.toJSON();
+    console.log('[Web Push] Subscription JSON:', {
+      endpoint: subscription.endpoint?.substring(0, 50) + '...',
+      p256dh: subscriptionJSON.keys?.p256dh ? 'present' : 'missing',
+      auth: subscriptionJSON.keys?.auth ? 'present' : 'missing'
+    });
+    
+    const insertData = {
+      user_id: user.id,
+      endpoint: subscription.endpoint,
+      p256dh: subscriptionJSON.keys?.p256dh || '',
+      auth: subscriptionJSON.keys?.auth || ''
+    };
+    
+    console.log('[Web Push] Inserting data:', { ...insertData, endpoint: insertData.endpoint.substring(0, 50) + '...' });
+    
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .upsert(insertData, {
+        onConflict: 'endpoint'
+      })
+      .select();
+
+    if (error) {
+      console.error('[Web Push] Database error:', error);
+      throw new Error('Database error: ' + error.message);
+    }
+    
+    console.log('[Web Push] Subscription saved to database:', data);
   };
 
   const subscribeToPush = async (): Promise<boolean> => {
