@@ -1,0 +1,1 @@
+DROP TRIGGER IF EXISTS trigger_notify_new_booking ON public.bookings;
