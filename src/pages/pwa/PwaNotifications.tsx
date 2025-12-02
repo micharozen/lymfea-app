@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { isDespia, registerForPush } from "@/lib/despia";
 
 interface Notification {
   id: string;
@@ -221,6 +222,16 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
   const handleTogglePushNotifications = async (enabled: boolean) => {
     if (enabled) {
+      // Try Despia native push first
+      if (isDespia()) {
+        const success = registerForPush();
+        if (success) {
+          toast.success("Demande d'activation envoyée");
+          return;
+        }
+      }
+      
+      // Fallback to VAPID Web Push for standard browsers
       const success = await requestPermission();
       if (!success) {
         toast.error('Impossible d\'activer les notifications');

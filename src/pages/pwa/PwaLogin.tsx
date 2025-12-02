@@ -278,16 +278,6 @@ const PwaLogin = () => {
 
       toast.success("✅ Connexion réussie !");
       
-      // Register for push notifications
-      if (data.session?.user?.id) {
-        try {
-          const { registerForPushNotifications } = await import("@/lib/despia");
-          await registerForPushNotifications(data.session.user.id);
-        } catch (error) {
-          console.error('[Push] Registration failed:', error);
-        }
-      }
-      
       // Small delay to ensure session is fully persisted
       await new Promise(resolve => setTimeout(resolve, 100));
       
