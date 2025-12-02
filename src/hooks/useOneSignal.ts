@@ -1,26 +1,59 @@
 import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
 
+const PENDING_URL_KEY = 'onesignal_pending_url';
+
 let isOneSignalInitialized = false;
 let initializationPromise: Promise<boolean> | null = null;
 let notificationClickHandler: ((url: string) => void) | null = null;
 let pendingNotificationUrl: string | null = null;
 
+// Store URL in localStorage for persistence across app restarts
+const storePendingUrl = (url: string) => {
+  console.log('[OneSignal] Storing pending URL in localStorage:', url);
+  try {
+    localStorage.setItem(PENDING_URL_KEY, url);
+  } catch (e) {
+    console.error('[OneSignal] Failed to store pending URL:', e);
+  }
+  pendingNotificationUrl = url;
+};
+
+// Get and clear pending URL from localStorage
+const getAndClearStoredUrl = (): string | null => {
+  try {
+    const url = localStorage.getItem(PENDING_URL_KEY);
+    if (url) {
+      console.log('[OneSignal] Found stored pending URL:', url);
+      localStorage.removeItem(PENDING_URL_KEY);
+      return url;
+    }
+  } catch (e) {
+    console.error('[OneSignal] Failed to get stored URL:', e);
+  }
+  return null;
+};
+
 // Set the handler for notification clicks (call this from your router component)
 export const setNotificationClickHandler = (handler: (url: string) => void) => {
   notificationClickHandler = handler;
   
-  // If there's a pending URL from a notification clicked before handler was set, navigate now
-  if (pendingNotificationUrl) {
-    console.log('[OneSignal] Processing pending notification URL:', pendingNotificationUrl);
-    handler(pendingNotificationUrl);
+  // Check both in-memory and localStorage for pending URLs
+  const storedUrl = getAndClearStoredUrl();
+  const urlToUse = pendingNotificationUrl || storedUrl;
+  
+  if (urlToUse) {
+    console.log('[OneSignal] Processing pending notification URL:', urlToUse);
+    handler(urlToUse);
     pendingNotificationUrl = null;
   }
 };
 
 // Get pending notification URL (for checking on app mount)
 export const getPendingNotificationUrl = (): string | null => {
-  const url = pendingNotificationUrl;
+  // Check both in-memory and localStorage
+  const storedUrl = getAndClearStoredUrl();
+  const url = pendingNotificationUrl || storedUrl;
   pendingNotificationUrl = null;
   return url;
 };
@@ -79,8 +112,10 @@ export const useOneSignal = () => {
           const initPromise = OneSignal.init({
             appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
             allowLocalhostAsSecureOrigin: true,
+            // Use 'focus' instead of 'navigate' - we'll handle navigation ourselves
             notificationClickHandlerMatch: "origin",
-            notificationClickHandlerAction: "navigate",
+            notificationClickHandlerAction: "focus",
+            serviceWorkerParam: { scope: "/" },
           });
 
           // Wait for init with timeout
@@ -118,7 +153,8 @@ export const useOneSignal = () => {
                 notificationClickHandler(path);
               } else {
                 console.log('[OneSignal] Handler not set, storing URL for later');
-                pendingNotificationUrl = path;
+                // Use storePendingUrl to persist in localStorage
+                storePendingUrl(path);
               }
             }
           });
