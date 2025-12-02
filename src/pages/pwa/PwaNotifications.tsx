@@ -9,7 +9,7 @@ import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed } from "@/hooks/useOneSignal";
+import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
 
 interface Notification {
   id: string;
@@ -223,13 +223,41 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const handleTogglePushNotifications = async (enabled: boolean) => {
     setPushLoading(true);
     try {
+      // Check if OneSignal is ready
+      if (!isOneSignalReady()) {
+        const diagnostics = getOneSignalDiagnostics();
+        console.log('[PwaNotifications] OneSignal diagnostics:', diagnostics);
+        
+        if (diagnostics.notificationPermission === 'denied') {
+          toast.error('Notifications bloquées. Activez-les dans les réglages de votre navigateur/appareil.');
+        } else {
+          toast.error('Service de notifications non disponible. Rechargez la page.');
+        }
+        setPushLoading(false);
+        return;
+      }
+
       if (enabled) {
+        // Check browser permission first
+        const initialPermission = Notification.permission;
+        if (initialPermission === 'denied') {
+          toast.error('Notifications bloquées. Allez dans Réglages > Safari > Notifications pour les activer.');
+          setPushLoading(false);
+          return;
+        }
+        
         const success = await oneSignalSubscribe();
         if (success) {
           setPushEnabled(true);
           toast.success('Notifications push activées');
         } else {
-          toast.error('Impossible d\'activer les notifications');
+          // Check permission again after failed subscribe
+          const finalPermission = Notification.permission;
+          if (finalPermission === 'denied') {
+            toast.error('Notifications refusées. Activez-les dans les réglages.');
+          } else {
+            toast.error('Impossible d\'activer les notifications');
+          }
         }
       } else {
         await oneSignalUnsubscribe();
