@@ -225,8 +225,14 @@ const PwaDashboard = () => {
     }
   };
 
-  const fetchAllBookings = async (hairdresserId: string) => {
-    console.log('🔄 Fetching bookings for hairdresser:', hairdresserId);
+  const fetchAllBookings = async (hairdresserId: string, forceRefresh = false) => {
+    console.log('🔄 Fetching bookings for hairdresser:', hairdresserId, 'forceRefresh:', forceRefresh);
+    
+    // Clear cache when force refreshing
+    if (forceRefresh) {
+      queryClient.removeQueries({ queryKey: ["myBookings", hairdresserId] });
+      queryClient.removeQueries({ queryKey: ["pendingBookings", hairdresserId] });
+    }
     
     const { data: affiliatedHotels, error: hotelsError } = await supabase
       .from("hairdresser_hotels")
@@ -409,7 +415,7 @@ const PwaDashboard = () => {
       }
 
       toast.success("Réservation acceptée !");
-      fetchAllBookings(hairdresser.id);
+      fetchAllBookings(hairdresser.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
       toast.error("Erreur lors de l'acceptation");
@@ -437,7 +443,7 @@ const PwaDashboard = () => {
       if (error) throw error;
 
       toast.success("Réservation refusée");
-      fetchAllBookings(hairdresser.id);
+      fetchAllBookings(hairdresser.id, true); // Force refresh
     } catch (error) {
       console.error("Error declining booking:", error);
       toast.error("Erreur");
