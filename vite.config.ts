@@ -14,12 +14,9 @@ export default defineConfig(({ mode }) => ({
     react(), 
     mode === "development" && componentTagger(),
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      injectRegister: false, // We register the service worker manually
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'service-worker.js'],
       manifest: {
         name: 'OOM Coiffure',
         short_name: 'OOM',
@@ -55,13 +52,12 @@ export default defineConfig(({ mode }) => ({
           }
         ]
       },
-      injectManifest: {
+      workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
       },
       devOptions: {
-        enabled: true,
-        type: 'module'
+        enabled: true
       }
     })
   ].filter(Boolean),
