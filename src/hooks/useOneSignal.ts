@@ -95,12 +95,17 @@ export const useOneSignal = () => {
 
           // Add listener for notification clicks
           OneSignal.Notifications.addEventListener('click', (event: any) => {
-            console.log('[OneSignal] Notification clicked:', JSON.stringify(event, null, 2));
+            console.log('[OneSignal] Notification clicked - FULL EVENT:', JSON.stringify(event, null, 2));
+            console.log('[OneSignal] event.notification:', JSON.stringify(event?.notification, null, 2));
+            console.log('[OneSignal] event.notification.data:', JSON.stringify(event?.notification?.data, null, 2));
+            console.log('[OneSignal] event.result:', JSON.stringify(event?.result, null, 2));
+            
             // Try multiple possible URL locations
             const url = event?.notification?.launchURL 
               || event?.notification?.data?.launchUrl
               || event?.notification?.data?.url
-              || event?.result?.url;
+              || event?.result?.url
+              || event?.notification?.url;
             console.log('[OneSignal] Extracted URL:', url);
             
             if (url) {
