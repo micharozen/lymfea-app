@@ -406,7 +406,7 @@ const PwaBookingDetail = () => {
       if (result && !result.success) {
         console.log('[Booking] ❌ Booking already taken by another hairdresser');
         toast.error("Réservation déjà prise par un autre coiffeur");
-        navigate("/pwa/dashboard");
+        navigate("/pwa/dashboard", { state: { forceRefresh: true } });
         return;
       }
 
@@ -424,7 +424,8 @@ const PwaBookingDetail = () => {
       }
       
       toast.success("Réservation acceptée !");
-      navigate("/pwa/dashboard");
+      // Navigate with forceRefresh state to clear cache
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur lors de l'acceptation");
@@ -466,7 +467,7 @@ const PwaBookingDetail = () => {
       if (error) throw error;
 
       toast.success("Réservation refusée");
-      navigate("/pwa/dashboard");
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur");
