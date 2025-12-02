@@ -286,7 +286,8 @@ const PwaBookingDetail = () => {
 
       toast.success("Réservation remise en attente pour d'autres coiffeurs");
       setShowUnassignDialog(false);
-      navigate("/pwa/dashboard");
+      // Navigate with forceRefresh state to clear cache
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur");

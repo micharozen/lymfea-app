@@ -61,11 +61,22 @@ const PwaDashboard = () => {
   useEffect(() => {
     if (!hairdresser) return;
 
-    // Check if we have cached bookings
+    // Check if we need to force refresh (e.g., after unassigning a booking)
+    const shouldForceRefresh = location.state?.forceRefresh;
+    
+    if (shouldForceRefresh) {
+      console.log('🔄 Force refresh requested, clearing cache...');
+      queryClient.removeQueries({ queryKey: ["myBookings", hairdresser.id] });
+      queryClient.removeQueries({ queryKey: ["pendingBookings", hairdresser.id] });
+      // Clear navigation state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+
+    // Check if we have cached bookings (and not forcing refresh)
     const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", hairdresser.id]);
     const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", hairdresser.id]);
 
-    if (cachedMyBookings && cachedPendingBookings) {
+    if (!shouldForceRefresh && cachedMyBookings && cachedPendingBookings) {
       console.log('📦 Using cached bookings data');
       const allData = [...cachedMyBookings, ...cachedPendingBookings];
       const sortedData = allData.sort((a, b) => {
@@ -80,12 +91,7 @@ const PwaDashboard = () => {
 
     console.log('🔄 Fetching initial bookings...');
     fetchAllBookings(hairdresser.id);
-
-    // Clear navigation state if needed
-    if (location.state?.forceRefresh) {
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [hairdresser]);
+  }, [hairdresser, location.state?.forceRefresh]);
 
   // Realtime listener for bookings
   useEffect(() => {
