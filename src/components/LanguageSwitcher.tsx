@@ -9,8 +9,9 @@ import {
 import { Globe } from 'lucide-react';
 
 interface LanguageSwitcherProps {
-  variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client';
+  variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client' | 'list';
   className?: string;
+  onSelect?: () => void;
 }
 
 const languages = [
@@ -18,14 +19,40 @@ const languages = [
   { code: 'en', label: 'English', shortLabel: 'EN', flag: '🇬🇧' },
 ];
 
-export const LanguageSwitcher = ({ variant = 'default', className = '' }: LanguageSwitcherProps) => {
+export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect }: LanguageSwitcherProps) => {
   const { i18n } = useTranslation();
   
   const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
 
   const changeLanguage = (langCode: string) => {
     i18n.changeLanguage(langCode);
+    onSelect?.();
   };
+
+  // List style for dialogs - shows all languages as buttons
+  if (variant === 'list') {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        {languages.map((lang) => (
+          <button
+            key={lang.code}
+            onClick={() => changeLanguage(lang.code)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${
+              i18n.language === lang.code
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border hover:bg-muted'
+            }`}
+          >
+            <Globe className="h-5 w-5" />
+            <span className="font-medium">{lang.label}</span>
+            {i18n.language === lang.code && (
+              <span className="ml-auto text-primary">✓</span>
+            )}
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   // Mobile-friendly pill style for client pages (dark background)
   if (variant === 'client' || variant === 'pill') {

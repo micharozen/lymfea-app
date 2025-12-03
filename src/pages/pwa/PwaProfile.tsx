@@ -318,8 +318,8 @@ const PwaProfile = () => {
           <DialogHeader>
             <DialogTitle>{t('profile.language')}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <LanguageSwitcher variant="default" className="w-full justify-center" />
+          <div className="py-4 space-y-2">
+            <LanguageSwitcher variant="list" onSelect={() => setIsLanguageDialogOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>
