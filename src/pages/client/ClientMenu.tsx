@@ -218,6 +218,16 @@ export default function ClientMenu() {
                               ...prev,
                               [treatment.id]: getQuantity(treatment.id) + 1
                             }));
+                            addItem({
+                              id: treatment.id,
+                              name: treatment.name,
+                              price: Number(treatment.price),
+                              duration: treatment.duration || 0,
+                              image: treatment.image || undefined,
+                              category: treatment.category,
+                            });
+                            if (navigator.vibrate) navigator.vibrate(50);
+                            setBounceKey(prev => prev + 1);
                           }}
                         >
                           <Plus className="h-4 w-4" />
