@@ -29,7 +29,7 @@ interface EarningsData {
 
 const PwaWallet = () => {
   const { t } = useTranslation('pwa');
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [earnings, setEarnings] = useState<EarningsData>({
     total: 0,
     payouts: [],
@@ -42,7 +42,6 @@ const PwaWallet = () => {
   }, [period]);
 
   const fetchEarnings = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
         body: { period },
@@ -59,7 +58,7 @@ const PwaWallet = () => {
       console.error('Error fetching earnings:', error);
       toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -89,7 +88,7 @@ const PwaWallet = () => {
   };
 
   // Show simple loading state first
-  if (loading) {
+  if (initialLoading) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] pb-24">
         <div className="px-6 pt-12 pb-6">
