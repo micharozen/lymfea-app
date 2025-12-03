@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, CreditCard, Hotel, Loader2 } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
@@ -13,13 +14,14 @@ export default function ClientPayment() {
   const { items, total, clearBasket } = useBasket();
   const [selectedMethod, setSelectedMethod] = useState<'card' | 'room'>('room');
   const [isProcessing, setIsProcessing] = useState(false);
+  const { t, i18n } = useTranslation('client');
 
   const handlePayment = async () => {
     const dateTimeStr = sessionStorage.getItem('bookingDateTime');
     const clientInfoStr = sessionStorage.getItem('clientInfo');
     
     if (!dateTimeStr || !clientInfoStr) {
-      toast.error('Missing booking information');
+      toast.error(t('common:errors.generic'));
       navigate(`/client/${hotelId}/basket`);
       return;
     }
@@ -29,7 +31,6 @@ export default function ClientPayment() {
     setIsProcessing(true);
 
     try {
-      // If card payment, create Stripe checkout session
       if (selectedMethod === 'card') {
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
           body: {
@@ -59,19 +60,14 @@ export default function ClientPayment() {
           throw error;
         }
 
-        // Redirect to Stripe Checkout
         if (data?.url) {
-          console.log('Redirecting to Stripe:', data.url);
-          // Use replace to avoid adding to history
           window.location.replace(data.url);
-          // Don't reset isProcessing, keep the loading state during redirect
           return;
         } else {
           throw new Error('No checkout URL received');
         }
       }
 
-      // For room payment, create booking directly
       const { data, error } = await supabase.functions.invoke('create-client-booking', {
         body: {
           hotelId,
@@ -98,7 +94,6 @@ export default function ClientPayment() {
 
       if (error) throw error;
 
-      // Clear basket and navigate to confirmation
       clearBasket();
       sessionStorage.removeItem('bookingDateTime');
       sessionStorage.removeItem('clientInfo');
@@ -106,7 +101,7 @@ export default function ClientPayment() {
       
     } catch (error: any) {
       console.error('Payment error:', error);
-      toast.error(error.message || 'Failed to process booking');
+      toast.error(error.message || t('common:errors.generic'));
     } finally {
       setIsProcessing(false);
     }
@@ -115,7 +110,7 @@ export default function ClientPayment() {
   return (
     <div className="min-h-screen bg-background pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border">
+      <div className="sticky top-0 z-10 bg-background border-b border-border pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
@@ -125,15 +120,15 @@ export default function ClientPayment() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold">Payment</h1>
+          <h1 className="text-xl font-semibold">{t('payment.title')}</h1>
         </div>
         <BookingProgressBar currentStep={4} totalSteps={4} />
       </div>
 
       <div className="p-4 space-y-6">
         {/* Order Summary */}
-        <div className="bg-card rounded-lg p-4 space-y-3">
-          <h2 className="font-semibold text-lg mb-4">Order Summary</h2>
+        <div className="bg-card rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-base mb-3">{t('checkout.yourBooking')}</h2>
           {items.map(item => (
             <div key={item.id} className="flex justify-between text-sm">
               <span className="text-muted-foreground">
@@ -145,44 +140,42 @@ export default function ClientPayment() {
             </div>
           ))}
           <div className="flex justify-between text-lg font-bold pt-3 border-t border-border">
-            <span>Total</span>
+            <span>{t('checkout.total')}</span>
             <span>€{total.toFixed(2)}</span>
           </div>
         </div>
 
         {/* Payment Methods */}
         <div className="space-y-3">
-          <h2 className="font-semibold text-lg">Payment Method</h2>
+          <h2 className="font-semibold text-base">{t('payment.title')}</h2>
           
           {/* Add to Room */}
           <button
             onClick={() => setSelectedMethod('room')}
             disabled={isProcessing}
-            className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+            className={`w-full p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.98] ${
               selectedMethod === 'room'
                 ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
+                : 'border-border'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                 selectedMethod === 'room' ? 'bg-primary text-primary-foreground' : 'bg-muted'
               }`}>
-                <Hotel className="h-6 w-6" />
+                <Hotel className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold mb-1">Add to Room</h3>
-                <p className="text-sm text-muted-foreground">
-                  Charge will be added to your room bill
+                <h3 className="font-semibold text-sm mb-0.5">{t('checkout.payAtHotel')}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {i18n.language === 'fr' ? 'Ajouté à votre note de chambre' : 'Added to your room bill'}
                 </p>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                selectedMethod === 'room' 
-                  ? 'border-primary' 
-                  : 'border-border'
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                selectedMethod === 'room' ? 'border-primary' : 'border-border'
               }`}>
                 {selectedMethod === 'room' && (
-                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                 )}
               </div>
             </div>
@@ -192,31 +185,29 @@ export default function ClientPayment() {
           <button
             onClick={() => setSelectedMethod('card')}
             disabled={isProcessing}
-            className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+            className={`w-full p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.98] ${
               selectedMethod === 'card'
                 ? 'border-primary bg-primary/5'
-                : 'border-border hover:border-primary/50'
+                : 'border-border'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
                 selectedMethod === 'card' ? 'bg-primary text-primary-foreground' : 'bg-muted'
               }`}>
-                <CreditCard className="h-6 w-6" />
+                <CreditCard className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold mb-1">Pay Now</h3>
-                <p className="text-sm text-muted-foreground">
-                  Credit card, Apple Pay, Google Pay
+                <h3 className="font-semibold text-sm mb-0.5">{t('checkout.payNow')}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {t('payment.secure')}
                 </p>
               </div>
-              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                selectedMethod === 'card' 
-                  ? 'border-primary' 
-                  : 'border-border'
+              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                selectedMethod === 'card' ? 'border-primary' : 'border-border'
               }`}>
                 {selectedMethod === 'card' && (
-                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                 )}
               </div>
             </div>
@@ -225,20 +216,20 @@ export default function ClientPayment() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border pb-safe">
         <Button
           onClick={handlePayment}
           disabled={isProcessing}
-          className="w-full h-14 text-lg"
+          className="w-full h-14 text-base rounded-full"
         >
           {isProcessing ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Processing...
+              {t('payment.processing')}
             </>
           ) : (
             <>
-              {selectedMethod === 'room' ? 'Confirm & Book' : `Pay €${total.toFixed(2)}`}
+              {selectedMethod === 'room' ? t('common:buttons.confirm') : `${t('checkout.payNow')} €${total.toFixed(2)}`}
             </>
           )}
         </Button>
