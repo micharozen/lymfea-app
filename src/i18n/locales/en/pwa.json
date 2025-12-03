@@ -23,6 +23,7 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "myBookings": "MY BOOKINGS",
     "upcoming": "Upcoming",
     "history": "History",
     "cancelled": "Cancelled",
@@ -38,7 +39,13 @@
     "releaseToRefresh": "Release to refresh",
     "refreshing": "Refreshing...",
     "newBooking": "New booking",
-    "viewDetails": "View details"
+    "viewDetails": "View details",
+    "toConfirm": "To confirm",
+    "showMore": "Show {{count}} more",
+    "showLess": "Show less",
+    "pendingRequests": "PENDING REQUESTS",
+    "noPending": "No pending requests",
+    "pendingWillAppear": "New booking requests will appear here"
   },
   "booking": {
     "details": "Booking Details",

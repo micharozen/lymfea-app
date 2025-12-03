@@ -23,6 +23,7 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
+    "myBookings": "MES RÉSERVATIONS",
     "upcoming": "À venir",
     "history": "Historique",
     "cancelled": "Annulées",
@@ -38,7 +39,13 @@
     "releaseToRefresh": "Relâcher pour actualiser",
     "refreshing": "Actualisation...",
     "newBooking": "Nouvelle réservation",
-    "viewDetails": "Voir les détails"
+    "viewDetails": "Voir les détails",
+    "toConfirm": "À confirmer",
+    "showMore": "Afficher {{count}} de plus",
+    "showLess": "Afficher moins",
+    "pendingRequests": "DEMANDES EN ATTENTE",
+    "noPending": "Aucune demande en attente",
+    "pendingWillAppear": "Les nouvelles demandes de réservation apparaîtront ici"
   },
   "booking": {
     "details": "Détails de la réservation",
