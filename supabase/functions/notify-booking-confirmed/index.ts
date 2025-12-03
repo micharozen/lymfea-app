@@ -323,12 +323,12 @@ serve(async (req) => {
         for (const concierge of concierges) {
           const targetEmail = TEST_MODE ? TEST_EMAIL : concierge.email;
           try {
-            const { error: emailError } = await resend.emails.send({
-              from: 'OOM App <booking@oomworld.com>',
-              to: [targetEmail],
-              subject: `${TEST_MODE ? '[TEST] ' : ''}✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
-              html: createEmailHtml('concierge'),
-            });
+          const { error: emailError } = await resend.emails.send({
+            from: 'OOM App <booking@oomworld.com>',
+            to: [targetEmail],
+            subject: `${TEST_MODE ? '[TEST CONCIERGE] ' : ''}✅ Réservation #${booking.booking_id} confirmée - ${booking.hotel_name}`,
+            html: createEmailHtml('concierge'),
+          });
 
             if (emailError) {
               console.error(`[notify-booking-confirmed] Error sending to concierge ${targetEmail}:`, emailError);
