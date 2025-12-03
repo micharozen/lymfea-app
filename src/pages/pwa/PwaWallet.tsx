@@ -88,10 +88,48 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
+  // Show simple loading state first
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] pb-24">
+        <div className="px-6 pt-12 pb-6">
+          <div className="text-center">
+            <h1 className="text-base font-semibold text-foreground">
+              {t('wallet.myEarnings', 'My earnings')}
+            </h1>
+          </div>
+          <div className="text-center mt-8 mb-6">
+            <div className="h-14 w-40 bg-muted/50 rounded-lg animate-pulse mx-auto" />
+          </div>
+        </div>
+        <div className="mx-4 bg-white rounded-2xl shadow-sm">
+          <div className="px-5 pt-5 pb-2">
+            <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+          </div>
+          <div className="px-5 pb-5 space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-muted/50 animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-muted/50 rounded animate-pulse" />
+                </div>
+                <div className="space-y-2 text-right">
+                  <div className="h-4 w-16 bg-muted/50 rounded animate-pulse ml-auto" />
+                  <div className="h-3 w-12 bg-muted/50 rounded animate-pulse ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-24">
-      {/* Header - Only show when Stripe account connected or loading */}
-      {(loading || earnings.stripeAccountId) && (
+      {/* Header - Only show when Stripe account connected */}
+      {earnings.stripeAccountId && (
         <div className="bg-[#f5f5f5] px-6 pt-12 pb-6">
           <div className="text-center">
             <h1 className="text-base font-semibold text-foreground">
@@ -119,13 +157,9 @@ const PwaWallet = () => {
 
           {/* Total Earnings */}
           <div className="text-center mt-8 mb-6">
-            {loading ? (
-              <div className="h-14 w-40 bg-muted/50 rounded-lg animate-pulse mx-auto" />
-            ) : (
-              <p className="text-5xl font-bold text-foreground tracking-tight">
-                {formatTotal(earnings.total)}
-              </p>
-            )}
+            <p className="text-5xl font-bold text-foreground tracking-tight">
+              {formatTotal(earnings.total)}
+            </p>
           </div>
 
           {/* Open Stripe Button */}
@@ -143,7 +177,7 @@ const PwaWallet = () => {
       )}
 
       {/* Empty State - No Stripe Account */}
-      {!loading && !earnings.stripeAccountId && (
+      {!earnings.stripeAccountId && (
         <div className="px-6 pt-16 pb-6">
           <div className="text-center mb-8">
             <h1 className="text-base font-semibold text-foreground">
@@ -174,7 +208,7 @@ const PwaWallet = () => {
       )}
 
       {/* Payouts Card */}
-      {(loading || earnings.stripeAccountId) && (
+      {earnings.stripeAccountId && (
       <div className="mx-4 bg-white rounded-2xl shadow-sm">
         <div className="px-5 pt-5 pb-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -182,23 +216,7 @@ const PwaWallet = () => {
           </h2>
         </div>
 
-        {loading ? (
-          <div className="px-5 pb-5 space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-muted/50 animate-pulse" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
-                  <div className="h-3 w-24 bg-muted/50 rounded animate-pulse" />
-                </div>
-                <div className="space-y-2 text-right">
-                  <div className="h-4 w-16 bg-muted/50 rounded animate-pulse ml-auto" />
-                  <div className="h-3 w-12 bg-muted/50 rounded animate-pulse ml-auto" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : earnings.payouts.length === 0 ? (
+        {earnings.payouts.length === 0 ? (
           <div className="px-5 pb-5 text-center py-8">
             <p className="text-muted-foreground text-sm">{t('wallet.noPayouts', 'No payouts for this period')}</p>
           </div>
