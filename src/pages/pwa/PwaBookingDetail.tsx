@@ -82,7 +82,6 @@ const PwaBookingDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
   
-  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
@@ -257,39 +256,6 @@ const PwaBookingDetail = () => {
       setSigningLoading(false);
     }
   };
-
-  const handleMarkComplete = async () => {
-    if (!booking) return;
-    
-    // Vérifier que la signature existe
-    if (!booking.client_signature) {
-      toast.error("La signature du client est requise");
-      return;
-    }
-    
-    setUpdating(true);
-    try {
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "En attente de validation",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-
-      toast.success("Demande de validation envoyée à l'admin");
-      setShowCompleteDialog(false);
-      fetchBookingDetail();
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
 
   const handleUnassignBooking = async () => {
     if (!booking) return;
@@ -858,33 +824,16 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button */}
-                {booking.status === "Assigné" || booking.status === "Confirmé" ? (
-                  !booking.client_signature ? (
-                    <button
-                      onClick={() => setShowSignatureDialog(true)}
-                      disabled={updating}
-                      className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                    >
-                      <Pen className="w-4 h-4" />
-                      Signature client
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setShowCompleteDialog(true)}
-                      disabled={updating}
-                      className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
-                    >
-                      Demander validation
-                    </button>
-                  )
-                ) : booking.status === "En attente de validation" ? (
+                {(booking.status === "Assigné" || booking.status === "Confirmé") && !booking.client_signature && (
                   <button
-                    disabled
-                    className="flex-1 bg-primary/50 text-primary-foreground rounded-full py-3 px-6 text-sm font-medium cursor-not-allowed"
+                    onClick={() => setShowSignatureDialog(true)}
+                    disabled={updating}
+                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                   >
-                    En attente de validation admin
+                    <Pen className="w-4 h-4" />
+                    Signature client
                   </button>
-                ) : null}
+                )}
               </>
             )}
           </div>
@@ -937,25 +886,6 @@ const PwaBookingDetail = () => {
         onConfirm={handleSignatureConfirm}
         loading={signingLoading}
       />
-
-      {/* Complete Confirmation Dialog */}
-      <AlertDialog open={showCompleteDialog} onOpenChange={setShowCompleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Demander la validation ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Une notification sera envoyée à l'admin pour valider la complétion de cette réservation.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMarkComplete} disabled={updating}>
-              Envoyer la demande
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
 
       {/* Delete Treatment Confirmation Dialog */}
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}>
