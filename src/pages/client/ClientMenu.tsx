@@ -191,12 +191,16 @@ export default function ClientMenu() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 rounded-full"
+                          disabled={getQuantity(treatment.id) <= 1}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setQuantities(prev => ({
-                              ...prev,
-                              [treatment.id]: Math.max(1, getQuantity(treatment.id) - 1)
-                            }));
+                            const current = getQuantity(treatment.id);
+                            if (current > 1) {
+                              setQuantities(prev => ({
+                                ...prev,
+                                [treatment.id]: current - 1
+                              }));
+                            }
                           }}
                         >
                           <Minus className="h-4 w-4" />
@@ -210,7 +214,10 @@ export default function ClientMenu() {
                           className="h-8 w-8 rounded-full"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleAddToBasket(treatment);
+                            setQuantities(prev => ({
+                              ...prev,
+                              [treatment.id]: getQuantity(treatment.id) + 1
+                            }));
                           }}
                         >
                           <Plus className="h-4 w-4" />
