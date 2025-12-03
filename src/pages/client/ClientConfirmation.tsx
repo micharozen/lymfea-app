@@ -1,14 +1,15 @@
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 
 export default function ClientConfirmation() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation('client');
 
-  // Ultra simple version - no async, no effects
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center space-y-6">
         {/* Success Checkmark */}
         <div className="flex justify-center mb-8">
@@ -22,12 +23,12 @@ export default function ClientConfirmation() {
         
         {/* Success Message */}
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Your booking is completed.
+          <h1 className="text-2xl font-bold text-foreground">
+            {t('confirmation.title')}
           </h1>
           
-          <p className="text-gray-600 leading-relaxed px-4">
-            You will receive a confirmation email with all the details of your booking
+          <p className="text-muted-foreground leading-relaxed px-4">
+            {t('confirmation.message')}
           </p>
         </div>
 
@@ -35,10 +36,10 @@ export default function ClientConfirmation() {
         <div className="pt-8">
           <Button
             onClick={() => navigate(`/client/${hotelId}`)}
-            className="w-full h-14 text-base bg-black text-white hover:bg-gray-800"
+            className="w-full h-14 text-base rounded-full"
             size="lg"
           >
-            Back to Home
+            {t('confirmation.backHome')}
           </Button>
         </div>
       </div>
