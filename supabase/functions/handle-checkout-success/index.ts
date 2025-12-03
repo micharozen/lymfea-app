@@ -99,10 +99,11 @@ serve(async (req) => {
     // Récupérer les noms des traitements pour l'email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
-      .select('name')
+      .select('name, price')
       .in('id', treatments.map((t: any) => t.id));
 
-    const treatmentNames = treatmentDetails?.map(t => t.name) || [];
+    // Format treatments with name and price separated properly
+    const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
 
     // Envoyer l'email de confirmation
     try {

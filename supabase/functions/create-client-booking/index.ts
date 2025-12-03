@@ -97,13 +97,14 @@ serve(async (req) => {
 
     console.log('Booking treatments created');
 
-    // Get treatment names for email
+    // Get treatment names and prices for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
-      .select('name')
+      .select('name, price')
       .in('id', treatments.map((t: any) => t.treatmentId));
 
-    const treatmentNames = treatmentDetails?.map(t => t.name) || [];
+    // Format treatments with name and price separated properly
+    const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
 
     // Send confirmation email
     if (clientData.email) {
