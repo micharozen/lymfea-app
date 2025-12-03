@@ -2,8 +2,9 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { X } from "lucide-react";
 import oomLogo from "@/assets/oom-monogram.svg";
 import welcomeBg from "@/assets/welcome-bg.png";
 
@@ -62,10 +63,13 @@ const PwaWelcome = () => {
 
       {/* Terms of Use Sheet */}
       <Sheet open={showTerms} onOpenChange={setShowTerms}>
-        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col">
-          <SheetHeader className="sticky top-0 bg-background z-10 p-4 border-b">
+        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col [&>button]:hidden">
+          <div className="sticky top-0 bg-background z-10 p-4 border-b flex items-center justify-between">
             <SheetTitle>{t('welcome.termsOfUse')}</SheetTitle>
-          </SheetHeader>
+            <button onClick={() => setShowTerms(false)} className="rounded-full p-1 hover:bg-muted">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
             <h3 className="font-semibold text-foreground">{t('terms.acceptance.title', '1. Acceptation des conditions')}</h3>
             <p>{t('terms.acceptance.content', "En accédant et en utilisant OOM Beauty Room Service, vous acceptez d'être lié par les termes et dispositions de cet accord.")}</p>
@@ -90,10 +94,13 @@ const PwaWelcome = () => {
 
       {/* Privacy Policy Sheet */}
       <Sheet open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col">
-          <SheetHeader className="sticky top-0 bg-background z-10 p-4 border-b">
+        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col [&>button]:hidden">
+          <div className="sticky top-0 bg-background z-10 p-4 border-b flex items-center justify-between">
             <SheetTitle>{t('welcome.privacyPolicy')}</SheetTitle>
-          </SheetHeader>
+            <button onClick={() => setShowPrivacy(false)} className="rounded-full p-1 hover:bg-muted">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
             <h3 className="font-semibold text-foreground">{t('privacy.collect.title', '1. Informations collectées')}</h3>
             <p>{t('privacy.collect.content', "Nous collectons des informations personnelles incluant nom, email, numéro de téléphone et détails de chambre d'hôtel nécessaires pour fournir nos services.")}</p>
