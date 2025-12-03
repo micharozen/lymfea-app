@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.notify-booking-confirmed]
 verify_jwt = false
+
+[functions.send-rating-email]
+verify_jwt = false
