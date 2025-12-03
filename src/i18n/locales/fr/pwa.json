@@ -207,7 +207,11 @@
     "latestPayouts": "Derniers paiements",
     "noPayouts": "Aucun paiement pour cette période",
     "completed": "Complété",
-    "pending": "En attente"
+    "pending": "En attente",
+    "noStripeAccount": "Connectez votre compte Stripe",
+    "noStripeAccountDesc": "Pour recevoir vos revenus, vous devez connecter un compte Stripe.",
+    "setupStripe": "Configurer Stripe",
+    "errorFetching": "Erreur lors de la récupération des revenus"
   },
   "terms": {
     "legalNotice": {

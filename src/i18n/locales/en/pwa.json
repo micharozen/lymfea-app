@@ -207,7 +207,11 @@
     "latestPayouts": "Latest Payouts",
     "noPayouts": "No payouts for this period",
     "completed": "Completed",
-    "pending": "Pending"
+    "pending": "Pending",
+    "noStripeAccount": "Connect your Stripe account",
+    "noStripeAccountDesc": "To receive your earnings, you need to connect a Stripe account.",
+    "setupStripe": "Set up Stripe",
+    "errorFetching": "Error fetching earnings"
   },
   "terms": {
     "legalNotice": {
