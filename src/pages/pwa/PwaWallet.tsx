@@ -90,77 +90,86 @@ const PwaWallet = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-24">
-      {/* Header */}
-      <div className="bg-[#f5f5f5] px-6 pt-12 pb-6">
-        <div className="text-center">
-          <h1 className="text-base font-semibold text-foreground">
-            {t('wallet.myEarnings', 'My earnings')}
-          </h1>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1 mx-auto text-sm text-muted-foreground mt-1">
-              {getPeriodLabel()}
-              <ChevronDown className="w-3 h-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="bg-white">
-              <DropdownMenuItem onClick={() => setPeriod("this_month")}>
-                {t('wallet.thisMonth', 'This Month')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPeriod("last_month")}>
-                {t('wallet.lastMonth', 'Last Month')}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setPeriod("last_3_months")}>
-                {t('wallet.last3Months', 'Last 3 Months')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Total Earnings */}
-        <div className="text-center mt-8 mb-6">
-          {loading ? (
-            <div className="h-14 w-40 bg-muted/50 rounded-lg animate-pulse mx-auto" />
-          ) : (
-            <p className="text-5xl font-bold text-foreground tracking-tight">
-              {formatTotal(earnings.total)}
-            </p>
-          )}
-        </div>
-
-        {/* Open Stripe Button */}
-        <button
-          onClick={openStripe}
-          className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-[#e8e8e8] rounded-full text-sm font-medium text-foreground hover:bg-[#dedede] transition-colors"
-        >
-          <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
-            <span className="text-white text-xs font-bold">S</span>
+      {/* Header - Only show when Stripe account connected or loading */}
+      {(loading || earnings.stripeAccountId) && (
+        <div className="bg-[#f5f5f5] px-6 pt-12 pb-6">
+          <div className="text-center">
+            <h1 className="text-base font-semibold text-foreground">
+              {t('wallet.myEarnings', 'My earnings')}
+            </h1>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 mx-auto text-sm text-muted-foreground mt-1">
+                {getPeriodLabel()}
+                <ChevronDown className="w-3 h-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="bg-white">
+                <DropdownMenuItem onClick={() => setPeriod("this_month")}>
+                  {t('wallet.thisMonth', 'This Month')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPeriod("last_month")}>
+                  {t('wallet.lastMonth', 'Last Month')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPeriod("last_3_months")}>
+                  {t('wallet.last3Months', 'Last 3 Months')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          Open Stripe
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
+
+          {/* Total Earnings */}
+          <div className="text-center mt-8 mb-6">
+            {loading ? (
+              <div className="h-14 w-40 bg-muted/50 rounded-lg animate-pulse mx-auto" />
+            ) : (
+              <p className="text-5xl font-bold text-foreground tracking-tight">
+                {formatTotal(earnings.total)}
+              </p>
+            )}
+          </div>
+
+          {/* Open Stripe Button */}
+          <button
+            onClick={openStripe}
+            className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-[#e8e8e8] rounded-full text-sm font-medium text-foreground hover:bg-[#dedede] transition-colors"
+          >
+            <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
+              <span className="text-white text-xs font-bold">S</span>
+            </div>
+            Open Stripe
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Empty State - No Stripe Account */}
       {!loading && !earnings.stripeAccountId && (
-        <div className="mx-4 bg-white rounded-2xl shadow-sm p-8 text-center">
-          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">S</span>
-            </div>
+        <div className="px-6 pt-16 pb-6">
+          <div className="text-center mb-8">
+            <h1 className="text-base font-semibold text-foreground">
+              {t('wallet.myEarnings', 'My earnings')}
+            </h1>
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            {t('wallet.noStripeAccount', 'Connect your Stripe account')}
-          </h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
-          </p>
-          <button
-            onClick={openStripe}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors"
-          >
-            {t('wallet.setupStripe', 'Set up Stripe')}
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-sm p-8 text-center">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-bold">S</span>
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              {t('wallet.noStripeAccount', 'Connect your Stripe account')}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
+            </p>
+            <button
+              onClick={openStripe}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors"
+            >
+              {t('wallet.setupStripe', 'Set up Stripe')}
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
