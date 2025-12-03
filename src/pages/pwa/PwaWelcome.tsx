@@ -32,36 +32,33 @@ const PwaWelcome = () => {
             <LanguageSwitcher variant="client" />
           </div>
         </div>
+      </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Bottom Content - fixed at bottom */}
-        <div className="pb-8 space-y-6">
-          <div className="space-y-3">
-            <h1 className="text-4xl font-bold leading-tight">
-              Beauty Room Service
-            </h1>
-            <p className="text-base text-white/90 leading-relaxed">
-              {t('welcome.subtitle')}
-            </p>
-          </div>
-
-          <Button onClick={() => navigate("/pwa/login")} className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
-            {t('welcome.getStarted')}
-          </Button>
-
-          <p className="text-xs text-center text-white/70 px-4">
-            {t('welcome.termsIntro')}{" "}
-            <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
-              {t('welcome.termsOfUse')}
-            </button>
-            {" "}{t('welcome.and')}{" "}
-            <button onClick={() => setShowPrivacy(true)} className="underline hover:text-white transition-colors">
-              {t('welcome.privacyPolicy')}
-            </button>
+      {/* Bottom Content - absolutely positioned */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-6 pb-8 space-y-6 text-white">
+        <div className="space-y-3">
+          <h1 className="text-4xl font-bold leading-tight">
+            Beauty Room Service
+          </h1>
+          <p className="text-base text-white/90 leading-relaxed">
+            {t('welcome.subtitle')}
           </p>
         </div>
+
+        <Button onClick={() => navigate("/pwa/login")} className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
+          {t('welcome.getStarted')}
+        </Button>
+
+        <p className="text-xs text-center text-white/70 px-4 min-h-[32px]">
+          {t('welcome.termsIntro')}{" "}
+          <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
+            {t('welcome.termsOfUse')}
+          </button>
+          {" "}{t('welcome.and')}{" "}
+          <button onClick={() => setShowPrivacy(true)} className="underline hover:text-white transition-colors">
+            {t('welcome.privacyPolicy')}
+          </button>
+        </p>
       </div>
 
       {/* Terms of Use Sheet */}
