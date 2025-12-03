@@ -80,12 +80,12 @@ const PwaWallet = () => {
   };
 
   const formatPrice = (amount: number) => {
-    return `€${amount.toFixed(2).replace('.', ',')}`;
+    return `${amount.toFixed(2).replace('.', ',')} €`;
   };
 
   const formatTotal = (amount: number) => {
     const parts = amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    return `€${parts}`;
+    return `${parts} €`;
   };
 
   return (
@@ -140,7 +140,32 @@ const PwaWallet = () => {
         </button>
       </div>
 
+      {/* Empty State - No Stripe Account */}
+      {!loading && !earnings.stripeAccountId && (
+        <div className="mx-4 bg-white rounded-2xl shadow-sm p-8 text-center">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-bold">S</span>
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            {t('wallet.noStripeAccount', 'Connect your Stripe account')}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
+          </p>
+          <button
+            onClick={openStripe}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors"
+          >
+            {t('wallet.setupStripe', 'Set up Stripe')}
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Payouts Card */}
+      {(loading || earnings.stripeAccountId) && (
       <div className="mx-4 bg-white rounded-2xl shadow-sm">
         <div className="px-5 pt-5 pb-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -217,6 +242,7 @@ const PwaWallet = () => {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };
