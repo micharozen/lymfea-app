@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,38 +30,31 @@ interface EarningsData {
 
 const PwaWallet = () => {
   const { t } = useTranslation('pwa');
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [earnings, setEarnings] = useState<EarningsData>({
-    total: 0,
-    payouts: [],
-    stripeAccountId: null,
-  });
   const [period, setPeriod] = useState("this_month");
 
-  useEffect(() => {
-    fetchEarnings();
-  }, [period]);
-
-  const fetchEarnings = async () => {
-    try {
+  const { data: earnings, isLoading } = useQuery({
+    queryKey: ["wallet-earnings", period],
+    queryFn: async (): Promise<EarningsData> => {
       const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
         body: { period },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching earnings:', error);
+        toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
+        throw error;
+      }
 
-      setEarnings({
+      return {
         total: data.total || 0,
         payouts: data.payouts || [],
         stripeAccountId: data.stripeAccountId,
-      });
-    } catch (error) {
-      console.error('Error fetching earnings:', error);
-      toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
-    } finally {
-      setInitialLoading(false);
-    }
-  };
+      };
+    },
+    staleTime: 60000, // 1 minute
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    placeholderData: (previousData) => previousData, // Keep old data while fetching new period
+  });
 
   const openStripe = () => {
     window.open("https://dashboard.stripe.com/", "_blank");
@@ -87,8 +81,8 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Show simple loading state first
-  if (initialLoading) {
+  // Show simple loading state only on first load
+  if (isLoading && !earnings) {
     return (
       <div className="min-h-screen bg-[#f5f5f5] pb-24">
         <div className="px-6 pt-12 pb-6">
@@ -125,10 +119,12 @@ const PwaWallet = () => {
     );
   }
 
+  const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
+
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-24">
       {/* Header - Only show when Stripe account connected */}
-      {earnings.stripeAccountId && (
+      {currentEarnings.stripeAccountId && (
         <div className="bg-[#f5f5f5] px-6 pt-12 pb-6">
           <div className="text-center">
             <h1 className="text-base font-semibold text-foreground">
@@ -157,7 +153,7 @@ const PwaWallet = () => {
           {/* Total Earnings */}
           <div className="text-center mt-8 mb-6">
             <p className="text-5xl font-bold text-foreground tracking-tight">
-              {formatTotal(earnings.total)}
+              {formatTotal(currentEarnings.total)}
             </p>
           </div>
 
@@ -176,7 +172,7 @@ const PwaWallet = () => {
       )}
 
       {/* Empty State - No Stripe Account */}
-      {!earnings.stripeAccountId && (
+      {!currentEarnings.stripeAccountId && (
         <div className="px-6 pt-16 pb-6">
           <div className="text-center mb-8">
             <h1 className="text-base font-semibold text-foreground">
@@ -207,7 +203,7 @@ const PwaWallet = () => {
       )}
 
       {/* Payouts Card */}
-      {earnings.stripeAccountId && (
+      {currentEarnings.stripeAccountId && (
       <div className="mx-4 bg-white rounded-2xl shadow-sm">
         <div className="px-5 pt-5 pb-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -215,13 +211,13 @@ const PwaWallet = () => {
           </h2>
         </div>
 
-        {earnings.payouts.length === 0 ? (
+        {currentEarnings.payouts.length === 0 ? (
           <div className="px-5 pb-5 text-center py-8">
             <p className="text-muted-foreground text-sm">{t('wallet.noPayouts', 'No payouts for this period')}</p>
           </div>
         ) : (
           <div className="px-5 pb-5 space-y-5">
-            {earnings.payouts.map((payout) => (
+            {currentEarnings.payouts.map((payout) => (
               <div
                 key={payout.id}
                 className="flex items-center gap-4"
