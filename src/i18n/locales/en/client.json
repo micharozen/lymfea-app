@@ -20,7 +20,18 @@
       "makeup": "Makeup",
       "massage": "Massage",
       "facial": "Facial",
-      "body": "Body"
+      "body": "Body",
+      "Hair cut": "Hair cut",
+      "Lissage": "Straightening",
+      "Perm": "Perm",
+      "Coloration": "Coloring",
+      "Soin": "Treatment",
+      "Brushing": "Blow-dry",
+      "Extensions": "Extensions",
+      "Balayage": "Balayage",
+      "Highlights": "Highlights",
+      "Treatment": "Treatment",
+      "Styling": "Styling"
     }
   },
   "basket": {
