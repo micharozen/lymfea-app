@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { toast } from "sonner";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Payout {
   id: string;
@@ -133,60 +132,67 @@ const PwaWallet = () => {
       });
     } catch (error) {
       console.error("Error fetching earnings:", error);
-      toast.error("Erreur lors du chargement des revenus");
+      toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
     }
   };
 
   const openStripe = () => {
-    if (earnings.stripeAccountId) {
-      window.open("https://dashboard.stripe.com/", "_blank");
-    } else {
-      toast.error("Compte Stripe non configuré");
-    }
+    window.open("https://dashboard.stripe.com/", "_blank");
   };
 
   const getPeriodLabel = () => {
     switch (period) {
       case "last_month":
-        return "Last Month";
+        return t('wallet.lastMonth', 'Last Month');
       case "last_3_months":
-        return "Last 3 Months";
+        return t('wallet.last3Months', 'Last 3 Months');
       case "this_month":
       default:
-        return "This Month";
+        return t('wallet.thisMonth', 'This Month');
     }
+  };
+
+  const formatAmount = (amount: number) => {
+    return amount.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="bg-background px-6 pt-12 pb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-xl font-semibold text-foreground">My earnings</h1>
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-auto border-0 bg-transparent p-0 h-auto focus:ring-0">
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                <SelectValue />
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="this_month">This Month</SelectItem>
-              <SelectItem value="last_month">Last Month</SelectItem>
-              <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="px-6 pt-12 pb-8">
+        <div className="text-center">
+          <h1 className="text-base font-semibold text-foreground mb-1">
+            {t('wallet.myEarnings', 'My earnings')}
+          </h1>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1 mx-auto text-sm text-muted-foreground">
+              {getPeriodLabel()}
+              <ChevronDown className="w-4 h-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center">
+              <DropdownMenuItem onClick={() => setPeriod("this_month")}>
+                {t('wallet.thisMonth', 'This Month')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPeriod("last_month")}>
+                {t('wallet.lastMonth', 'Last Month')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setPeriod("last_3_months")}>
+                {t('wallet.last3Months', 'Last 3 Months')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Total Earnings */}
-        <div className="mt-8 mb-6">
+        <div className="text-center mt-8 mb-6">
           {loading ? (
-            <div className="h-16 bg-muted/50 rounded-lg animate-pulse" />
+            <div className="h-14 w-48 bg-muted/50 rounded-lg animate-pulse mx-auto" />
           ) : (
             <p className="text-5xl font-bold text-foreground">
-              €{earnings.total.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              €{formatAmount(earnings.total).replace(',', ' ').replace('.', ',')}
             </p>
           )}
         </div>
@@ -194,38 +200,51 @@ const PwaWallet = () => {
         {/* Open Stripe Button */}
         <button
           onClick={openStripe}
-          className="w-full bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          className="flex items-center gap-2 mx-auto px-4 py-2 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
         >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+            <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/>
+          </svg>
           Open Stripe
-          <ExternalLink className="w-4 h-4" />
+          <ChevronDown className="w-4 h-4 -rotate-90" />
         </button>
       </div>
 
       {/* Payouts List */}
       <div className="px-6">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-          Latest Payouts
+          {t('wallet.latestPayouts', 'Latest Payouts')}
         </h2>
 
         {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-muted/50 rounded-xl animate-pulse" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-muted/50 animate-pulse" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+                  <div className="h-3 w-24 bg-muted/50 rounded animate-pulse" />
+                </div>
+                <div className="space-y-2 text-right">
+                  <div className="h-4 w-16 bg-muted/50 rounded animate-pulse ml-auto" />
+                  <div className="h-3 w-12 bg-muted/50 rounded animate-pulse ml-auto" />
+                </div>
+              </div>
             ))}
           </div>
         ) : earnings.payouts.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Aucun paiement pour cette période</p>
+            <p className="text-muted-foreground">{t('wallet.noPayouts', 'No payouts for this period')}</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {earnings.payouts.map((payout) => (
               <div
                 key={payout.id}
-                className="flex items-center gap-4 p-4 bg-card rounded-xl border border-border"
+                className="flex items-center gap-4"
               >
                 {/* Hotel Image */}
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
                   {payout.hotel_image ? (
                     <img
                       src={payout.hotel_image}
@@ -242,29 +261,23 @@ const PwaWallet = () => {
                   <p className="text-sm font-medium text-foreground truncate">
                     {payout.hotel_name}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">
-                      Ref #{payout.booking_id}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Ref {payout.booking_id} • {" "}
+                    <span className={payout.status === "completed" ? "text-foreground" : "text-muted-foreground"}>
+                      {payout.status === "completed" 
+                        ? t('wallet.completed', 'Completed') 
+                        : t('wallet.pending', 'Pending')}
                     </span>
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        payout.status === "completed"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      {payout.status === "completed" ? "Completed" : "Pending"}
-                    </span>
-                  </div>
+                  </p>
                 </div>
 
                 {/* Amount & Date */}
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-semibold text-foreground">
-                    €{payout.amount.toFixed(2)}
+                  <p className="text-sm font-medium text-foreground">
+                    €{formatAmount(payout.amount).replace('.', ',')}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {payout.date ? format(new Date(payout.date), "dd MMM") : "-"}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {payout.date ? format(new Date(payout.date), "MMM dd") : "-"}
                   </p>
                 </div>
               </div>

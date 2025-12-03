@@ -199,6 +199,16 @@
     "notifications": "Notifications",
     "profile": "Profile"
   },
+  "wallet": {
+    "myEarnings": "My earnings",
+    "thisMonth": "This Month",
+    "lastMonth": "Last Month",
+    "last3Months": "Last 3 Months",
+    "latestPayouts": "Latest Payouts",
+    "noPayouts": "No payouts for this period",
+    "completed": "Completed",
+    "pending": "Pending"
+  },
   "terms": {
     "legalNotice": {
       "title": "1. Legal Notice",
