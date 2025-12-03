@@ -134,6 +134,19 @@
     "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
     "version": "Version"
   },
+  "security": {
+    "title": "Sécurité du compte",
+    "recommendation": "Pour des raisons de sécurité, nous vous recommandons de changer régulièrement votre mot de passe.",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "changePassword": "Changer le mot de passe",
+    "changing": "Modification...",
+    "fillAllFields": "Veuillez remplir tous les champs",
+    "passwordsNoMatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordChanged": "Mot de passe modifié avec succès",
+    "passwordError": "Erreur lors de la modification du mot de passe"
+  },
   "onboarding": {
     "welcome": "Bienvenue sur OOM",
     "step1Title": "Gérez vos réservations",

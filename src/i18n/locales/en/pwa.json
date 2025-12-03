@@ -134,6 +134,19 @@
     "logoutConfirm": "Are you sure you want to log out?",
     "version": "Version"
   },
+  "security": {
+    "title": "Account Security",
+    "recommendation": "For security reasons, we recommend changing your password regularly.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "changePassword": "Change password",
+    "changing": "Changing...",
+    "fillAllFields": "Please fill in all fields",
+    "passwordsNoMatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordChanged": "Password changed successfully",
+    "passwordError": "Error changing password"
+  },
   "onboarding": {
     "welcome": "Welcome to OOM",
     "step1Title": "Manage your bookings",
