@@ -63,10 +63,10 @@ const PwaWelcome = () => {
 
       {/* Terms of Use Sheet */}
       <Sheet open={showTerms} onOpenChange={setShowTerms}>
-        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col [&>button]:hidden">
-          <div className="sticky top-0 bg-background z-10 p-4 border-b flex items-center justify-between">
-            <SheetTitle>{t('welcome.termsOfUse')}</SheetTitle>
-            <button onClick={() => setShowTerms(false)} className="rounded-full p-1 hover:bg-muted">
+        <SheetContent side="bottom" className="h-[80vh] max-h-[80vh] p-0 flex flex-col [&>button]:hidden">
+          <div className="shrink-0 bg-background z-10 p-4 border-b flex items-center justify-between h-14">
+            <SheetTitle className="truncate">{t('welcome.termsOfUse')}</SheetTitle>
+            <button onClick={() => setShowTerms(false)} className="rounded-full p-1 hover:bg-muted shrink-0">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -112,10 +112,10 @@ const PwaWelcome = () => {
 
       {/* Privacy Policy Sheet */}
       <Sheet open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col [&>button]:hidden">
-          <div className="sticky top-0 bg-background z-10 p-4 border-b flex items-center justify-between">
-            <SheetTitle>{t('welcome.privacyPolicy')}</SheetTitle>
-            <button onClick={() => setShowPrivacy(false)} className="rounded-full p-1 hover:bg-muted">
+        <SheetContent side="bottom" className="h-[80vh] max-h-[80vh] p-0 flex flex-col [&>button]:hidden">
+          <div className="shrink-0 bg-background z-10 p-4 border-b flex items-center justify-between h-14">
+            <SheetTitle className="truncate">{t('welcome.privacyPolicy')}</SheetTitle>
+            <button onClick={() => setShowPrivacy(false)} className="rounded-full p-1 hover:bg-muted shrink-0">
               <X className="h-5 w-5" />
             </button>
           </div>
