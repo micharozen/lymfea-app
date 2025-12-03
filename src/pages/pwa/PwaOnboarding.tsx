@@ -44,7 +44,14 @@ const PwaOnboarding = () => {
         password: password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // If same password error, treat as success (password already set)
+        if (error.message?.includes('same_password') || error.code === 'same_password') {
+          console.log("Password already set to this value, continuing...");
+        } else {
+          throw error;
+        }
+      }
 
       // Update hairdresser to mark password as set
       const { data: { user } } = await supabase.auth.getUser();
