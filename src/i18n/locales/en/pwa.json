@@ -137,6 +137,7 @@
   "security": {
     "title": "Account Security",
     "recommendation": "For security reasons, we recommend changing your password regularly.",
+    "currentPassword": "Current password",
     "newPassword": "New password",
     "confirmPassword": "Confirm password",
     "changePassword": "Change password",
@@ -145,19 +146,51 @@
     "passwordsNoMatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 6 characters",
     "passwordChanged": "Password changed successfully",
-    "passwordError": "Error changing password"
+    "passwordError": "Error changing password",
+    "currentPasswordWrong": "Current password is incorrect"
   },
   "onboarding": {
-    "welcome": "Welcome to OOM",
-    "step1Title": "Manage your bookings",
-    "step1Desc": "Easily view and manage all your bookings",
-    "step2Title": "Real-time notifications",
-    "step2Desc": "Get instant alerts for new bookings",
-    "step3Title": "Client signature",
-    "step3Desc": "Have your clients sign directly on the app",
-    "skip": "Skip",
-    "next": "Next",
-    "done": "Done"
+    "welcome": {
+      "title": "Welcome to OOM",
+      "accountCreated": "Account created!",
+      "subtitle": "Your account has been created successfully. Let's set up your profile to get started.",
+      "start": "Get Started"
+    },
+    "password": {
+      "title": "Password",
+      "step": "Step 1 of 3",
+      "heading": "Secure your account",
+      "subtitle": "Set a password to log in faster next time.",
+      "newPassword": "Password",
+      "confirmPassword": "Confirm password",
+      "minChars": "Password must be at least 6 characters",
+      "noMatch": "Passwords do not match",
+      "fillAllFields": "Please fill in all fields",
+      "tooShort": "Password must be at least 6 characters",
+      "success": "Password set successfully",
+      "error": "Error setting password",
+      "saving": "Saving...",
+      "continue": "Continue"
+    },
+    "photo": {
+      "title": "Profile Photo",
+      "step": "Step 2 of 3",
+      "subtitle": "Add a photo to personalize your profile",
+      "uploading": "Uploading...",
+      "uploadSuccess": "Profile photo added",
+      "uploadError": "Error adding photo",
+      "continue": "Continue",
+      "skip": "Skip this step"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "step": "Step 3 of 3",
+      "heading": "Stay informed",
+      "subtitle": "Receive notifications for new bookings and important updates",
+      "enable": "Enable notifications",
+      "later": "Configure later"
+    },
+    "complete": "Welcome to OOM!"
   },
   "tabs": {
     "home": "Home",

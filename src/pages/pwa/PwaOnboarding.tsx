@@ -1,18 +1,70 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Camera, Check, Bell } from "lucide-react";
+import { Camera, Check, Bell, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import oomLogo from "@/assets/oom-logo.svg";
 
 const PwaOnboarding = () => {
-  const [step, setStep] = useState<"welcome" | "photo" | "notifications">("welcome");
+  const { t } = useTranslation('pwa');
+  const [step, setStep] = useState<"welcome" | "password" | "photo" | "notifications">("welcome");
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
   const navigate = useNavigate();
+
+  const handleSavePassword = async () => {
+    if (!password || !confirmPassword) {
+      toast.error(t('onboarding.password.fillAllFields'));
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error(t('onboarding.password.noMatch'));
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error(t('onboarding.password.tooShort'));
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: password,
+      });
+
+      if (error) throw error;
+
+      // Update hairdresser to mark password as set
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("hairdressers")
+          .update({ password_set: true })
+          .eq("user_id", user.id);
+      }
+
+      toast.success(t('onboarding.password.success'));
+      setStep("photo");
+    } catch (error: any) {
+      console.error("Error setting password:", error);
+      toast.error(t('onboarding.password.error'));
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -88,10 +140,10 @@ const PwaOnboarding = () => {
       if (updateError) throw updateError;
 
       setProfileImage(publicUrl);
-      toast.success("Photo de profil ajoutée");
+      toast.success(t('onboarding.photo.uploadSuccess'));
     } catch (error: any) {
       console.error("Error uploading image:", error);
-      toast.error("Erreur lors de l'ajout de la photo");
+      toast.error(t('onboarding.photo.uploadError'));
     } finally {
       setUploading(false);
     }
@@ -108,7 +160,7 @@ const PwaOnboarding = () => {
         .update({ status: "Actif" })
         .eq("user_id", user.id);
 
-      toast.success("Bienvenue sur OOM !");
+      toast.success(t('onboarding.complete'));
       navigate("/pwa/dashboard");
     } catch (error) {
       console.error("Error completing onboarding:", error);
@@ -128,7 +180,7 @@ const PwaOnboarding = () => {
               className="h-16"
             />
           </div>
-          <h1 className="text-2xl font-bold text-center">Bienvenue sur OOM</h1>
+          <h1 className="text-2xl font-bold text-center">{t('onboarding.welcome.title')}</h1>
           <p className="text-sm text-gray-300 text-center mt-2">Beauty Room Services</p>
         </div>
 
@@ -142,18 +194,115 @@ const PwaOnboarding = () => {
             </div>
             
             <div className="text-center space-y-3">
-              <h2 className="text-2xl font-bold">Compte créé !</h2>
+              <h2 className="text-2xl font-bold">{t('onboarding.welcome.accountCreated')}</h2>
               <p className="text-muted-foreground">
-                Votre compte a été créé avec succès. Configurons votre profil pour commencer.
+                {t('onboarding.welcome.subtitle')}
               </p>
             </div>
 
             <Button
-              onClick={() => setStep("photo")}
+              onClick={() => setStep("password")}
               className="w-full h-12 bg-black hover:bg-gray-800 text-white"
               size="lg"
             >
-              Commencer
+              {t('onboarding.welcome.start')}
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "password") {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Header */}
+        <div className="bg-black text-white p-6">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={oomLogo} 
+              alt="OOM" 
+              className="h-16"
+            />
+          </div>
+          <h1 className="text-2xl font-bold text-center">{t('onboarding.password.title')}</h1>
+          <p className="text-sm text-gray-300 text-center mt-2">{t('onboarding.password.step')}</p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <Card className="p-8 max-w-md w-full space-y-6 shadow-lg">
+            <div className="flex justify-center">
+              <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center">
+                <Lock className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            
+            <div className="text-center space-y-3">
+              <h2 className="text-xl font-bold">{t('onboarding.password.heading')}</h2>
+              <p className="text-muted-foreground text-sm">
+                {t('onboarding.password.subtitle')}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">{t('onboarding.password.newPassword')}</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">{t('onboarding.password.confirmPassword')}</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {password && password.length < 6 && (
+                <p className="text-xs text-destructive">{t('onboarding.password.minChars')}</p>
+              )}
+              {password && confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-destructive">{t('onboarding.password.noMatch')}</p>
+              )}
+            </div>
+
+            <Button
+              onClick={handleSavePassword}
+              className="w-full h-12 bg-black hover:bg-gray-800 text-white"
+              size="lg"
+              disabled={savingPassword || !password || !confirmPassword || password !== confirmPassword || password.length < 6}
+            >
+              {savingPassword ? t('onboarding.password.saving') : t('onboarding.password.continue')}
             </Button>
           </Card>
         </div>
@@ -173,8 +322,8 @@ const PwaOnboarding = () => {
               className="h-16"
             />
           </div>
-          <h1 className="text-2xl font-bold text-center">Photo de profil</h1>
-          <p className="text-sm text-gray-300 text-center mt-2">Étape 1 sur 2</p>
+          <h1 className="text-2xl font-bold text-center">{t('onboarding.photo.title')}</h1>
+          <p className="text-sm text-gray-300 text-center mt-2">{t('onboarding.photo.step')}</p>
         </div>
 
         {/* Content */}
@@ -182,7 +331,7 @@ const PwaOnboarding = () => {
           <Card className="p-8 max-w-md w-full space-y-6 shadow-lg">
             <div className="text-center space-y-4">
               <p className="text-muted-foreground">
-                Ajoutez une photo pour personnaliser votre profil
+                {t('onboarding.photo.subtitle')}
               </p>
 
               <div className="flex justify-center">
@@ -208,7 +357,7 @@ const PwaOnboarding = () => {
 
               {uploading && (
                 <p className="text-sm text-muted-foreground animate-pulse">
-                  Téléchargement en cours...
+                  {t('onboarding.photo.uploading')}
                 </p>
               )}
             </div>
@@ -220,7 +369,7 @@ const PwaOnboarding = () => {
                 size="lg"
                 disabled={uploading}
               >
-                Continuer
+                {t('onboarding.photo.continue')}
               </Button>
               <Button
                 onClick={() => setStep("notifications")}
@@ -228,7 +377,7 @@ const PwaOnboarding = () => {
                 className="w-full h-12"
                 disabled={uploading}
               >
-                Passer cette étape
+                {t('onboarding.photo.skip')}
               </Button>
             </div>
           </Card>
@@ -248,8 +397,8 @@ const PwaOnboarding = () => {
               className="h-16"
             />
           </div>
-        <h1 className="text-2xl font-bold text-center">Notifications</h1>
-        <p className="text-sm text-gray-300 text-center mt-2">Étape 2 sur 2</p>
+        <h1 className="text-2xl font-bold text-center">{t('onboarding.notifications.title')}</h1>
+        <p className="text-sm text-gray-300 text-center mt-2">{t('onboarding.notifications.step')}</p>
       </div>
 
       {/* Content */}
@@ -262,9 +411,9 @@ const PwaOnboarding = () => {
           </div>
           
           <div className="text-center space-y-3">
-            <h2 className="text-2xl font-bold">Restez informé</h2>
+            <h2 className="text-2xl font-bold">{t('onboarding.notifications.heading')}</h2>
             <p className="text-muted-foreground">
-              Recevez des notifications pour vos nouvelles réservations et mises à jour importantes
+              {t('onboarding.notifications.subtitle')}
             </p>
           </div>
 
@@ -274,14 +423,14 @@ const PwaOnboarding = () => {
               className="w-full h-12 bg-black hover:bg-gray-800 text-white"
               size="lg"
             >
-              Activer les notifications
+              {t('onboarding.notifications.enable')}
             </Button>
             <Button
               onClick={handleFinish}
               variant="outline"
               className="w-full h-12"
             >
-              Configurer plus tard
+              {t('onboarding.notifications.later')}
             </Button>
           </div>
         </Card>
