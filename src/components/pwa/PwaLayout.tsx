@@ -32,11 +32,18 @@ const PwaLayout = () => {
     });
   }, [navigate]);
 
+  // Simplified transition - no remounting
   useEffect(() => {
-    if (location !== displayLocation) {
+    if (location.pathname !== displayLocation.pathname) {
       setTransitionStage("fadeOut");
+      // Immediately update displayLocation after a short delay
+      const timer = setTimeout(() => {
+        setDisplayLocation(location);
+        setTransitionStage("fadeIn");
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [location, displayLocation]);
+  }, [location.pathname, displayLocation.pathname]);
 
   // Prefetch adjacent pages data
   useEffect(() => {
@@ -178,17 +185,11 @@ const PwaLayout = () => {
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
       <div 
-        className={`flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-150 ${
+        className={`flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-100 ${
           transitionStage === "fadeOut" ? "opacity-0" : "opacity-100"
         }`}
-        onTransitionEnd={() => {
-          if (transitionStage === "fadeOut") {
-            setDisplayLocation(location);
-            setTransitionStage("fadeIn");
-          }
-        }}
       >
-        <Outlet key={displayLocation.pathname} />
+        <Outlet />
       </div>
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
     </div>
