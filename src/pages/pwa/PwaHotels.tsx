@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin } from "lucide-react";
@@ -21,6 +22,7 @@ interface PwaHotelsProps {
 }
 
 const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
+  const { t } = useTranslation('pwa');
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -46,7 +48,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
         .single();
 
       if (!hairdresserData) {
-        toast.error("Profil coiffeur non trouvé");
+        toast.error(t('common:errors.generic'));
         return;
       }
 
@@ -73,7 +75,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
       setHotels(hotelsData || []);
     } catch (error) {
       console.error("Error fetching hotels:", error);
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -82,7 +84,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
+        <div className="text-lg">{t('common:loading')}</div>
       </div>
     );
   }
@@ -102,7 +104,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}
-          <h1 className="text-xl font-semibold">Hotels</h1>
+          <h1 className="text-xl font-semibold">{t('hotels.title')}</h1>
         </div>
       </div>
 
@@ -110,7 +112,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
       <div className="divide-y">
         {hotels.length === 0 ? (
           <div className="text-center py-12 px-4">
-            <p className="text-muted-foreground">Aucun hôtel associé</p>
+            <p className="text-muted-foreground">{t('hotels.noHotels')}</p>
           </div>
         ) : (
           hotels.map((hotel) => {
