@@ -13,26 +13,38 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
+    // Use anon key for auth verification
+    const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+
+    // Use service role key to bypass RLS for reading hairdresser profile
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
     );
 
     // Get authenticated user
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
     
     if (userError || !userData.user) {
       throw new Error("User not authenticated");
     }
 
-    // Get hairdresser profile with stripe_account_id
-    const { data: hairdresser, error: hairdresserError } = await supabaseClient
+    console.log("User authenticated:", userData.user.id);
+
+    // Get hairdresser profile with stripe_account_id using admin client
+    const { data: hairdresser, error: hairdresserError } = await supabaseAdmin
       .from("hairdressers")
       .select("id, stripe_account_id")
       .eq("user_id", userData.user.id)
       .single();
+
+    console.log("Hairdresser query result:", { hairdresser, error: hairdresserError });
 
     if (hairdresserError || !hairdresser) {
       throw new Error("Hairdresser profile not found");
@@ -99,7 +111,7 @@ serve(async (req) => {
 
       if (bookingId) {
         // Fetch booking details
-        const { data: booking } = await supabaseClient
+        const { data: booking } = await supabaseAdmin
           .from("bookings")
           .select("booking_id, hotel_id, hotel_name, hotels(image)")
           .eq("id", bookingId)
