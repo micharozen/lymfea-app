@@ -44,7 +44,7 @@ const PwaDashboard = () => {
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past" | "cancelled">("upcoming");
+  const [activeTab, setActiveTab] = useState<"upcoming" | "history" | "cancelled">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [startY, setStartY] = useState(0);
@@ -373,18 +373,13 @@ const PwaDashboard = () => {
       
       if (activeTab === "upcoming") {
         return booking.status !== "En attente de validation" &&
+               booking.status !== "Complété" &&
                (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && 
                bookingDate >= today;
-      } else if (activeTab === "past") {
-        return (bookingDate < today || booking.status === "Terminé" || booking.status === "Complété") && 
-               booking.status !== "Annulé" &&
-               booking.status !== "En attente" &&
-               booking.status !== "Pending" &&
-               booking.status !== "Confirmé" &&
-               booking.status !== "Assigné" &&
-               booking.status !== "En attente de validation";
+      } else if (activeTab === "history") {
+        return booking.status === "Complété" && isAssignedToMe;
       } else {
-        return booking.status === "Annulé";
+        return booking.status === "Annulé" && isAssignedToMe;
       }
     });
   };
@@ -562,15 +557,15 @@ const PwaDashboard = () => {
               )}
             </button>
             <button
-              onClick={() => setActiveTab("past")}
+              onClick={() => setActiveTab("history")}
               className={`pb-3 text-sm font-medium transition-colors relative ${
-                activeTab === "past"
+                activeTab === "history"
                   ? "text-black"
                   : "text-gray-400"
               }`}
             >
-              Past
-              {activeTab === "past" && (
+              Historique
+              {activeTab === "history" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
               )}
             </button>
@@ -608,16 +603,16 @@ const PwaDashboard = () => {
             ) : filteredBookings.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
                 <div className="text-6xl mb-4">
-                  {activeTab === "upcoming" ? "📅" : activeTab === "past" ? "✅" : "🚫"}
+                  {activeTab === "upcoming" ? "📅" : activeTab === "history" ? "✅" : "🚫"}
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   {activeTab === "upcoming" ? "Aucune réservation à venir" : 
-                   activeTab === "past" ? "Aucune réservation passée" : 
+                   activeTab === "history" ? "Aucune réservation complétée" : 
                    "Aucune annulation"}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {activeTab === "upcoming" ? "Les nouvelles réservations apparaîtront ici" : 
-                   activeTab === "past" ? "Vos réservations terminées apparaîtront ici" : 
+                   activeTab === "history" ? "Vos réservations terminées apparaîtront ici" : 
                    "Les réservations annulées apparaîtront ici"}
                 </p>
               </div>
