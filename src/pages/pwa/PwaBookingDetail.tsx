@@ -240,15 +240,16 @@ const PwaBookingDetail = () => {
         .update({ 
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
+          status: "Complété",
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      toast.success("Signature enregistrée");
+      toast.success("Prestation complétée avec succès");
       setShowSignatureDialog(false);
-      fetchBookingDetail();
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur lors de l'enregistrement de la signature");
