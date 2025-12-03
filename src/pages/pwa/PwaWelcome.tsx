@@ -71,23 +71,41 @@ const PwaWelcome = () => {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
-            <h3 className="font-semibold text-foreground">{t('terms.acceptance.title', '1. Acceptation des conditions')}</h3>
-            <p>{t('terms.acceptance.content', "En accédant et en utilisant OOM Beauty Room Service, vous acceptez d'être lié par les termes et dispositions de cet accord.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.legalNotice.title')}</h3>
+            <p className="whitespace-pre-line">{t('terms.legalNotice.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('terms.service.title', '2. Description du service')}</h3>
-            <p>{t('terms.service.content', "OOM fournit des services de soins capillaires et de beauté de luxe directement dans les chambres d'hôtel. Les services sont soumis à disponibilité et confirmation de réservation.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.object.title')}</h3>
+            <p>{t('terms.object.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('terms.booking.title', '3. Réservation et paiement')}</h3>
-            <p>{t('terms.booking.content', "Toutes les réservations doivent être effectuées via notre plateforme. Le paiement est requis au moment de la réservation. Les politiques d'annulation s'appliquent comme spécifié lors du processus de réservation.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.acceptance.title')}</h3>
+            <p>{t('terms.acceptance.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('terms.responsibilities.title', "4. Responsabilités de l'utilisateur")}</h3>
-            <p>{t('terms.responsibilities.content', "Vous acceptez de fournir des informations exactes lors de la réservation et d'être présent à l'endroit et à l'heure spécifiés pour votre rendez-vous.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.service.title')}</h3>
+            <p>{t('terms.service.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('terms.liability.title', '5. Limitation de responsabilité')}</h3>
-            <p>{t('terms.liability.content', "OOM n'est pas responsable des dommages indirects, accessoires ou consécutifs découlant de l'utilisation de nos services.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.account.title')}</h3>
+            <p>{t('terms.account.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('terms.changes.title', '6. Modifications des conditions')}</h3>
-            <p>{t('terms.changes.content', "Nous nous réservons le droit de modifier ces conditions à tout moment. L'utilisation continue du service constitue l'acceptation des conditions modifiées.")}</p>
+            <h3 className="font-semibold text-foreground">{t('terms.obligations.title')}</h3>
+            <p className="whitespace-pre-line">{t('terms.obligations.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.liability.title')}</h3>
+            <p>{t('terms.liability.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.withdrawal.title')}</h3>
+            <p className="whitespace-pre-line">{t('terms.withdrawal.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.mediation.title')}</h3>
+            <p>{t('terms.mediation.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.ip.title')}</h3>
+            <p>{t('terms.ip.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.law.title')}</h3>
+            <p>{t('terms.law.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('terms.update.title')}</h3>
+            <p>{t('terms.update.content')}</p>
           </div>
         </SheetContent>
       </Sheet>
@@ -102,26 +120,41 @@ const PwaWelcome = () => {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
-            <h3 className="font-semibold text-foreground">{t('privacy.collect.title', '1. Informations collectées')}</h3>
-            <p>{t('privacy.collect.content', "Nous collectons des informations personnelles incluant nom, email, numéro de téléphone et détails de chambre d'hôtel nécessaires pour fournir nos services.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.controller.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.controller.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.use.title', '2. Utilisation de vos informations')}</h3>
-            <p>{t('privacy.use.content', "Vos informations sont utilisées pour traiter les réservations, communiquer les détails des rendez-vous et fournir un support client. Nous pouvons également les utiliser pour améliorer nos services.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.collect.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.collect.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.sharing.title', '3. Partage des informations')}</h3>
-            <p>{t('privacy.sharing.content', "Nous partageons vos informations uniquement avec les professionnels de beauté assignés à votre réservation et l'hôtel où vous séjournez. Nous ne vendons pas vos informations personnelles.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.purpose.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.purpose.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.security.title', '4. Sécurité des données')}</h3>
-            <p>{t('privacy.security.content', "Nous mettons en œuvre des mesures de sécurité appropriées pour protéger vos informations personnelles contre tout accès, modification ou destruction non autorisés.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.legal.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.legal.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.rights.title', '5. Vos droits')}</h3>
-            <p>{t('privacy.rights.content', "Vous avez le droit d'accéder, de corriger ou de supprimer vos informations personnelles. Contactez-nous pour exercer ces droits.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.retention.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.retention.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.cookies.title', '6. Cookies')}</h3>
-            <p>{t('privacy.cookies.content', "Nous utilisons des cookies pour améliorer votre expérience sur notre plateforme et analyser les tendances d'utilisation.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.rights.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.rights.content')}</p>
             
-            <h3 className="font-semibold text-foreground">{t('privacy.contact.title', '7. Nous contacter')}</h3>
-            <p>{t('privacy.contact.content', "Pour toute question concernant cette politique de confidentialité, veuillez contacter notre équipe de support.")}</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.cnil.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.cnil.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('privacy.recipients.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.recipients.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('privacy.transfer.title')}</h3>
+            <p>{t('privacy.transfer.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('privacy.cookies.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.cookies.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('privacy.security.title')}</h3>
+            <p>{t('privacy.security.content')}</p>
+            
+            <h3 className="font-semibold text-foreground">{t('privacy.update.title')}</h3>
+            <p className="whitespace-pre-line">{t('privacy.update.content')}</p>
           </div>
         </SheetContent>
       </Sheet>

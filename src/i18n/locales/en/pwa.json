@@ -104,5 +104,105 @@
     "hotels": "Hotels",
     "notifications": "Notifications",
     "profile": "Profile"
+  },
+  "terms": {
+    "legalNotice": {
+      "title": "1. Legal Notice",
+      "content": "This website and the OOM Beauty Room Service application are published by:\n\nOOM PARIS\nSAS (Simplified Joint Stock Company) with capital of €1,258.57\nRegistered office: 38 rue de Grenelle, 75007 Paris, France\nSIREN: 900 979 592\nSIRET: 900 979 592 00012\nRCS Paris: 900 979 592\nIntra-community VAT number: FR32900979592\n\nPublication Director: Tom Uzan\nContact: contact@oomworld.com\nPhone: +33 6 74 67 82 93\n\nHost:\nOVHcloud\n2 rue Kellermann, 59100 Roubaix, France"
+    },
+    "object": {
+      "title": "2. Purpose",
+      "content": "These Terms of Use define the terms and conditions for using the OOM Beauty Room Service application, which allows booking beauty and wellness services in partner hotels."
+    },
+    "acceptance": {
+      "title": "3. Acceptance of Terms",
+      "content": "Using the application implies full acceptance of these Terms of Use. OOM PARIS reserves the right to modify these conditions at any time. Users will be notified of any changes through in-app notifications."
+    },
+    "service": {
+      "title": "4. Service Description",
+      "content": "OOM Beauty Room Service is a platform connecting hotel guests with beauty professionals. The service allows booking hairdressing, beauty treatments, and wellness services directly in the client's hotel room."
+    },
+    "account": {
+      "title": "5. Registration and User Account",
+      "content": "Access to the service requires creating a user account. The user agrees to provide accurate information and maintain the confidentiality of their credentials. Any fraudulent use of the account may result in immediate suspension."
+    },
+    "obligations": {
+      "title": "6. User Obligations",
+      "content": "The user agrees to:\n- Use the service for its intended purpose\n- Not disrupt the proper functioning of the service\n- Respect intellectual property rights\n- Attend scheduled appointments or cancel within the required timeframe"
+    },
+    "liability": {
+      "title": "7. Liability",
+      "content": "OOM PARIS acts as an intermediary between clients and service providers. OOM PARIS cannot be held liable for disputes between a client and a provider, nor for indirect damages resulting from the use of the service."
+    },
+    "withdrawal": {
+      "title": "8. Right of Withdrawal",
+      "content": "In accordance with European consumer protection regulations, you have 14 days from the conclusion of the contract to exercise your right of withdrawal, without having to justify reasons or pay penalties.\n\nHowever, the right of withdrawal cannot be exercised for services fully performed before the end of the withdrawal period and whose execution began with the prior express consent of the consumer.\n\nTo exercise this right, contact us at: contact@oomworld.com"
+    },
+    "mediation": {
+      "title": "9. Mediation and Dispute Resolution",
+      "content": "In case of dispute, you may use our consumer mediation service free of charge. Before contacting the mediator, you must first attempt to resolve your dispute directly with OOM PARIS by sending a written complaint to contact@oomworld.com."
+    },
+    "ip": {
+      "title": "10. Intellectual Property",
+      "content": "All elements of the application (texts, graphics, software, photographs, images, sounds, logos, trademarks, creations and protectable works, databases, etc.) as well as the application itself, are the exclusive property of OOM PARIS or its partners."
+    },
+    "law": {
+      "title": "11. Applicable Law and Jurisdiction",
+      "content": "These Terms of Use are governed by French law. In case of dispute, and after failure of any attempt to find an amicable solution, the courts of Paris shall have exclusive jurisdiction."
+    },
+    "update": {
+      "title": "12. Last Update",
+      "content": "Last updated: December 2024"
+    }
+  },
+  "privacy": {
+    "controller": {
+      "title": "1. Data Controller",
+      "content": "The data controller for your personal data is:\n\nOOM PARIS\nSAS with capital of €1,258.57\n38 rue de Grenelle, 75007 Paris, France\nEmail: contact@oomworld.com\nPhone: +33 6 74 67 82 93\n\nFor any questions regarding the protection of your data, you can contact us at: contact@oomworld.com"
+    },
+    "collect": {
+      "title": "2. Data Collected",
+      "content": "In connection with the use of our service, we collect the following data:\n\n- Identification data: surname, first name, phone number\n- Contact data: email address\n- Stay data: hotel name, room number\n- Booking data: chosen services, appointment dates and times\n- Payment data: processed by our secure payment provider (Stripe)\n- Technical data: IP address, browsing data, device identifier"
+    },
+    "purpose": {
+      "title": "3. Processing Purposes",
+      "content": "Your data is collected for the following purposes:\n\n- Managing bookings and service delivery\n- Communication regarding your appointments (confirmations, reminders)\n- Customer relationship management and after-sales service\n- Improving our services and user experience\n- Compliance with our legal and regulatory obligations\n- Sending commercial communications (with your consent)"
+    },
+    "legal": {
+      "title": "4. Legal Basis for Processing",
+      "content": "The processing of your data is based on the following legal grounds:\n\n- Contract performance: for managing your bookings and providing services\n- Consent: for sending commercial communications\n- Legitimate interest: for improving our services and security\n- Legal obligation: to meet our accounting and tax obligations"
+    },
+    "retention": {
+      "title": "5. Data Retention Period",
+      "content": "Your personal data is retained for the following periods:\n\n- Account data: for the duration of your registration, then 3 years after your last activity\n- Booking data: 5 years from the service date (accounting obligations)\n- Payment data: in accordance with legal requirements (10 years)\n- Cookies and browsing data: maximum 13 months"
+    },
+    "rights": {
+      "title": "6. Your Rights",
+      "content": "In accordance with the General Data Protection Regulation (GDPR), you have the following rights:\n\n- Right of access: obtain confirmation of data processing and receive a copy\n- Right of rectification: have your inaccurate or incomplete data corrected\n- Right to erasure: request deletion of your data in cases provided by law\n- Right to restriction: request suspension of data processing\n- Right to portability: receive your data in a structured, readable format\n- Right to object: object to the processing of your data for legitimate reasons\n- Right to withdraw consent: at any time for consent-based processing\n\nTo exercise these rights, contact us at: contact@oomworld.com"
+    },
+    "cnil": {
+      "title": "7. Complaint to Supervisory Authority",
+      "content": "If you believe that the processing of your personal data constitutes a violation of your rights, you may lodge a complaint with the relevant supervisory authority. In France, this is the CNIL:\n\nCNIL\n3 Place de Fontenoy, TSA 80715\n75334 Paris Cedex 07\nwww.cnil.fr"
+    },
+    "recipients": {
+      "title": "8. Data Recipients",
+      "content": "Your data may be transmitted to the following recipients:\n\n- Beauty professionals providing your services\n- Partner hotels (as part of your stay)\n- Our technical service providers (hosting, payment)\n- Competent authorities in case of legal obligation\n\nWe do not sell or rent your personal data to third parties."
+    },
+    "transfer": {
+      "title": "9. International Transfers",
+      "content": "Your data is primarily hosted in France by OVHcloud. In case of transfer to a country outside the European Union, we ensure that appropriate safeguards are in place in accordance with the GDPR."
+    },
+    "cookies": {
+      "title": "10. Cookies",
+      "content": "Our application uses cookies and similar technologies to:\n\n- Ensure the proper technical functioning of the application\n- Remember your preferences (language, settings)\n- Produce anonymous traffic statistics\n\nYou can manage your cookie preferences in your browser settings."
+    },
+    "security": {
+      "title": "11. Data Security",
+      "content": "We implement appropriate technical and organizational measures to protect your data against unauthorized access, modification, disclosure, or destruction. These measures include data encryption, strict access controls, and regular security audits."
+    },
+    "update": {
+      "title": "12. Policy Updates",
+      "content": "This privacy policy may be updated at any time. The date of the last update is indicated below. We will inform you of any substantial changes.\n\nLast updated: December 2024"
+    }
   }
 }
