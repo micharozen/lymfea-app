@@ -34,9 +34,17 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             {t('tabs.home')}
           </span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors">
-          <Wallet className="w-6 h-6 text-gray-400" strokeWidth={1.5} />
-          <span className="text-[10px] font-medium text-gray-400">Wallet</span>
+        <button 
+          onClick={() => handleNavigation("/pwa/wallet")}
+          className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors"
+        >
+          <Wallet 
+            className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`} 
+            strokeWidth={1.5} 
+          />
+          <span className={`text-[10px] font-medium transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`}>
+            Wallet
+          </span>
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/notifications")}

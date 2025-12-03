@@ -102,6 +102,7 @@ export type Database = {
           client_email: string | null
           client_first_name: string
           client_last_name: string
+          client_note: string | null
           client_signature: string | null
           created_at: string
           declined_by: string[] | null
@@ -128,6 +129,7 @@ export type Database = {
           client_email?: string | null
           client_first_name: string
           client_last_name: string
+          client_note?: string | null
           client_signature?: string | null
           created_at?: string
           declined_by?: string[] | null
@@ -154,6 +156,7 @@ export type Database = {
           client_email?: string | null
           client_first_name?: string
           client_last_name?: string
+          client_note?: string | null
           client_signature?: string | null
           created_at?: string
           declined_by?: string[] | null
@@ -324,6 +327,51 @@ export type Database = {
             columns: ["hotel_id"]
             isOneToOne: false
             referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hairdresser_ratings: {
+        Row: {
+          booking_id: string
+          comment: string | null
+          created_at: string
+          hairdresser_id: string
+          id: string
+          rating: number
+          rating_token: string | null
+        }
+        Insert: {
+          booking_id: string
+          comment?: string | null
+          created_at?: string
+          hairdresser_id: string
+          id?: string
+          rating: number
+          rating_token?: string | null
+        }
+        Update: {
+          booking_id?: string
+          comment?: string | null
+          created_at?: string
+          hairdresser_id?: string
+          id?: string
+          rating?: number
+          rating_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hairdresser_ratings_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hairdresser_ratings_hairdresser_id_fkey"
+            columns: ["hairdresser_id"]
+            isOneToOne: false
+            referencedRelation: "hairdressers"
             referencedColumns: ["id"]
           },
         ]

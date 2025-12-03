@@ -37,6 +37,7 @@ import PwaOnboarding from "./pages/pwa/PwaOnboarding";
 import PwaNotifications from "./pages/pwa/PwaNotifications";
 import PwaInstall from "./pages/pwa/PwaInstall";
 import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
+import PwaWallet from "./pages/pwa/PwaWallet";
 
 import Home from "./pages/Home";
 import ClientWelcome from "./pages/client/ClientWelcome";
@@ -48,6 +49,7 @@ import ClientInfo from "./pages/client/ClientInfo";
 import ClientPayment from "./pages/client/ClientPayment";
 import ClientConfirmation from "./pages/client/ClientConfirmation";
 import { BasketProvider } from "./pages/client/context/BasketContext";
+import RateHairdresser from "./pages/RateHairdresser";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +91,9 @@ const App = () => {
               </Routes>
             </BasketProvider>
           } />
+          
+          {/* Rating Page (Public) */}
+          <Route path="/rate/:token" element={<RateHairdresser />} />
           
           {/* Admin Auth Routes */}
           <Route path="/auth" element={<Auth />} />
@@ -137,6 +142,7 @@ const App = () => {
             <Route path="booking/:id" element={<PwaBookingDetail />} />
             <Route path="notifications" element={<PwaNotifications />} />
             <Route path="hotels" element={<PwaHotels />} />
+            <Route path="wallet" element={<PwaWallet />} />
           </Route>
           {/* PWA routes without TabBar (still protected) */}
           <Route

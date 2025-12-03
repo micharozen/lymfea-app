@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
-import { SignatureDialog } from "@/components/SignatureDialog";
+import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import {
   Drawer,
   DrawerClose,
@@ -45,6 +45,9 @@ interface Booking {
   hotel_address?: string;
   hotel_city?: string;
   client_signature?: string | null;
+  client_note?: string | null;
+  client_email?: string | null;
+  hotel_vat?: number;
 }
 
 interface Treatment {
@@ -147,7 +150,7 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city")
+          .select("image, address, city, vat")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
@@ -157,7 +160,8 @@ const PwaBookingDetail = () => {
         ...bookingData,
         hotel_image_url: hotelData?.image,
         hotel_address: hotelData?.address,
-        hotel_city: hotelData?.city
+        hotel_city: hotelData?.city,
+        hotel_vat: hotelData?.vat || 20
       };
       setBooking(bookingWithHotel);
 
@@ -247,6 +251,13 @@ const PwaBookingDetail = () => {
         .eq("id", booking.id);
 
       if (error) throw error;
+
+      // Send rating email to client (non-blocking)
+      if (booking.client_email) {
+        supabase.functions.invoke('send-rating-email', {
+          body: { bookingId: booking.id }
+        }).catch(err => console.error("Rating email error:", err));
+      }
 
       toast.success(t('bookingDetail.completed'));
       setShowSignatureDialog(false);
@@ -658,6 +669,19 @@ const PwaBookingDetail = () => {
             )}
           </div>
 
+          {/* Client Note */}
+          {booking.client_note && (
+            <div className="mb-6 p-4 bg-muted/50 rounded-xl">
+              <div className="flex items-start gap-3">
+                <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-1">Note du client</p>
+                  <p className="text-sm text-muted-foreground">{booking.client_note}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Treatments */}
           <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -882,11 +906,17 @@ const PwaBookingDetail = () => {
       />
 
       {/* Signature Dialog */}
-      <SignatureDialog
+      <InvoiceSignatureDialog
         open={showSignatureDialog}
         onOpenChange={setShowSignatureDialog}
         onConfirm={handleSignatureConfirm}
         loading={signingLoading}
+        treatments={treatments.map(t => ({
+          name: t.treatment_menus?.name || "Treatment",
+          duration: t.treatment_menus?.duration || 0,
+          price: t.treatment_menus?.price || 0,
+        }))}
+        vatRate={booking.hotel_vat || 20}
       />
 
       {/* Delete Treatment Confirmation Dialog */}
