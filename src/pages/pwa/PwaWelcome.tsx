@@ -1,14 +1,18 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import oomLogo from "@/assets/oom-monogram.svg";
 import welcomeBg from "@/assets/welcome-bg.png";
+
 const PwaWelcome = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation('pwa');
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  
   return <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 bg-cover bg-center" style={{
@@ -19,12 +23,12 @@ const PwaWelcome = () => {
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 text-white">
-        {/* Top Logo and Install Button */}
+        {/* Top Logo and Language Switcher */}
         <div className="pt-12 flex justify-between items-start">
           <div className="flex-1" />
           <img src={oomLogo} alt="OOM" className="w-16 h-16" />
           <div className="flex-1 flex justify-end">
-            
+            <LanguageSwitcher variant="client" />
           </div>
         </div>
 
@@ -35,22 +39,22 @@ const PwaWelcome = () => {
               Beauty Room Service
             </h1>
             <p className="text-base text-white/90 leading-relaxed">
-              Offer a luxury hair and beauty treatment in their room directly, to client rooms. A unique concept.
+              {t('welcome.subtitle')}
             </p>
           </div>
 
           <Button onClick={() => navigate("/pwa/login")} className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
-            Get Started
+            {t('welcome.getStarted')}
           </Button>
 
           <p className="text-xs text-center text-white/70 px-4">
-            By continuing, you agree to our{" "}
+            {t('welcome.termsIntro', 'By continuing, you agree to our')}{" "}
             <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
-              Terms of Use
+              {t('welcome.termsOfUse')}
             </button>
-            {" "}and{" "}
+            {" "}{t('common:and', 'and')}{" "}
             <button onClick={() => setShowPrivacy(true)} className="underline hover:text-white transition-colors">
-              Privacy Policy
+              {t('welcome.privacyPolicy')}
             </button>
           </p>
         </div>
@@ -60,7 +64,7 @@ const PwaWelcome = () => {
       <Sheet open={showTerms} onOpenChange={setShowTerms}>
         <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Terms of Use</SheetTitle>
+            <SheetTitle>{t('welcome.termsOfUse')}</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-4 text-sm text-muted-foreground">
             <h3 className="font-semibold text-foreground">1. Acceptance of Terms</h3>
@@ -88,7 +92,7 @@ const PwaWelcome = () => {
       <Sheet open={showPrivacy} onOpenChange={setShowPrivacy}>
         <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Privacy Policy</SheetTitle>
+            <SheetTitle>{t('welcome.privacyPolicy')}</SheetTitle>
           </SheetHeader>
           <div className="mt-6 space-y-4 text-sm text-muted-foreground">
             <h3 className="font-semibold text-foreground">1. Information We Collect</h3>
