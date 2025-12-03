@@ -62,9 +62,9 @@ export default function ClientWelcome() {
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
       
-      {/* Language Switcher */}
+      {/* Language Switcher - Mobile friendly pill style */}
       <div className="absolute top-4 right-4 z-20">
-        <LanguageSwitcher variant="flag" className="bg-white/10 hover:bg-white/20 text-white" />
+        <LanguageSwitcher variant="client" />
       </div>
       
       {/* Content */}

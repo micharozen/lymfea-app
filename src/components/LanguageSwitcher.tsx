@@ -9,13 +9,13 @@ import {
 import { Globe } from 'lucide-react';
 
 interface LanguageSwitcherProps {
-  variant?: 'default' | 'minimal' | 'flag';
+  variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client';
   className?: string;
 }
 
 const languages = [
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'en', label: 'English', flag: '🇬🇧' },
+  { code: 'fr', label: 'Français', shortLabel: 'FR', flag: '🇫🇷' },
+  { code: 'en', label: 'English', shortLabel: 'EN', flag: '🇬🇧' },
 ];
 
 export const LanguageSwitcher = ({ variant = 'default', className = '' }: LanguageSwitcherProps) => {
@@ -27,6 +27,27 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
     i18n.changeLanguage(langCode);
   };
 
+  // Mobile-friendly pill style for client pages (dark background)
+  if (variant === 'client' || variant === 'pill') {
+    return (
+      <div className={`flex items-center gap-0.5 bg-white/20 backdrop-blur-sm rounded-full p-1 ${className}`}>
+        {languages.map((lang) => (
+          <button
+            key={lang.code}
+            onClick={() => changeLanguage(lang.code)}
+            className={`px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 ${
+              i18n.language === lang.code
+                ? 'bg-white text-black shadow-sm'
+                : 'text-white/90 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            {lang.shortLabel}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
   if (variant === 'flag') {
     return (
       <DropdownMenu>
@@ -35,7 +56,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
             {currentLang.flag}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="bg-background border shadow-lg z-50">
           {languages.map((lang) => (
             <DropdownMenuItem
               key={lang.code}
@@ -83,7 +104,7 @@ export const LanguageSwitcher = ({ variant = 'default', className = '' }: Langua
           {currentLang.label}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="bg-background border shadow-lg z-50">
         {languages.map((lang) => (
           <DropdownMenuItem
             key={lang.code}
