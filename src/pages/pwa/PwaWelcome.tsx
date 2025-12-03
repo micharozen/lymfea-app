@@ -23,7 +23,7 @@ const PwaWelcome = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 min-h-screen flex flex-col justify-between p-6 text-white">
+      <div className="relative z-10 min-h-screen flex flex-col p-6 text-white">
         {/* Top Logo and Language Switcher */}
         <div className="pt-12 flex justify-between items-start">
           <div className="flex-1" />
@@ -33,13 +33,16 @@ const PwaWelcome = () => {
           </div>
         </div>
 
-        {/* Bottom Content */}
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Bottom Content - fixed at bottom */}
         <div className="pb-8 space-y-6">
-          <div className="space-y-3 min-h-[88px]">
+          <div className="space-y-3">
             <h1 className="text-4xl font-bold leading-tight">
               Beauty Room Service
             </h1>
-            <p className="text-base text-white/90 leading-relaxed min-h-[24px]">
+            <p className="text-base text-white/90 leading-relaxed">
               {t('welcome.subtitle')}
             </p>
           </div>
