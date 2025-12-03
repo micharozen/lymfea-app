@@ -1,0 +1,77 @@
+{
+  "welcome": {
+    "beautyRoomService": "Beauty Room Service",
+    "description": "Soins de beauté professionnels livrés dans votre chambre. Sélectionnez vos services et réservez votre moment parfait.",
+    "womensMenu": "Menu Femmes",
+    "mensMenu": "Menu Hommes"
+  },
+  "menu": {
+    "title": "Menu",
+    "add": "Ajouter",
+    "added": "Ajouté",
+    "viewBasket": "Voir le panier",
+    "item": "article",
+    "items": "articles",
+    "duration": "{{duration}} min",
+    "noTreatments": "Aucun soin disponible",
+    "categories": {
+      "hair": "Coiffure",
+      "nails": "Ongles",
+      "makeup": "Maquillage",
+      "massage": "Massage",
+      "facial": "Soins visage",
+      "body": "Soins corps"
+    }
+  },
+  "basket": {
+    "title": "Votre Panier",
+    "empty": "Votre panier est vide",
+    "browse": "Parcourir le menu",
+    "subtotal": "Sous-total",
+    "continue": "Continuer",
+    "addNote": "Ajouter une note",
+    "notePlaceholder": "Instructions spéciales..."
+  },
+  "datetime": {
+    "title": "Choisir Date & Heure",
+    "selectDate": "Sélectionnez une date",
+    "selectTime": "Sélectionnez une heure",
+    "noSlots": "Aucun créneau disponible",
+    "continue": "Continuer",
+    "morning": "Matin",
+    "afternoon": "Après-midi",
+    "evening": "Soir"
+  },
+  "info": {
+    "title": "Vos Informations",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "roomNumber": "Numéro de chambre",
+    "continue": "Continuer vers le paiement"
+  },
+  "checkout": {
+    "title": "Récapitulatif",
+    "yourBooking": "Votre Réservation",
+    "treatments": "Soins",
+    "dateTime": "Date & Heure",
+    "totalDuration": "Durée totale",
+    "minutes": "minutes",
+    "total": "Total",
+    "payNow": "Payer maintenant",
+    "payAtHotel": "Payer à l'hôtel"
+  },
+  "payment": {
+    "title": "Paiement",
+    "processing": "Traitement en cours...",
+    "secure": "Paiement sécurisé"
+  },
+  "confirmation": {
+    "title": "Réservation confirmée",
+    "message": "Vous recevrez un email de confirmation avec tous les détails de votre réservation",
+    "backHome": "Retour à l'accueil"
+  },
+  "hotelNotFound": "Hôtel non trouvé",
+  "checkQrCode": "Veuillez vérifier votre code QR"
+}

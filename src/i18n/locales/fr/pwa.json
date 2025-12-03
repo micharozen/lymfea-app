@@ -1,0 +1,106 @@
+{
+  "login": {
+    "title": "Entrez votre numéro de téléphone",
+    "subtitle": "Nous vous enverrons un code de vérification",
+    "continue": "Continuer avec le téléphone",
+    "enterCode": "Entrez le code",
+    "codeSent": "Nous avons envoyé un SMS au",
+    "resend": "Renvoyer le code",
+    "expired": "Code expiré",
+    "verify": "Vérifier",
+    "wrongNumber": "Mauvais numéro ?",
+    "codeExpiredIn": "Le code expire dans",
+    "seconds": "secondes"
+  },
+  "welcome": {
+    "title": "Bienvenue",
+    "subtitle": "Gérez vos réservations facilement",
+    "getStarted": "Commencer",
+    "termsOfUse": "Conditions d'utilisation",
+    "privacyPolicy": "Politique de confidentialité"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "upcoming": "À venir",
+    "history": "Historique",
+    "cancelled": "Annulées",
+    "noUpcoming": "Aucune réservation à venir",
+    "noHistory": "Aucune réservation complétée",
+    "noCancelled": "Aucune annulation",
+    "upcomingWillAppear": "Les nouvelles réservations apparaîtront ici",
+    "historyWillAppear": "Vos réservations terminées apparaîtront ici",
+    "cancelledWillAppear": "Les réservations annulées apparaîtront ici",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "pullToRefresh": "Tirer pour actualiser",
+    "releaseToRefresh": "Relâcher pour actualiser",
+    "refreshing": "Actualisation...",
+    "newBooking": "Nouvelle réservation",
+    "viewDetails": "Voir les détails"
+  },
+  "booking": {
+    "details": "Détails de la réservation",
+    "client": "Client",
+    "hotel": "Hôtel",
+    "room": "Chambre",
+    "date": "Date",
+    "time": "Heure",
+    "treatments": "Soins",
+    "total": "Total",
+    "duration": "Durée",
+    "signature": "Signature du client",
+    "noSignature": "Pas encore de signature",
+    "status": "Statut",
+    "assignedTo": "Assigné à",
+    "contactClient": "Contacter le client",
+    "startService": "Démarrer le service",
+    "completeBooking": "Terminer la réservation",
+    "cancelBooking": "Annuler la réservation",
+    "confirmCancel": "Confirmer l'annulation",
+    "cancelReason": "Raison de l'annulation",
+    "bookingId": "ID Réservation"
+  },
+  "hotels": {
+    "title": "Mes Hôtels",
+    "noHotels": "Aucun hôtel assigné",
+    "address": "Adresse",
+    "city": "Ville"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "Aucune notification",
+    "markAllRead": "Tout marquer comme lu",
+    "newBooking": "Nouvelle réservation",
+    "bookingUpdated": "Réservation mise à jour",
+    "bookingCancelled": "Réservation annulée"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Modifier le profil",
+    "security": "Sécurité du compte",
+    "notifications": "Notifications",
+    "language": "Langue",
+    "logout": "Se déconnecter",
+    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "version": "Version"
+  },
+  "onboarding": {
+    "welcome": "Bienvenue sur OOM",
+    "step1Title": "Gérez vos réservations",
+    "step1Desc": "Consultez et gérez facilement toutes vos réservations",
+    "step2Title": "Notifications en temps réel",
+    "step2Desc": "Recevez des alertes instantanées pour les nouvelles réservations",
+    "step3Title": "Signature client",
+    "step3Desc": "Faites signer vos clients directement sur l'application",
+    "skip": "Passer",
+    "next": "Suivant",
+    "done": "Terminé"
+  },
+  "tabs": {
+    "home": "Accueil",
+    "bookings": "Réservations",
+    "hotels": "Hôtels",
+    "notifications": "Notifications",
+    "profile": "Profil"
+  }
+}

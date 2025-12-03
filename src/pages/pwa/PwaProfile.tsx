@@ -1,13 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Settings } from "lucide-react";
+import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Settings, Globe } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 interface Hairdresser {
   id: string;
@@ -21,9 +23,11 @@ interface Hairdresser {
 }
 
 const PwaProfile = () => {
+  const { t } = useTranslation('pwa');
   const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [editForm, setEditForm] = useState({
     first_name: "",
@@ -63,7 +67,7 @@ const PwaProfile = () => {
       });
     } catch (error) {
       console.error("Error fetching profile:", error);
-      toast.error("Erreur lors du chargement du profil");
+      toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -99,10 +103,10 @@ const PwaProfile = () => {
       if (updateError) throw updateError;
 
       setHairdresser({ ...hairdresser!, profile_image: publicUrl });
-      toast.success("Photo de profil mise à jour");
+      toast.success(t('common:toasts.saved'));
     } catch (error) {
       console.error("Error uploading image:", error);
-      toast.error("Erreur lors de l'upload de l'image");
+      toast.error(t('common:errors.generic'));
     } finally {
       setUploading(false);
     }
@@ -130,23 +134,23 @@ const PwaProfile = () => {
       });
 
       setIsEditDialogOpen(false);
-      toast.success("Profil mis à jour");
+      toast.success(t('common:toasts.saved'));
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast.error("Erreur lors de la mise à jour du profil");
+      toast.error(t('common:errors.generic'));
     }
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Déconnexion réussie");
+    toast.success(t('common:toasts.success'));
     navigate("/pwa/login");
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
+        <div className="text-lg">{t('common:loading')}</div>
       </div>
     );
   }
@@ -158,12 +162,13 @@ const PwaProfile = () => {
   const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();
 
   const menuItems = [
-    { icon: User, label: "Personalisation", onClick: () => setIsEditDialogOpen(true) },
-    { icon: Hotel, label: "Hotels", onClick: () => navigate("/pwa/profile/hotels") },
+    { icon: User, label: t('profile.editProfile'), onClick: () => setIsEditDialogOpen(true) },
+    { icon: Hotel, label: t('hotels.title'), onClick: () => navigate("/pwa/profile/hotels") },
     { icon: Package, label: "OOM product", onClick: () => {} },
-    { icon: Bell, label: "Notifications", onClick: () => navigate("/pwa/profile/notifications") },
+    { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
+    { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
     { icon: Settings, label: "Diagnostic Push", onClick: () => navigate("/pwa/push-diagnostic") },
-    { icon: Shield, label: "Account security", onClick: () => navigate("/pwa/account-security") },
+    { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
   ];
 
@@ -179,7 +184,7 @@ const PwaProfile = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Profile</h1>
+          <h1 className="text-lg font-semibold">{t('profile.title')}</h1>
         </div>
       </div>
 
@@ -243,7 +248,7 @@ const PwaProfile = () => {
           className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
           onClick={handleLogout}
         >
-          Log out
+          {t('profile.logout')}
         </Button>
       </div>
 
@@ -251,11 +256,11 @@ const PwaProfile = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Personalisation</DialogTitle>
+            <DialogTitle>{t('profile.editProfile')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="first_name">First name</Label>
+              <Label htmlFor="first_name">{t('booking.client')} - {t('common:buttons.edit')}</Label>
               <Input
                 id="first_name"
                 value={editForm.first_name}
@@ -295,14 +300,26 @@ const PwaProfile = () => {
               className="flex-1 transition-all active:scale-[0.98]"
               onClick={() => setIsEditDialogOpen(false)}
             >
-              Cancel
+              {t('common:buttons.cancel')}
             </Button>
             <Button
               className="flex-1 transition-all active:scale-[0.98]"
               onClick={handleSaveProfile}
             >
-              Save changes
+              {t('common:buttons.save')}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Language Dialog */}
+      <Dialog open={isLanguageDialogOpen} onOpenChange={setIsLanguageDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('profile.language')}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <LanguageSwitcher variant="default" className="w-full justify-center" />
           </div>
         </DialogContent>
       </Dialog>

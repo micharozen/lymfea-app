@@ -1,0 +1,143 @@
+{
+  "sidebar": {
+    "home": "Accueil",
+    "settings": "Paramètres & Accès",
+    "menu": "Menu",
+    "bookings": "Réservations",
+    "hairdressers": "Coiffeurs",
+    "hotels": "Hôtels",
+    "treatments": "Menus des Soins",
+    "boxes": "Boxes",
+    "concierges": "Concierges",
+    "products": "Produits OOM",
+    "orders": "Commandes",
+    "logout": "Se déconnecter"
+  },
+  "dashboard": {
+    "title": "Accueil",
+    "totalSales": "Ventes Totales",
+    "upcomingBookings": "Réservations à venir",
+    "totalBookings": "Total Réservations",
+    "totalSessions": "Total Sessions",
+    "overview": "Aperçu",
+    "recentBookings": "Réservations récentes",
+    "thisWeek": "Cette semaine",
+    "thisMonth": "Ce mois",
+    "thisYear": "Cette année",
+    "allTime": "Tout le temps"
+  },
+  "bookings": {
+    "title": "Réservations",
+    "create": "Nouvelle Réservation",
+    "edit": "Modifier Réservation",
+    "view": "Voir Réservation",
+    "noBookings": "Aucune réservation",
+    "filters": "Filtres",
+    "searchPlaceholder": "Rechercher par client, hôtel...",
+    "columns": {
+      "id": "ID",
+      "client": "Client",
+      "hotel": "Hôtel",
+      "room": "Chambre",
+      "date": "Date",
+      "time": "Heure",
+      "status": "Statut",
+      "total": "Total",
+      "hairdresser": "Coiffeur"
+    },
+    "status": {
+      "pending": "En attente",
+      "pendingValidation": "En attente de validation",
+      "confirmed": "Confirmé",
+      "assigned": "Assigné",
+      "completed": "Complété",
+      "cancelled": "Annulé"
+    }
+  },
+  "hotels": {
+    "title": "Hôtels",
+    "add": "Ajouter un Hôtel",
+    "edit": "Modifier Hôtel",
+    "noHotels": "Aucun hôtel",
+    "name": "Nom",
+    "address": "Adresse",
+    "city": "Ville",
+    "country": "Pays",
+    "postalCode": "Code postal",
+    "status": "Statut",
+    "commission": "Commission",
+    "qrCode": "Code QR",
+    "coverImage": "Image de couverture"
+  },
+  "hairdressers": {
+    "title": "Coiffeurs",
+    "add": "Ajouter un Coiffeur",
+    "edit": "Modifier Coiffeur",
+    "noHairdressers": "Aucun coiffeur",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "status": "Statut",
+    "skills": "Compétences",
+    "assignedHotels": "Hôtels assignés",
+    "invite": "Inviter",
+    "resendInvite": "Renvoyer l'invitation"
+  },
+  "treatments": {
+    "title": "Menus des Soins",
+    "add": "Ajouter un Soin",
+    "edit": "Modifier Soin",
+    "noTreatments": "Aucun soin",
+    "name": "Nom",
+    "category": "Catégorie",
+    "price": "Prix",
+    "duration": "Durée",
+    "description": "Description",
+    "serviceFor": "Service pour",
+    "women": "Femmes",
+    "men": "Hommes",
+    "both": "Les deux"
+  },
+  "boxes": {
+    "title": "Boxes",
+    "add": "Ajouter une Box",
+    "edit": "Modifier Box",
+    "noBoxes": "Aucune box",
+    "name": "Nom",
+    "model": "Modèle",
+    "boxId": "ID Box",
+    "hotel": "Hôtel"
+  },
+  "concierges": {
+    "title": "Concierges",
+    "add": "Ajouter un Concierge",
+    "edit": "Modifier Concierge",
+    "noConcierges": "Aucun concierge",
+    "name": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "hotel": "Hôtel",
+    "invite": "Inviter"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "general": "Général",
+    "notifications": "Notifications",
+    "billing": "Facturation",
+    "team": "Équipe"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "loading": "Chargement...",
+    "noData": "Aucune donnée",
+    "actions": "Actions",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer ?",
+    "yes": "Oui",
+    "no": "Non"
+  }
+}

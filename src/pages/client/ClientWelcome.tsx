@@ -1,13 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import welcomeBg from '@/assets/welcome-bg-couple.jpg';
 
 export default function ClientWelcome() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation('client');
 
   const { data: hotel, isLoading } = useQuery({
     queryKey: ['hotel', hotelId],
@@ -29,7 +32,7 @@ export default function ClientWelcome() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground">{t('common:loading')}</p>
         </div>
       </div>
     );
@@ -39,15 +42,14 @@ export default function ClientWelcome() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold mb-2">Hotel not found</h1>
-          <p className="text-muted-foreground">Please check your QR code</p>
+          <h1 className="text-2xl font-semibold mb-2">{t('hotelNotFound')}</h1>
+          <p className="text-muted-foreground">{t('checkQrCode')}</p>
         </div>
       </div>
     );
   }
 
   const backgroundImage = hotel.cover_image || hotel.image || welcomeBg;
-  // Add timestamp to force cache refresh
   const bgImageUrl = backgroundImage.startsWith('http') 
     ? backgroundImage 
     : `${backgroundImage}?v=${Date.now()}`;
@@ -59,6 +61,11 @@ export default function ClientWelcome() {
     >
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
+      
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSwitcher variant="flag" className="bg-white/10 hover:bg-white/20 text-white" />
+      </div>
       
       {/* Content */}
       <div className="relative z-10 h-full flex flex-col items-center justify-between p-6 text-center">
@@ -73,11 +80,10 @@ export default function ClientWelcome() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center max-w-md animate-fade-in">
           <h2 className="text-white text-2xl font-semibold mb-3">
-            Beauty Room Service
+            {t('welcome.beautyRoomService')}
           </h2>
           <p className="text-white/90 text-base mb-0 leading-relaxed">
-            Professional beauty treatments delivered to your room. 
-            Select your services and book your perfect moment.
+            {t('welcome.description')}
           </p>
         </div>
 
@@ -87,14 +93,14 @@ export default function ClientWelcome() {
             onClick={() => navigate(`/client/${hotelId}/menu?gender=women`)}
             className="w-full h-12 text-base bg-white text-primary hover:bg-white/90 transition-all duration-300 hover:scale-[1.02]"
           >
-            Women's Menu
+            {t('welcome.womensMenu')}
           </Button>
           <Button
             onClick={() => navigate(`/client/${hotelId}/menu?gender=men`)}
             variant="outline"
             className="w-full h-12 text-base bg-transparent border-2 border-white text-white hover:bg-white/10 transition-all duration-300 hover:scale-[1.02]"
           >
-            Men's Menu
+            {t('welcome.mensMenu')}
           </Button>
         </div>
       </div>
