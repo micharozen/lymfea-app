@@ -1,5 +1,8 @@
 project_id = "xbkvmrqanoqdqvqwldio"
 
+[functions.get-hairdresser-earnings]
+verify_jwt = true
+
 [functions.create-client-booking]
 verify_jwt = false
 

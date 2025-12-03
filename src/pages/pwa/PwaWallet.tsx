@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -13,7 +13,7 @@ import {
 
 interface Payout {
   id: string;
-  booking_id: number;
+  booking_id: number | null;
   hotel_name: string;
   hotel_image: string | null;
   amount: number;
@@ -27,63 +27,41 @@ interface EarningsData {
   stripeAccountId: string | null;
 }
 
-// Mock data for preview
-const mockPayouts: Payout[] = [
-  {
-    id: "1",
-    booking_id: 4503,
-    hotel_name: "Villa d'Este Como",
-    hotel_image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=200&fit=crop",
-    amount: 80,
-    status: "pending",
-    date: "2024-04-28",
-  },
-  {
-    id: "2",
-    booking_id: 4503,
-    hotel_name: "Villa d'Este Como",
-    hotel_image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=200&fit=crop",
-    amount: 120,
-    status: "completed",
-    date: "2024-04-23",
-  },
-  {
-    id: "3",
-    booking_id: 4503,
-    hotel_name: "Villa d'Este Como",
-    hotel_image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&h=200&fit=crop",
-    amount: 80,
-    status: "completed",
-    date: "2024-04-22",
-  },
-  {
-    id: "4",
-    booking_id: 4503,
-    hotel_name: "Four Seasons Roma",
-    hotel_image: "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=200&h=200&fit=crop",
-    amount: 80,
-    status: "completed",
-    date: "2024-02-21",
-  },
-];
-
 const PwaWallet = () => {
   const { t } = useTranslation('pwa');
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState<EarningsData>({
-    total: 4800,
-    payouts: mockPayouts,
+    total: 0,
+    payouts: [],
     stripeAccountId: null,
   });
   const [period, setPeriod] = useState("this_month");
 
   useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
+    fetchEarnings();
   }, [period]);
+
+  const fetchEarnings = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
+        body: { period },
+      });
+
+      if (error) throw error;
+
+      setEarnings({
+        total: data.total || 0,
+        payouts: data.payouts || [],
+        stripeAccountId: data.stripeAccountId,
+      });
+    } catch (error) {
+      console.error('Error fetching earnings:', error);
+      toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openStripe = () => {
     window.open("https://dashboard.stripe.com/", "_blank");
