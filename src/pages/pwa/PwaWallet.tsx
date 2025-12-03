@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +31,7 @@ interface EarningsData {
 const PwaWallet = () => {
   const { t } = useTranslation('pwa');
   const [period, setPeriod] = useState("this_month");
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
@@ -57,7 +58,37 @@ const PwaWallet = () => {
   });
 
   const openStripe = () => {
-    window.open("https://dashboard.stripe.com/", "_blank");
+    // Open Stripe Express dashboard for connected accounts
+    if (earnings?.stripeAccountId) {
+      window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
+    } else {
+      window.open("https://dashboard.stripe.com/", "_blank");
+    }
+  };
+
+  const handleSetupStripe = async () => {
+    setConnectingStripe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-stripe-connect-account');
+
+      if (error) {
+        console.error('Error creating Stripe account:', error);
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+        return;
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe onboarding
+        window.location.href = data.url;
+      } else {
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+    } finally {
+      setConnectingStripe(false);
+    }
   };
 
   const getPeriodLabel = () => {
@@ -192,11 +223,21 @@ const PwaWallet = () => {
               {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
             </p>
             <button
-              onClick={openStripe}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors"
+              onClick={handleSetupStripe}
+              disabled={connectingStripe}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors disabled:opacity-50"
             >
-              {t('wallet.setupStripe', 'Set up Stripe')}
-              <ChevronRight className="w-4 h-4" />
+              {connectingStripe ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t('wallet.connecting', 'Connecting...')}
+                </>
+              ) : (
+                <>
+                  {t('wallet.setupStripe', 'Set up Stripe')}
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>

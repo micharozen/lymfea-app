@@ -514,8 +514,10 @@ const PwaBookingDetail = () => {
   const openInMaps = (app: 'apple' | 'google' | 'waze') => {
     if (!booking) return;
     
-    const address = `8 Rue Louis Armand, 75015 Paris`;
-    const coords = '48.8415,2.2886'; // Coordinates for the address
+    // Use dynamic address from booking data
+    const address = booking.hotel_address && booking.hotel_city 
+      ? `${booking.hotel_address}, ${booking.hotel_city}`
+      : booking.hotel_name || "Paris, France";
     
     let url = '';
     
@@ -527,7 +529,7 @@ const PwaBookingDetail = () => {
         url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
         break;
       case 'waze':
-        url = `https://waze.com/ul?ll=${coords}&navigate=yes`;
+        url = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
         break;
     }
     
@@ -599,7 +601,9 @@ const PwaBookingDetail = () => {
               className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors mx-auto"
             >
               <Navigation className="w-3.5 h-3.5" />
-              8 Rue Louis Armand, 75015 Paris
+              {booking.hotel_address && booking.hotel_city 
+                ? `${booking.hotel_address}, ${booking.hotel_city}`
+                : booking.hotel_name}
               <ChevronLeft className="w-4 h-4 rotate-180" />
             </button>
           </div>
