@@ -372,7 +372,7 @@ const PwaDashboard = () => {
       });
       
       if (activeTab === "upcoming") {
-        return (booking.status === "Confirmé" || booking.status === "Assigné" || booking.status === "En attente de validation" || isAssignedToMe) && 
+        return (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && 
                bookingDate >= today;
       } else if (activeTab === "past") {
         return (bookingDate < today || booking.status === "Terminé" || booking.status === "Complété") && 
