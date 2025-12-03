@@ -150,7 +150,7 @@ export default function ClientMenu() {
               value={category}
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3 text-sm whitespace-nowrap"
             >
-              {category}
+              {t(`menu.categories.${category}`, category)}
             </TabsTrigger>
           ))}
         </TabsList>
