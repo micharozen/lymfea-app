@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const countryCodes = [
   { code: "+33", name: "France", flag: "🇫🇷" },
@@ -31,24 +33,23 @@ const countryCodes = [
 
 const PwaLogin = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation('pwa');
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [countryCode, setCountryCode] = useState("+33");
   const [openCountrySelect, setOpenCountrySelect] = useState(false);
-  const [timer, setTimer] = useState(91); // 1:31 en secondes
+  const [timer, setTimer] = useState(91);
   const [canResend, setCanResend] = useState(false);
   const [isCodeExpired, setIsCodeExpired] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user) {
-        // Check if user is a hairdresser
         const { data: roles } = await supabase
           .from('user_roles')
           .select('role')
@@ -57,7 +58,6 @@ const PwaLogin = () => {
           .maybeSingle();
 
         if (roles) {
-          // Get hairdresser status
           const { data: hairdresser } = await supabase
             .from('hairdressers')
             .select('status')
@@ -65,7 +65,6 @@ const PwaLogin = () => {
             .single();
 
           if (hairdresser) {
-            // Redirect based on status
             if (hairdresser.status === "En attente") {
               navigate("/pwa/onboarding", { replace: true });
             } else {
@@ -79,7 +78,6 @@ const PwaLogin = () => {
     checkSession();
   }, [navigate]);
 
-  // Timer countdown
   useEffect(() => {
     if (step === "otp" && timer > 0) {
       const interval = setInterval(() => {
@@ -96,7 +94,6 @@ const PwaLogin = () => {
     }
   }, [step, timer]);
 
-  // Auto-verify when all 6 digits are entered
   useEffect(() => {
     const fullOtp = otp.join("");
     if (fullOtp.length === 6) {
@@ -106,7 +103,7 @@ const PwaLogin = () => {
 
   const handleSendOtp = async () => {
     if (!phone || phone.length < 9) {
-      toast.error("Veuillez entrer un numéro de téléphone valide");
+      toast.error(t('common:errors.invalidPhone'));
       return;
     }
 
@@ -120,11 +117,9 @@ const PwaLogin = () => {
       });
       
       if (error) {
-        // Parse error response from edge function - check context.body.error first
         console.log('Full error object:', JSON.stringify(error, null, 2));
-        const errorMessage = (error as any)?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+        const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
         
-        // Check if it's a phone not found error
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
             duration: 6000,
@@ -139,11 +134,10 @@ const PwaLogin = () => {
       setTimer(91);
       setCanResend(false);
       setIsCodeExpired(false);
-      toast.success("Un code de vérification a été envoyé");
+      toast.success(t('common:toasts.success'));
     } catch (error: any) {
       console.error('Send OTP error:', error);
-      console.log('Full catch error object:', JSON.stringify(error, null, 2));
-      const errorMsg = error?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+      const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
         toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
@@ -170,7 +164,7 @@ const PwaLogin = () => {
       });
       
       if (error) {
-        const errorMessage = (error as any)?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+        const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
         
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
@@ -187,10 +181,10 @@ const PwaLogin = () => {
       setIsCodeExpired(false);
       setOtp(["", "", "", "", "", ""]);
       otpRefs.current[0]?.focus();
-      toast.success("Un nouveau code a été envoyé");
+      toast.success(t('common:toasts.success'));
     } catch (error: any) {
       console.error('Resend OTP error:', error);
-      const errorMsg = error?.context?.body?.error || error.message || "Erreur lors de l'envoi du code";
+      const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
         toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
@@ -207,11 +201,10 @@ const PwaLogin = () => {
   const handleVerifyOtp = async () => {
     const fullOtp = otp.join("");
     if (fullOtp.length < 6) {
-      toast.error("Veuillez entrer le code de vérification complet");
+      toast.error(t('common:errors.required'));
       return;
     }
 
-    // Prevent multiple simultaneous verification attempts
     if (loading) return;
 
     setLoading(true);
@@ -227,11 +220,10 @@ const PwaLogin = () => {
       if (error) {
         console.error('OTP verification error:', error);
         
-        // Handle 404 errors (expired or already used OTP)
         if (error.message?.includes('404') || error.message?.includes('not found')) {
           setIsCodeExpired(true);
-          toast.error("❌ Ce code a expiré ou a déjà été utilisé", {
-            description: "Cliquez sur 'Renvoyer le code' pour recevoir un nouveau code",
+          toast.error(t('login.expired'), {
+            description: t('login.resend'),
             duration: 5000
           });
           setOtp(["", "", "", "", "", ""]);
@@ -241,9 +233,7 @@ const PwaLogin = () => {
           return;
         }
         
-        // Handle other errors
-        toast.error("Erreur de vérification", {
-          description: error.message || "Veuillez réessayer",
+        toast.error(t('common:errors.generic'), {
           duration: 4000
         });
         setOtp(["", "", "", "", "", ""]);
@@ -252,8 +242,8 @@ const PwaLogin = () => {
       }
       
       if (!data.success) {
-        toast.error("Code incorrect", {
-          description: data.error || "Vérifiez le code et réessayez",
+        toast.error(t('common:errors.generic'), {
+          description: data.error,
           duration: 4000
         });
         setOtp(["", "", "", "", "", ""]);
@@ -261,7 +251,6 @@ const PwaLogin = () => {
         return;
       }
 
-      // Sign in with the session and ensure it persists
       const { error: signInError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
@@ -272,16 +261,13 @@ const PwaLogin = () => {
         throw signInError;
       }
 
-      // Verify session was properly saved
       const { data: { session: savedSession } } = await supabase.auth.getSession();
       console.log('✅ Session saved:', !!savedSession);
 
-      toast.success("✅ Connexion réussie !");
+      toast.success(t('common:toasts.success'));
       
-      // Small delay to ensure session is fully persisted
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Redirect based on hairdresser status
       if (data.hairdresser.status === "En attente") {
         navigate("/pwa/onboarding", { replace: true });
       } else {
@@ -289,8 +275,7 @@ const PwaLogin = () => {
       }
     } catch (error: any) {
       console.error('Verification error:', error);
-      toast.error("Erreur de connexion", {
-        description: "Veuillez réessayer ou demander un nouveau code",
+      toast.error(t('common:errors.generic'), {
         duration: 4000
       });
       setOtp(["", "", "", "", "", ""]);
@@ -301,14 +286,12 @@ const PwaLogin = () => {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    // Only allow digits
     if (value && !/^\d$/.test(value)) return;
 
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Auto-focus next input
     if (value && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
@@ -329,17 +312,18 @@ const PwaLogin = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      <div className="p-4">
+      <div className="p-4 flex justify-between items-center">
         <button onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}>
           <ArrowLeft className="h-6 w-6" />
         </button>
+        <LanguageSwitcher variant="minimal" />
       </div>
 
       <div className="flex-1 flex flex-col px-6 pt-8">
         {step === "phone" ? (
           <>
-            <h1 className="text-2xl font-semibold mb-2">Enter your Phone Number</h1>
-            <p className="text-sm text-gray-500 mb-8">We will send you a verification code</p>
+            <h1 className="text-2xl font-semibold mb-2">{t('login.title')}</h1>
+            <p className="text-sm text-gray-500 mb-8">{t('login.subtitle')}</p>
 
             <div className="flex items-center gap-3 mb-8">
               <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
@@ -403,15 +387,14 @@ const PwaLogin = () => {
                   : "bg-gray-200 text-gray-400"
               }`}
             >
-              Continue with Phone
+              {t('login.continue')}
             </Button>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-semibold mb-2">Enter the code</h1>
-            <p className="text-sm text-gray-500 mb-8">We sent a SMS to ***{phone.slice(-4)}</p>
+            <h1 className="text-2xl font-semibold mb-2">{t('login.enterCode')}</h1>
+            <p className="text-sm text-gray-500 mb-8">{t('login.codeSent')} ***{phone.slice(-4)}</p>
 
-            {/* OTP Input - 6 separate boxes */}
             <div className="flex justify-center gap-1.5 sm:gap-2 mb-4 px-2">
               {otp.map((digit, index) => (
                 <Input
@@ -433,16 +416,16 @@ const PwaLogin = () => {
                 />
               ))}
             </div>
-            {/* Code expiration warning */}
+            
             {isCodeExpired && (
               <div className="mb-4 p-4 bg-orange-50 border-2 border-orange-400 rounded-xl flex items-start gap-3 animate-in fade-in duration-300">
                 <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-orange-900 mb-1">
-                    ⏰ Code expiré
+                    ⏰ {t('login.expired')}
                   </p>
                   <p className="text-xs text-orange-700">
-                    Ce code n'est plus valide. Cliquez sur "Send code again" ci-dessous pour recevoir un nouveau code.
+                    {t('login.resend')}
                   </p>
                 </div>
               </div>
@@ -455,10 +438,10 @@ const PwaLogin = () => {
                   className="text-blue-500 underline"
                   disabled={loading}
                 >
-                  Send code again
+                  {t('login.resend')}
                 </button>
               ) : (
-                <>Didn't receive code ? / Send again in {formatTimer(timer)}</>
+                <>{t('login.codeExpiredIn')} {formatTimer(timer)}</>
               )}
             </p>
 
@@ -472,7 +455,7 @@ const PwaLogin = () => {
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               )}
             >
-              {isCodeExpired ? "Code expiré" : "Continue with Phone"}
+              {isCodeExpired ? t('login.expired') : t('login.verify')}
             </Button>
           </>
         )}

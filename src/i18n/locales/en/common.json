@@ -1,0 +1,54 @@
+{
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "continue": "Continue",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "clear": "Clear",
+    "validate": "Validate"
+  },
+  "errors": {
+    "generic": "An error occurred",
+    "required": "This field is required",
+    "invalidEmail": "Invalid email address",
+    "invalidPhone": "Invalid phone number",
+    "notFound": "Not found",
+    "unauthorized": "Unauthorized"
+  },
+  "toasts": {
+    "success": "Success",
+    "error": "Error",
+    "saved": "Changes saved",
+    "deleted": "Item deleted",
+    "copied": "Copied to clipboard"
+  },
+  "dates": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "assigned": "Assigned",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "loading": "Loading...",
+  "noData": "No data",
+  "actions": "Actions",
+  "language": {
+    "fr": "Français",
+    "en": "English"
+  }
+}

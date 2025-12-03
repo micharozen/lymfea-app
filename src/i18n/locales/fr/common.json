@@ -1,0 +1,54 @@
+{
+  "buttons": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "continue": "Continuer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "clear": "Effacer",
+    "validate": "Valider"
+  },
+  "errors": {
+    "generic": "Une erreur est survenue",
+    "required": "Ce champ est requis",
+    "invalidEmail": "Adresse email invalide",
+    "invalidPhone": "Numéro de téléphone invalide",
+    "notFound": "Non trouvé",
+    "unauthorized": "Non autorisé"
+  },
+  "toasts": {
+    "success": "Succès",
+    "error": "Erreur",
+    "saved": "Modifications enregistrées",
+    "deleted": "Élément supprimé",
+    "copied": "Copié dans le presse-papier"
+  },
+  "dates": {
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "yesterday": "Hier"
+  },
+  "status": {
+    "active": "Actif",
+    "inactive": "Inactif",
+    "pending": "En attente",
+    "confirmed": "Confirmé",
+    "assigned": "Assigné",
+    "completed": "Complété",
+    "cancelled": "Annulé"
+  },
+  "loading": "Chargement...",
+  "noData": "Aucune donnée",
+  "actions": "Actions",
+  "language": {
+    "fr": "Français",
+    "en": "English"
+  }
+}

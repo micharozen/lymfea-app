@@ -1,0 +1,77 @@
+{
+  "welcome": {
+    "beautyRoomService": "Beauty Room Service",
+    "description": "Professional beauty treatments delivered to your room. Select your services and book your perfect moment.",
+    "womensMenu": "Women's Menu",
+    "mensMenu": "Men's Menu"
+  },
+  "menu": {
+    "title": "Menu",
+    "add": "Add",
+    "added": "Added",
+    "viewBasket": "View Basket",
+    "item": "item",
+    "items": "items",
+    "duration": "{{duration}} min",
+    "noTreatments": "No treatments available",
+    "categories": {
+      "hair": "Hair",
+      "nails": "Nails",
+      "makeup": "Makeup",
+      "massage": "Massage",
+      "facial": "Facial",
+      "body": "Body"
+    }
+  },
+  "basket": {
+    "title": "Your Basket",
+    "empty": "Your basket is empty",
+    "browse": "Browse Menu",
+    "subtotal": "Subtotal",
+    "continue": "Continue",
+    "addNote": "Add a note",
+    "notePlaceholder": "Special instructions..."
+  },
+  "datetime": {
+    "title": "Select Date & Time",
+    "selectDate": "Select a date",
+    "selectTime": "Select a time",
+    "noSlots": "No available slots",
+    "continue": "Continue",
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening"
+  },
+  "info": {
+    "title": "Your Information",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "phone": "Phone",
+    "roomNumber": "Room Number",
+    "continue": "Continue to Payment"
+  },
+  "checkout": {
+    "title": "Summary",
+    "yourBooking": "Your Booking",
+    "treatments": "Treatments",
+    "dateTime": "Date & Time",
+    "totalDuration": "Total Duration",
+    "minutes": "minutes",
+    "total": "Total",
+    "payNow": "Pay Now",
+    "payAtHotel": "Pay at Hotel"
+  },
+  "payment": {
+    "title": "Payment",
+    "processing": "Processing...",
+    "secure": "Secure payment"
+  },
+  "confirmation": {
+    "title": "Booking Complete",
+    "message": "You will receive a confirmation email with all the details of your booking",
+    "backHome": "Back to Home"
+  },
+  "hotelNotFound": "Hotel not found",
+  "checkQrCode": "Please check your QR code"
+}

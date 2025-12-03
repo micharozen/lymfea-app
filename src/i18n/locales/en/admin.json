@@ -1,0 +1,143 @@
+{
+  "sidebar": {
+    "home": "Home",
+    "settings": "Settings & Access",
+    "menu": "Menu",
+    "bookings": "Bookings",
+    "hairdressers": "Hairdressers",
+    "hotels": "Hotels",
+    "treatments": "Treatment Menus",
+    "boxes": "Boxes",
+    "concierges": "Concierges",
+    "products": "OOM Products",
+    "orders": "Orders",
+    "logout": "Log out"
+  },
+  "dashboard": {
+    "title": "Home",
+    "totalSales": "Total Sales",
+    "upcomingBookings": "Upcoming Bookings",
+    "totalBookings": "Total Bookings",
+    "totalSessions": "Total Sessions",
+    "overview": "Overview",
+    "recentBookings": "Recent Bookings",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "thisYear": "This Year",
+    "allTime": "All Time"
+  },
+  "bookings": {
+    "title": "Bookings",
+    "create": "New Booking",
+    "edit": "Edit Booking",
+    "view": "View Booking",
+    "noBookings": "No bookings",
+    "filters": "Filters",
+    "searchPlaceholder": "Search by client, hotel...",
+    "columns": {
+      "id": "ID",
+      "client": "Client",
+      "hotel": "Hotel",
+      "room": "Room",
+      "date": "Date",
+      "time": "Time",
+      "status": "Status",
+      "total": "Total",
+      "hairdresser": "Hairdresser"
+    },
+    "status": {
+      "pending": "Pending",
+      "pendingValidation": "Pending Validation",
+      "confirmed": "Confirmed",
+      "assigned": "Assigned",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "hotels": {
+    "title": "Hotels",
+    "add": "Add Hotel",
+    "edit": "Edit Hotel",
+    "noHotels": "No hotels",
+    "name": "Name",
+    "address": "Address",
+    "city": "City",
+    "country": "Country",
+    "postalCode": "Postal Code",
+    "status": "Status",
+    "commission": "Commission",
+    "qrCode": "QR Code",
+    "coverImage": "Cover Image"
+  },
+  "hairdressers": {
+    "title": "Hairdressers",
+    "add": "Add Hairdresser",
+    "edit": "Edit Hairdresser",
+    "noHairdressers": "No hairdressers",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "status": "Status",
+    "skills": "Skills",
+    "assignedHotels": "Assigned Hotels",
+    "invite": "Invite",
+    "resendInvite": "Resend Invite"
+  },
+  "treatments": {
+    "title": "Treatment Menus",
+    "add": "Add Treatment",
+    "edit": "Edit Treatment",
+    "noTreatments": "No treatments",
+    "name": "Name",
+    "category": "Category",
+    "price": "Price",
+    "duration": "Duration",
+    "description": "Description",
+    "serviceFor": "Service For",
+    "women": "Women",
+    "men": "Men",
+    "both": "Both"
+  },
+  "boxes": {
+    "title": "Boxes",
+    "add": "Add Box",
+    "edit": "Edit Box",
+    "noBoxes": "No boxes",
+    "name": "Name",
+    "model": "Model",
+    "boxId": "Box ID",
+    "hotel": "Hotel"
+  },
+  "concierges": {
+    "title": "Concierges",
+    "add": "Add Concierge",
+    "edit": "Edit Concierge",
+    "noConcierges": "No concierges",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "hotel": "Hotel",
+    "invite": "Invite"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "notifications": "Notifications",
+    "billing": "Billing",
+    "team": "Team"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "loading": "Loading...",
+    "noData": "No data",
+    "actions": "Actions",
+    "confirmDelete": "Are you sure you want to delete?",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

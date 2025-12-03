@@ -1,0 +1,106 @@
+{
+  "login": {
+    "title": "Enter your phone number",
+    "subtitle": "We will send you a verification code",
+    "continue": "Continue with Phone",
+    "enterCode": "Enter the code",
+    "codeSent": "We sent an SMS to",
+    "resend": "Resend code",
+    "expired": "Code expired",
+    "verify": "Verify",
+    "wrongNumber": "Wrong number?",
+    "codeExpiredIn": "Code expires in",
+    "seconds": "seconds"
+  },
+  "welcome": {
+    "title": "Welcome",
+    "subtitle": "Manage your bookings easily",
+    "getStarted": "Get Started",
+    "termsOfUse": "Terms of Use",
+    "privacyPolicy": "Privacy Policy"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "upcoming": "Upcoming",
+    "history": "History",
+    "cancelled": "Cancelled",
+    "noUpcoming": "No upcoming bookings",
+    "noHistory": "No completed bookings",
+    "noCancelled": "No cancellations",
+    "upcomingWillAppear": "New bookings will appear here",
+    "historyWillAppear": "Your completed bookings will appear here",
+    "cancelledWillAppear": "Cancelled bookings will appear here",
+    "accept": "Accept",
+    "decline": "Decline",
+    "pullToRefresh": "Pull to refresh",
+    "releaseToRefresh": "Release to refresh",
+    "refreshing": "Refreshing...",
+    "newBooking": "New booking",
+    "viewDetails": "View details"
+  },
+  "booking": {
+    "details": "Booking Details",
+    "client": "Client",
+    "hotel": "Hotel",
+    "room": "Room",
+    "date": "Date",
+    "time": "Time",
+    "treatments": "Treatments",
+    "total": "Total",
+    "duration": "Duration",
+    "signature": "Client Signature",
+    "noSignature": "No signature yet",
+    "status": "Status",
+    "assignedTo": "Assigned to",
+    "contactClient": "Contact Client",
+    "startService": "Start Service",
+    "completeBooking": "Complete Booking",
+    "cancelBooking": "Cancel Booking",
+    "confirmCancel": "Confirm Cancellation",
+    "cancelReason": "Cancellation Reason",
+    "bookingId": "Booking ID"
+  },
+  "hotels": {
+    "title": "My Hotels",
+    "noHotels": "No assigned hotels",
+    "address": "Address",
+    "city": "City"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "No notifications",
+    "markAllRead": "Mark all as read",
+    "newBooking": "New booking",
+    "bookingUpdated": "Booking updated",
+    "bookingCancelled": "Booking cancelled"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "security": "Account Security",
+    "notifications": "Notifications",
+    "language": "Language",
+    "logout": "Log out",
+    "logoutConfirm": "Are you sure you want to log out?",
+    "version": "Version"
+  },
+  "onboarding": {
+    "welcome": "Welcome to OOM",
+    "step1Title": "Manage your bookings",
+    "step1Desc": "Easily view and manage all your bookings",
+    "step2Title": "Real-time notifications",
+    "step2Desc": "Get instant alerts for new bookings",
+    "step3Title": "Client signature",
+    "step3Desc": "Have your clients sign directly on the app",
+    "skip": "Skip",
+    "next": "Next",
+    "done": "Done"
+  },
+  "tabs": {
+    "home": "Home",
+    "bookings": "Bookings",
+    "hotels": "Hotels",
+    "notifications": "Notifications",
+    "profile": "Profile"
+  }
+}

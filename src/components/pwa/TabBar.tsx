@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Home, Wallet, Bell } from "lucide-react";
 
 interface TabBarProps {
@@ -8,6 +9,7 @@ interface TabBarProps {
 const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation('pwa');
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -29,7 +31,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             strokeWidth={1.5} 
           />
           <span className={`text-[10px] font-medium transition-colors ${isActive("/pwa/dashboard") ? "text-black" : "text-gray-400"}`}>
-            Home
+            {t('tabs.home')}
           </span>
         </button>
         <button className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors">
@@ -52,7 +54,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             )}
           </div>
           <span className={`text-[10px] font-medium transition-colors ${isActive("/pwa/notifications") ? "text-black" : "text-gray-400"}`}>
-            Notifications
+            {t('tabs.notifications')}
           </span>
         </button>
       </div>
