@@ -14,12 +14,14 @@ export default function ClientMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gender = searchParams.get('gender') || 'women';
-  const { addItem, itemCount } = useBasket();
+  const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const { t } = useTranslation('client');
 
-  const getQuantity = (id: string) => quantities[id] || 1;
+  const getItemQuantity = (id: string) => {
+    const item = items.find(i => i.id === id);
+    return item?.quantity || 0;
+  };
 
   const { data: hotel } = useQuery({
     queryKey: ['hotel', hotelId],
@@ -53,24 +55,21 @@ export default function ClientMenu() {
 
   const categories = [...new Set(treatments.map(t => t.category))];
 
-  const handleAddToBasket = (treatment: typeof treatments[0], quantity: number = 1) => {
-    for (let i = 0; i < quantity; i++) {
-      addItem({
-        id: treatment.id,
-        name: treatment.name,
-        price: Number(treatment.price),
-        duration: treatment.duration || 0,
-        image: treatment.image || undefined,
-        category: treatment.category,
-      });
-    }
+  const handleAddToBasket = (treatment: typeof treatments[0]) => {
+    addItem({
+      id: treatment.id,
+      name: treatment.name,
+      price: Number(treatment.price),
+      duration: treatment.duration || 0,
+      image: treatment.image || undefined,
+      category: treatment.category,
+    });
     
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
     
     setBounceKey(prev => prev + 1);
-    setQuantities(prev => ({ ...prev, [treatment.id]: 1 }));
   };
 
   useEffect(() => {
@@ -185,61 +184,45 @@ export default function ClientMenu() {
                     </div>
                     
                     {/* Controls Row */}
-                    <div className="flex items-center justify-between mt-3 gap-2">
-                      <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                    <div className="flex items-center justify-end mt-3 gap-2">
+                      {getItemQuantity(treatment.id) > 0 ? (
+                        <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
+                              if (navigator.vibrate) navigator.vibrate(30);
+                            }}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center font-semibold text-sm">
+                            {getItemQuantity(treatment.id)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-full"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddToBasket(treatment);
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full"
-                          disabled={getQuantity(treatment.id) <= 1}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const current = getQuantity(treatment.id);
-                            if (current > 1) {
-                              setQuantities(prev => ({
-                                ...prev,
-                                [treatment.id]: current - 1
-                              }));
-                            }
-                          }}
+                          onClick={() => handleAddToBasket(treatment)}
+                          size="sm"
+                          className="rounded-full px-6"
                         >
-                          <Minus className="h-4 w-4" />
+                          {t('menu.add')}
                         </Button>
-                        <span className="w-8 text-center font-semibold text-sm">
-                          {getQuantity(treatment.id)}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setQuantities(prev => ({
-                              ...prev,
-                              [treatment.id]: getQuantity(treatment.id) + 1
-                            }));
-                            addItem({
-                              id: treatment.id,
-                              name: treatment.name,
-                              price: Number(treatment.price),
-                              duration: treatment.duration || 0,
-                              image: treatment.image || undefined,
-                              category: treatment.category,
-                            });
-                            if (navigator.vibrate) navigator.vibrate(50);
-                            setBounceKey(prev => prev + 1);
-                          }}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Button
-                        onClick={() => handleAddToBasket(treatment, getQuantity(treatment.id))}
-                        size="sm"
-                        className="rounded-full px-6"
-                      >
-                        {t('menu.add')}
-                      </Button>
+                      )}
                     </div>
                   </div>
                 ))}
