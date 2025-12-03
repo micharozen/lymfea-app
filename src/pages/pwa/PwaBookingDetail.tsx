@@ -781,11 +781,16 @@ const PwaBookingDetail = () => {
 
                 {/* Accept Button */}
                 <button
-                  onClick={handleAcceptBooking}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleAcceptBooking();
+                  }}
                   disabled={updating}
                   className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  {t('dashboard.accept')}
+                  {updating ? "..." : t('dashboard.accept')}
                 </button>
               </>
             ) : (
