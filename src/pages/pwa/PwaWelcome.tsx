@@ -48,11 +48,11 @@ const PwaWelcome = () => {
           </Button>
 
           <p className="text-xs text-center text-white/70 px-4">
-            {t('welcome.termsIntro', 'By continuing, you agree to our')}{" "}
+            {t('welcome.termsIntro')}{" "}
             <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
               {t('welcome.termsOfUse')}
             </button>
-            {" "}{t('common:and', 'and')}{" "}
+            {" "}{t('welcome.and')}{" "}
             <button onClick={() => setShowPrivacy(true)} className="underline hover:text-white transition-colors">
               {t('welcome.privacyPolicy')}
             </button>
