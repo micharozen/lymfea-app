@@ -82,19 +82,26 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
 
     // Set up auth listener for real-time changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (event, newSession) => {
         console.log("🔄 Auth state changed:", event);
+        
+        // Ignore TOKEN_REFRESHED events - they don't change the user
+        if (event === 'TOKEN_REFRESHED') {
+          console.log("✅ Session refreshed successfully");
+          return;
+        }
+        
         if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
           
-          // Re-check role when session changes
-          if (session) {
+          // Re-check role only on meaningful auth changes
+          if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
             setTimeout(async () => {
               const { data: roleData } = await supabase
                 .from('user_roles')
                 .select('role')
-                .eq('user_id', session.user.id)
+                .eq('user_id', newSession.user.id)
                 .eq('role', 'hairdresser')
                 .maybeSingle();
               
@@ -102,7 +109,7 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
                 setIsHairdresser(!!roleData);
               }
             }, 0);
-          } else {
+          } else if (!newSession) {
             setIsHairdresser(false);
           }
         }
