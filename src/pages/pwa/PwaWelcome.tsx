@@ -50,7 +50,8 @@ const PwaWelcome = () => {
         </Button>
 
         <p className="text-xs text-center text-white/70 px-4 leading-relaxed">
-          {t('welcome.termsIntro')}{" "}
+          {t('welcome.termsIntro')}
+          <br />
           <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
             {t('welcome.termsOfUse')}
           </button>
