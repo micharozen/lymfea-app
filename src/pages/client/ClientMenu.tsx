@@ -217,10 +217,10 @@ export default function ClientMenu() {
                       ) : (
                         <Button
                           onClick={() => handleAddToBasket(treatment)}
-                          size="sm"
-                          className="rounded-full px-6"
+                          size="icon"
+                          className="h-10 w-10 rounded-full"
                         >
-                          {t('menu.add')}
+                          <Plus className="h-5 w-5" />
                         </Button>
                       )}
                     </div>
