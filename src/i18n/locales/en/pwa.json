@@ -16,7 +16,9 @@
     "title": "Welcome",
     "subtitle": "Manage your bookings easily",
     "getStarted": "Get Started",
+    "termsIntro": "By continuing, you agree to our",
     "termsOfUse": "Terms of Use",
+    "and": "and",
     "privacyPolicy": "Privacy Policy"
   },
   "dashboard": {
