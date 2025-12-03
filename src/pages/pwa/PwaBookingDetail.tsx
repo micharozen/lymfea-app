@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen } from "lucide-react";
 import { toast } from "sonner";
@@ -76,6 +77,7 @@ const PwaBookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation('pwa');
   const [booking, setBooking] = useState<Booking | null>(null);
   const [treatments, setTreatments] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,7 +225,7 @@ const PwaBookingDetail = () => {
       }
     } catch (error) {
       console.error("Error fetching booking:", error);
-      toast.error("Erreur lors du chargement");
+      toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -246,12 +248,12 @@ const PwaBookingDetail = () => {
 
       if (error) throw error;
 
-      toast.success("Prestation complétée avec succès");
+      toast.success(t('bookingDetail.completed'));
       setShowSignatureDialog(false);
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erreur lors de l'enregistrement de la signature");
+      toast.error(t('common:errors.generic'));
     } finally {
       setSigningLoading(false);
     }
@@ -284,11 +286,11 @@ const PwaBookingDetail = () => {
 
       const result = data as { success: boolean; error?: string } | null;
       if (result && !result.success) {
-        toast.error("Cette réservation ne vous est pas assignée");
+        toast.error(t('bookingDetail.notAssigned'));
         return;
       }
 
-      toast.success("Réservation remise en attente pour d'autres coiffeurs");
+      toast.success(t('bookingDetail.unassigned'));
       setShowUnassignDialog(false);
       // Navigate with forceRefresh state to clear cache
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
@@ -427,12 +429,12 @@ const PwaBookingDetail = () => {
         console.error('[Booking] ⚠️ Email notification error (non-blocking):', notifError);
       }
       
-      toast.success("Réservation acceptée !");
+      toast.success(t('bookingDetail.accepted'));
       // Navigate with forceRefresh state to clear cache
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erreur lors de l'acceptation");
+      toast.error(t('common:errors.generic'));
     } finally {
       setUpdating(false);
     }
@@ -470,11 +472,11 @@ const PwaBookingDetail = () => {
 
       if (error) throw error;
 
-      toast.success("Réservation refusée");
+      toast.success(t('bookingDetail.declined'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erreur");
+      toast.error(t('common:errors.generic'));
     } finally {
       setUpdating(false);
     }
@@ -489,12 +491,12 @@ const PwaBookingDetail = () => {
 
       if (error) throw error;
 
-      toast.success("Traitement supprimé");
+      toast.success(t('bookingDetail.treatmentDeleted'));
       setTreatmentToDelete(null);
       fetchBookingDetail();
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Erreur lors de la suppression");
+      toast.error(t('common:errors.generic'));
     }
   };
 
@@ -525,7 +527,7 @@ const PwaBookingDetail = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">{t('common:loading')}</div>
       </div>
     );
   }
@@ -533,7 +535,7 @@ const PwaBookingDetail = () => {
   if (!booking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Booking not found</div>
+        <div className="text-sm text-muted-foreground">{t('bookingDetail.notFound')}</div>
       </div>
     );
   }
@@ -556,7 +558,7 @@ const PwaBookingDetail = () => {
           >
             <ChevronLeft className="w-6 h-6 text-foreground" />
           </button>
-          <h1 className="text-base font-semibold text-foreground">Ma réservation</h1>
+          <h1 className="text-base font-semibold text-foreground">{t('bookingDetail.myBooking')}</h1>
           <div className="w-6" />
         </div>
 
@@ -596,7 +598,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Calendar className="w-5 h-5" />
-                <span className="text-sm">Date</span>
+                <span className="text-sm">{t('booking.date')}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
                 {format(new Date(booking.booking_date), "d MMMM yyyy")}
@@ -606,7 +608,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Clock className="w-5 h-5" />
-                <span className="text-sm">Time</span>
+                <span className="text-sm">{t('booking.time')}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
                 {booking.booking_time.substring(0, 5)}
@@ -616,7 +618,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Timer className="w-5 h-5" />
-                <span className="text-sm">Duration</span>
+                <span className="text-sm">{t('booking.duration')}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
                 {totalDuration} Min
@@ -626,7 +628,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Euro className="w-5 h-5" />
-                <span className="text-sm">Price</span>
+                <span className="text-sm">{t('bookingDetail.price')}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
                 {totalPrice}€
@@ -636,7 +638,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <User className="w-5 h-5" />
-                <span className="text-sm">Name</span>
+                <span className="text-sm">{t('bookingDetail.name')}</span>
               </div>
               <span className="text-sm font-medium text-foreground">
                 {booking.client_first_name} {booking.client_last_name}
@@ -647,7 +649,7 @@ const PwaBookingDetail = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Hotel className="w-5 h-5" />
-                  <span className="text-sm">Room</span>
+                  <span className="text-sm">{t('booking.room')}</span>
                 </div>
                 <span className="text-sm font-medium text-foreground">
                   {booking.room_number}
@@ -659,18 +661,18 @@ const PwaBookingDetail = () => {
           {/* Treatments */}
           <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">Treatments</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('booking.treatments')}</h3>
             {(booking.status === "Assigné" || booking.status === "Confirmé") && (
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}
                 className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
               >
-                + Ajouter
+                + {t('bookingDetail.add')}
               </button>
             )}
           </div>
             {treatments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun traitement ajouté</p>
+              <p className="text-sm text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
             ) : (
               <div className="space-y-3">
                 {treatments.map((treatment) => (
@@ -728,7 +730,7 @@ const PwaBookingDetail = () => {
                           className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                         >
                           <Phone className="w-5 h-5 text-primary" />
-                          <span className="text-base font-medium">Contacter concierge</span>
+                          <span className="text-base font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
                       <a
@@ -738,7 +740,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">Contacter le client</span>
+                        <span className="text-base font-medium">{t('booking.contactClient')}</span>
                       </a>
                       <a
                         href="https://wa.me/33769627754"
@@ -747,7 +749,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <MessageCircle className="w-5 h-5 text-[#25D366]" />
-                        <span className="text-base font-medium">Contacter OOM</span>
+                        <span className="text-base font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
                     </div>
                   </DrawerContent>
@@ -759,7 +761,7 @@ const PwaBookingDetail = () => {
                   disabled={updating}
                   className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  Accepter
+                  {t('dashboard.accept')}
                 </button>
               </>
             ) : (
@@ -783,7 +785,7 @@ const PwaBookingDetail = () => {
                           className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                         >
                           <Phone className="w-5 h-5 text-primary" />
-                          <span className="text-base font-medium">Contacter concierge</span>
+                          <span className="text-base font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
                       <a
@@ -794,7 +796,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">Contacter le client</span>
+                        <span className="text-base font-medium">{t('booking.contactClient')}</span>
                       </a>
                       <a
                         href="https://wa.me/33769627754"
@@ -804,7 +806,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
                       >
                         <MessageCircle className="w-5 h-5 text-[#25D366]" />
-                        <span className="text-base font-medium">Contacter OOM</span>
+                        <span className="text-base font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
                       
                       <div className="h-px bg-border my-2" />
@@ -817,7 +819,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
                       >
                         <X className="w-5 h-5 text-destructive" />
-                        <span className="text-base font-medium text-destructive">Se désister de la réservation</span>
+                        <span className="text-base font-medium text-destructive">{t('bookingDetail.unassignBooking')}</span>
                       </button>
                     </div>
                   </DrawerContent>
@@ -831,7 +833,7 @@ const PwaBookingDetail = () => {
                     className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                   >
                     <Pen className="w-4 h-4" />
-                    Signature client
+                    {t('booking.signature')}
                   </button>
                 )}
               </>
@@ -844,7 +846,7 @@ const PwaBookingDetail = () => {
       <Drawer open={showNavigationDrawer} onOpenChange={setShowNavigationDrawer}>
         <DrawerContent className="pb-safe">
           <div className="p-6 space-y-2">
-            <h3 className="text-lg font-semibold mb-4">Choisir une application</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('bookingDetail.chooseApp')}</h3>
             <button
               onClick={() => openInMaps('apple')}
               className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
@@ -891,15 +893,15 @@ const PwaBookingDetail = () => {
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer le traitement ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('bookingDetail.deleteTreatmentTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce traitement ?
+              {t('bookingDetail.deleteTreatmentDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>
-              Supprimer
+              {t('common:buttons.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -909,19 +911,19 @@ const PwaBookingDetail = () => {
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Se désister de la réservation ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('bookingDetail.unassignTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              La réservation sera remise en attente et proposée à d'autres coiffeurs.
+              {t('bookingDetail.unassignDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Non, garder</AlertDialogCancel>
+            <AlertDialogCancel>{t('bookingDetail.keepBooking')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleUnassignBooking}
               disabled={updating}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Oui, me désister
+              {t('bookingDetail.confirmUnassign')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -931,19 +933,19 @@ const PwaBookingDetail = () => {
       <AlertDialog open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Refuser cette réservation ?</AlertDialogTitle>
+            <AlertDialogTitle>{t('bookingDetail.declineTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir refuser cette réservation ? Elle restera visible pour les autres coiffeurs.
+              {t('bookingDetail.declineDesc')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeclineBooking}
               disabled={updating}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Oui, refuser
+              {t('bookingDetail.confirmDecline')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

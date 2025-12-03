@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CheckCheck, Trash2, Bell, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ interface PwaNotificationsProps {
 }
 
 const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
+  const { t, i18n } = useTranslation('pwa');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
@@ -32,6 +34,8 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const [pushLoading, setPushLoading] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
   // Check initial push subscription status
   useEffect(() => {
@@ -96,7 +100,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       setNotifications(data || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      toast.error("Erreur lors du chargement");
+      toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -133,10 +137,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       if (error) throw error;
 
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      toast.success("Toutes les notifications marquées comme lues");
+      toast.success(t('notifications.allMarkedRead'));
     } catch (error) {
       console.error("Error marking all as read:", error);
-      toast.error("Erreur");
+      toast.error(t('common:errors.generic'));
     }
   };
 
@@ -154,10 +158,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       if (error) throw error;
 
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
-      toast.success("Notification supprimée");
+      toast.success(t('notifications.deleted'));
     } catch (error) {
       console.error("Error deleting notification:", error);
-      toast.error("Erreur lors de la suppression");
+      toast.error(t('common:errors.generic'));
     }
   };
 
@@ -229,9 +233,9 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
         console.log('[PwaNotifications] OneSignal diagnostics:', diagnostics);
         
         if (diagnostics.notificationPermission === 'denied') {
-          toast.error('Notifications bloquées. Activez-les dans les réglages de votre navigateur/appareil.');
+          toast.error(t('notifications.pushBlocked'));
         } else {
-          toast.error('Service de notifications non disponible. Rechargez la page.');
+          toast.error(t('notifications.pushUnavailable'));
         }
         setPushLoading(false);
         return;
@@ -241,7 +245,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
         // Check browser permission first
         const initialPermission = Notification.permission;
         if (initialPermission === 'denied') {
-          toast.error('Notifications bloquées. Allez dans Réglages > Safari > Notifications pour les activer.');
+          toast.error(t('notifications.pushBlockedSettings'));
           setPushLoading(false);
           return;
         }
@@ -249,24 +253,24 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
         const success = await oneSignalSubscribe();
         if (success) {
           setPushEnabled(true);
-          toast.success('Notifications push activées');
+          toast.success(t('notifications.pushEnabled'));
         } else {
           // Check permission again after failed subscribe
           const finalPermission = Notification.permission;
           if (finalPermission === 'denied') {
-            toast.error('Notifications refusées. Activez-les dans les réglages.');
+            toast.error(t('notifications.pushDenied'));
           } else {
-            toast.error('Impossible d\'activer les notifications');
+            toast.error(t('notifications.pushError'));
           }
         }
       } else {
         await oneSignalUnsubscribe();
         setPushEnabled(false);
-        toast.success('Notifications push désactivées');
+        toast.success(t('notifications.pushDisabled'));
       }
     } catch (error) {
       console.error('[PwaNotifications] Error:', error);
-      toast.error('Erreur: ' + (error instanceof Error ? error.message : 'Inconnue'));
+      toast.error(t('common:errors.generic'));
     } finally {
       setPushLoading(false);
     }
@@ -290,10 +294,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
             </Button>
           )}
           <div className="flex-1">
-            <h1 className="text-xl font-semibold">Notifications</h1>
+            <h1 className="text-xl font-semibold">{t('notifications.title')}</h1>
             {unreadCount > 0 && (
               <p className="text-xs text-gray-500">
-                {unreadCount} non lu{unreadCount > 1 ? "es" : "e"}
+                {t('notifications.unreadCount', { count: unreadCount })}
               </p>
             )}
           </div>
@@ -306,7 +310,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
               className="text-xs"
             >
               <CheckCheck className="h-4 w-4 mr-1" />
-              Tout lire
+              {t('notifications.markAllRead')}
             </Button>
           )}
         </div>
@@ -319,10 +323,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
             <Bell className="h-5 w-5 text-gray-500" />
             <div>
               <Label htmlFor="push-notifications" className="text-sm font-medium">
-                Notifications Push
+                {t('notifications.pushNotifications')}
               </Label>
               <p className="text-xs text-gray-500">
-                Recevez des alertes en temps réel
+                {t('notifications.pushDescription')}
               </p>
             </div>
           </div>
@@ -341,10 +345,10 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Aucune notification
+              {t('notifications.noNotifications')}
             </h3>
             <p className="text-sm text-gray-500">
-              Vous serez notifié des nouvelles réservations et mises à jour
+              {t('notifications.willBeNotified')}
             </p>
           </div>
         ) : (
@@ -384,7 +388,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
                         <p className="text-xs text-gray-500 mt-1">
                           {formatDistanceToNow(new Date(notification.created_at), {
                             addSuffix: true,
-                            locale: fr
+                            locale: dateLocale
                           })}
                         </p>
                       </div>
@@ -398,7 +402,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
                         <button
                           onClick={(e) => deleteNotification(notification.id, e)}
                           className="p-1.5 hover:bg-destructive/10 rounded transition-colors"
-                          aria-label="Supprimer la notification"
+                          aria-label={t('notifications.deleteNotification')}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
