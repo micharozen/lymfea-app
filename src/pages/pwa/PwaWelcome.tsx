@@ -62,59 +62,59 @@ const PwaWelcome = () => {
 
       {/* Terms of Use Sheet */}
       <Sheet open={showTerms} onOpenChange={setShowTerms}>
-        <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-          <SheetHeader>
+        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col">
+          <SheetHeader className="sticky top-0 bg-background z-10 p-4 border-b">
             <SheetTitle>{t('welcome.termsOfUse')}</SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4 text-sm text-muted-foreground">
-            <h3 className="font-semibold text-foreground">1. Acceptance of Terms</h3>
-            <p>By accessing and using OOM Beauty Room Service, you accept and agree to be bound by the terms and provision of this agreement.</p>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
+            <h3 className="font-semibold text-foreground">{t('terms.acceptance.title', '1. Acceptation des conditions')}</h3>
+            <p>{t('terms.acceptance.content', "En accédant et en utilisant OOM Beauty Room Service, vous acceptez d'être lié par les termes et dispositions de cet accord.")}</p>
             
-            <h3 className="font-semibold text-foreground">2. Service Description</h3>
-            <p>OOM provides luxury hair and beauty treatment services directly to hotel guest rooms. Services are subject to availability and booking confirmation.</p>
+            <h3 className="font-semibold text-foreground">{t('terms.service.title', '2. Description du service')}</h3>
+            <p>{t('terms.service.content', "OOM fournit des services de soins capillaires et de beauté de luxe directement dans les chambres d'hôtel. Les services sont soumis à disponibilité et confirmation de réservation.")}</p>
             
-            <h3 className="font-semibold text-foreground">3. Booking and Payment</h3>
-            <p>All bookings must be made through our platform. Payment is required at the time of booking. Cancellation policies apply as specified during the booking process.</p>
+            <h3 className="font-semibold text-foreground">{t('terms.booking.title', '3. Réservation et paiement')}</h3>
+            <p>{t('terms.booking.content', "Toutes les réservations doivent être effectuées via notre plateforme. Le paiement est requis au moment de la réservation. Les politiques d'annulation s'appliquent comme spécifié lors du processus de réservation.")}</p>
             
-            <h3 className="font-semibold text-foreground">4. User Responsibilities</h3>
-            <p>You agree to provide accurate information during booking and to be present at the specified location and time for your appointment.</p>
+            <h3 className="font-semibold text-foreground">{t('terms.responsibilities.title', "4. Responsabilités de l'utilisateur")}</h3>
+            <p>{t('terms.responsibilities.content', "Vous acceptez de fournir des informations exactes lors de la réservation et d'être présent à l'endroit et à l'heure spécifiés pour votre rendez-vous.")}</p>
             
-            <h3 className="font-semibold text-foreground">5. Limitation of Liability</h3>
-            <p>OOM is not liable for any indirect, incidental, or consequential damages arising from the use of our services.</p>
+            <h3 className="font-semibold text-foreground">{t('terms.liability.title', '5. Limitation de responsabilité')}</h3>
+            <p>{t('terms.liability.content', "OOM n'est pas responsable des dommages indirects, accessoires ou consécutifs découlant de l'utilisation de nos services.")}</p>
             
-            <h3 className="font-semibold text-foreground">6. Changes to Terms</h3>
-            <p>We reserve the right to modify these terms at any time. Continued use of the service constitutes acceptance of modified terms.</p>
+            <h3 className="font-semibold text-foreground">{t('terms.changes.title', '6. Modifications des conditions')}</h3>
+            <p>{t('terms.changes.content', "Nous nous réservons le droit de modifier ces conditions à tout moment. L'utilisation continue du service constitue l'acceptation des conditions modifiées.")}</p>
           </div>
         </SheetContent>
       </Sheet>
 
       {/* Privacy Policy Sheet */}
       <Sheet open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <SheetContent side="bottom" className="h-[80vh] overflow-y-auto">
-          <SheetHeader>
+        <SheetContent side="bottom" className="h-[80vh] p-0 flex flex-col">
+          <SheetHeader className="sticky top-0 bg-background z-10 p-4 border-b">
             <SheetTitle>{t('welcome.privacyPolicy')}</SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4 text-sm text-muted-foreground">
-            <h3 className="font-semibold text-foreground">1. Information We Collect</h3>
-            <p>We collect personal information including name, email, phone number, and hotel room details necessary to provide our services.</p>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-sm text-muted-foreground">
+            <h3 className="font-semibold text-foreground">{t('privacy.collect.title', '1. Informations collectées')}</h3>
+            <p>{t('privacy.collect.content', "Nous collectons des informations personnelles incluant nom, email, numéro de téléphone et détails de chambre d'hôtel nécessaires pour fournir nos services.")}</p>
             
-            <h3 className="font-semibold text-foreground">2. How We Use Your Information</h3>
-            <p>Your information is used to process bookings, communicate appointment details, and provide customer support. We may also use it to improve our services.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.use.title', '2. Utilisation de vos informations')}</h3>
+            <p>{t('privacy.use.content', "Vos informations sont utilisées pour traiter les réservations, communiquer les détails des rendez-vous et fournir un support client. Nous pouvons également les utiliser pour améliorer nos services.")}</p>
             
-            <h3 className="font-semibold text-foreground">3. Information Sharing</h3>
-            <p>We share your information only with beauty professionals assigned to your booking and the hotel where you are staying. We do not sell your personal information.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.sharing.title', '3. Partage des informations')}</h3>
+            <p>{t('privacy.sharing.content', "Nous partageons vos informations uniquement avec les professionnels de beauté assignés à votre réservation et l'hôtel où vous séjournez. Nous ne vendons pas vos informations personnelles.")}</p>
             
-            <h3 className="font-semibold text-foreground">4. Data Security</h3>
-            <p>We implement appropriate security measures to protect your personal information from unauthorized access, alteration, or destruction.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.security.title', '4. Sécurité des données')}</h3>
+            <p>{t('privacy.security.content', "Nous mettons en œuvre des mesures de sécurité appropriées pour protéger vos informations personnelles contre tout accès, modification ou destruction non autorisés.")}</p>
             
-            <h3 className="font-semibold text-foreground">5. Your Rights</h3>
-            <p>You have the right to access, correct, or delete your personal information. Contact us to exercise these rights.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.rights.title', '5. Vos droits')}</h3>
+            <p>{t('privacy.rights.content', "Vous avez le droit d'accéder, de corriger ou de supprimer vos informations personnelles. Contactez-nous pour exercer ces droits.")}</p>
             
-            <h3 className="font-semibold text-foreground">6. Cookies</h3>
-            <p>We use cookies to enhance your experience on our platform and analyze usage patterns.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.cookies.title', '6. Cookies')}</h3>
+            <p>{t('privacy.cookies.content', "Nous utilisons des cookies pour améliorer votre expérience sur notre plateforme et analyser les tendances d'utilisation.")}</p>
             
-            <h3 className="font-semibold text-foreground">7. Contact Us</h3>
-            <p>For questions about this privacy policy, please contact our support team.</p>
+            <h3 className="font-semibold text-foreground">{t('privacy.contact.title', '7. Nous contacter')}</h3>
+            <p>{t('privacy.contact.content', "Pour toute question concernant cette politique de confidentialité, veuillez contacter notre équipe de support.")}</p>
           </div>
         </SheetContent>
       </Sheet>
