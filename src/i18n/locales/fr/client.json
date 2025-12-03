@@ -64,8 +64,15 @@
   },
   "payment": {
     "title": "Paiement",
+    "orderSummary": "Récapitulatif",
+    "paymentMethod": "Mode de paiement",
+    "addToRoom": "Ajouter à la chambre",
+    "addToRoomDesc": "Ajouté à votre note de chambre",
+    "payNow": "Payer maintenant",
+    "payNowDesc": "Carte bancaire, Apple Pay, Google Pay",
     "processing": "Traitement en cours...",
-    "secure": "Paiement sécurisé"
+    "secure": "Paiement sécurisé",
+    "confirmBook": "Confirmer et réserver"
   },
   "confirmation": {
     "title": "Réservation confirmée",
