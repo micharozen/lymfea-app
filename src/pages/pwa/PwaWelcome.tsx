@@ -35,11 +35,11 @@ const PwaWelcome = () => {
 
         {/* Bottom Content */}
         <div className="pb-8 space-y-6">
-          <div className="space-y-3">
+          <div className="space-y-3 min-h-[88px]">
             <h1 className="text-4xl font-bold leading-tight">
               Beauty Room Service
             </h1>
-            <p className="text-base text-white/90 leading-relaxed">
+            <p className="text-base text-white/90 leading-relaxed min-h-[24px]">
               {t('welcome.subtitle')}
             </p>
           </div>
