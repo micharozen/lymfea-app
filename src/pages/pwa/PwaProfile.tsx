@@ -202,7 +202,14 @@ const PwaProfile = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute bottom-0 right-0 h-7 w-7 flex items-center justify-center bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors"
+              className="absolute bottom-0 right-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              style={{ 
+                width: 28, 
+                height: 28, 
+                minWidth: 28, 
+                minHeight: 28, 
+                borderRadius: '50%' 
+              }}
             >
               <Camera className="h-3.5 w-3.5" />
             </button>
