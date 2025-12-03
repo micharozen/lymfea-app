@@ -15,106 +15,89 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
 
   useEffect(() => {
     let mounted = true;
+    let initialized = false;
 
     // SAFETY TIMEOUT: Force stop loading after 5 seconds
     const safetyTimeout = setTimeout(() => {
-      console.warn("⚠️ SAFETY TIMEOUT: Forcing loading to stop");
-      if (mounted) {
+      if (mounted && !initialized) {
+        console.warn("⚠️ SAFETY TIMEOUT: Forcing loading to stop");
         setLoading(false);
       }
     }, 5000);
 
+    const checkHairdresserRole = async (userId: string) => {
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'hairdresser')
+        .maybeSingle();
+      return !!roleData;
+    };
+
     const initAuth = async () => {
       try {
-        console.log("🔐 Starting auth check");
-        
-        // Try to refresh session first if it exists
-        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
-        
-        if (refreshError) {
-          console.log("Session refresh failed:", refreshError.message);
-        }
-        
-        // Get current session (either refreshed or existing)
         const { data: { session } } = await supabase.auth.getSession();
         
+        if (!mounted) return;
+        
         if (!session) {
-          console.log("No session found");
-          if (mounted) {
-            setLoading(false);
-          }
+          setLoading(false);
+          initialized = true;
+          clearTimeout(safetyTimeout);
           return;
         }
 
-        console.log("✅ Session found, expires at:", new Date(session.expires_at! * 1000).toLocaleString());
+        setSession(session);
+        setUser(session.user);
+
+        const hasRole = await checkHairdresserRole(session.user.id);
         
-        if (mounted) {
-          setSession(session);
-          setUser(session.user);
-        }
-
-        // Check hairdresser role
-        const { data: roleData } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .eq('role', 'hairdresser')
-          .maybeSingle();
-
-        const hasRole = !!roleData;
-        console.log("Has hairdresser role:", hasRole);
-
         if (mounted) {
           setIsHairdresser(hasRole);
           setLoading(false);
+          initialized = true;
           clearTimeout(safetyTimeout);
         }
       } catch (error) {
         console.error("Auth error:", error);
         if (mounted) {
           setLoading(false);
+          initialized = true;
           clearTimeout(safetyTimeout);
         }
       }
     };
 
-    initAuth();
-
-    // Set up auth listener for real-time changes
+    // Set up auth listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        console.log("🔄 Auth state changed:", event);
-        
-        // Ignore TOKEN_REFRESHED events - they don't change the user
-        if (event === 'TOKEN_REFRESHED') {
-          console.log("✅ Session refreshed successfully");
+        // Ignore token refresh and initial session (handled by initAuth)
+        if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           return;
         }
         
-        if (mounted) {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          
-          // Re-check role only on meaningful auth changes
-          if (newSession && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-            setTimeout(async () => {
-              const { data: roleData } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', newSession.user.id)
-                .eq('role', 'hairdresser')
-                .maybeSingle();
-              
-              if (mounted) {
-                setIsHairdresser(!!roleData);
-              }
-            }, 0);
-          } else if (!newSession) {
-            setIsHairdresser(false);
-          }
+        if (!mounted) return;
+        
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        
+        if (newSession && event === 'SIGNED_IN') {
+          setTimeout(async () => {
+            if (!mounted) return;
+            const hasRole = await checkHairdresserRole(newSession.user.id);
+            if (mounted) {
+              setIsHairdresser(hasRole);
+            }
+          }, 0);
+        } else if (!newSession) {
+          setIsHairdresser(false);
         }
       }
     );
+
+    // Then initialize
+    initAuth();
 
     return () => {
       mounted = false;
@@ -122,8 +105,6 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
       subscription.unsubscribe();
     };
   }, []);
-
-  console.log("📊 Current state:", { loading, user: !!user, session: !!session, isHairdresser });
 
   if (loading) {
     return (
@@ -134,16 +115,13 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
   }
 
   if (!user || !session) {
-    console.log("➡️ Redirecting to /pwa/login (no session)");
     return <Navigate to="/pwa/login" replace />;
   }
 
   if (!isHairdresser) {
-    console.log("➡️ Redirecting to /auth (not hairdresser)");
     return <Navigate to="/auth" replace />;
   }
 
-  console.log("✅ Rendering protected content");
   return <>{children}</>;
 };
 
