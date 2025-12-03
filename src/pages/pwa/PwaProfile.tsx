@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Settings, Globe } from "lucide-react";
+import { ArrowLeft, LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -167,7 +167,6 @@ const PwaProfile = () => {
     { icon: Package, label: "OOM product", onClick: () => {} },
     { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
-    { icon: Settings, label: "Diagnostic Push", onClick: () => navigate("/pwa/push-diagnostic") },
     { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
     { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
   ];
