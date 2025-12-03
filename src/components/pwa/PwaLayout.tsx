@@ -9,8 +9,6 @@ const PwaLayout = () => {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
-  const [displayLocation, setDisplayLocation] = useState(location);
-  const [transitionStage, setTransitionStage] = useState("fadeIn");
   const queryClient = useQueryClient();
 
   // Set up notification click handler for push notifications
@@ -18,32 +16,16 @@ const PwaLayout = () => {
     // Check for any pending notification URL first
     const pendingUrl = getPendingNotificationUrl();
     if (pendingUrl) {
-      console.log('[PwaLayout] Found pending notification URL on mount:', pendingUrl);
       navigate(pendingUrl);
     }
     
     // Set up the handler for future clicks
     setNotificationClickHandler((url: string) => {
-      console.log('[PwaLayout] Push notification clicked, navigating to:', url);
-      // Navigate to the URL from the push notification
       if (url.startsWith('/')) {
         navigate(url);
       }
     });
   }, [navigate]);
-
-  // Simplified transition - no remounting
-  useEffect(() => {
-    if (location.pathname !== displayLocation.pathname) {
-      setTransitionStage("fadeOut");
-      // Immediately update displayLocation after a short delay
-      const timer = setTimeout(() => {
-        setDisplayLocation(location);
-        setTransitionStage("fadeIn");
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [location.pathname, displayLocation.pathname]);
 
   // Prefetch adjacent pages data
   useEffect(() => {
@@ -184,11 +166,7 @@ const PwaLayout = () => {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
-      <div 
-        className={`flex-1 overflow-y-auto overflow-x-hidden transition-opacity duration-100 ${
-          transitionStage === "fadeOut" ? "opacity-0" : "opacity-100"
-        }`}
-      >
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <Outlet />
       </div>
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
