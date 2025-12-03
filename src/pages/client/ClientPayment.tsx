@@ -128,7 +128,7 @@ export default function ClientPayment() {
       <div className="p-4 space-y-6">
         {/* Order Summary */}
         <div className="bg-card rounded-2xl p-4 space-y-3">
-          <h2 className="font-semibold text-base mb-3">{t('checkout.yourBooking')}</h2>
+          <h2 className="font-semibold text-base mb-3">{t('payment.orderSummary')}</h2>
           {items.map(item => (
             <div key={item.id} className="flex justify-between text-sm">
               <span className="text-muted-foreground">
@@ -147,7 +147,7 @@ export default function ClientPayment() {
 
         {/* Payment Methods */}
         <div className="space-y-3">
-          <h2 className="font-semibold text-base">{t('payment.title')}</h2>
+          <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
           
           {/* Add to Room */}
           <button
@@ -166,9 +166,9 @@ export default function ClientPayment() {
                 <Hotel className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-sm mb-0.5">{t('checkout.payAtHotel')}</h3>
+                <h3 className="font-semibold text-sm mb-0.5">{t('payment.addToRoom')}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {i18n.language === 'fr' ? 'Ajouté à votre note de chambre' : 'Added to your room bill'}
+                  {t('payment.addToRoomDesc')}
                 </p>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -198,9 +198,9 @@ export default function ClientPayment() {
                 <CreditCard className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-sm mb-0.5">{t('checkout.payNow')}</h3>
+                <h3 className="font-semibold text-sm mb-0.5">{t('payment.payNow')}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {t('payment.secure')}
+                  {t('payment.payNowDesc')}
                 </p>
               </div>
               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -229,7 +229,7 @@ export default function ClientPayment() {
             </>
           ) : (
             <>
-              {selectedMethod === 'room' ? t('common:buttons.confirm') : `${t('checkout.payNow')} €${total.toFixed(2)}`}
+              {selectedMethod === 'room' ? t('payment.confirmBook') : `${t('payment.payNow')} €${total.toFixed(2)}`}
             </>
           )}
         </Button>

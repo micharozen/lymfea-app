@@ -64,8 +64,15 @@
   },
   "payment": {
     "title": "Payment",
+    "orderSummary": "Order Summary",
+    "paymentMethod": "Payment Method",
+    "addToRoom": "Add to Room",
+    "addToRoomDesc": "Charge will be added to your room bill",
+    "payNow": "Pay Now",
+    "payNowDesc": "Credit card, Apple Pay, Google Pay",
     "processing": "Processing...",
-    "secure": "Secure payment"
+    "secure": "Secure payment",
+    "confirmBook": "Confirm & Book"
   },
   "confirmation": {
     "title": "Booking Complete",
