@@ -337,6 +337,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          password_set: boolean | null
           phone: string
           profile_image: string | null
           skills: string[] | null
@@ -353,6 +354,7 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          password_set?: boolean | null
           phone: string
           profile_image?: string | null
           skills?: string[] | null
@@ -369,6 +371,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          password_set?: boolean | null
           phone?: string
           profile_image?: string | null
           skills?: string[] | null

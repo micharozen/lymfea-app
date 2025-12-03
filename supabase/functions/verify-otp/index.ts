@@ -236,6 +236,7 @@ serve(async (req) => {
           status: hairdresser.status,
           first_name: hairdresser.first_name,
           last_name: hairdresser.last_name,
+          password_set: hairdresser.password_set || false,
         }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

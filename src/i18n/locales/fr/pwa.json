@@ -137,6 +137,7 @@
   "security": {
     "title": "Sécurité du compte",
     "recommendation": "Pour des raisons de sécurité, nous vous recommandons de changer régulièrement votre mot de passe.",
+    "currentPassword": "Mot de passe actuel",
     "newPassword": "Nouveau mot de passe",
     "confirmPassword": "Confirmer le mot de passe",
     "changePassword": "Changer le mot de passe",
@@ -145,19 +146,51 @@
     "passwordsNoMatch": "Les mots de passe ne correspondent pas",
     "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
     "passwordChanged": "Mot de passe modifié avec succès",
-    "passwordError": "Erreur lors de la modification du mot de passe"
+    "passwordError": "Erreur lors de la modification du mot de passe",
+    "currentPasswordWrong": "Le mot de passe actuel est incorrect"
   },
   "onboarding": {
-    "welcome": "Bienvenue sur OOM",
-    "step1Title": "Gérez vos réservations",
-    "step1Desc": "Consultez et gérez facilement toutes vos réservations",
-    "step2Title": "Notifications en temps réel",
-    "step2Desc": "Recevez des alertes instantanées pour les nouvelles réservations",
-    "step3Title": "Signature client",
-    "step3Desc": "Faites signer vos clients directement sur l'application",
-    "skip": "Passer",
-    "next": "Suivant",
-    "done": "Terminé"
+    "welcome": {
+      "title": "Bienvenue sur OOM",
+      "accountCreated": "Compte créé !",
+      "subtitle": "Votre compte a été créé avec succès. Configurons votre profil pour commencer.",
+      "start": "Commencer"
+    },
+    "password": {
+      "title": "Mot de passe",
+      "step": "Étape 1 sur 3",
+      "heading": "Sécurisez votre compte",
+      "subtitle": "Définissez un mot de passe pour vous connecter plus rapidement la prochaine fois.",
+      "newPassword": "Mot de passe",
+      "confirmPassword": "Confirmer le mot de passe",
+      "minChars": "Le mot de passe doit contenir au moins 6 caractères",
+      "noMatch": "Les mots de passe ne correspondent pas",
+      "fillAllFields": "Veuillez remplir tous les champs",
+      "tooShort": "Le mot de passe doit contenir au moins 6 caractères",
+      "success": "Mot de passe défini avec succès",
+      "error": "Erreur lors de la définition du mot de passe",
+      "saving": "Enregistrement...",
+      "continue": "Continuer"
+    },
+    "photo": {
+      "title": "Photo de profil",
+      "step": "Étape 2 sur 3",
+      "subtitle": "Ajoutez une photo pour personnaliser votre profil",
+      "uploading": "Téléchargement en cours...",
+      "uploadSuccess": "Photo de profil ajoutée",
+      "uploadError": "Erreur lors de l'ajout de la photo",
+      "continue": "Continuer",
+      "skip": "Passer cette étape"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "step": "Étape 3 sur 3",
+      "heading": "Restez informé",
+      "subtitle": "Recevez des notifications pour vos nouvelles réservations et mises à jour importantes",
+      "enable": "Activer les notifications",
+      "later": "Configurer plus tard"
+    },
+    "complete": "Bienvenue sur OOM !"
   },
   "tabs": {
     "home": "Accueil",
