@@ -541,7 +541,7 @@ const PwaDashboard = () => {
       >
         {/* My Bookings Section */}
         <div className="px-6 pt-5">
-          <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-black">MY BOOKINGS</h2>
+          <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-black">{t('dashboard.myBookings')}</h2>
           
           {/* Tabs */}
           <div className="flex gap-6 mb-5 border-b border-gray-200">
@@ -553,7 +553,7 @@ const PwaDashboard = () => {
                   : "text-gray-400"
               }`}
             >
-              Upcoming
+              {t('dashboard.upcoming')}
               {activeTab === "upcoming" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
               )}
@@ -566,7 +566,7 @@ const PwaDashboard = () => {
                   : "text-gray-400"
               }`}
             >
-              Historique
+              {t('dashboard.history')}
               {activeTab === "history" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
               )}
@@ -579,7 +579,7 @@ const PwaDashboard = () => {
                   : "text-gray-400"
               }`}
             >
-              Cancelled
+              {t('dashboard.cancelled')}
               {activeTab === "cancelled" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
               )}
@@ -608,14 +608,14 @@ const PwaDashboard = () => {
                   {activeTab === "upcoming" ? "📅" : activeTab === "history" ? "✅" : "🚫"}
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {activeTab === "upcoming" ? "Aucune réservation à venir" : 
-                   activeTab === "history" ? "Aucune réservation complétée" : 
-                   "Aucune annulation"}
+                  {activeTab === "upcoming" ? t('dashboard.noUpcoming') : 
+                   activeTab === "history" ? t('dashboard.noHistory') : 
+                   t('dashboard.noCancelled')}
                 </h3>
                 <p className="text-sm text-gray-500">
-                  {activeTab === "upcoming" ? "Les nouvelles réservations apparaîtront ici" : 
-                   activeTab === "history" ? "Vos réservations terminées apparaîtront ici" : 
-                   "Les réservations annulées apparaîtront ici"}
+                  {activeTab === "upcoming" ? t('dashboard.upcomingWillAppear') : 
+                   activeTab === "history" ? t('dashboard.historyWillAppear') : 
+                   t('dashboard.cancelledWillAppear')}
                 </p>
               </div>
             ) : (
@@ -642,7 +642,7 @@ const PwaDashboard = () => {
                         <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
                         {booking.hairdresser_id && booking.status === "En attente" && (
                           <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
-                            À confirmer
+                            {t('dashboard.toConfirm')}
                           </Badge>
                         )}
                       </div>
@@ -662,7 +662,7 @@ const PwaDashboard = () => {
                 onClick={() => setShowAllBookings(true)}
                 className="text-sm text-black font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                Show {filteredBookings.length - 3} More
+                {t('dashboard.showMore', { count: filteredBookings.length - 3 })}
               </button>
             )}
             
@@ -671,7 +671,7 @@ const PwaDashboard = () => {
                 onClick={() => setShowAllBookings(false)}
                 className="text-sm text-gray-500 font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
               >
-                Show Less
+                {t('dashboard.showLess')}
               </button>
             )}
           </div>
@@ -680,7 +680,7 @@ const PwaDashboard = () => {
         {/* Pending Requests Section - Always visible */}
         <div className="px-6 pt-6 pb-4">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-black">PENDING REQUESTS</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-black">{t('dashboard.pendingRequests')}</h2>
             <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
               <span className="text-[10px] font-semibold text-gray-600">{pendingRequests.length}</span>
             </div>
@@ -704,10 +704,10 @@ const PwaDashboard = () => {
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
               <div className="text-6xl mb-4">⏱️</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Aucune demande en attente
+                {t('dashboard.noPending')}
               </h3>
               <p className="text-sm text-gray-500">
-                Les nouvelles demandes de réservation apparaîtront ici
+                {t('dashboard.pendingWillAppear')}
               </p>
             </div>
           ) : (
