@@ -40,7 +40,7 @@ const PwaWelcome = () => {
           <h1 className="text-4xl font-bold leading-tight">
             Beauty Room Service
           </h1>
-          <p className="text-base text-white/90 leading-relaxed h-6">
+          <p className="text-base text-white/90 leading-relaxed">
             {t('welcome.subtitle')}
           </p>
         </div>
@@ -49,7 +49,7 @@ const PwaWelcome = () => {
           {t('welcome.getStarted')}
         </Button>
 
-        <p className="text-xs text-center text-white/70 px-4 h-8 flex items-center justify-center flex-wrap">
+        <p className="text-xs text-center text-white/70 px-4 leading-relaxed">
           {t('welcome.termsIntro')}{" "}
           <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">
             {t('welcome.termsOfUse')}
