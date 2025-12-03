@@ -38,6 +38,7 @@ import PwaNotifications from "./pages/pwa/PwaNotifications";
 import PwaInstall from "./pages/pwa/PwaInstall";
 import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
 import PwaWallet from "./pages/pwa/PwaWallet";
+import PwaStripeCallback from "./pages/pwa/PwaStripeCallback";
 
 import Home from "./pages/Home";
 import ClientWelcome from "./pages/client/ClientWelcome";
@@ -124,6 +125,14 @@ const App = () => {
             element={
               <HairdresserProtectedRoute>
                 <PwaOnboarding />
+              </HairdresserProtectedRoute>
+            }
+          />
+          <Route
+            path="/pwa/stripe-callback"
+            element={
+              <HairdresserProtectedRoute>
+                <PwaStripeCallback />
               </HairdresserProtectedRoute>
             }
           />
