@@ -33,6 +33,8 @@ interface Booking {
   total_price: number | null;
   hairdresser_id: string | null;
   declined_by?: string[];
+  payment_status?: string | null;
+  payment_method?: string | null;
   booking_treatments?: Array<{
     treatment_menus: {
       price: number;
@@ -40,6 +42,23 @@ interface Booking {
     } | null;
   }>;
 }
+
+const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
+  if (!paymentStatus) return null;
+  
+  switch (paymentStatus) {
+    case 'paid':
+      return { label: 'Payé', className: 'bg-green-100 text-green-700' };
+    case 'charged_to_room':
+      return { label: 'Chambre', className: 'bg-blue-100 text-blue-700' };
+    case 'pending':
+      return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
+    case 'failed':
+      return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+    default:
+      return null;
+  }
+};
 
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
@@ -633,6 +652,14 @@ const PwaDashboard = () => {
                             {t('dashboard.toConfirm')}
                           </Badge>
                         )}
+                        {(() => {
+                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
+                          return paymentBadge ? (
+                            <Badge className={`text-[10px] px-1.5 py-0 h-4 ${paymentBadge.className}`}>
+                              {paymentBadge.label}
+                            </Badge>
+                          ) : null;
+                        })()}
                       </div>
                       <p className="text-[13px] text-gray-500">
                         {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min

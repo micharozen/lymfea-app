@@ -48,7 +48,26 @@ interface Booking {
   client_note?: string | null;
   client_email?: string | null;
   hotel_vat?: number;
+  payment_status?: string | null;
+  payment_method?: string | null;
 }
+
+const getPaymentStatusBadge = (paymentStatus?: string | null) => {
+  if (!paymentStatus) return null;
+  
+  switch (paymentStatus) {
+    case 'paid':
+      return { label: 'Payé', className: 'bg-green-100 text-green-700' };
+    case 'charged_to_room':
+      return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
+    case 'pending':
+      return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
+    case 'failed':
+      return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+    default:
+      return null;
+  }
+};
 
 interface Treatment {
   id: string;
@@ -644,6 +663,20 @@ const PwaBookingDetail = () => {
               <ChevronLeft className="w-4 h-4 rotate-180" />
             </button>
           </div>
+
+          {/* Payment Status Badge */}
+          {booking.payment_status && (
+            <div className="flex justify-center mb-6">
+              {(() => {
+                const badge = getPaymentStatusBadge(booking.payment_status);
+                return badge ? (
+                  <Badge className={`text-xs px-3 py-1 ${badge.className}`}>
+                    {badge.label}
+                  </Badge>
+                ) : null;
+              })()}
+            </div>
+          )}
 
           {/* Details */}
           <div className="space-y-4 mb-6">
