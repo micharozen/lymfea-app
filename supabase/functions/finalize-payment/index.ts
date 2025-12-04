@@ -577,7 +577,12 @@ async function notifyConcierge(
     return;
   }
 
+  // Check DEV_MODE for test emails
+  const DEV_MODE = Deno.env.get("DEV_MODE") === "true";
+  const TEST_EMAIL = "aaron@oomworld.com";
+
   for (const concierge of concierges) {
+    const targetEmail = DEV_MODE ? TEST_EMAIL : concierge.email;
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -645,20 +650,23 @@ async function notifyConcierge(
         },
         body: JSON.stringify({
           from: 'OOM App <booking@oomworld.com>',
-          to: [concierge.email],
-          subject: `⚠️ ACTION REQUISE : Débiter Chambre ${booking.room_number || 'N/A'} - ${amount.toFixed(2)}€ - Réservation #${booking.booking_id}`,
+          to: [targetEmail],
+          subject: `${DEV_MODE ? '[TEST] ' : ''}⚠️ ACTION REQUISE : Débiter Chambre ${booking.room_number || 'N/A'} - ${amount.toFixed(2)}€ - Réservation #${booking.booking_id}`,
           html: emailHtml,
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        log(`Failed to send email to ${concierge.email}`, { error: errorText });
+        log(`Failed to send email to ${targetEmail}`, { error: errorText });
       } else {
-        log(`Email sent to concierge: ${concierge.email}`);
+        log(`Email sent to concierge: ${targetEmail}${DEV_MODE ? ` (original: ${concierge.email})` : ''}`);
       }
     } catch (emailError: any) {
-      log(`Error sending email to ${concierge.email}`, { error: emailError.message });
+      log(`Error sending email to ${targetEmail}`, { error: emailError.message });
     }
+    
+    // En mode test, on n'envoie qu'un seul email
+    if (DEV_MODE) break;
   }
 }
