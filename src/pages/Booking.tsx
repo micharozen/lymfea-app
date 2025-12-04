@@ -311,14 +311,14 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6 overflow-x-hidden">
+    <div className="min-h-screen bg-background p-3 md:p-6 overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-7xl mx-auto w-full">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <h1 className="text-xl md:text-3xl font-bold text-foreground flex items-center gap-2">
             📅 Réservations
           </h1>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 md:gap-4">
+            <div className="hidden md:flex items-center gap-2">
               <Label>Fuseau horaire:</Label>
               <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger className="w-[280px]">
@@ -335,17 +335,19 @@ export default function Booking() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              Créer une réservation
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="w-full md:w-auto">
+              <Plus className="h-4 w-4 md:hidden" />
+              <span className="hidden md:inline">Créer une réservation</span>
+              <span className="md:hidden">Nouvelle réservation</span>
             </Button>
           </div>
         </div>
 
         <div className="bg-card rounded-lg border border-border">
-          <div className="p-4 border-b border-border">
-            <div className="flex gap-4 flex-wrap items-center justify-between">
-              <div className="flex gap-4 flex-wrap items-center flex-1">
-                <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="p-2 md:p-4 border-b border-border">
+            <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center justify-between">
+              <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center flex-1">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Rechercher"
@@ -355,109 +357,113 @@ export default function Booking() {
                   />
                 </div>
 
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filtrer par statut" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="En attente">En attente</SelectItem>
-                    <SelectItem value="Assigné">Assigné</SelectItem>
-                    <SelectItem value="Terminé">Terminé</SelectItem>
-                    <SelectItem value="Annulé">Annulé</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 md:flex gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full md:w-[140px]">
+                      <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      <SelectItem value="En attente">En attente</SelectItem>
+                      <SelectItem value="Assigné">Assigné</SelectItem>
+                      <SelectItem value="Terminé">Terminé</SelectItem>
+                      <SelectItem value="Annulé">Annulé</SelectItem>
+                    </SelectContent>
+                  </Select>
 
-                <Select value={hotelFilter} onValueChange={setHotelFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filtrer par hôtel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les hôtels</SelectItem>
-                    {hotels?.map((hotel) => (
-                      <SelectItem key={hotel.id} value={hotel.id}>
-                        {hotel.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                    <SelectTrigger className="w-full md:w-[140px]">
+                      <SelectValue placeholder="Hôtel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      {hotels?.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                <Select value={hairdresserFilter} onValueChange={setHairdresserFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Filtrer par coiffeur" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les coiffeurs</SelectItem>
-                    {hairdressers?.map((hairdresser) => (
-                      <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                        {hairdresser.first_name} {hairdresser.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Select value={hairdresserFilter} onValueChange={setHairdresserFilter}>
+                    <SelectTrigger className="w-full md:w-[140px] col-span-2 md:col-span-1">
+                      <SelectValue placeholder="Coiffeur" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous</SelectItem>
+                      {hairdressers?.map((hairdresser) => (
+                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                          {hairdresser.first_name} {hairdresser.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-center">
                 <Button
                   variant={view === "calendar" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setView("calendar")}
+                  className="flex-1 md:flex-initial"
                 >
                   <CalendarIcon className="h-4 w-4" />
-                  Calendrier
+                  <span className="hidden md:inline ml-1">Calendrier</span>
                 </Button>
                 <Button
                   variant={view === "list" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setView("list")}
+                  className="flex-1 md:flex-initial"
                 >
                   <List className="h-4 w-4" />
-                  Liste
+                  <span className="hidden md:inline ml-1">Liste</span>
                 </Button>
               </div>
             </div>
           </div>
 
           {view === "calendar" ? (
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <Button variant="outline" size="sm" onClick={handlePreviousWeek}>
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Semaine précédente
+            <div className="p-2 md:p-6 overflow-x-auto">
+              <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
+                <Button variant="outline" size="sm" onClick={handlePreviousWeek} className="px-2 md:px-3">
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="hidden md:inline ml-1">Précédente</span>
                 </Button>
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-sm md:text-xl font-semibold text-center flex-1">
                   {format(currentWeekStart, "d MMM", { locale: fr })} -{" "}
                   {format(addDays(currentWeekStart, 6), "d MMM yyyy", { locale: fr })}
                 </h2>
-                <Button variant="outline" size="sm" onClick={handleNextWeek}>
-                  Semaine suivante
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                <Button variant="outline" size="sm" onClick={handleNextWeek} className="px-2 md:px-3">
+                  <span className="hidden md:inline mr-1">Suivante</span>
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
 
-              <div className="w-full overflow-hidden">
-                <div className="w-full bg-card rounded-lg border border-border">
+              <div className="w-full overflow-x-auto -mx-2 md:mx-0 px-2 md:px-0">
+                <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
-                    <div className="p-3 border-r border-border bg-muted/30">
-                      <span className="text-xs font-medium text-muted-foreground">Heure</span>
+                    <div className="p-1 md:p-3 border-r border-border bg-muted/30">
+                      <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
                     </div>
                     {weekDays.map((day) => {
                       const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                       return (
                         <div
                           key={day.toISOString()}
-                          className={`p-3 text-center border-r border-border last:border-r-0 ${
+                          className={`p-1 md:p-3 text-center border-r border-border last:border-r-0 ${
                             isToday ? "bg-primary/5" : "bg-muted/30"
                           }`}
                         >
-                          <div className="text-xs font-medium text-muted-foreground uppercase">
+                          <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">
                             {format(day, "EEE", { locale: fr })}
                           </div>
-                          <div className={`text-xl font-bold ${isToday ? "text-primary" : ""}`}>
+                          <div className={`text-sm md:text-xl font-bold ${isToday ? "text-primary" : ""}`}>
                             {format(day, "d")}
                           </div>
-                          <div className="text-[10px] text-muted-foreground">
+                          <div className="text-[8px] md:text-[10px] text-muted-foreground">
                             {format(day, "MMM", { locale: fr })}
                           </div>
                         </div>
