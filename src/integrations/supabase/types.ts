@@ -331,6 +331,60 @@ export type Database = {
           },
         ]
       }
+      hairdresser_payouts: {
+        Row: {
+          amount: number
+          booking_id: string
+          created_at: string | null
+          error_message: string | null
+          hairdresser_id: string
+          id: string
+          organization_id: string | null
+          status: string
+          stripe_transfer_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id: string
+          created_at?: string | null
+          error_message?: string | null
+          hairdresser_id: string
+          id?: string
+          organization_id?: string | null
+          status?: string
+          stripe_transfer_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          hairdresser_id?: string
+          id?: string
+          organization_id?: string | null
+          status?: string
+          stripe_transfer_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hairdresser_payouts_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hairdresser_payouts_hairdresser_id_fkey"
+            columns: ["hairdresser_id"]
+            isOneToOne: false
+            referencedRelation: "hairdressers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hairdresser_ratings: {
         Row: {
           booking_id: string
@@ -430,11 +484,63 @@ export type Database = {
         }
         Relationships: []
       }
+      hotel_ledger: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string | null
+          description: string | null
+          hotel_id: string
+          id: string
+          organization_id: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          hotel_id: string
+          id?: string
+          organization_id?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          hotel_id?: string
+          id?: string
+          organization_id?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_ledger_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_ledger_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hotels: {
         Row: {
           address: string | null
           city: string | null
           country: string | null
+          country_code: string | null
           cover_image: string | null
           created_at: string
           currency: string | null
@@ -452,6 +558,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           cover_image?: string | null
           created_at?: string
           currency?: string | null
@@ -469,6 +576,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           country?: string | null
+          country_code?: string | null
           cover_image?: string | null
           created_at?: string
           currency?: string | null
