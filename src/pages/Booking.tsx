@@ -521,27 +521,16 @@ export default function Booking() {
                                            <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status, booking.payment_status)}`}
+                                                className={`p-1.5 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status, booking.payment_status)}`}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setSelectedBooking(booking);
                                                   setIsEditDialogOpen(true);
                                                 }}
                                               >
-                                                <div className="flex items-center justify-between gap-1">
-                                                  <span className="font-bold">
-                                                    {booking.booking_time?.substring(0, 5)}
-                                                  </span>
-                                                  <span className="text-[9px] opacity-90 font-medium">
-                                                    {getCombinedStatusLabel(booking.status, booking.payment_status)}
-                                                  </span>
-                                                </div>
-                                                <div className="truncate font-medium">
-                                                  {booking.hotel_name}
-                                                </div>
-                                                <div className="opacity-80 text-[10px]">
-                                                  {durationFormatted}
-                                                </div>
+                                                <div className="font-bold">{booking.booking_time?.substring(0, 5)}</div>
+                                                <div className="truncate text-[10px]">{booking.hotel_name}</div>
+                                                <div className="opacity-80 text-[9px]">{durationFormatted}</div>
                                               </div>
                                             </TooltipTrigger>
                                             <TooltipContent side="right" className="max-w-sm">
