@@ -81,30 +81,50 @@ serve(async (req) => {
         const hairdresserCommission = booking.hotel.hairdresser_commission || 70;
         const hairdresserAmount = Math.round((booking.total_price * hairdresserCommission) / 100);
 
-        // Transférer au coiffeur via Stripe Connect
-        try {
-          const transfer = await stripe.transfers.create({
-            amount: hairdresserAmount * 100, // Stripe utilise les centimes
-            currency: invoice.currency,
-            destination: booking.hairdresser.stripe_account_id,
-            description: `Paiement pour réservation #${booking.booking_id}`,
-            metadata: {
-              booking_id: booking.id,
-              invoice_id: invoice.id,
-            },
-          });
+          // Calculer la commission OOM (ce qui reste après le coiffeur)
+          const oomCommission = booking.total_price - hairdresserAmount;
 
-          console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${hairdresserAmount}€`);
+          // Transférer au coiffeur via Stripe Connect
+          try {
+            const transfer = await stripe.transfers.create({
+              amount: hairdresserAmount * 100, // Stripe utilise les centimes
+              currency: invoice.currency,
+              destination: booking.hairdresser.stripe_account_id,
+              description: `Paiement pour réservation #${booking.booking_id}`,
+              metadata: {
+                booking_id: booking.id,
+                invoice_id: invoice.id,
+              },
+            });
 
-          // Mettre à jour le statut du paiement dans la DB
-          await supabase
-            .from('bookings')
-            .update({ payment_status: 'paid' })
-            .eq('id', bookingId);
+            console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${hairdresserAmount}€`);
 
-        } catch (transferError) {
-          console.error(`[STRIPE-WEBHOOK] Transfer failed for booking ${booking.booking_id}:`, transferError);
-        }
+            // Créer l'entrée dans le ledger (positif = recette pour OOM)
+            const { error: ledgerError } = await supabase
+              .from('hotel_ledger')
+              .insert({
+                hotel_id: booking.hotel_id,
+                booking_id: booking.id,
+                amount: oomCommission,
+                status: 'paid',
+                description: `Paiement carte - Réservation #${booking.booking_id}`,
+              });
+
+            if (ledgerError) {
+              console.error(`[STRIPE-WEBHOOK] Ledger entry failed:`, ledgerError);
+            } else {
+              console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission}€ for hotel ${booking.hotel_id}`);
+            }
+
+            // Mettre à jour le statut du paiement dans la DB
+            await supabase
+              .from('bookings')
+              .update({ payment_status: 'paid' })
+              .eq('id', bookingId);
+
+          } catch (transferError) {
+            console.error(`[STRIPE-WEBHOOK] Transfer failed for booking ${booking.booking_id}:`, transferError);
+          }
       }
     }
 
@@ -140,6 +160,7 @@ serve(async (req) => {
         if (booking.hairdresser?.stripe_account_id) {
           const hairdresserCommission = booking.hotel.hairdresser_commission || 70;
           const hairdresserAmount = Math.round((booking.total_price * hairdresserCommission) / 100);
+          const oomCommission = booking.total_price - hairdresserAmount;
 
           try {
             const transfer = await stripe.transfers.create({
@@ -154,6 +175,23 @@ serve(async (req) => {
             });
 
             console.log(`[STRIPE-WEBHOOK] Card payment transfer: ${transfer.id}`);
+
+            // Créer l'entrée dans le ledger (positif = recette pour OOM)
+            const { error: ledgerError } = await supabase
+              .from('hotel_ledger')
+              .insert({
+                hotel_id: booking.hotel_id,
+                booking_id: booking.id,
+                amount: oomCommission,
+                status: 'paid',
+                description: `Paiement carte - Réservation #${booking.booking_id}`,
+              });
+
+            if (ledgerError) {
+              console.error(`[STRIPE-WEBHOOK] Ledger entry failed:`, ledgerError);
+            } else {
+              console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission}€`);
+            }
 
             await supabase
               .from('bookings')
