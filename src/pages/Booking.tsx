@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard, Plus } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -250,21 +250,21 @@ export default function Booking() {
     const normalizedStatus = status.toLowerCase();
     
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-info border-info hover:bg-info/90";
+      return "bg-info text-info-foreground border-info hover:bg-info/90";
     }
     if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
-      return "bg-success border-success hover:bg-success/90";
+      return "bg-success text-success-foreground border-success hover:bg-success/90";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-destructive border-destructive hover:bg-destructive/90";
+      return "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90";
     }
     if (normalizedStatus.includes("validation")) {
-      return "bg-primary border-primary hover:bg-primary/90";
+      return "bg-purple-500 text-white border-purple-600 hover:bg-purple-600";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-warning border-warning hover:bg-warning/90";
+      return "bg-warning text-warning-foreground border-warning hover:bg-warning/90";
     }
-    return "bg-card border-border hover:bg-muted/5";
+    return "bg-card text-card-foreground border-border hover:bg-muted/5";
   };
 
   const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
@@ -456,17 +456,35 @@ export default function Booking() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 transition-colors group ${
                                   bookingsInHour.length > 0
-                                    ? "bg-primary/5 hover:bg-primary/10"
+                                    ? "bg-primary/5"
                                     : isToday
-                                    ? "bg-primary/[0.02] hover:bg-muted/30"
-                                    : "hover:bg-muted/30"
+                                    ? "bg-primary/[0.02] hover:bg-muted/30 cursor-pointer"
+                                    : "hover:bg-muted/30 cursor-pointer"
                                 }`}
-                                onClick={() => handleCalendarClick(day, hourStr)}
+                                onClick={() => {
+                                  if (bookingsInHour.length === 0) {
+                                    handleCalendarClick(day, hourStr);
+                                  }
+                                }}
                               >
+                                {/* Bouton + pour ajouter une réservation */}
                                 {bookingsInHour.length > 0 && (
-                                  <div className="flex flex-col gap-1 h-full">
+                                  <button
+                                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-primary/10 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCalendarClick(day, hourStr);
+                                    }}
+                                    title="Ajouter une réservation"
+                                  >
+                                    <Plus className="h-3 w-3 text-primary" />
+                                  </button>
+                                )}
+                                
+                                {bookingsInHour.length > 0 && (
+                                  <div className="flex flex-col gap-1 h-full pr-5">
                                     <TooltipProvider>
                                       {bookingsInHour.map((booking) => {
                                         const duration = (booking as any).totalDuration || 0;
@@ -488,13 +506,13 @@ export default function Booking() {
                                                   setIsEditDialogOpen(true);
                                                 }}
                                               >
-                                                <div className="font-bold text-foreground">
+                                                <div className="font-bold">
                                                   {booking.booking_time?.substring(0, 5)}
                                                 </div>
-                                                <div className="text-foreground/90 truncate font-medium">
+                                                <div className="truncate font-medium">
                                                   {booking.hotel_name}
                                                 </div>
-                                                <div className="text-foreground/70 text-[10px]">
+                                                <div className="opacity-80 text-[10px]">
                                                   {durationFormatted}
                                                 </div>
                                               </div>
