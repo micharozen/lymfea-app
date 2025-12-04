@@ -52,6 +52,7 @@ const subMenuItems = [
   { title: "Concierges", url: "/concierges", emoji: "🛎️" },
   { title: "Produits OOM", url: "/oom-products", emoji: "💈" },
   { title: "Commandes", url: "/oom-orders", emoji: "🚚" },
+  { title: "Finance", url: "/finance", emoji: "💰" },
 ];
 
 export function AppSidebar() {
