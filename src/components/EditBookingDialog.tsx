@@ -579,7 +579,7 @@ export default function EditBookingDialog({
                   {booking?.status}
                 </Badge>
                 {booking?.payment_status && (
-                  <Badge className={`text-xs ${getPaymentStatusBadge(booking.payment_status).className}`}>
+                  <Badge variant="outline" className={`text-xs ${getPaymentStatusBadge(booking.payment_status).className}`}>
                     {getPaymentStatusBadge(booking.payment_status).label}
                   </Badge>
                 )}
