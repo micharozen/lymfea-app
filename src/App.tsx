@@ -114,6 +114,7 @@ const App = () => {
           <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
           <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
           <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
+          <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
           
           {/* PWA Public Routes (no TabBar, no auth) */}
           <Route path="/pwa/splash" element={<PwaSplash />} />
