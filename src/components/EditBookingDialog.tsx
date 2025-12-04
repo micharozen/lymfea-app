@@ -147,7 +147,7 @@ export default function EditBookingDialog({
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
-  const [showValidateDialog, setShowValidateDialog] = useState(false);
+  
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -435,39 +435,6 @@ export default function EditBookingDialog({
         variant: "destructive",
       });
       console.error("Error deleting booking:", error);
-    },
-  });
-
-  const validateCompletionMutation = useMutation({
-    mutationFn: async () => {
-      if (!booking?.id) return;
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          status: "Complété",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      toast({
-        title: "Succès",
-        description: "La réservation a été marquée comme complétée",
-      });
-      setShowValidateDialog(false);
-      onOpenChange(false);
-    },
-    onError: (error) => {
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la validation",
-        variant: "destructive",
-      });
-      console.error("Error validating booking:", error);
     },
   });
 
@@ -812,17 +779,6 @@ export default function EditBookingDialog({
               </Button>
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
-                  {booking?.status === "En attente de validation" && (
-                    <Button 
-                      type="button" 
-                      variant="default"
-                      onClick={() => setShowValidateDialog(true)}
-                      className="gap-2 bg-success hover:bg-success/90"
-                    >
-                      <Check className="h-4 w-4" />
-                      Valider la complétion
-                    </Button>
-                  )}
                   <Button 
                     type="button" 
                     variant="destructive"
@@ -1205,25 +1161,6 @@ export default function EditBookingDialog({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showValidateDialog} onOpenChange={setShowValidateDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Valider la complétion</AlertDialogTitle>
-            <AlertDialogDescription>
-              Confirmez-vous que cette réservation est terminée et validée ? Le statut passera à "Complété".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => validateCompletionMutation.mutate()}
-              className="bg-success text-success-foreground hover:bg-success/90"
-            >
-              {validateCompletionMutation.isPending ? "Validation..." : "Valider"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Dialog>
   );
 }
