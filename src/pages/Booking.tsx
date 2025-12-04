@@ -246,25 +246,51 @@ export default function Booking() {
     return "bg-muted/10 text-muted-foreground border-border hover:bg-muted/20";
   };
 
-  const getStatusCardColor = (status: string) => {
+  const getStatusCardColor = (status: string, paymentStatus?: string | null) => {
     const normalizedStatus = status.toLowerCase();
     
+    // Priorité au paiement en attente
+    if (paymentStatus === 'pending' && !normalizedStatus.includes("annul") && !normalizedStatus.includes("cancel")) {
+      return "bg-amber-500 text-white border-amber-600";
+    }
+    
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-info text-info-foreground border-info hover:bg-info/90";
+      return "bg-blue-500 text-white border-blue-600";
     }
     if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
-      return "bg-success text-success-foreground border-success hover:bg-success/90";
+      return "bg-emerald-500 text-white border-emerald-600";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90";
+      return "bg-red-500 text-white border-red-600";
     }
     if (normalizedStatus.includes("validation")) {
-      return "bg-purple-500 text-white border-purple-600 hover:bg-purple-600";
+      return "bg-purple-500 text-white border-purple-600";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-warning text-warning-foreground border-warning hover:bg-warning/90";
+      return "bg-orange-500 text-white border-orange-600";
     }
-    return "bg-card text-card-foreground border-border hover:bg-muted/5";
+    if (normalizedStatus.includes("confirmé") || normalizedStatus.includes("confirm")) {
+      return "bg-sky-500 text-white border-sky-600";
+    }
+    return "bg-slate-500 text-white border-slate-600";
+  };
+
+  const getCombinedStatusLabel = (status: string, paymentStatus?: string | null) => {
+    const normalizedStatus = status.toLowerCase();
+    
+    // Si paiement en attente et pas annulé
+    if (paymentStatus === 'pending' && !normalizedStatus.includes("annul") && !normalizedStatus.includes("cancel")) {
+      return "€ Paiement";
+    }
+    
+    // Sinon afficher le statut abrégé
+    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") return "Assigné";
+    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) return "Terminé";
+    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) return "Annulé";
+    if (normalizedStatus.includes("validation")) return "Validation";
+    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) return "En attente";
+    if (normalizedStatus.includes("confirmé") || normalizedStatus.includes("confirm")) return "Confirmé";
+    return status;
   };
 
   const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
@@ -495,15 +521,20 @@ export default function Booking() {
                                            <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status)}`}
+                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status, booking.payment_status)}`}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setSelectedBooking(booking);
                                                   setIsEditDialogOpen(true);
                                                 }}
                                               >
-                                                <div className="font-bold">
-                                                  {booking.booking_time?.substring(0, 5)}
+                                                <div className="flex items-center justify-between gap-1">
+                                                  <span className="font-bold">
+                                                    {booking.booking_time?.substring(0, 5)}
+                                                  </span>
+                                                  <span className="text-[9px] opacity-90 font-medium">
+                                                    {getCombinedStatusLabel(booking.status, booking.payment_status)}
+                                                  </span>
                                                 </div>
                                                 <div className="truncate font-medium">
                                                   {booking.hotel_name}
