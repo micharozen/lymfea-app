@@ -30,6 +30,48 @@ interface CommissionBreakdown {
   oomShare: number;
 }
 
+// Upload signature to Supabase Storage and return public URL
+async function uploadSignatureToStorage(
+  supabase: any,
+  bookingId: string,
+  signatureBase64: string
+): Promise<string | null> {
+  try {
+    // Extract base64 data
+    const base64Data = signatureBase64.replace(/^data:image\/\w+;base64,/, '');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const fileName = `booking_${bookingId}_${Date.now()}.png`;
+    
+    const { data, error } = await supabase.storage
+      .from('signatures')
+      .upload(fileName, bytes, {
+        contentType: 'image/png',
+        upsert: true,
+      });
+
+    if (error) {
+      log("Error uploading signature", { error: error.message });
+      return null;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('signatures')
+      .getPublicUrl(fileName);
+
+    log("Signature uploaded", { publicUrl: publicUrlData.publicUrl });
+    return publicUrlData.publicUrl;
+  } catch (err: any) {
+    log("Exception uploading signature", { error: err.message });
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -153,27 +195,52 @@ serve(async (req) => {
 
     let result: any = { breakdown };
 
+    // Upload signature if provided
+    let signaturePublicUrl: string | null = null;
+    if (signature_data) {
+      signaturePublicUrl = await uploadSignatureToStorage(supabase, booking.id, signature_data);
+    }
+
     // 5. Traitement selon le mode de paiement
     if (payment_method === 'card') {
       // ===== PAIEMENT CARTE =====
       log("Processing CARD payment");
 
-      // Créer un Payment Link Stripe
-      // On stocke les metadata pour le webhook
-      const paymentLink = await stripe.paymentLinks.create({
-        line_items: [
-          {
-            price_data: {
-              currency: hotel.currency?.toLowerCase() || 'eur',
-              product_data: {
-                name: `Prestation OOM - Réservation #${booking.booking_id}`,
-                description: `${hotel.name} - ${booking.client_first_name} ${booking.client_last_name}`,
-              },
-              unit_amount: Math.round(totalTTC * 100), // En centimes
-            },
-            quantity: 1,
+      // Create or find Stripe customer
+      const clientEmail = booking.client_email || `${booking.client_first_name.toLowerCase()}.${booking.client_last_name.toLowerCase()}@guest.oom.com`;
+      let customerId: string | undefined;
+
+      // Try to find existing customer
+      const customers = await stripe.customers.list({ email: clientEmail, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        log("Found existing customer", { customerId });
+      } else {
+        // Create new customer
+        const customer = await stripe.customers.create({
+          email: clientEmail,
+          name: `${booking.client_first_name} ${booking.client_last_name}`,
+          metadata: {
+            booking_id: booking.id,
+            hotel_id: booking.hotel_id,
           },
-        ],
+        });
+        customerId = customer.id;
+        log("Created new customer", { customerId });
+      }
+
+      // Build description with treatments
+      const treatmentNames = booking.booking_treatments
+        ?.map((bt: any) => bt.treatment_menus?.name)
+        .filter(Boolean)
+        .join(', ') || 'Prestation OOM';
+
+      // Create Stripe Invoice
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        collection_method: 'send_invoice',
+        days_until_due: 0, // Due immediately
+        auto_advance: true,
         metadata: {
           booking_id: booking.id,
           booking_number: booking.booking_id.toString(),
@@ -184,24 +251,53 @@ serve(async (req) => {
           oom_share: breakdown.oomShare.toString(),
           total_ht: breakdown.totalHT.toString(),
           source: 'finalize-payment',
+          signature_url: signaturePublicUrl || '',
         },
-        after_completion: {
-          type: 'redirect',
-          redirect: {
-            url: `${Deno.env.get("SITE_URL") || 'https://xbkvmrqanoqdqvqwldio.lovableproject.com'}/pwa/bookings?payment=success&booking=${booking.booking_id}`,
+        custom_fields: signaturePublicUrl ? [
+          {
+            name: 'Preuve de Signature',
+            value: signaturePublicUrl.substring(0, 30) + '...',
           },
-        },
+        ] : undefined,
+        footer: signaturePublicUrl 
+          ? `Signature client: ${signaturePublicUrl}` 
+          : undefined,
       });
 
-      log("Payment link created", { url: paymentLink.url });
+      log("Invoice created", { invoiceId: invoice.id });
 
-      // Mettre à jour le booking avec le statut en attente de paiement
+      // Add invoice line item
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        invoice: invoice.id,
+        amount: Math.round(totalTTC * 100), // In cents
+        currency: hotel.currency?.toLowerCase() || 'eur',
+        description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name}`,
+      });
+
+      // Finalize the invoice to generate the PDF
+      const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+      
+      log("Invoice finalized", { 
+        invoiceId: finalizedInvoice.id, 
+        hosted_invoice_url: finalizedInvoice.hosted_invoice_url,
+        invoice_pdf: finalizedInvoice.invoice_pdf 
+      });
+
+      // Send the invoice (this sends email to customer)
+      const sentInvoice = await stripe.invoices.sendInvoice(invoice.id);
+      log("Invoice sent to customer", { email: clientEmail });
+
+      // Update booking with invoice URL and pending status
       await supabase
         .from('bookings')
         .update({
           payment_method: 'card',
           payment_status: 'pending',
           total_price: totalTTC,
+          stripe_invoice_url: sentInvoice.hosted_invoice_url,
+          client_signature: signature_data || null,
+          signed_at: signature_data ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', booking_id);
@@ -210,8 +306,10 @@ serve(async (req) => {
         ...result,
         success: true,
         payment_method: 'card',
-        payment_url: paymentLink.url,
-        message: "Payment link created. Client must complete payment.",
+        payment_url: sentInvoice.hosted_invoice_url,
+        invoice_url: sentInvoice.hosted_invoice_url,
+        invoice_pdf: sentInvoice.invoice_pdf,
+        message: "Stripe Invoice created and sent to client. Invoice URL saved.",
       };
 
     } else {
@@ -223,11 +321,75 @@ serve(async (req) => {
         throw new Error("Signature is required for room payment");
       }
 
-      // Sauvegarder la signature dans le booking
+      // Create or find Stripe customer for room payment too (for invoice generation)
+      const clientEmail = booking.client_email || `${booking.client_first_name.toLowerCase()}.${booking.client_last_name.toLowerCase()}@guest.oom.com`;
+      let customerId: string | undefined;
+
+      const customers = await stripe.customers.list({ email: clientEmail, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+      } else {
+        const customer = await stripe.customers.create({
+          email: clientEmail,
+          name: `${booking.client_first_name} ${booking.client_last_name}`,
+          metadata: { booking_id: booking.id, hotel_id: booking.hotel_id },
+        });
+        customerId = customer.id;
+      }
+
+      // Create Stripe Invoice for room payment (marked as paid outside Stripe)
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        collection_method: 'send_invoice',
+        days_until_due: 0,
+        auto_advance: false, // Don't auto-advance for room payments
+        metadata: {
+          booking_id: booking.id,
+          booking_number: booking.booking_id.toString(),
+          hotel_id: booking.hotel_id,
+          hairdresser_id: booking.hairdresser_id || '',
+          payment_method: 'room',
+          signature_url: signaturePublicUrl || '',
+        },
+        custom_fields: signaturePublicUrl ? [
+          {
+            name: 'Preuve de Signature',
+            value: signaturePublicUrl.substring(0, 30) + '...',
+          },
+        ] : undefined,
+        footer: signaturePublicUrl 
+          ? `Signature client: ${signaturePublicUrl}\nPaiement: Facturé sur la chambre ${booking.room_number || 'N/A'}` 
+          : `Paiement: Facturé sur la chambre ${booking.room_number || 'N/A'}`,
+      });
+
+      // Add invoice line item
+      await stripe.invoiceItems.create({
+        customer: customerId,
+        invoice: invoice.id,
+        amount: Math.round(totalTTC * 100),
+        currency: hotel.currency?.toLowerCase() || 'eur',
+        description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name} - Chambre ${booking.room_number || 'N/A'}`,
+      });
+
+      // Finalize the invoice
+      const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+      
+      // Mark as paid (outside of Stripe, since hotel collects)
+      const paidInvoice = await stripe.invoices.pay(invoice.id, {
+        paid_out_of_band: true,
+      });
+
+      log("Room invoice created and marked as paid", { 
+        invoiceId: paidInvoice.id, 
+        hosted_invoice_url: paidInvoice.hosted_invoice_url 
+      });
+
+      // Sauvegarder la signature et l'URL de facture dans le booking
       await supabase
         .from('bookings')
         .update({
           client_signature: signature_data,
+          stripe_invoice_url: paidInvoice.hosted_invoice_url,
           payment_method: 'room',
           total_price: totalTTC,
           updated_at: new Date().toISOString(),
@@ -332,7 +494,7 @@ serve(async (req) => {
 
       // Notifier le concierge
       try {
-        await notifyConcierge(supabase, booking, hotel, totalTTC, signature_data);
+        await notifyConcierge(supabase, booking, hotel, totalTTC, signature_data, paidInvoice.hosted_invoice_url);
         log("Concierge notified");
       } catch (notifyError: any) {
         log("Failed to notify concierge", { error: notifyError.message });
@@ -344,7 +506,9 @@ serve(async (req) => {
         payment_method: 'room',
         transfer: transferResult,
         ledger_amount: ledgerAmount,
-        message: "Room payment finalized. Hairdresser paid (cash advance). Concierge notified.",
+        invoice_url: paidInvoice.hosted_invoice_url,
+        invoice_pdf: paidInvoice.invoice_pdf,
+        message: "Room payment finalized. Stripe Invoice created. Hairdresser paid (cash advance). Concierge notified.",
       };
     }
 
@@ -379,7 +543,8 @@ async function notifyConcierge(
   booking: any, 
   hotel: any, 
   amount: number, 
-  signature: string
+  signature: string,
+  invoiceUrl?: string | null
 ) {
   // Récupérer les concierges de l'hôtel
   const { data: conciergeHotels } = await supabase
@@ -427,6 +592,7 @@ async function notifyConcierge(
           .signature { margin-top: 20px; padding: 10px; background: #fff; border: 1px solid #ddd; }
           .signature img { max-width: 100%; height: auto; }
           .action { background: #ff6b35; color: #fff; padding: 15px; text-align: center; margin-top: 20px; }
+          .invoice-btn { display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
         </style>
       </head>
       <body>
@@ -449,6 +615,12 @@ async function notifyConcierge(
             <div class="action">
               <p class="amount">Montant à débiter : ${amount.toFixed(2)} €</p>
             </div>
+            
+            ${invoiceUrl ? `
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="${invoiceUrl}" class="invoice-btn" target="_blank">📄 Voir la facture Stripe</a>
+            </div>
+            ` : ''}
             
             <div class="signature">
               <h3>Signature du client :</h3>
