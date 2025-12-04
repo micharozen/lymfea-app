@@ -615,20 +615,20 @@ const PwaBookingDetail = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-background pb-24">
+      <div className="min-h-screen bg-background pb-32">
         {/* Header */}
-        <div className="bg-background px-4 py-4 flex items-center justify-between sticky top-0 z-10 border-b border-border">
+        <div className="bg-background px-4 pt-safe py-3 flex items-center justify-between sticky top-0 z-10 border-b border-border">
           <button 
             onClick={() => {
               const from = (location.state as any)?.from;
               navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
             }} 
-            className="p-1"
+            className="p-2 -ml-2"
           >
             <ChevronLeft className="w-6 h-6 text-foreground" />
           </button>
           <h1 className="text-base font-semibold text-foreground">{t('bookingDetail.myBooking')}</h1>
-          <div className="w-6" />
+          <div className="w-10" />
         </div>
 
         <div className="px-6 pt-6">
@@ -797,7 +797,7 @@ const PwaBookingDetail = () => {
         </div>
 
         {/* Bottom Actions */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4 z-10">
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4 pb-safe z-10">
           <div className="flex items-center gap-3">
             {/* For Pending Requests (not assigned to anyone) */}
             {booking.status === "En attente" && !booking.hairdresser_id ? (
