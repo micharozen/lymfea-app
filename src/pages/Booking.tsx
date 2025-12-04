@@ -27,7 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -265,6 +265,23 @@ export default function Booking() {
       return "bg-warning border-warning hover:bg-warning/90";
     }
     return "bg-card border-border hover:bg-muted/5";
+  };
+
+  const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
+    if (!paymentStatus) return { label: '-', className: 'bg-muted/50 text-muted-foreground' };
+    
+    switch (paymentStatus) {
+      case 'paid':
+        return { label: 'Payé', className: 'bg-success/10 text-success border-success/30' };
+      case 'charged_to_room':
+        return { label: 'Chambre', className: 'bg-info/10 text-info border-info/30' };
+      case 'pending':
+        return { label: 'En attente', className: 'bg-warning/10 text-warning border-warning/30' };
+      case 'failed':
+        return { label: 'Échoué', className: 'bg-destructive/10 text-destructive border-destructive/30' };
+      default:
+        return { label: paymentStatus, className: 'bg-muted/50 text-muted-foreground' };
+    }
   };
 
   return (
@@ -612,6 +629,12 @@ export default function Booking() {
                       <TableHead className="font-semibold text-foreground">Status</TableHead>
                       <TableHead className="font-semibold text-foreground">
                         <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          Paiement
+                        </div>
+                      </TableHead>
+                      <TableHead className="font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
                           <User className="h-4 w-4" />
                           Client name
                         </div>
@@ -685,6 +708,16 @@ export default function Booking() {
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const badge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
+                          return (
+                            <Badge className={badge.className}>
+                              {badge.label}
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
@@ -737,7 +770,7 @@ export default function Booking() {
                   ))}
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center text-muted-foreground">
                         Aucune réservation trouvée
                       </TableCell>
                     </TableRow>
