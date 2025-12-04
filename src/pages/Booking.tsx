@@ -694,29 +694,44 @@ export default function Booking() {
                       <TableCell className="text-muted-foreground">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-muted-foreground">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            try {
-                              const { data, error } = await supabase.functions.invoke('generate-invoice', {
-                                body: { bookingId: booking.id }
-                              });
+                        {booking.stripe_invoice_url ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(booking.stripe_invoice_url, '_blank');
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            Invoice
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={booking.payment_status !== 'paid' && booking.status !== 'Complété'}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const { data, error } = await supabase.functions.invoke('generate-invoice', {
+                                  body: { bookingId: booking.id }
+                                });
 
-                              if (error) throw error;
+                                if (error) throw error;
 
-                              setInvoiceHTML(data.html);
-                              setInvoiceBookingId(data.bookingId);
-                              setIsInvoicePreviewOpen(true);
-                            } catch (error) {
-                              console.error('Error generating invoice:', error);
-                            }
-                          }}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Invoice
-                        </Button>
+                                setInvoiceHTML(data.html);
+                                setInvoiceBookingId(data.bookingId);
+                                setIsInvoicePreviewOpen(true);
+                              } catch (error) {
+                                console.error('Error generating invoice:', error);
+                              }
+                            }}
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            {booking.payment_status !== 'paid' && booking.status !== 'Complété' ? 'En attente' : 'Invoice'}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

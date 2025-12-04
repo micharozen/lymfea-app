@@ -117,6 +117,7 @@ export type Database = {
           room_number: string | null
           signed_at: string | null
           status: string
+          stripe_invoice_url: string | null
           total_price: number | null
           updated_at: string
         }
@@ -144,6 +145,7 @@ export type Database = {
           room_number?: string | null
           signed_at?: string | null
           status?: string
+          stripe_invoice_url?: string | null
           total_price?: number | null
           updated_at?: string
         }
@@ -171,6 +173,7 @@ export type Database = {
           room_number?: string | null
           signed_at?: string | null
           status?: string
+          stripe_invoice_url?: string | null
           total_price?: number | null
           updated_at?: string
         }
