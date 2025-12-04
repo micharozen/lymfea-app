@@ -456,18 +456,14 @@ export default function Booking() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 transition-colors group ${
+                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 transition-colors group cursor-pointer ${
                                   bookingsInHour.length > 0
-                                    ? "bg-primary/5"
+                                    ? "bg-primary/5 hover:bg-primary/10"
                                     : isToday
-                                    ? "bg-primary/[0.02] hover:bg-muted/30 cursor-pointer"
-                                    : "hover:bg-muted/30 cursor-pointer"
+                                    ? "bg-primary/[0.02] hover:bg-muted/30"
+                                    : "hover:bg-muted/30"
                                 }`}
-                                onClick={() => {
-                                  if (bookingsInHour.length === 0) {
-                                    handleCalendarClick(day, hourStr);
-                                  }
-                                }}
+                                onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {/* Bouton + pour ajouter une réservation */}
                                 {bookingsInHour.length > 0 && (
