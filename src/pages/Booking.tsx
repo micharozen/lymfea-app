@@ -456,7 +456,7 @@ export default function Booking() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${hour}`}
-                                className={`relative h-[40px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
+                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 cursor-pointer transition-colors ${
                                   bookingsInHour.length > 0
                                     ? "bg-primary/5 hover:bg-primary/10"
                                     : isToday
@@ -466,12 +466,11 @@ export default function Booking() {
                                 onClick={() => handleCalendarClick(day, hourStr)}
                               >
                                 {bookingsInHour.length > 0 && (
-                                  <div className="flex gap-0.5 h-full">
+                                  <div className="flex flex-col gap-1 h-full">
                                     <TooltipProvider>
                                       {bookingsInHour.map((booking) => {
                                         const duration = (booking as any).totalDuration || 0;
                                         const treatments = (booking as any).treatments || [];
-                                        const heightInPixels = Math.max(40, (duration / 60) * 60);
                                         const hours = Math.floor(duration / 60);
                                         const minutes = duration % 60;
                                         const durationFormatted = hours > 0 
@@ -482,21 +481,20 @@ export default function Booking() {
                                            <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className={`p-1.5 rounded border text-[10px] leading-tight cursor-pointer transition-colors flex-1 overflow-hidden ${getStatusCardColor(booking.status)}`}
-                                                style={{ minHeight: `${heightInPixels}px` }}
+                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ${getStatusCardColor(booking.status)}`}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setSelectedBooking(booking);
                                                   setIsEditDialogOpen(true);
                                                 }}
                                               >
-                                                <div className="font-bold text-foreground truncate">
+                                                <div className="font-bold text-foreground">
                                                   {booking.booking_time?.substring(0, 5)}
                                                 </div>
-                                                <div className="text-foreground/90 truncate font-semibold">
+                                                <div className="text-foreground/90 truncate font-medium">
                                                   {booking.hotel_name}
                                                 </div>
-                                                <div className="text-foreground/70 truncate text-[9px]">
+                                                <div className="text-foreground/70 text-[10px]">
                                                   {durationFormatted}
                                                 </div>
                                               </div>
