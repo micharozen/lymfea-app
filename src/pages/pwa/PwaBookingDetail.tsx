@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, Mail, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare } from "lucide-react";
+import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
+import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import {
   Drawer,
   DrawerClose,
@@ -97,6 +97,8 @@ const PwaBookingDetail = () => {
   const [showNavigationDrawer, setShowNavigationDrawer] = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
+  const [showPaymentSelection, setShowPaymentSelection] = useState(false);
+  const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
 
   useEffect(() => {
     fetchBookingDetail();
@@ -240,6 +242,31 @@ const PwaBookingDetail = () => {
     
     setSigningLoading(true);
     try {
+      // If this is a room payment flow, call finalize-payment
+      if (pendingRoomPayment) {
+        const { data, error } = await supabase.functions.invoke('finalize-payment', {
+          body: {
+            booking_id: booking.id,
+            payment_method: 'room',
+            final_amount: totalPrice,
+            signature_data: signatureData,
+          },
+        });
+
+        if (error) throw error;
+
+        if (!data?.success) {
+          throw new Error(data?.error || "Payment finalization failed");
+        }
+
+        toast.success("Prestation finalisée ! Votre paiement sera versé sous peu.");
+        setShowSignatureDialog(false);
+        setPendingRoomPayment(false);
+        navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+        return;
+      }
+
+      // Legacy flow - direct signature without payment processing
       const { error } = await supabase
         .from("bookings")
         .update({ 
@@ -262,12 +289,22 @@ const PwaBookingDetail = () => {
       toast.success(t('bookingDetail.completed'));
       setShowSignatureDialog(false);
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error:", error);
-      toast.error(t('common:errors.generic'));
+      toast.error(error.message || t('common:errors.generic'));
     } finally {
       setSigningLoading(false);
     }
+  };
+
+  const handleRoomPaymentSignature = () => {
+    setPendingRoomPayment(true);
+    setShowSignatureDialog(true);
+  };
+
+  const handlePaymentComplete = () => {
+    toast.success("Paiement finalisé !");
+    navigate("/pwa/dashboard", { state: { forceRefresh: true } });
   };
 
   const handleUnassignBooking = async () => {
@@ -858,15 +895,15 @@ const PwaBookingDetail = () => {
                   </DrawerContent>
                 </Drawer>
 
-                {/* Main Action Button */}
+                {/* Main Action Button - Smart Cashier */}
                 {(booking.status === "Assigné" || booking.status === "Confirmé") && !booking.client_signature && (
                   <button
-                    onClick={() => setShowSignatureDialog(true)}
+                    onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
-                    className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                    className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-3 px-6 text-sm font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg"
                   >
-                    <Pen className="w-4 h-4" />
-                    {t('booking.signature')}
+                    <Wallet className="w-5 h-5" />
+                    Finaliser ({totalPrice}€)
                   </button>
                 )}
               </>
@@ -989,6 +1026,23 @@ const PwaBookingDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Payment Selection Drawer - Smart Cashier */}
+      <PaymentSelectionDrawer
+        open={showPaymentSelection}
+        onOpenChange={setShowPaymentSelection}
+        bookingId={booking.id}
+        bookingNumber={booking.booking_id}
+        totalPrice={totalPrice}
+        treatments={treatments.map(t => ({
+          name: t.treatment_menus?.name || "Treatment",
+          duration: t.treatment_menus?.duration || 0,
+          price: t.treatment_menus?.price || 0,
+        }))}
+        vatRate={booking.hotel_vat || 20}
+        onSignatureRequired={handleRoomPaymentSignature}
+        onPaymentComplete={handlePaymentComplete}
+      />
     </>
   );
 };
