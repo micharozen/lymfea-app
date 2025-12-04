@@ -495,7 +495,7 @@ export default function Booking() {
                                            <Tooltip key={booking.id} delayDuration={300}>
                                             <TooltipTrigger asChild>
                                               <div
-                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer transition-all hover:scale-[1.02] hover:shadow-md ${getStatusCardColor(booking.status)}`}
+                                                className={`p-2 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status)}`}
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   setSelectedBooking(booking);
