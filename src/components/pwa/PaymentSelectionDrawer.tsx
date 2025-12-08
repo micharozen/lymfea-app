@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { CreditCard, Hotel, Loader2, ArrowLeft, QrCode, ExternalLink, Check } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { CreditCard, Hotel, Loader2, ArrowLeft, ExternalLink, Check } from "lucide-react";
+import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import {
   Drawer,
@@ -10,6 +11,89 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+// QR Code component for payment URL
+const PaymentQRCodeView = ({ 
+  paymentUrl, 
+  onOpenPaymentLink, 
+  onBack 
+}: { 
+  paymentUrl: string; 
+  onOpenPaymentLink: () => void; 
+  onBack: () => void;
+}) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [qrGenerated, setQrGenerated] = useState(false);
+
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!canvasRef.current || !paymentUrl) return;
+      
+      try {
+        await QRCode.toCanvas(canvasRef.current, paymentUrl, {
+          width: 200,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF',
+          },
+        });
+        setQrGenerated(true);
+      } catch (error) {
+        console.error('Error generating QR code:', error);
+      }
+    };
+    
+    generateQR();
+  }, [paymentUrl]);
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
+        <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
+        <p className="font-medium text-green-800 dark:text-green-200">
+          Lien de paiement prêt !
+        </p>
+      </div>
+
+      {/* QR Code Display */}
+      <div className="flex flex-col items-center">
+        <div className="bg-white p-4 rounded-2xl shadow-lg">
+          <canvas ref={canvasRef} className="rounded-lg" />
+        </div>
+        <p className="text-sm text-muted-foreground mt-3 text-center">
+          Le client scanne ce QR code pour payer
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Button
+          onClick={onOpenPaymentLink}
+          variant="outline"
+          className="w-full h-12"
+          size="lg"
+        >
+          <ExternalLink className="w-4 h-4 mr-2" />
+          Ouvrir le lien manuellement
+        </Button>
+      </div>
+
+      <div className="text-center">
+        <button
+          onClick={onBack}
+          className="text-sm text-muted-foreground hover:text-foreground underline"
+        >
+          Le client préfère payer autrement
+        </button>
+      </div>
+
+      <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
+        <p className="font-medium mb-1">💡 Astuce</p>
+        <p>Une fois le paiement effectué, votre commission sera automatiquement versée sur votre compte.</p>
+      </div>
+    </div>
+  );
+};
 
 interface Treatment {
   name: string;
@@ -204,45 +288,13 @@ export const PaymentSelectionDrawer = ({
             </div>
           )}
 
-          {/* Card Ready Step */}
+          {/* Card Ready Step with QR Code */}
           {step === 'card-ready' && paymentUrl && (
-            <div className="space-y-6">
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
-                <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <p className="font-medium text-green-800 dark:text-green-200">
-                  Lien de paiement prêt !
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Button
-                  onClick={handleOpenPaymentLink}
-                  className="w-full h-14 text-base font-semibold"
-                  size="lg"
-                >
-                  <ExternalLink className="w-5 h-5 mr-2" />
-                  Ouvrir le paiement
-                </Button>
-
-                <p className="text-xs text-muted-foreground text-center">
-                  Montrez ce bouton au client ou scannez le QR code ensemble
-                </p>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={handleBack}
-                  className="text-sm text-muted-foreground hover:text-foreground underline"
-                >
-                  Le client préfère payer autrement
-                </button>
-              </div>
-
-              <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
-                <p className="font-medium mb-1">💡 Astuce</p>
-                <p>Une fois le paiement effectué, votre commission sera automatiquement versée sur votre compte.</p>
-              </div>
-            </div>
+            <PaymentQRCodeView 
+              paymentUrl={paymentUrl}
+              onOpenPaymentLink={handleOpenPaymentLink}
+              onBack={handleBack}
+            />
           )}
         </div>
       </DrawerContent>
