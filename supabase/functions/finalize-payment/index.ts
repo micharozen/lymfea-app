@@ -492,13 +492,10 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
-      // Notifier le concierge
-      try {
-        await notifyConcierge(supabase, booking, hotel, totalTTC, signature_data, paidInvoice.hosted_invoice_url);
-        log("Concierge notified");
-      } catch (notifyError: any) {
-        log("Failed to notify concierge", { error: notifyError.message });
-      }
+      // NOTE: On n'envoie PAS l'email au concierge ici.
+      // L'email sera envoyé quand la prestation sera marquée "Terminée" par le coiffeur,
+      // car le client peut encore modifier les soins pendant la prestation.
+      log("Room payment finalized. Concierge notification will be sent when booking is marked as completed.");
 
       result = {
         ...result,
@@ -508,7 +505,7 @@ serve(async (req) => {
         ledger_amount: ledgerAmount,
         invoice_url: paidInvoice.hosted_invoice_url,
         invoice_pdf: paidInvoice.invoice_pdf,
-        message: "Room payment finalized. Stripe Invoice created. Hairdresser paid (cash advance). Concierge notified.",
+        message: "Room payment finalized. Stripe Invoice created. Hairdresser paid (cash advance). Concierge will be notified on completion.",
       };
     }
 
