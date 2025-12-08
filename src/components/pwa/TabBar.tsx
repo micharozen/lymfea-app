@@ -70,7 +70,6 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           </span>
         </button>
       </div>
-      <div className="h-1 w-32 bg-black rounded-full mx-auto mb-1" />
     </div>
   );
 };
