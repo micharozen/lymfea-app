@@ -328,14 +328,14 @@ export default function Hotels() {
                     </TableCell>
                     <TableCell className="align-middle text-center">
                       <Badge 
-                        variant={hotel.status === "Actif" ? "default" : "secondary"}
+                        variant={(hotel.status === "Actif" || hotel.status === "Active") ? "default" : "secondary"}
                         className={cn(
                           "font-medium",
-                          hotel.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                          (hotel.status === "Actif" || hotel.status === "Active") && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
                           hotel.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
                         )}
                       >
-                        {hotel.status}
+                        {(hotel.status === "Active" || hotel.status === "Actif") ? "Actif" : hotel.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="align-middle text-center">
