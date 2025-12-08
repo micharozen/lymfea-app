@@ -30,6 +30,8 @@ function generateBookingConfirmationHtml({
 }) {
   const treatmentsList = treatments.map(t => `<span style="display:inline-block;background:#f3f4f6;padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t}</span>`).join('');
   
+  const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  
   return `
 <!DOCTYPE html>
 <html>
@@ -44,16 +46,17 @@ function generateBookingConfirmationHtml({
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background:#000;padding:16px;text-align:center;">
-              <span style="color:#fff;font-size:24px;font-weight:bold;">OOM</span>
-              <span style="display:inline-block;background:#22c55e;color:#fff;padding:4px 12px;border-radius:12px;font-size:12px;margin-left:12px;">✓ Confirmed</span>
+            <td style="background:#fff;padding:20px 16px 12px;text-align:center;border-bottom:1px solid #f0f0f0;">
+              <img src="${logoUrl}" alt="OOM" style="height:60px;display:block;margin:0 auto 12px;" />
+              <span style="display:inline-block;background:#22c55e;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">✓ RDV Confirmé</span>
             </td>
           </tr>
           
           <!-- Content -->
           <tr>
             <td style="padding:20px;">
-              <p style="margin:0 0 12px;font-size:15px;color:#333;">Dear ${clientName},</p>
+              <p style="margin:0 0 8px;font-size:15px;color:#333;">Bonjour ${clientName},</p>
+              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Votre réservation est confirmée. Un coiffeur va vous être assigné sous peu.</p>
               
               <!-- Key Info Grid -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">

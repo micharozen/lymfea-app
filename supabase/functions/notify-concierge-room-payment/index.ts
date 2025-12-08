@@ -65,6 +65,8 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#fef3c7;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
+    const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+
     // Compact concierge email
     const createConciergeEmailHtml = () => `
 <!DOCTYPE html>
@@ -77,9 +79,9 @@ serve(async (req) => {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background:#f59e0b;padding:12px 16px;text-align:center;">
-              <span style="color:#fff;font-size:20px;font-weight:bold;">OOM</span>
-              <span style="display:inline-block;background:#fff;color:#f59e0b;padding:4px 10px;border-radius:10px;font-size:11px;margin-left:10px;font-weight:600;">💳 Facturer chambre</span>
+            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
+              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">💳 Facturer chambre</span>
             </td>
           </tr>
           

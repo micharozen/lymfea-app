@@ -21,6 +21,8 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
     `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
   ).join('');
 
+  const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -32,9 +34,9 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background:#000;padding:12px 16px;text-align:center;">
-              <span style="color:#fff;font-size:20px;font-weight:bold;">OOM</span>
-              <span style="display:inline-block;background:#f59e0b;color:#fff;padding:4px 10px;border-radius:10px;font-size:11px;margin-left:10px;">🔔 Nouvelle résa</span>
+            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
+              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">🔔 Nouvelle résa</span>
             </td>
           </tr>
           
