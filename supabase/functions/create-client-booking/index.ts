@@ -178,6 +178,25 @@ serve(async (req) => {
       // Continue even if admin email fails
     }
 
+    // If payment method is room, notify concierge to charge the room
+    if (paymentMethod === 'room') {
+      try {
+        console.log('Sending concierge room payment notification for booking:', booking.id);
+        const conciergeEmailResponse = await supabase.functions.invoke('notify-concierge-room-payment', {
+          body: { bookingId: booking.id }
+        });
+
+        if (conciergeEmailResponse.error) {
+          console.error('Failed to send concierge room payment notification:', conciergeEmailResponse.error);
+        } else {
+          console.log('Concierge room payment notification sent:', conciergeEmailResponse.data);
+        }
+      } catch (conciergeEmailError) {
+        console.error('Error sending concierge room payment notification:', conciergeEmailError);
+        // Continue even if concierge email fails
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
