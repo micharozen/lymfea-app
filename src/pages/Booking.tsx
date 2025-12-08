@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Booking() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -53,6 +55,7 @@ export default function Booking() {
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [hasOpenedFromUrl, setHasOpenedFromUrl] = useState(false);
 
   const { data: bookings } = useQuery({
     queryKey: ["bookings"],
@@ -142,6 +145,23 @@ export default function Booking() {
       }
     }
   }, [bookings, selectedBooking]);
+
+  // Open booking from URL parameter (from email link)
+  useEffect(() => {
+    if (hasOpenedFromUrl || !bookings) return;
+    
+    const bookingIdFromUrl = searchParams.get('bookingId');
+    if (bookingIdFromUrl) {
+      const booking = bookings.find(b => b.id === bookingIdFromUrl);
+      if (booking) {
+        setSelectedBooking(booking);
+        setIsEditDialogOpen(true);
+        setHasOpenedFromUrl(true);
+        // Clear the URL parameter
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [bookings, searchParams, hasOpenedFromUrl, setSearchParams]);
 
   // Generate hourly slots from 0:00 to 23:00 for main display (24h)
   const hours = useMemo(() => {
