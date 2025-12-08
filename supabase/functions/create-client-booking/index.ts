@@ -160,6 +160,23 @@ serve(async (req) => {
       // Continue even if push notifications fail
     }
 
+    // Trigger email notification to admins
+    try {
+      console.log('Sending admin email notification for booking:', booking.id);
+      const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+        body: { bookingId: booking.id }
+      });
+
+      if (adminEmailResponse.error) {
+        console.error('Failed to send admin email notification:', adminEmailResponse.error);
+      } else {
+        console.log('Admin email notification sent:', adminEmailResponse.data);
+      }
+    } catch (adminEmailError) {
+      console.error('Error sending admin email notification:', adminEmailError);
+      // Continue even if admin email fails
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 
