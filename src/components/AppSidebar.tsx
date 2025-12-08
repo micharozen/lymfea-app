@@ -39,20 +39,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const menuItems = [
-  { title: "Accueil", url: "/", icon: Home },
-  { title: "Paramètres & Accès", url: "/settings", icon: Settings },
+  { title: "Accueil", url: "/admin", icon: Home },
+  { title: "Paramètres & Accès", url: "/admin/settings", icon: Settings },
 ];
 
 const subMenuItems = [
-  { title: "Réservations", url: "/booking", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/hair-dresser", emoji: "💇‍♂️" },
-  { title: "Hôtels", url: "/hotels", emoji: "🏨" },
-  { title: "Menus de soins", url: "/treatment-menus", emoji: "📓" },
-  { title: "Box", url: "/boxes", emoji: "📦" },
-  { title: "Concierges", url: "/concierges", emoji: "🛎️" },
-  { title: "Produits OOM", url: "/oom-products", emoji: "💈" },
-  { title: "Commandes", url: "/oom-orders", emoji: "🚚" },
-  { title: "Finance", url: "/finance", emoji: "💰" },
+  { title: "Réservations", url: "/admin/booking", emoji: "🗓️" },
+  { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
+  { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
+  { title: "Menus de soins", url: "/admin/treatment-menus", emoji: "📓" },
+  { title: "Box", url: "/admin/boxes", emoji: "📦" },
+  { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
+  { title: "Produits OOM", url: "/admin/oom-products", emoji: "💈" },
+  { title: "Commandes", url: "/admin/oom-orders", emoji: "🚚" },
+  { title: "Finance", url: "/admin/finance", emoji: "💰" },
 ];
 
 export function AppSidebar() {
