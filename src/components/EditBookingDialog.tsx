@@ -313,13 +313,16 @@ export default function EditBookingDialog({
 
   const updateMutation = useMutation({
     mutationFn: async (bookingData: any) => {
-      if (!booking?.id) return;
+      if (!booking?.id) return { wasAssigned: false };
 
       const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
       
       // Gestion du statut et de assigned_at
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
+      
+      // Track if a hairdresser was newly assigned
+      const wasAssigned = bookingData.hairdresser_id && !booking.hairdresser_id;
       
       // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
       if (bookingData.hairdresser_id && booking.status === "En attente") {
@@ -380,8 +383,22 @@ export default function EditBookingDialog({
 
         if (treatmentsError) throw treatmentsError;
       }
+      
+      return { wasAssigned };
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
+      // Send push notification if hairdresser was newly assigned
+      if (result?.wasAssigned && booking?.id) {
+        try {
+          await supabase.functions.invoke('trigger-new-booking-notifications', {
+            body: { bookingId: booking.id }
+          });
+          console.log("Push notification triggered for newly assigned hairdresser");
+        } catch (notifError) {
+          console.error("Error sending push notification:", notifError);
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
       queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
