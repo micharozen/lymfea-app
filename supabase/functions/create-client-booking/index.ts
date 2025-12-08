@@ -57,6 +57,7 @@ serve(async (req) => {
         client_email: clientData.email,
         phone: clientData.phone,
         room_number: clientData.roomNumber,
+        client_note: clientData.note || null,
         booking_date: bookingData.date,
         booking_time: bookingData.time,
         status: 'En attente',

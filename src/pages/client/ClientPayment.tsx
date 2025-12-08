@@ -41,6 +41,7 @@ export default function ClientPayment() {
               phone: `${clientInfo.countryCode}${clientInfo.phone}`,
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
             },
             bookingData: {
               date: dateTime.date,
@@ -77,6 +78,7 @@ export default function ClientPayment() {
             phone: `${clientInfo.countryCode}${clientInfo.phone}`,
             email: clientInfo.email,
             roomNumber: clientInfo.roomNumber,
+            note: clientInfo.note || '',
           },
           bookingData: {
             date: dateTime.date,

@@ -65,6 +65,7 @@ serve(async (req) => {
         client_email: metadata?.client_email,
         phone: metadata?.client_phone,
         room_number: metadata?.room_number || null,
+        client_note: metadata?.client_note || null,
         booking_date: metadata?.booking_date,
         booking_time: metadata?.booking_time,
         status: 'En attente',
@@ -105,7 +106,7 @@ serve(async (req) => {
     // Format treatments with name and price separated properly
     const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
 
-    // Envoyer l'email de confirmation
+    // Envoyer l'email de confirmation au client
     try {
       await supabase.functions.invoke('send-booking-confirmation', {
         body: {
@@ -124,6 +125,26 @@ serve(async (req) => {
       console.log("[CHECKOUT-SUCCESS] Confirmation email sent");
     } catch (emailError) {
       console.error("[CHECKOUT-SUCCESS] Email error:", emailError);
+    }
+
+    // Envoyer l'email aux admins
+    try {
+      await supabase.functions.invoke('notify-admin-new-booking', {
+        body: { bookingId: booking.id }
+      });
+      console.log("[CHECKOUT-SUCCESS] Admin notification sent");
+    } catch (adminError) {
+      console.error("[CHECKOUT-SUCCESS] Admin notification error:", adminError);
+    }
+
+    // Déclencher les notifications push aux coiffeurs
+    try {
+      await supabase.functions.invoke('trigger-new-booking-notifications', {
+        body: { bookingId: booking.id }
+      });
+      console.log("[CHECKOUT-SUCCESS] Push notifications sent");
+    } catch (pushError) {
+      console.error("[CHECKOUT-SUCCESS] Push notification error:", pushError);
     }
 
 

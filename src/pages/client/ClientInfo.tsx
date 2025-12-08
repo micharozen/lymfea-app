@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -21,6 +22,7 @@ export default function ClientInfo() {
     countryCode: '+33',
     email: '',
     roomNumber: '',
+    note: '',
   });
 
   const countryCodes = [
@@ -149,6 +151,18 @@ export default function ClientInfo() {
               placeholder="102"
               required
               className="h-12 rounded-xl"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="note" className="text-sm">{t('info.note', 'Note (optional)')}</Label>
+            <Textarea
+              id="note"
+              value={formData.note}
+              onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
+              placeholder={t('info.notePlaceholder', 'Any special requests or information...')}
+              className="rounded-xl resize-none"
+              rows={3}
             />
           </div>
         </div>

@@ -77,6 +77,7 @@ serve(async (req) => {
         client_email: clientData.email,
         client_phone: clientData.phone,
         room_number: clientData.roomNumber || '',
+        client_note: clientData.note || '',
         booking_date: bookingData.date,
         booking_time: bookingData.time,
         treatments: JSON.stringify(treatments),
