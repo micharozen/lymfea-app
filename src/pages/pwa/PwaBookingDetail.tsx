@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,6 +118,7 @@ const PwaBookingDetail = () => {
   const [signingLoading, setSigningLoading] = useState(false);
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
+  const isAcceptingRef = useRef(false);
 
   useEffect(() => {
     fetchBookingDetail();
@@ -134,7 +135,10 @@ const PwaBookingDetail = () => {
           filter: `id=eq.${id}`
         },
         () => {
-          fetchBookingDetail();
+          // Don't refresh if we're in the middle of accepting
+          if (!isAcceptingRef.current) {
+            fetchBookingDetail();
+          }
         }
       )
       .on(
@@ -146,7 +150,10 @@ const PwaBookingDetail = () => {
           filter: `booking_id=eq.${id}`
         },
         () => {
-          fetchBookingDetail();
+          // Don't refresh if we're in the middle of accepting
+          if (!isAcceptingRef.current) {
+            fetchBookingDetail();
+          }
         }
       )
       .subscribe();
@@ -377,9 +384,16 @@ const PwaBookingDetail = () => {
       return;
     }
     
-    console.log('[Booking] ✅ Booking exists:', booking.id);
-    setUpdating(true);
+    // Prevent double-clicks by checking if already updating (using both state and ref)
+    if (updating || isAcceptingRef.current) {
+      console.log('[Booking] ⏳ Already updating, ignoring click');
+      return;
+    }
     
+    console.log('[Booking] ✅ Booking exists:', booking.id);
+    isAcceptingRef.current = true;
+    setUpdating(true);
+
     try {
       console.log('[Booking] 🎯 Starting accept booking process...');
       const { data: { user } } = await supabase.auth.getUser();
@@ -503,6 +517,7 @@ const PwaBookingDetail = () => {
       console.error("Error:", error);
       toast.error(t('common:errors.generic'));
     } finally {
+      isAcceptingRef.current = false;
       setUpdating(false);
     }
   };
