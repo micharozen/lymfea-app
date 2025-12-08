@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate HTML directly without React to avoid version conflicts
+// Generate HTML using the unified OOM template style
 function generateBookingConfirmationHtml({
   bookingNumber,
   clientName,
@@ -28,7 +28,15 @@ function generateBookingConfirmationHtml({
   totalPrice: number;
   currency: string;
 }) {
-  const treatmentsList = treatments.map(t => `<p style="color:#1a1a1a;font-size:15px;line-height:26px;margin:0;">• ${t}</p>`).join('');
+  const treatmentsList = treatments.map(t => `
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
+      <tr>
+        <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+          <span style="font-size: 15px; color: #374151;">${t}</span>
+        </td>
+      </tr>
+    </table>
+  `).join('');
   
   return `
 <!DOCTYPE html>
@@ -37,79 +45,97 @@ function generateBookingConfirmationHtml({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="background-color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Ubuntu,sans-serif;padding:0;margin:0;">
-  <div style="max-width:600px;margin:0 auto;background-color:#ffffff;">
-    <!-- Header -->
-    <div style="background-color:#1a1a1a;padding:40px 0;text-align:center;">
-      <p style="color:#ffffff;font-size:48px;font-weight:bold;letter-spacing:4px;margin:0;padding:0;line-height:1;">OOM</p>
-      <p style="color:#ffffff;font-size:12px;font-weight:400;letter-spacing:8px;margin:8px 0 0 0;padding:0;">WORLD</p>
-    </div>
-
-    <!-- Content -->
-    <div style="padding:48px 40px;">
-      <h1 style="color:#1a1a1a;font-size:28px;font-weight:700;margin:0 0 24px 0;padding:0;letter-spacing:-0.5px;">Booking Confirmed</h1>
-      
-      <p style="color:#1a1a1a;font-size:16px;line-height:24px;margin:0 0 16px 0;">
-        Dear ${clientName},
-      </p>
-      
-      <p style="color:#525252;font-size:15px;line-height:24px;margin:0 0 32px 0;">
-        Your booking has been successfully confirmed. A hairdresser will be assigned to your appointment shortly and you will receive a notification.
-      </p>
-
-      <!-- Booking Card -->
-      <div style="background-color:#fafafa;border:1px solid #e5e5e5;border-radius:8px;overflow:hidden;margin:32px 0;">
-        <div style="background-color:#1a1a1a;padding:16px 24px;">
-          <p style="color:#ffffff;font-size:18px;font-weight:600;margin:0;letter-spacing:0.5px;">Booking #${bookingNumber}</p>
-        </div>
-
-        <hr style="border-color:#e5e5e5;border-top:1px solid #e5e5e5;margin:0;">
-
-        <div style="padding:20px 24px;">
-          <p style="color:#737373;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px 0;">Location</p>
-          <p style="color:#1a1a1a;font-size:16px;font-weight:600;margin:0 0 4px 0;">${hotelName}</p>
-          ${roomNumber ? `<p style="color:#525252;font-size:14px;margin:0;">Room ${roomNumber}</p>` : ''}
-        </div>
-
-        <hr style="border-color:#e5e5e5;border-top:1px solid #e5e5e5;margin:0;">
-
-        <div style="padding:20px 24px;">
-          <p style="color:#737373;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px 0;">Date & Time</p>
-          <p style="color:#1a1a1a;font-size:16px;font-weight:600;margin:0 0 4px 0;">${bookingDate}</p>
-          <p style="color:#525252;font-size:14px;margin:0;">${bookingTime}</p>
-        </div>
-
-        <hr style="border-color:#e5e5e5;border-top:1px solid #e5e5e5;margin:0;">
-
-        <div style="padding:20px 24px;">
-          <p style="color:#737373;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px 0;">Services</p>
-          ${treatmentsList}
-        </div>
-
-        <hr style="border-color:#e5e5e5;border-top:1px solid #e5e5e5;margin:0;">
-
-        <div style="padding:20px 24px;background-color:#f5f5f5;">
-          <p style="color:#737373;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px 0;">Total</p>
-          <p style="color:#1a1a1a;font-size:28px;font-weight:700;margin:0;letter-spacing:-0.5px;">${totalPrice} ${currency}</p>
-        </div>
-      </div>
-
-      <p style="color:#525252;font-size:14px;line-height:22px;margin:32px 0 0 0;text-align:center;">
-        We look forward to providing you with an exceptional experience.
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:32px 40px;background-color:#fafafa;">
-      <hr style="border-color:#e5e5e5;border-top:1px solid #e5e5e5;margin:0 0 24px 0;">
-      <p style="color:#1a1a1a;font-size:14px;font-weight:600;text-align:center;margin:0 0 8px 0;">
-        OOM World - Premium Hairdressing Services
-      </p>
-      <p style="color:#737373;font-size:12px;text-align:center;margin:0;">
-        Questions? Contact us at booking@oomworld.com
-      </p>
-    </div>
-  </div>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="text-align: center; padding: 40px 30px 20px;">
+              <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">OOM</h1>
+              <div style="margin-top: 16px;">
+                <span style="display: inline-block; background-color: #22c55e; color: white; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 600;">✓ Booking Confirmed</span>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px;">
+              <h2 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 600; color: #111;">Dear ${clientName},</h2>
+              <p style="margin: 0 0 24px 0; font-size: 16px; color: #6b7280;">Your booking has been received. A hairdresser will be assigned shortly and you will receive a notification.</p>
+              
+              <!-- Date/Time Highlight -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #000;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 600;">Date & Time</p>
+                    <p style="margin: 0; font-size: 20px; font-weight: 600; color: #000;">${bookingDate}</p>
+                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 600; color: #000;">at ${bookingTime}</p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Details -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Booking Number</span>
+                    <span style="font-size: 16px; font-weight: 500; color: #111;">#${bookingNumber}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Hotel</span>
+                    <span style="font-size: 16px; font-weight: 500; color: #111;">${hotelName}</span>
+                  </td>
+                </tr>
+                ${roomNumber ? `
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
+                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Room</span>
+                    <span style="font-size: 16px; font-weight: 500; color: #111;">${roomNumber}</span>
+                  </td>
+                </tr>
+                ` : ''}
+              </table>
+              
+              <!-- Treatments -->
+              ${treatments.length > 0 ? `
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">Services</p>
+                    ${treatmentsList}
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; border-top: 2px solid #e5e7eb; padding-top: 16px;">
+                      <tr>
+                        <td style="font-size: 18px; font-weight: 600; color: #111;">Total</td>
+                        <td style="text-align: right; font-size: 24px; font-weight: bold; color: #000;">${totalPrice} ${currency}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
+              
+              <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280; text-align: center;">
+                We look forward to providing you with an exceptional experience.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="text-align: center; padding: 30px; background-color: #fafafa; border-top: 1px solid #f0f0f0;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">OOM World</p>
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">Beauty & Wellness Services</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
   `;
