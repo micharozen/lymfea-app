@@ -89,6 +89,20 @@ export const useOneSignal = () => {
         return;
       }
 
+      // Check if we're on a supported domain for OneSignal
+      const allowedDomains = [
+        'oom-clone-genesis.lovable.app',
+        'localhost',
+      ];
+      const currentHost = window.location.hostname;
+      const isAllowedDomain = allowedDomains.some(domain => currentHost.includes(domain));
+      
+      if (!isAllowedDomain) {
+        console.log('[OneSignal] Skipping initialization - domain not configured:', currentHost);
+        console.log('[OneSignal] To enable push notifications on this domain, add it to OneSignal dashboard');
+        return;
+      }
+
       // Check if service workers are supported
       if (!('serviceWorker' in navigator)) {
         console.warn('[OneSignal] Service workers not supported');
