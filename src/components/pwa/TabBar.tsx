@@ -24,52 +24,36 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
       <div className="flex items-center justify-around h-16">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors relative"
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all ${isActive("/pwa/dashboard") ? "bg-gray-100" : ""}`}
         >
-          {isActive("/pwa/dashboard") && (
-            <div className="absolute -top-0.5 w-8 h-1 bg-black rounded-full" />
-          )}
-          <div className={`p-2 rounded-xl transition-colors ${isActive("/pwa/dashboard") ? "bg-black/10" : ""}`}>
-            <Home 
-              className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-black" : "text-gray-400"}`} 
-              strokeWidth={isActive("/pwa/dashboard") ? 2 : 1.5}
-              fill={isActive("/pwa/dashboard") ? "currentColor" : "none"}
-            />
-          </div>
+          <Home 
+            className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-black" : "text-gray-400"}`} 
+            strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
+          />
           <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-black font-bold" : "text-gray-400 font-medium"}`}>
             {t('tabs.home')}
           </span>
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/wallet")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors relative"
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all ${isActive("/pwa/wallet") ? "bg-gray-100" : ""}`}
         >
-          {isActive("/pwa/wallet") && (
-            <div className="absolute -top-0.5 w-8 h-1 bg-black rounded-full" />
-          )}
-          <div className={`p-2 rounded-xl transition-colors ${isActive("/pwa/wallet") ? "bg-black/10" : ""}`}>
-            <Wallet 
-              className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`} 
-              strokeWidth={isActive("/pwa/wallet") ? 2 : 1.5}
-              fill={isActive("/pwa/wallet") ? "currentColor" : "none"}
-            />
-          </div>
+          <Wallet 
+            className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`} 
+            strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
+          />
           <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-black font-bold" : "text-gray-400 font-medium"}`}>
             Wallet
           </span>
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/notifications")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 relative transition-colors"
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all relative ${isActive("/pwa/notifications") ? "bg-gray-100" : ""}`}
         >
-          {isActive("/pwa/notifications") && (
-            <div className="absolute -top-0.5 w-8 h-1 bg-black rounded-full" />
-          )}
-          <div className={`p-2 rounded-xl transition-colors relative ${isActive("/pwa/notifications") ? "bg-black/10" : ""}`}>
+          <div className="relative">
             <Bell 
               className={`w-6 h-6 transition-colors ${isActive("/pwa/notifications") ? "text-black" : "text-gray-400"}`} 
-              strokeWidth={isActive("/pwa/notifications") ? 2 : 1.5}
-              fill={isActive("/pwa/notifications") ? "currentColor" : "none"}
+              strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
             />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
