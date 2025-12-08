@@ -1,30 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+
 import { ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
-import { useState } from 'react';
 import BookingProgressBar from '@/components/BookingProgressBar';
 
 export default function ClientBasket() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, updateNote, total } = useBasket();
-  const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
+  const { items, updateQuantity, removeItem, total } = useBasket();
   const { t } = useTranslation('client');
-
-  const toggleNote = (id: string) => {
-    setExpandedNotes(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   if (items.length === 0) {
     return (
@@ -110,48 +96,27 @@ export default function ClientBasket() {
             </div>
 
             {/* Quantity Controls */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1 bg-muted rounded-full p-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                  className="h-8 w-8 rounded-full"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="w-8 text-center font-semibold text-sm">
-                  {item.quantity}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                  className="h-8 w-8 rounded-full"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="flex items-center gap-1 bg-muted rounded-full p-1 w-fit">
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleNote(item.id)}
-                className="flex-1 rounded-full text-xs"
+                variant="ghost"
+                size="icon"
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="h-8 w-8 rounded-full"
               >
-                {expandedNotes.has(item.id) ? t('common:buttons.close') : t('basket.addNote')}
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-8 text-center font-semibold text-sm">
+                {item.quantity}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="h-8 w-8 rounded-full"
+              >
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
-
-            {/* Note Field */}
-            {expandedNotes.has(item.id) && (
-              <Textarea
-                placeholder={t('basket.notePlaceholder')}
-                value={item.note || ''}
-                onChange={(e) => updateNote(item.id, e.target.value)}
-                className="resize-none mt-3 text-sm"
-                rows={2}
-              />
-            )}
           </div>
         ))}
       </div>
