@@ -24,33 +24,37 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
       <div className="flex items-center justify-around h-16">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all ${isActive("/pwa/dashboard") ? "bg-gray-100" : ""}`}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
         >
-          <Home 
-            className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-black" : "text-gray-400"}`} 
-            strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
-          />
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-black font-bold" : "text-gray-400 font-medium"}`}>
+          <div className={`p-2 rounded-xl transition-all ${isActive("/pwa/dashboard") ? "bg-gray-200" : ""}`}>
+            <Home 
+              className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-black" : "text-gray-400"}`} 
+              strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
+            />
+          </div>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-black font-semibold" : "text-gray-400 font-medium"}`}>
             {t('tabs.home')}
           </span>
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/wallet")}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all ${isActive("/pwa/wallet") ? "bg-gray-100" : ""}`}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
         >
-          <Wallet 
-            className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`} 
-            strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
-          />
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-black font-bold" : "text-gray-400 font-medium"}`}>
+          <div className={`p-2 rounded-xl transition-all ${isActive("/pwa/wallet") ? "bg-gray-200" : ""}`}>
+            <Wallet 
+              className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-black" : "text-gray-400"}`} 
+              strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
+            />
+          </div>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-black font-semibold" : "text-gray-400 font-medium"}`}>
             Wallet
           </span>
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/notifications")}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all relative ${isActive("/pwa/notifications") ? "bg-gray-100" : ""}`}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
         >
-          <div className="relative">
+          <div className={`p-2 rounded-xl transition-all relative ${isActive("/pwa/notifications") ? "bg-gray-200" : ""}`}>
             <Bell 
               className={`w-6 h-6 transition-colors ${isActive("/pwa/notifications") ? "text-black" : "text-gray-400"}`} 
               strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
@@ -61,7 +65,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
               </span>
             )}
           </div>
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-black font-bold" : "text-gray-400 font-medium"}`}>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-black font-semibold" : "text-gray-400 font-medium"}`}>
             {t('tabs.notifications')}
           </span>
         </button>
