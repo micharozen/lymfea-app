@@ -176,7 +176,7 @@ serve(async (req) => {
         const { error: emailError } = await resend.emails.send({
           from: "OOM <booking@oomworld.com>",
           to: [admin.email],
-          subject: `🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
+          subject: `[TEST ADMIN] 🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
           html: emailHtml,
         });
 
