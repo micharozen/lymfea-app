@@ -225,10 +225,12 @@ export default function CreateBookingDialog({
 
       // Déclencher les notifications
       try {
-        // 1. Notification email aux admins
-        await supabase.functions.invoke('notify-admin-new-booking', {
-          body: { bookingId: bookingData.id }
-        });
+        // 1. Notification email aux admins (seulement si créé par concierge, pas par admin)
+        if (!data.isAdmin) {
+          await supabase.functions.invoke('notify-admin-new-booking', {
+            body: { bookingId: bookingData.id }
+          });
+        }
         
         // 2. Notifications push pour les coiffeurs
         await supabase.functions.invoke('trigger-new-booking-notifications', {
@@ -350,6 +352,7 @@ export default function CreateBookingDialog({
       hairdresserId,
       selectedTreatments,
       totalPrice,
+      isAdmin, // Passer le rôle pour savoir si on doit envoyer l'email admin
     });
   };
 
