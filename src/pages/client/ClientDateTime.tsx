@@ -143,7 +143,7 @@ export default function ClientDateTime() {
         <BookingProgressBar currentStep={2} totalSteps={4} />
       </div>
 
-      <div className="p-4 space-y-6">
+      <div className="px-6 py-4 space-y-6">
         {/* Date Selection */}
         <div className="space-y-3">
           <Label className="text-base font-semibold">{t('checkout.dateTime').split('&')[0].trim()}</Label>
