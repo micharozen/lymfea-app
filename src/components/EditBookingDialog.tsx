@@ -387,13 +387,16 @@ export default function EditBookingDialog({
       return { wasAssigned };
     },
     onSuccess: async (result) => {
+      console.log("Update success - wasAssigned:", result?.wasAssigned, "bookingId:", booking?.id);
+      
       // Send push notification if hairdresser was newly assigned
       if (result?.wasAssigned && booking?.id) {
+        console.log("Triggering push notification for booking:", booking.id);
         try {
-          await supabase.functions.invoke('trigger-new-booking-notifications', {
+          const { data, error } = await supabase.functions.invoke('trigger-new-booking-notifications', {
             body: { bookingId: booking.id }
           });
-          console.log("Push notification triggered for newly assigned hairdresser");
+          console.log("Push notification result:", data, error);
         } catch (notifError) {
           console.error("Error sending push notification:", notifError);
         }
