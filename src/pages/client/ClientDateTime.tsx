@@ -193,26 +193,23 @@ export default function ClientDateTime() {
           ) : (
             <div className="relative">
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
-                {timeSlots.map(({ value, label }) => {
-                  const isAvailable = availableSlots.includes(value);
-                  return (
+                {timeSlots
+                  .filter(({ value }) => availableSlots.includes(value))
+                  .map(({ value, label }) => (
                     <button
                       key={value}
                       type="button"
-                      onClick={() => isAvailable && setSelectedTime(value)}
-                      disabled={!isAvailable || loadingAvailability}
+                      onClick={() => setSelectedTime(value)}
+                      disabled={loadingAvailability}
                       className={`flex-shrink-0 snap-start px-5 py-3 rounded-2xl border-2 transition-all font-medium text-sm ${
                         selectedTime === value
                           ? 'bg-primary text-primary-foreground border-primary'
-                          : isAvailable
-                          ? 'bg-background border-border active:border-primary/50'
-                          : 'bg-muted border-border text-muted-foreground cursor-not-allowed opacity-40'
+                          : 'bg-background border-border active:border-primary/50'
                       }`}
                     >
                       {label}
                     </button>
-                  );
-                })}
+                  ))}
               </div>
             </div>
           )}
