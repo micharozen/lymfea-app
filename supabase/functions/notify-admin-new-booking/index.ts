@@ -186,9 +186,9 @@ serve(async (req) => {
 
     console.log("Sending admin notification for booking:", bookingId);
 
-    // Get site URL for dashboard link
+    // Get site URL for dashboard link - include booking ID for direct navigation
     const siteUrl = Deno.env.get("SITE_URL") || "https://app.oomworld.com";
-    const dashboardUrl = `${siteUrl}/admin/booking`;
+    const dashboardUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     // Get booking details with treatments
     const { data: booking, error: bookingError } = await supabaseClient
