@@ -321,8 +321,10 @@ export default function EditBookingDialog({
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
       
-      // Track if a hairdresser was newly assigned
+      // Track if a hairdresser was newly assigned OR changed
       const wasAssigned = bookingData.hairdresser_id && !booking.hairdresser_id;
+      const hairdresserChanged = bookingData.hairdresser_id && booking.hairdresser_id && 
+                                  bookingData.hairdresser_id !== booking.hairdresser_id;
       
       // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
       if (bookingData.hairdresser_id && booking.status === "En attente") {
@@ -384,13 +386,13 @@ export default function EditBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
       
-      return { wasAssigned };
+      return { wasAssigned, hairdresserChanged };
     },
     onSuccess: async (result) => {
-      console.log("Update success - wasAssigned:", result?.wasAssigned, "bookingId:", booking?.id);
+      console.log("Update success - wasAssigned:", result?.wasAssigned, "hairdresserChanged:", result?.hairdresserChanged, "bookingId:", booking?.id);
       
-      // Send push notification if hairdresser was newly assigned
-      if (result?.wasAssigned && booking?.id) {
+      // Send push notification if hairdresser was newly assigned OR changed
+      if ((result?.wasAssigned || result?.hairdresserChanged) && booking?.id) {
         console.log("Triggering push notification for booking:", booking.id);
         try {
           const { data, error } = await supabase.functions.invoke('trigger-new-booking-notifications', {
