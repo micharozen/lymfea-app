@@ -739,11 +739,29 @@ export default function EditBookingDialog({
                               variant: "destructive",
                             });
                           } else {
+                            // Track if hairdresser was newly assigned or changed
+                            const wasAssigned = hairdresserId && !booking!.hairdresser_id;
+                            const hairdresserChanged = hairdresserId && booking!.hairdresser_id && 
+                                                        hairdresserId !== booking!.hairdresser_id;
+                            
+                            // Send push notification if hairdresser was newly assigned OR changed
+                            if (wasAssigned || hairdresserChanged) {
+                              console.log("Triggering push notification for booking:", booking!.id);
+                              try {
+                                const { data, error: notifError } = await supabase.functions.invoke('trigger-new-booking-notifications', {
+                                  body: { bookingId: booking!.id }
+                                });
+                                console.log("Push notification result:", data, notifError);
+                              } catch (notifError) {
+                                console.error("Error sending push notification:", notifError);
+                              }
+                            }
+                            
                             toast({
                               title: "Succès",
                               description: hairdresserId ? "Coiffeur assigné avec succès" : "Coiffeur retiré avec succès",
                             });
-                            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+                            await queryClient.invalidateQueries({ queryKey: ["bookings"] });
                             setShowAssignHairdresser(false);
                           }
                         }}
