@@ -357,7 +357,7 @@ export default function EditBookingDialog({
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
           hairdresser_id: bookingData.hairdresser_id || null,
-          hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+          hairdresser_name: bookingData.hairdresser_id && hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
           total_price: bookingData.total_price,
           status: newStatus,
           assigned_at: assignedAt,
