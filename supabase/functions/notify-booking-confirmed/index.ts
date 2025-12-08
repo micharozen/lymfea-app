@@ -201,7 +201,7 @@ serve(async (req) => {
           const { error: emailError } = await resend.emails.send({
             from: 'OOM <booking@oomworld.com>',
             to: [targetEmail],
-            subject: `${TEST_MODE ? '[TEST] ' : ''}✅ #${booking.booking_id} confirmée · ${booking.hairdresser_name}`,
+            subject: `[TEST ADMIN] ✅ #${booking.booking_id} confirmée · ${booking.hairdresser_name}`,
             html: createEmailHtml('admin'),
           });
 
@@ -242,7 +242,7 @@ serve(async (req) => {
             const { error: emailError } = await resend.emails.send({
               from: 'OOM <booking@oomworld.com>',
               to: [targetEmail],
-              subject: `${TEST_MODE ? '[TEST] ' : ''}✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
+              subject: `[TEST CONCIERGE] ✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
               html: createEmailHtml('concierge'),
             });
 
@@ -269,7 +269,7 @@ serve(async (req) => {
         const { error: emailError } = await resend.emails.send({
           from: 'OOM <booking@oomworld.com>',
           to: [clientEmail],
-          subject: `${TEST_MODE ? '[TEST] ' : ''}✅ Votre RDV est confirmé · ${formattedDate}`,
+          subject: `[TEST CLIENT] ✅ Votre RDV est confirmé · ${formattedDate}`,
           html: createClientEmailHtml(),
         });
 

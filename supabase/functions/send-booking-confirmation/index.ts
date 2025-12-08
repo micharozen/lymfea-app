@@ -161,7 +161,7 @@ serve(async (req) => {
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: [email],
-      subject: `Booking #${bookingNumber} Confirmed - ${hotelName}`,
+      subject: `[TEST CLIENT] RDV #${bookingNumber} confirmé - ${hotelName}`,
       html,
     });
 
@@ -176,7 +176,7 @@ serve(async (req) => {
     const { data: adminData, error: adminError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: ['booking@oomworld.com'],
-      subject: `New Booking #${bookingNumber} - ${hotelName}`,
+      subject: `[TEST ADMIN] Nouvelle résa #${bookingNumber} - ${hotelName}`,
       html,
     });
 
