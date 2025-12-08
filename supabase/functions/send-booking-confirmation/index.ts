@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate HTML using the unified OOM template style
+// Compact email template - no scrolling needed
 function generateBookingConfirmationHtml({
   bookingNumber,
   clientName,
@@ -28,15 +28,7 @@ function generateBookingConfirmationHtml({
   totalPrice: number;
   currency: string;
 }) {
-  const treatmentsList = treatments.map(t => `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
-      <tr>
-        <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
-          <span style="font-size: 15px; color: #374151;">${t}</span>
-        </td>
-      </tr>
-    </table>
-  `).join('');
+  const treatmentsList = treatments.map(t => `<span style="display:inline-block;background:#f3f4f6;padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t}</span>`).join('');
   
   return `
 <!DOCTYPE html>
@@ -45,91 +37,70 @@ function generateBookingConfirmationHtml({
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="text-align: center; padding: 40px 30px 20px;">
-              <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">OOM</h1>
-              <div style="margin-top: 16px;">
-                <span style="display: inline-block; background-color: #22c55e; color: white; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 600;">✓ Booking Confirmed</span>
-              </div>
+            <td style="background:#000;padding:16px;text-align:center;">
+              <span style="color:#fff;font-size:24px;font-weight:bold;">OOM</span>
+              <span style="display:inline-block;background:#22c55e;color:#fff;padding:4px 12px;border-radius:12px;font-size:12px;margin-left:12px;">✓ Confirmed</span>
             </td>
           </tr>
           
           <!-- Content -->
           <tr>
-            <td style="padding: 30px;">
-              <h2 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 600; color: #111;">Dear ${clientName},</h2>
-              <p style="margin: 0 0 24px 0; font-size: 16px; color: #6b7280;">Your booking has been received. A hairdresser will be assigned shortly and you will receive a notification.</p>
+            <td style="padding:20px;">
+              <p style="margin:0 0 12px;font-size:15px;color:#333;">Dear ${clientName},</p>
               
-              <!-- Date/Time Highlight -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fafafa 0%, #f0f0f0 100%); border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #000;">
+              <!-- Key Info Grid -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">
                 <tr>
-                  <td style="padding: 20px;">
-                    <p style="margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 600;">Date & Time</p>
-                    <p style="margin: 0; font-size: 20px; font-weight: 600; color: #000;">${bookingDate}</p>
-                    <p style="margin: 4px 0 0 0; font-size: 20px; font-weight: 600; color: #000;">at ${bookingTime}</p>
+                  <td style="padding:12px;border-right:1px solid #e5e7eb;width:50%;">
+                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Date</p>
+                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${bookingDate}</p>
+                  </td>
+                  <td style="padding:12px;width:50%;">
+                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Time</p>
+                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${bookingTime}</p>
                   </td>
                 </tr>
               </table>
               
               <!-- Details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
                 <tr>
-                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Booking Number</span>
-                    <span style="font-size: 16px; font-weight: 500; color: #111;">#${bookingNumber}</span>
-                  </td>
+                  <td style="padding:6px 0;color:#6b7280;width:100px;">Booking</td>
+                  <td style="padding:6px 0;font-weight:500;">#${bookingNumber}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Hotel</span>
-                    <span style="font-size: 16px; font-weight: 500; color: #111;">${hotelName}</span>
-                  </td>
+                  <td style="padding:6px 0;color:#6b7280;">Hotel</td>
+                  <td style="padding:6px 0;font-weight:500;">${hotelName}${roomNumber ? ` · Room ${roomNumber}` : ''}</td>
                 </tr>
-                ${roomNumber ? `
-                <tr>
-                  <td style="padding: 12px 0; border-bottom: 1px solid #f3f4f6;">
-                    <span style="display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 4px;">Room</span>
-                    <span style="font-size: 16px; font-weight: 500; color: #111;">${roomNumber}</span>
-                  </td>
-                </tr>
-                ` : ''}
               </table>
               
               <!-- Treatments -->
-              ${treatments.length > 0 ? `
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
+              <div style="margin-bottom:12px;">
+                <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;">Services</p>
+                ${treatmentsList}
+              </div>
+              
+              <!-- Total -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#000;border-radius:8px;">
                 <tr>
-                  <td style="padding: 20px;">
-                    <p style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #374151;">Services</p>
-                    ${treatmentsList}
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; border-top: 2px solid #e5e7eb; padding-top: 16px;">
-                      <tr>
-                        <td style="font-size: 18px; font-weight: 600; color: #111;">Total</td>
-                        <td style="text-align: right; font-size: 24px; font-weight: bold; color: #000;">${totalPrice} ${currency}</td>
-                      </tr>
-                    </table>
-                  </td>
+                  <td style="padding:12px;color:#fff;font-size:13px;">Total</td>
+                  <td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency}</td>
                 </tr>
               </table>
-              ` : ''}
-              
-              <p style="margin: 24px 0 0 0; font-size: 14px; color: #6b7280; text-align: center;">
-                We look forward to providing you with an exceptional experience.
-              </p>
             </td>
           </tr>
           
           <!-- Footer -->
           <tr>
-            <td style="text-align: center; padding: 30px; background-color: #fafafa; border-top: 1px solid #f0f0f0;">
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">OOM World</p>
-              <p style="margin: 0; font-size: 12px; color: #9ca3af;">Beauty & Wellness Services</p>
+            <td style="padding:12px;text-align:center;background:#fafafa;border-top:1px solid #f0f0f0;">
+              <p style="margin:0;font-size:11px;color:#9ca3af;">OOM World · Beauty & Wellness</p>
             </td>
           </tr>
         </table>
@@ -166,9 +137,8 @@ serve(async (req) => {
 
     // Format date for display
     const formattedDate = new Date(bookingDate).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
+      weekday: 'short',
+      month: 'short',
       day: 'numeric'
     });
 
@@ -188,7 +158,7 @@ serve(async (req) => {
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: [email],
-      subject: `Booking Confirmation #${bookingNumber} - ${hotelName}`,
+      subject: `Booking #${bookingNumber} Confirmed - ${hotelName}`,
       html,
     });
 
@@ -209,7 +179,6 @@ serve(async (req) => {
 
     if (adminError) {
       console.error('Error sending admin email:', adminError);
-      // Don't throw - client email already sent
     } else {
       console.log('Admin notification email sent successfully:', adminData);
     }
@@ -219,11 +188,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in send-booking-confirmation:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error.message }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
