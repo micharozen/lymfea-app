@@ -404,9 +404,14 @@ export default function EditBookingDialog({
         }
       }
       
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-      queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
-      queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
+      // Invalidate and refetch queries, then close
+      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      await queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
+      
+      // Wait a bit for data to propagate before closing
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       toast({
         title: "Succès",
         description: "La réservation a été modifiée avec succès",
