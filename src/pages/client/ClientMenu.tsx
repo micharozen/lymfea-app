@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ArrowLeft, ShoppingBag, Minus, Plus } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState, useEffect } from 'react';
+import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 
 export default function ClientMenu() {
   const { hotelId } = useParams<{ hotelId: string }>();
