@@ -723,6 +723,7 @@ export type Database = {
           image: string | null
           name: string
           price: number | null
+          price_on_request: boolean | null
           service_for: string
           sort_order: number | null
           status: string
@@ -739,6 +740,7 @@ export type Database = {
           image?: string | null
           name: string
           price?: number | null
+          price_on_request?: boolean | null
           service_for: string
           sort_order?: number | null
           status?: string
@@ -755,12 +757,91 @@ export type Database = {
           image?: string | null
           name?: string
           price?: number | null
+          price_on_request?: boolean | null
           service_for?: string
           sort_order?: number | null
           status?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      treatment_requests: {
+        Row: {
+          admin_notes: string | null
+          client_email: string | null
+          client_first_name: string
+          client_last_name: string | null
+          client_phone: string
+          converted_booking_id: string | null
+          created_at: string
+          description: string | null
+          hotel_id: string
+          id: string
+          preferred_date: string | null
+          preferred_time: string | null
+          quoted_duration: number | null
+          quoted_price: number | null
+          room_number: string | null
+          status: string
+          treatment_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          client_email?: string | null
+          client_first_name: string
+          client_last_name?: string | null
+          client_phone: string
+          converted_booking_id?: string | null
+          created_at?: string
+          description?: string | null
+          hotel_id: string
+          id?: string
+          preferred_date?: string | null
+          preferred_time?: string | null
+          quoted_duration?: number | null
+          quoted_price?: number | null
+          room_number?: string | null
+          status?: string
+          treatment_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          client_email?: string | null
+          client_first_name?: string
+          client_last_name?: string | null
+          client_phone?: string
+          converted_booking_id?: string | null
+          created_at?: string
+          description?: string | null
+          hotel_id?: string
+          id?: string
+          preferred_date?: string | null
+          preferred_time?: string | null
+          quoted_duration?: number | null
+          quoted_price?: number | null
+          room_number?: string | null
+          status?: string
+          treatment_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_requests_converted_booking_id_fkey"
+            columns: ["converted_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "treatment_requests_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
