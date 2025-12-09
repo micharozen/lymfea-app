@@ -381,12 +381,11 @@ const PwaDashboard = () => {
       });
       
       if (activeTab === "upcoming") {
-        return booking.status !== "En attente de validation" &&
-               booking.status !== "Complété" &&
+        return booking.status !== "Terminé" &&
                (booking.status === "Assigné" || isAssignedToMe) && 
                bookingDate >= today;
       } else if (activeTab === "history") {
-        return booking.status === "Complété" && isAssignedToMe;
+        return booking.status === "Terminé" && isAssignedToMe;
       } else {
         return booking.status === "Annulé" && isAssignedToMe;
       }

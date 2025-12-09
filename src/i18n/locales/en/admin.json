@@ -47,8 +47,6 @@
     },
     "status": {
       "pending": "Pending",
-      "pendingValidation": "Pending Validation",
-      "confirmed": "Confirmed",
       "assigned": "Assigned",
       "completed": "Completed",
       "cancelled": "Cancelled"
