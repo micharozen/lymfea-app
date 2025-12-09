@@ -49,10 +49,7 @@ export default function ClientWelcome() {
     );
   }
 
-  const backgroundImage = hotel.image || welcomeBg;
-  const bgImageUrl = backgroundImage.startsWith('http') 
-    ? backgroundImage 
-    : `${backgroundImage}?v=${Date.now()}`;
+  const bgImageUrl = welcomeBg;
 
   return (
     <div 
