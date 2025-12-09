@@ -48,7 +48,6 @@
     "status": {
       "pending": "En attente",
       "pendingValidation": "En attente de validation",
-      "confirmed": "Confirmé",
       "assigned": "Assigné",
       "completed": "Complété",
       "cancelled": "Annulé"

@@ -434,7 +434,7 @@ const PwaBookingDetail = () => {
         `)
         .eq("hairdresser_id", hairdresserData.id)
         .eq("booking_date", booking.booking_date)
-        .in("status", ["Confirmé", "Assigné"]);
+        .in("status", ["Assigné"]);
 
       console.log('[Booking] 📅 Existing bookings:', existingBookings?.length || 0);
 
@@ -775,7 +775,7 @@ const PwaBookingDetail = () => {
           <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">{t('booking.treatments')}</h3>
-            {(booking.status === "Assigné" || booking.status === "Confirmé") && (
+            {booking.status === "Assigné" && (
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}
                 className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
@@ -944,7 +944,7 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {(booking.status === "Assigné" || booking.status === "Confirmé") && !booking.client_signature && (
+                {booking.status === "Assigné" && !booking.client_signature && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}

@@ -60,7 +60,7 @@ serve(async (req) => {
       .select('booking_time, hairdresser_id')
       .eq('booking_date', date)
       .in('hairdresser_id', hairdresserIds)
-      .in('status', ['Confirmé', 'En cours', 'En attente de validation']);
+      .in('status', ['Assigné', 'En cours', 'En attente de validation']);
 
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError);

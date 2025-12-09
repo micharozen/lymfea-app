@@ -137,7 +137,7 @@ const PwaDashboard = () => {
           // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
           if (newData.hairdresser_id !== null && 
               newData.hairdresser_id !== hairdresser.id &&
-              (newData.status === 'En attente' || newData.status === 'Pending' || newData.status === 'Confirmé' || newData.status === 'Assigné')) {
+              (newData.status === 'En attente' || newData.status === 'Pending' || newData.status === 'Assigné')) {
             console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
@@ -377,13 +377,13 @@ const PwaDashboard = () => {
         date: booking.booking_date,
         bookingDate: bookingDate,
         today: today,
-        isUpcoming: (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && bookingDate >= today
+        isUpcoming: (booking.status === "Assigné" || isAssignedToMe) && bookingDate >= today
       });
       
       if (activeTab === "upcoming") {
         return booking.status !== "En attente de validation" &&
                booking.status !== "Complété" &&
-               (booking.status === "Confirmé" || booking.status === "Assigné" || isAssignedToMe) && 
+               (booking.status === "Assigné" || isAssignedToMe) && 
                bookingDate >= today;
       } else if (activeTab === "history") {
         return booking.status === "Complété" && isAssignedToMe;
