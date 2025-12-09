@@ -18,17 +18,27 @@ interface HotelQRCodeProps {
 
 export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [isOpen, setIsOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const bookingUrl = `${window.location.origin}/client/${hotelId}`;
 
   useEffect(() => {
-    generateQRCode();
-  }, [hotelId]);
+    if (isOpen) {
+      // Small delay to ensure canvas is mounted
+      const timer = setTimeout(() => {
+        generateQRCode();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, hotelId]);
 
   const generateQRCode = async () => {
     try {
-      if (!canvasRef.current) return;
+      if (!canvasRef.current) {
+        console.error('Canvas not found');
+        return;
+      }
 
       await QRCode.toCanvas(canvasRef.current, bookingUrl, {
         width: 300,
@@ -52,6 +62,10 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   };
 
   const handleDownload = () => {
+    if (!qrCodeUrl) {
+      toast.error('QR code non disponible');
+      return;
+    }
     const link = document.createElement('a');
     link.href = qrCodeUrl;
     link.download = `${hotelId}-booking-qr.png`;
@@ -67,7 +81,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <QrCodeIcon className="h-4 w-4" />
