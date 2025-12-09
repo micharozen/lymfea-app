@@ -5,10 +5,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ArrowLeft, ShoppingBag, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Minus, Plus, MessageSquare } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState, useEffect } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
+
+interface Treatment {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number | null;
+  duration: number | null;
+  image: string | null;
+  category: string;
+  price_on_request: boolean | null;
+}
 
 export default function ClientMenu() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -18,6 +29,10 @@ export default function ClientMenu() {
   const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
+  
+  // On Request drawer state
+  const [isOnRequestOpen, setIsOnRequestOpen] = useState(false);
+  const [selectedOnRequestTreatment, setSelectedOnRequestTreatment] = useState<Treatment | null>(null);
 
   const getItemQuantity = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -50,13 +65,20 @@ export default function ClientMenu() {
         .order('sort_order');
       
       if (error) throw error;
-      return data;
+      return data as Treatment[];
     },
   });
 
   const categories = [...new Set(treatments.map(t => t.category))];
 
-  const handleAddToBasket = (treatment: typeof treatments[0]) => {
+  const handleAddToBasket = (treatment: Treatment) => {
+    // Don't add to basket if it's on request
+    if (treatment.price_on_request) {
+      setSelectedOnRequestTreatment(treatment);
+      setIsOnRequestOpen(true);
+      return;
+    }
+    
     addItem({
       id: treatment.id,
       name: treatment.name,
@@ -71,6 +93,11 @@ export default function ClientMenu() {
     }
     
     setBounceKey(prev => prev + 1);
+  };
+
+  const handleOnRequestClick = (treatment: Treatment) => {
+    setSelectedOnRequestTreatment(treatment);
+    setIsOnRequestOpen(true);
   };
 
   useEffect(() => {
@@ -174,10 +201,16 @@ export default function ClientMenu() {
                           </p>
                         )}
                         <div className="flex items-center gap-2 text-sm">
-                          <span className="font-semibold text-foreground">
-                            €{Number(treatment.price).toFixed(0)}
-                          </span>
-                          {treatment.duration && (
+                          {treatment.price_on_request ? (
+                            <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30">
+                              Sur demande
+                            </Badge>
+                          ) : (
+                            <span className="font-semibold text-foreground">
+                              €{Number(treatment.price).toFixed(0)}
+                            </span>
+                          )}
+                          {treatment.duration && !treatment.price_on_request && (
                             <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>
                           )}
                         </div>
@@ -186,7 +219,17 @@ export default function ClientMenu() {
                     
                     {/* Controls Row */}
                     <div className="flex items-center justify-end mt-3 gap-2">
-                      {getItemQuantity(treatment.id) > 0 ? (
+                      {treatment.price_on_request ? (
+                        <Button
+                          onClick={() => handleOnRequestClick(treatment)}
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full px-6"
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Demander un devis
+                        </Button>
+                      ) : getItemQuantity(treatment.id) > 0 ? (
                         <div className="flex items-center gap-1 bg-muted rounded-full p-1">
                           <Button
                             variant="ghost"
@@ -244,6 +287,15 @@ export default function ClientMenu() {
           </Button>
         </div>
       )}
+
+      {/* On Request Form Drawer */}
+      <OnRequestFormDrawer
+        open={isOnRequestOpen}
+        onOpenChange={setIsOnRequestOpen}
+        treatment={selectedOnRequestTreatment}
+        hotelId={hotelId || ''}
+        hotelName={hotel?.name}
+      />
     </div>
   );
 }
