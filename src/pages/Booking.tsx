@@ -236,7 +236,6 @@ export default function Booking() {
     "Assigné": "Assigné",
     "Terminé": "Terminé",
     "Annulé": "Annulé",
-    "Confirmé": "Confirmé",
     "Complété": "Complété",
     "En attente de validation": "En attente de validation"
   };
@@ -289,9 +288,6 @@ export default function Booking() {
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
       return "bg-orange-500 text-white border-orange-600";
     }
-    if (normalizedStatus.includes("confirmé") || normalizedStatus.includes("confirm")) {
-      return "bg-sky-500 text-white border-sky-600";
-    }
     return "bg-slate-500 text-white border-slate-600";
   };
 
@@ -309,7 +305,6 @@ export default function Booking() {
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) return "Annulé";
     if (normalizedStatus.includes("validation")) return "Validation";
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) return "En attente";
-    if (normalizedStatus.includes("confirmé") || normalizedStatus.includes("confirm")) return "Confirmé";
     return status;
   };
 

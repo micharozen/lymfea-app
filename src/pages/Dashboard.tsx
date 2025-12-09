@@ -119,7 +119,7 @@ export default function Dashboard() {
     const totalSales = filteredBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
     const upcomingBookings = filteredBookings.filter(b => {
       const bookingDate = parseISO(b.booking_date);
-      return bookingDate > new Date() && b.status === 'Confirmé';
+      return bookingDate > new Date() && b.status === 'Assigné';
     }).length;
     const totalBookings = filteredBookings.length;
     const completedBookings = filteredBookings.filter(b => b.status === 'Terminé').length;
