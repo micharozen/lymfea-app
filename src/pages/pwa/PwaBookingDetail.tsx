@@ -298,7 +298,7 @@ const PwaBookingDetail = () => {
         .update({ 
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
-          status: "Complété",
+          status: "Terminé",
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
@@ -796,7 +796,7 @@ const PwaBookingDetail = () => {
                       {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
                     </p>
                   </div>
-                  {(booking.status !== "Complété" && booking.status !== "En attente") && (
+                  {(booking.status !== "Terminé" && booking.status !== "En attente") && (
                     <button
                       onClick={() => setTreatmentToDelete(treatment.id)}
                       className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"

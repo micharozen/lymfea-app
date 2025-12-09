@@ -485,7 +485,7 @@ serve(async (req) => {
       await supabase
         .from('bookings')
         .update({
-          status: 'Complété',
+          status: 'Terminé',
           payment_status: 'paid',
           signed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),

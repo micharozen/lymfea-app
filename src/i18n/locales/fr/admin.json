@@ -47,9 +47,8 @@
     },
     "status": {
       "pending": "En attente",
-      "pendingValidation": "En attente de validation",
       "assigned": "Assigné",
-      "completed": "Complété",
+      "completed": "Terminé",
       "cancelled": "Annulé"
     }
   },

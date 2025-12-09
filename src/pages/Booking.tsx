@@ -235,9 +235,7 @@ export default function Booking() {
     "En attente": "En attente",
     "Assigné": "Assigné",
     "Terminé": "Terminé",
-    "Annulé": "Annulé",
-    "Complété": "Complété",
-    "En attente de validation": "En attente de validation"
+    "Annulé": "Annulé"
   };
 
   const getTranslatedStatus = (status: string) => {
@@ -276,14 +274,11 @@ export default function Booking() {
     if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
       return "bg-blue-500 text-white border-blue-600";
     }
-    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
+    if (normalizedStatus.includes("termin") || normalizedStatus.includes("complet")) {
       return "bg-emerald-500 text-white border-emerald-600";
     }
     if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
       return "bg-red-500 text-white border-red-600";
-    }
-    if (normalizedStatus.includes("validation")) {
-      return "bg-purple-500 text-white border-purple-600";
     }
     if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
       return "bg-orange-500 text-white border-orange-600";
@@ -796,7 +791,7 @@ export default function Booking() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            disabled={booking.payment_status !== 'paid' && booking.status !== 'Complété'}
+                            disabled={booking.payment_status !== 'paid' && booking.status !== 'Terminé'}
                             onClick={async (e) => {
                               e.stopPropagation();
                               try {
@@ -815,7 +810,7 @@ export default function Booking() {
                             }}
                           >
                             <FileText className="h-4 w-4 mr-2" />
-                            {booking.payment_status !== 'paid' && booking.status !== 'Complété' ? 'En attente' : 'Invoice'}
+                            {booking.payment_status !== 'paid' && booking.status !== 'Terminé' ? 'En attente' : 'Invoice'}
                           </Button>
                         )}
                       </TableCell>
