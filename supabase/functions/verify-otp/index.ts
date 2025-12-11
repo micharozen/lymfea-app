@@ -33,75 +33,95 @@ serve(async (req) => {
     console.log('OTP Code: [REDACTED]');
     console.log('===============================');
 
-    // Production mode: use Twilio for OTP verification
-    const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const TWILIO_VERIFY_SERVICE_SID = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
+    // Check for DEV_MODE - must match send-otp behavior
+    const DEV_MODE = Deno.env.get('DEV_MODE') === 'true';
     
-    if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_VERIFY_SERVICE_SID) {
-      console.error('Twilio credentials not configured');
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Service SID:', TWILIO_VERIFY_SERVICE_SID);
-
-    // Use Twilio Verify API to check OTP
-    const response = await fetch(
-      `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
-        },
-        body: new URLSearchParams({
-          To: fullPhoneNumber,
-          Code: code,
-        }),
-      }
-    );
-
-    const data = await response.json();
-    console.log('Twilio response status:', response.status);
-    console.log('Twilio response data:', JSON.stringify(data));
-    
-    if (!response.ok) {
-      console.error('❌ Twilio verification error:');
-      console.error('Status:', response.status);
-      console.error('Error details:', JSON.stringify(data));
-      
-      // More helpful error message for 404
-      if (response.status === 404) {
+    if (DEV_MODE) {
+      console.info('🔧 DEV MODE: Checking mock OTP');
+      if (code !== '123456') {
+        console.log('⚠️ DEV MODE: Invalid code provided');
         return new Response(
           JSON.stringify({ 
             success: false,
-            error: 'Ce code a expiré ou a déjà été utilisé. Demandez un nouveau code.' 
+            error: 'Code de vérification invalide' 
           }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      console.log('✅ DEV MODE: Mock OTP verified successfully');
+    } else {
+      // Production mode: use Twilio for OTP verification
+      const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
+      const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
+      const TWILIO_VERIFY_SERVICE_SID = Deno.env.get('TWILIO_VERIFY_SERVICE_SID');
       
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: data.message || 'Failed to verify OTP' 
-        }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_VERIFY_SERVICE_SID) {
+        console.error('Twilio credentials not configured');
+        return new Response(
+          JSON.stringify({ error: 'Service configuration error' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (data.status !== 'approved') {
-      console.log('⚠️ OTP verification failed - status:', data.status);
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Code de vérification invalide' 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      console.log('Service SID:', TWILIO_VERIFY_SERVICE_SID);
+
+      // Use Twilio Verify API to check OTP
+      const response = await fetch(
+        `https://verify.twilio.com/v2/Services/${TWILIO_VERIFY_SERVICE_SID}/VerificationCheck`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic ' + btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`),
+          },
+          body: new URLSearchParams({
+            To: fullPhoneNumber,
+            Code: code,
+          }),
+        }
       );
+
+      const data = await response.json();
+      console.log('Twilio response status:', response.status);
+      console.log('Twilio response data:', JSON.stringify(data));
+      
+      if (!response.ok) {
+        console.error('❌ Twilio verification error:');
+        console.error('Status:', response.status);
+        console.error('Error details:', JSON.stringify(data));
+        
+        // More helpful error message for 404
+        if (response.status === 404) {
+          return new Response(
+            JSON.stringify({ 
+              success: false,
+              error: 'Ce code a expiré ou a déjà été utilisé. Demandez un nouveau code.' 
+            }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: data.message || 'Failed to verify OTP' 
+          }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (data.status !== 'approved') {
+        console.log('⚠️ OTP verification failed - status:', data.status);
+        return new Response(
+          JSON.stringify({ 
+            success: false,
+            error: 'Code de vérification invalide' 
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ OTP verified successfully');
     }
 
     console.log('✅ OTP verified successfully');
