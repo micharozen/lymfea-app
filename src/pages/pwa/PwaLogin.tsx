@@ -208,6 +208,9 @@ const PwaLogin = () => {
     if (loading) return;
 
     setLoading(true);
+    
+    // Force sign out any existing session before setting new one
+    await supabase.auth.signOut();
     try {
       const { data, error } = await supabase.functions.invoke('verify-otp', {
         body: { 
