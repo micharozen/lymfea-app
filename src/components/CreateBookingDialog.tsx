@@ -97,6 +97,7 @@ export default function CreateBookingDialog({
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   // Update date and time when props change
   useEffect(() => {
@@ -408,7 +409,7 @@ export default function CreateBookingDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Date *</Label>
-                  <Popover>
+                  <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -425,7 +426,10 @@ export default function CreateBookingDialog({
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={(selectedDate) => {
+                          setDate(selectedDate);
+                          setDatePopoverOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                         locale={fr}
