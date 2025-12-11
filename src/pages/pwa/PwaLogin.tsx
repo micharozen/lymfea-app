@@ -58,6 +58,7 @@ const PwaLogin = () => {
           .maybeSingle();
 
         if (roles) {
+          // User is a hairdresser - redirect to PWA
           const { data: hairdresser } = await supabase
             .from('hairdressers')
             .select('status')
@@ -71,6 +72,11 @@ const PwaLogin = () => {
               navigate("/pwa/dashboard", { replace: true });
             }
           }
+        } else {
+          // User is logged in but NOT a hairdresser (admin/concierge)
+          // Sign them out so they can log in with hairdresser credentials
+          console.log("Non-hairdresser session detected on PWA login, signing out...");
+          await supabase.auth.signOut();
         }
       }
     };
