@@ -18,14 +18,17 @@ const Home = () => {
           return;
         }
 
-        // Check user role
+        // Check all user roles
         const { data: roles } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+          .eq('user_id', session.user.id);
 
-        if (roles?.role === 'hairdresser') {
+        const roleList = roles?.map(r => r.role) || [];
+        const isHairdresser = roleList.includes('hairdresser');
+        const isAdminOrConcierge = roleList.includes('admin') || roleList.includes('concierge');
+
+        if (isHairdresser) {
           // Hairdresser: redirect to PWA
           const { data: hairdresser } = await supabase
             .from('hairdressers')
@@ -38,7 +41,7 @@ const Home = () => {
           } else {
             navigate("/pwa/dashboard", { replace: true });
           }
-        } else if (roles?.role === 'admin' || roles?.role === 'concierge') {
+        } else if (isAdminOrConcierge) {
           // Admin or concierge: redirect to admin dashboard
           navigate("/admin", { replace: true });
         } else {
