@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, Search } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, Plus, ArrowRight, Search, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -160,8 +160,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const cartDetails = useMemo(() => cart.map(i => ({ ...i, t: treatments?.find(x => x.id === i.treatmentId) })).filter(i => i.t), [cart, treatments]);
   
   const add = (id: string) => setCart(p => { const e = p.find(x => x.treatmentId === id); return e ? p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x) : [...p, { treatmentId: id, quantity: 1 }]; });
-  const inc = (id: string) => setCart(p => p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x));
-  const dec = (id: string) => setCart(p => { const e = p.find(x => x.treatmentId === id); return e && e.quantity <= 1 ? p.filter(x => x.treatmentId !== id) : p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity - 1 } : x); });
+  const remove = (id: string) => setCart(p => p.filter(x => x.treatmentId !== id));
 
   const flatIds = useMemo(() => { const ids: string[] = []; cart.forEach(i => { for (let j = 0; j < i.quantity; j++) ids.push(i.treatmentId); }); return ids; }, [cart]);
 
@@ -432,40 +431,49 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </ScrollArea>
               </div>
 
-              {/* SECTION B: Summary / Cart (Bottom) */}
-              {cart.length > 0 && (
-                <div className="border-t bg-muted/20 shrink-0">
-                  {/* Cart Header */}
-                  <div className="h-9 px-3 flex items-center border-b bg-muted/40">
-                    <span className="text-sm font-medium">Récapitulatif</span>
-                    <span className="ml-2 text-xs text-muted-foreground">({itemCount} article{itemCount > 1 ? 's' : ''})</span>
-                    <div className="flex-1" />
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="text-muted-foreground">Durée: <span className="font-medium text-foreground">{totalDuration} min</span></span>
-                      <span className="text-muted-foreground">Total: <span className="font-bold text-primary text-sm">{totalPrice}€</span></span>
-                    </div>
-                  </div>
-
-                  {/* Cart Items - Compact Table */}
-                  <div className="max-h-32 overflow-y-auto">
-                    {cartDetails.map(({ treatmentId, quantity, t }) => (
-                      <div key={treatmentId} className="h-8 flex items-center gap-2 px-3 text-xs border-b border-border/30 hover:bg-muted/30">
-                        <span className="flex-1 truncate text-sm">{t!.name}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10" onClick={() => dec(treatmentId)}>
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-5 text-center font-semibold">{quantity}</span>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => inc(treatmentId)}>
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <span className="w-16 text-right font-medium shrink-0">{((t!.price || 0) * quantity)}€</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* ═══════════════════════════════════════════════════════════
+                  SECTION B: RECAP / SELECTED SERVICES (Bottom - Pinned)
+              ═══════════════════════════════════════════════════════════ */}
+              <div className="shrink-0 border-t-2 border-border bg-muted/30">
+                {/* Section Header */}
+                <div className="h-10 px-4 flex items-center bg-muted/50">
+                  <span className="text-sm font-semibold">Services sélectionnés</span>
+                  {cart.length > 0 && (
+                    <>
+                      <span className="ml-2 text-xs text-muted-foreground">({itemCount})</span>
+                      <div className="flex-1" />
+                      <span className="text-xs text-muted-foreground mr-3">{totalDuration} min</span>
+                      <span className="text-sm font-bold">{totalPrice}€</span>
+                    </>
+                  )}
                 </div>
-              )}
+
+                {/* Selected Items List */}
+                <div className="max-h-36 overflow-y-auto">
+                  {cart.length === 0 ? (
+                    <div className="h-16 flex items-center justify-center text-sm text-muted-foreground">
+                      Cliquez sur un service ci-dessus pour l'ajouter
+                    </div>
+                  ) : (
+                    cartDetails.map(({ treatmentId, quantity, t }) => (
+                      <div key={treatmentId} className="h-10 flex items-center px-4 border-b border-border/40">
+                        <span className="flex-1 text-sm truncate">{t!.name}</span>
+                        <span className="w-12 text-center text-sm text-muted-foreground">×{quantity}</span>
+                        <span className="w-20 text-right text-sm font-medium">{((t!.price || 0) * quantity)}€</span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 ml-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => remove(treatmentId)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Footer */}
