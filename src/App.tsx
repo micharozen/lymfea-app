@@ -15,7 +15,7 @@ import Booking from "./pages/Booking";
 import HairDresser from "./pages/HairDresser";
 import Hotels from "./pages/Hotels";
 import TreatmentMenus from "./pages/TreatmentMenus";
-import Boxes from "./pages/Boxes";
+import Trunks from "./pages/Trunks";
 import Concierges from "./pages/Concierges";
 import OomProducts from "./pages/OomProducts";
 import OomOrders from "./pages/OomOrders";
@@ -108,7 +108,7 @@ const App = () => {
           <Route path="/hair-dresser" element={<Navigate to="/admin/hair-dresser" replace />} />
           <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
           <Route path="/treatment-menus" element={<Navigate to="/admin/treatment-menus" replace />} />
-          <Route path="/boxes" element={<Navigate to="/admin/boxes" replace />} />
+          <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
           <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
           <Route path="/oom-products" element={<Navigate to="/admin/oom-products" replace />} />
           <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
@@ -206,7 +206,7 @@ const App = () => {
                           <Route path="/hair-dresser" element={<HairDresser />} />
                           <Route path="/hotels" element={<Hotels />} />
                           <Route path="/treatment-menus" element={<TreatmentMenus />} />
-                          <Route path="/boxes" element={<Boxes />} />
+                          <Route path="/trunks" element={<Trunks />} />
                           <Route path="/concierges" element={<Concierges />} />
                           <Route path="/oom-products" element={<OomProducts />} />
                           <Route path="/oom-orders" element={<OomOrders />} />

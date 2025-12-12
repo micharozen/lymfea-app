@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -32,31 +32,33 @@ import { Upload } from "lucide-react";
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
-  box_model: z.string().min(1, "Le modèle de box est requis"),
-  box_id: z.string().min(1, "L'ID de box est requis"),
+  trunk_model: z.string().min(1, "Le modèle de trunk est requis"),
+  trunk_id: z.string().min(1, "L'ID du trunk est requis"),
   hotel_id: z.string().optional(),
 });
 
-interface AddBoxDialogProps {
+interface EditTrunkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  trunk: any;
   onSuccess: () => void;
 }
 
-export function AddBoxDialog({
+export function EditTrunkDialog({
   open,
   onOpenChange,
+  trunk,
   onSuccess,
-}: AddBoxDialogProps) {
-  const [boxImage, setBoxImage] = useState<string>("");
+}: EditTrunkDialogProps) {
+  const [trunkImage, setTrunkImage] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      box_model: "",
-      box_id: "",
+      trunk_model: "",
+      trunk_id: "",
       hotel_id: "",
     },
   });
@@ -74,6 +76,18 @@ export function AddBoxDialog({
     },
   });
 
+  useEffect(() => {
+    if (trunk && open) {
+      form.reset({
+        name: trunk.name || "",
+        trunk_model: trunk.trunk_model || "",
+        trunk_id: trunk.trunk_id || "",
+        hotel_id: trunk.hotel_id || "",
+      });
+      setTrunkImage(trunk.image || "");
+    }
+  }, [trunk, open, form]);
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -82,7 +96,7 @@ export function AddBoxDialog({
     try {
       const fileExt = file.name.split(".").pop();
       const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `boxes/${fileName}`;
+      const filePath = `trunks/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
@@ -94,7 +108,7 @@ export function AddBoxDialog({
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
-      setBoxImage(publicUrl);
+      setTrunkImage(publicUrl);
       toast.success("Image téléchargée avec succès");
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -105,23 +119,25 @@ export function AddBoxDialog({
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    const { error } = await supabase.from("boxes").insert({
-      name: values.name,
-      box_model: values.box_model,
-      box_id: values.box_id,
-      hotel_id: values.hotel_id || null,
-      image: boxImage || null,
-      status: "Available",
-    });
+    if (!trunk?.id) return;
+
+    const { error } = await supabase
+      .from("trunks")
+      .update({
+        name: values.name,
+        trunk_model: values.trunk_model,
+        trunk_id: values.trunk_id,
+        hotel_id: values.hotel_id || null,
+        image: trunkImage || null,
+      })
+      .eq("id", trunk.id);
 
     if (error) {
-      toast.error("Erreur lors de l'ajout de la box");
+      toast.error("Erreur lors de la modification du trunk");
       return;
     }
 
-    toast.success("Box ajoutée avec succès");
-    form.reset();
-    setBoxImage("");
+    toast.success("Trunk modifié avec succès");
     onOpenChange(false);
     onSuccess();
   };
@@ -130,19 +146,19 @@ export function AddBoxDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add box</DialogTitle>
+          <DialogTitle>Modifier le trunk</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex flex-col gap-3">
-              <FormLabel>Box picture</FormLabel>
+              <FormLabel>Image du trunk</FormLabel>
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 rounded-md border border-border flex items-center justify-center overflow-hidden bg-muted">
-                  {boxImage ? (
+                  {trunkImage ? (
                     <img
-                      src={boxImage}
-                      alt="Box preview"
+                      src={trunkImage}
+                      alt="Trunk preview"
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -154,12 +170,12 @@ export function AddBoxDialog({
                   variant="outline"
                   size="sm"
                   disabled={isUploading}
-                  onClick={() => document.getElementById("box-image-upload")?.click()}
+                  onClick={() => document.getElementById("trunk-image-upload-edit")?.click()}
                 >
-                  Upload Image
+                  Télécharger
                 </Button>
                 <Input
-                  id="box-image-upload"
+                  id="trunk-image-upload-edit"
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
@@ -174,9 +190,9 @@ export function AddBoxDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Box name</FormLabel>
+                  <FormLabel>Nom du trunk</FormLabel>
                   <FormControl>
-                    <Input placeholder="OOM Box" {...field} />
+                    <Input placeholder="OOM Trunk" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -185,12 +201,12 @@ export function AddBoxDialog({
 
             <FormField
               control={form.control}
-              name="box_model"
+              name="trunk_model"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Box model</FormLabel>
+                  <FormLabel>Modèle du trunk</FormLabel>
                   <FormControl>
-                    <Input placeholder="OOM Box" {...field} />
+                    <Input placeholder="OOM Trunk V1" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -199,12 +215,12 @@ export function AddBoxDialog({
 
             <FormField
               control={form.control}
-              name="box_id"
+              name="trunk_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Box ID</FormLabel>
+                  <FormLabel>ID du trunk</FormLabel>
                   <FormControl>
-                    <Input placeholder="OOM Box" {...field} />
+                    <Input placeholder="TRK-001" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -216,11 +232,11 @@ export function AddBoxDialog({
               name="hotel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hotel</FormLabel>
+                  <FormLabel>Hôtel</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select" />
+                        <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -242,9 +258,9 @@ export function AddBoxDialog({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                Annuler
               </Button>
-              <Button type="submit">Add</Button>
+              <Button type="submit">Enregistrer</Button>
             </div>
           </form>
         </Form>

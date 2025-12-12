@@ -179,51 +179,6 @@ export type Database = {
         }
         Relationships: []
       }
-      boxes: {
-        Row: {
-          box_id: string
-          box_model: string
-          created_at: string
-          hairdresser_name: string | null
-          hotel_id: string | null
-          hotel_name: string | null
-          id: string
-          image: string | null
-          name: string
-          next_booking: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          box_id: string
-          box_model: string
-          created_at?: string
-          hairdresser_name?: string | null
-          hotel_id?: string | null
-          hotel_name?: string | null
-          id?: string
-          image?: string | null
-          name: string
-          next_booking?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          box_id?: string
-          box_model?: string
-          created_at?: string
-          hairdresser_name?: string | null
-          hotel_id?: string | null
-          hotel_name?: string | null
-          id?: string
-          image?: string | null
-          name?: string
-          next_booking?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       concierge_hotels: {
         Row: {
           concierge_id: string
@@ -435,7 +390,6 @@ export type Database = {
       }
       hairdressers: {
         Row: {
-          boxes: string | null
           country_code: string
           created_at: string
           email: string
@@ -448,11 +402,11 @@ export type Database = {
           skills: string[] | null
           status: string
           stripe_account_id: string | null
+          trunks: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
-          boxes?: string | null
           country_code?: string
           created_at?: string
           email: string
@@ -465,11 +419,11 @@ export type Database = {
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
+          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
-          boxes?: string | null
           country_code?: string
           created_at?: string
           email?: string
@@ -482,6 +436,7 @@ export type Database = {
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
+          trunks?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -842,6 +797,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trunks: {
+        Row: {
+          created_at: string
+          hairdresser_name: string | null
+          hotel_id: string | null
+          hotel_name: string | null
+          id: string
+          image: string | null
+          name: string
+          next_booking: string | null
+          status: string
+          trunk_id: string
+          trunk_model: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          hairdresser_name?: string | null
+          hotel_id?: string | null
+          hotel_name?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          next_booking?: string | null
+          status?: string
+          trunk_id: string
+          trunk_model: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          hairdresser_name?: string | null
+          hotel_id?: string | null
+          hotel_name?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          next_booking?: string | null
+          status?: string
+          trunk_id?: string
+          trunk_model?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
