@@ -184,9 +184,13 @@ export default function Booking() {
     }
   }, [bookings, searchParams, hasOpenedFromUrl, setSearchParams]);
 
-  // Generate hourly slots from 0:00 to 23:00 for main display (24h)
+  // Generate hourly slots from 07:00 to 21:00 for main display (working hours only)
+  const START_HOUR = 7;
+  const END_HOUR = 22;
+  const HOUR_HEIGHT = 60; // pixels per hour
+  
   const hours = useMemo(() => {
-    return Array.from({ length: 24 }, (_, i) => i); // 0 to 23
+    return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
   }, []);
 
   // Generate 15-minute time slots for booking selection (24h)
@@ -231,15 +235,32 @@ export default function Booking() {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
-  const getBookingsForHour = (date: Date, hour: number) => {
-    const hourStr = hour.toString().padStart(2, '0');
-    return filteredBookings?.filter(
-      (booking) => {
-        const bookingDate = booking.booking_date === format(date, "yyyy-MM-dd");
-        const bookingHour = booking.booking_time?.substring(0, 2);
-        return bookingDate && bookingHour === hourStr;
-      }
-    ) || [];
+  // Get all bookings for a specific day that fall within visible hours
+  const getBookingsForDay = (date: Date) => {
+    return filteredBookings?.filter((booking) => {
+      const bookingDate = booking.booking_date === format(date, "yyyy-MM-dd");
+      if (!bookingDate || !booking.booking_time) return false;
+      
+      const [hours] = booking.booking_time.split(':').map(Number);
+      return hours >= START_HOUR && hours < END_HOUR;
+    }) || [];
+  };
+
+  // Calculate precise position and height for a booking
+  const getBookingPosition = (booking: any) => {
+    if (!booking.booking_time) return { top: 0, height: HOUR_HEIGHT };
+    
+    const [hours, minutes] = booking.booking_time.split(':').map(Number);
+    const duration = (booking as any).totalDuration || 60; // default 60 min if no duration
+    
+    // Calculate top position in pixels from start of grid
+    const totalMinutesFromStart = (hours - START_HOUR) * 60 + minutes;
+    const top = (totalMinutesFromStart / 60) * HOUR_HEIGHT;
+    
+    // Calculate height based on duration
+    const height = (duration / 60) * HOUR_HEIGHT;
+    
+    return { top, height: Math.max(height, 24) }; // minimum 24px height for visibility
   };
 
   const isCurrentHour = (date: Date, hour: number) => {
@@ -466,168 +487,186 @@ export default function Booking() {
                     })}
                   </div>
 
-                  {/* Grille avec les créneaux horaires */}
-                  <div className="relative">
-                    {hours.map((hour) => {
-                      const hourStr = `${hour.toString().padStart(2, '0')}:00`;
+                  {/* Grille avec les créneaux horaires - Nouvelle structure avec positionnement absolu */}
+                  <div className="grid grid-cols-8">
+                    {/* Colonne des heures */}
+                    <div className="border-r border-border bg-muted/20">
+                      {hours.map((hour) => (
+                        <div
+                          key={hour}
+                          className="border-b border-border p-1 flex items-start"
+                          style={{ height: `${HOUR_HEIGHT}px` }}
+                        >
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            {hour.toString().padStart(2, '0')}:00
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Colonnes des jours avec grille et événements positionnés */}
+                    {weekDays.map((day, dayIndex) => {
+                      const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                      const dayBookings = getBookingsForDay(day);
+                      
+                      // Calculate current time indicator position
+                      const now = new Date(currentTime.toLocaleString("en-US", { timeZone: timezone }));
+                      const currentHour = now.getHours();
+                      const currentMinute = now.getMinutes();
+                      const showCurrentTimeIndicator = isToday && currentHour >= START_HOUR && currentHour < END_HOUR;
+                      const currentTimeTop = showCurrentTimeIndicator 
+                        ? ((currentHour - START_HOUR) * 60 + currentMinute) / 60 * HOUR_HEIGHT
+                        : 0;
+                      
                       return (
-                        <div key={hour} className="grid grid-cols-8 border-b border-border">
-                          <div className="p-1 border-r border-border bg-muted/20 flex items-start">
-                            <span className="text-[10px] font-medium text-muted-foreground">{hourStr}</span>
-                          </div>
-                          {weekDays.map((day) => {
-                            const bookingsInHour = getBookingsForHour(day, hour);
-                            const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                            const isCurrent = isCurrentHour(day, hour);
-                            
+                        <div 
+                          key={day.toISOString()} 
+                          className={`relative border-r border-border last:border-r-0 ${isToday ? "bg-primary/[0.02]" : ""}`}
+                        >
+                          {/* Grid lines for each hour */}
+                          {hours.map((hour) => {
+                            const hourStr = `${hour.toString().padStart(2, '0')}:00`;
                             return (
                               <div
-                                key={`${day.toISOString()}-${hour}`}
-                                className={`relative min-h-[60px] p-1 border-r border-border last:border-r-0 transition-colors group cursor-pointer ${
-                                  bookingsInHour.length > 0
-                                    ? "bg-primary/5 hover:bg-primary/10"
-                                    : isToday
-                                    ? "bg-primary/[0.02] hover:bg-muted/30"
-                                    : "hover:bg-muted/30"
-                                }`}
+                                key={hour}
+                                className="border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
+                                style={{ height: `${HOUR_HEIGHT}px` }}
                                 onClick={() => handleCalendarClick(day, hourStr)}
-                              >
-                                {/* Bouton + pour ajouter une réservation */}
-                                {bookingsInHour.length > 0 && (
-                                  <button
-                                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-primary/10 hover:bg-primary/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCalendarClick(day, hourStr);
-                                    }}
-                                    title="Ajouter une réservation"
-                                  >
-                                    <Plus className="h-3 w-3 text-primary" />
-                                  </button>
-                                )}
-                                
-                                {bookingsInHour.length > 0 && (
-                                  <div className="flex flex-col gap-1 h-full pr-5">
-                                    <TooltipProvider>
-                                      {bookingsInHour.map((booking) => {
-                                        const duration = (booking as any).totalDuration || 0;
-                                        const treatments = (booking as any).treatments || [];
-                                        const hours = Math.floor(duration / 60);
-                                        const minutes = duration % 60;
-                                        const durationFormatted = hours > 0 
-                                          ? (minutes > 0 ? `${hours}h${minutes}` : `${hours}h`)
-                                          : `${minutes}min`;
-                                        
-                                        return (
-                                           <Tooltip key={booking.id} delayDuration={300}>
-                                            <TooltipTrigger asChild>
-                                              <div
-                                                className={`p-1.5 rounded border text-xs leading-tight cursor-pointer ${getStatusCardColor(booking.status, booking.payment_status)}`}
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setSelectedBooking(booking);
-                                                  setIsEditDialogOpen(true);
-                                                }}
-                                              >
-                                                <div className="font-bold">{booking.booking_time?.substring(0, 5)}</div>
-                                                <div className="truncate text-[10px]">{booking.hotel_name}</div>
-                                                <div className="opacity-80 text-[9px]">{durationFormatted}</div>
-                                              </div>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="right" className="max-w-sm">
-                                              <div className="space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                  <div className="font-semibold text-sm">
-                                                    Booking #{booking.booking_id}
-                                                  </div>
-                                                  <Badge className={`text-[8px] ${getStatusColor(booking.status)}`}>
-                                                    {getTranslatedStatus(booking.status)}
-                                                  </Badge>
-                                                </div>
-                                                
-                                                {booking.hotel_name && (
-                                                  <div className="flex items-center gap-2 text-xs">
-                                                    <Building2 className="h-3 w-3" />
-                                                    <span>{booking.hotel_name}</span>
-                                                  </div>
-                                                )}
-                                                
-                                                {booking.room_number && (
-                                                  <div className="text-xs">
-                                                    Chambre: {booking.room_number}
-                                                  </div>
-                                                )}
-                                                
-                                                <div className="space-y-1">
-                                                  <div className="flex items-center gap-2 text-xs font-medium">
-                                                    <User className="h-3 w-3" />
-                                                    <span>{booking.client_first_name} {booking.client_last_name}</span>
-                                                  </div>
-                                                  {booking.phone && (
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                      <Phone className="h-3 w-3" />
-                                                      <span>{booking.phone}</span>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                                
-                                                {booking.hairdresser_name && (
-                                                  <div className="flex items-center gap-2 text-xs">
-                                                    <Users className="h-3 w-3" />
-                                                    <span>Coiffeur: {booking.hairdresser_name}</span>
-                                                  </div>
-                                                )}
-                                                
-                                                <div className="flex items-center gap-2 text-xs">
-                                                  <Clock className="h-3 w-3" />
-                                                  <span>Durée: {durationFormatted}</span>
-                                                </div>
-                                                
-                                                {treatments.length > 0 && (
-                                                  <div className="space-y-1">
-                                                    <div className="text-xs font-medium">Traitements:</div>
-                                                    <ul className="text-xs space-y-1">
-                                                      {treatments.map((treatment: any, idx: number) => {
-                                                        const tHours = Math.floor(treatment.duration / 60);
-                                                        const tMinutes = treatment.duration % 60;
-                                                        const tDurationFormatted = `${tHours.toString().padStart(2, '0')}h${tMinutes.toString().padStart(2, '0')}`;
-                                                        return (
-                                                          <li key={idx} className="flex justify-between gap-2">
-                                                            <span>{treatment.name}</span>
-                                                            <span className="text-muted-foreground whitespace-nowrap">
-                                                              {tDurationFormatted} • €{treatment.price}
-                                                            </span>
-                                                          </li>
-                                                        );
-                                                      })}
-                                                    </ul>
-                                                  </div>
-                                                )}
-                                                
-                                                {booking.total_price && (
-                                                  <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
-                                                    <Euro className="h-3 w-3" />
-                                                    <span>Total: €{booking.total_price}</span>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        );
-                                      })}
-                                    </TooltipProvider>
-                                  </div>
-                                )}
-                                
-                                {/* Barre de temps actuel */}
-                                {isCurrent && (
-                                  <div className="absolute left-0 right-0 h-0.5 bg-red-500 z-20 pointer-events-none top-1/2 -translate-y-1/2">
-                                    <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
-                                  </div>
-                                )}
-                              </div>
+                              />
                             );
                           })}
+                          
+                          {/* Absolutely positioned bookings */}
+                          <TooltipProvider>
+                            {dayBookings.map((booking) => {
+                              const { top, height } = getBookingPosition(booking);
+                              const duration = (booking as any).totalDuration || 0;
+                              const treatments = (booking as any).treatments || [];
+                              const durationHours = Math.floor(duration / 60);
+                              const durationMinutes = duration % 60;
+                              const durationFormatted = durationHours > 0 
+                                ? (durationMinutes > 0 ? `${durationHours}h${durationMinutes}` : `${durationHours}h`)
+                                : `${durationMinutes}min`;
+                              
+                              return (
+                                <Tooltip key={booking.id} delayDuration={300}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={`absolute left-1 right-1 rounded border text-xs cursor-pointer overflow-hidden z-10 ${getStatusCardColor(booking.status, booking.payment_status)}`}
+                                      style={{ 
+                                        top: `${top}px`, 
+                                        height: `${height}px`,
+                                        minHeight: '24px'
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedBooking(booking);
+                                        setIsEditDialogOpen(true);
+                                      }}
+                                    >
+                                      <div className="p-1 h-full flex flex-col">
+                                        <div className="font-bold text-[11px] leading-tight">{booking.booking_time?.substring(0, 5)}</div>
+                                        {height >= 40 && (
+                                          <div className="truncate text-[9px] opacity-90">{booking.hotel_name}</div>
+                                        )}
+                                        {height >= 55 && (
+                                          <div className="text-[8px] opacity-75">{durationFormatted}</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="max-w-sm z-50">
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className="font-semibold text-sm">
+                                          Booking #{booking.booking_id}
+                                        </div>
+                                        <Badge className={`text-[8px] ${getStatusColor(booking.status)}`}>
+                                          {getTranslatedStatus(booking.status)}
+                                        </Badge>
+                                      </div>
+                                      
+                                      {booking.hotel_name && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <Building2 className="h-3 w-3" />
+                                          <span>{booking.hotel_name}</span>
+                                        </div>
+                                      )}
+                                      
+                                      {booking.room_number && (
+                                        <div className="text-xs">
+                                          Chambre: {booking.room_number}
+                                        </div>
+                                      )}
+                                      
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2 text-xs font-medium">
+                                          <User className="h-3 w-3" />
+                                          <span>{booking.client_first_name} {booking.client_last_name}</span>
+                                        </div>
+                                        {booking.phone && (
+                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Phone className="h-3 w-3" />
+                                            <span>{booking.phone}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {booking.hairdresser_name && (
+                                        <div className="flex items-center gap-2 text-xs">
+                                          <Users className="h-3 w-3" />
+                                          <span>Coiffeur: {booking.hairdresser_name}</span>
+                                        </div>
+                                      )}
+                                      
+                                      <div className="flex items-center gap-2 text-xs">
+                                        <Clock className="h-3 w-3" />
+                                        <span>Durée: {durationFormatted}</span>
+                                      </div>
+                                      
+                                      {treatments.length > 0 && (
+                                        <div className="space-y-1">
+                                          <div className="text-xs font-medium">Traitements:</div>
+                                          <ul className="text-xs space-y-1">
+                                            {treatments.map((treatment: any, idx: number) => {
+                                              const tHours = Math.floor(treatment.duration / 60);
+                                              const tMinutes = treatment.duration % 60;
+                                              const tDurationFormatted = `${tHours.toString().padStart(2, '0')}h${tMinutes.toString().padStart(2, '0')}`;
+                                              return (
+                                                <li key={idx} className="flex justify-between gap-2">
+                                                  <span>{treatment.name}</span>
+                                                  <span className="text-muted-foreground whitespace-nowrap">
+                                                    {tDurationFormatted} • €{treatment.price}
+                                                  </span>
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </div>
+                                      )}
+                                      
+                                      {booking.total_price && (
+                                        <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+                                          <Euro className="h-3 w-3" />
+                                          <span>Total: €{booking.total_price}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </TooltipProvider>
+                          
+                          {/* Current time indicator */}
+                          {showCurrentTimeIndicator && (
+                            <div 
+                              className="absolute left-0 right-0 h-0.5 bg-destructive z-20 pointer-events-none"
+                              style={{ top: `${currentTimeTop}px` }}
+                            >
+                              <div className="absolute -left-1.5 -top-1 w-2.5 h-2.5 bg-destructive rounded-full"></div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
