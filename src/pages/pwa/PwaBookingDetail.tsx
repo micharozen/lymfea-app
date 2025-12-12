@@ -775,14 +775,6 @@ const PwaBookingDetail = () => {
           <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">{t('booking.treatments')}</h3>
-            {booking.status === "Assigné" && (
-              <button
-                onClick={() => setShowAddTreatmentDialog(true)}
-                className="text-sm text-primary hover:text-primary/80 font-medium transition-all active:scale-95"
-              >
-                + {t('bookingDetail.add')}
-              </button>
-            )}
           </div>
             {treatments.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
@@ -807,6 +799,16 @@ const PwaBookingDetail = () => {
                 </div>
                 ))}
               </div>
+            )}
+            
+            {/* Add Treatment Button - Primary Block */}
+            {booking.status === "Assigné" && (
+              <button
+                onClick={() => setShowAddTreatmentDialog(true)}
+                className="w-full h-12 mt-4 bg-foreground text-background font-bold text-sm rounded-lg hover:bg-foreground/90 transition-all active:scale-[0.98]"
+              >
+                + {t('bookingDetail.add')}
+              </button>
             )}
           </div>
         </div>
