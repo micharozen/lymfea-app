@@ -48,11 +48,11 @@ export default function ClientDateTime() {
     return dates;
   }, [locale, t]);
 
-  // Generate time slots (6AM to 11PM every 30 minutes)
+  // Generate time slots (6AM to 11PM every 10 minutes)
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 6; hour < 23; hour++) {
-      for (let minute of [0, 30]) {
+      for (let minute = 0; minute < 60; minute += 10) {
         const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
         const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
         const period = hour >= 12 ? 'PM' : 'AM';

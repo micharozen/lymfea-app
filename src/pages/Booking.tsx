@@ -193,11 +193,11 @@ export default function Booking() {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
   }, []);
 
-  // Generate 15-minute time slots for booking selection (24h)
+  // Generate 10-minute time slots for booking selection (24h)
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 0; hour <= 23; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
+      for (let minute = 0; minute < 60; minute += 10) {
         slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
       }
     }
