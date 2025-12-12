@@ -240,7 +240,8 @@ export default function EditBookingDialog({
         .from("treatment_menus")
         .select("*")
         .eq("status", "Actif")
-        .order("sort_order");
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true });
       if (error) throw error;
       return data;
     },

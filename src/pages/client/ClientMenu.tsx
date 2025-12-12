@@ -62,7 +62,8 @@ export default function ClientMenu() {
         .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
         .in('service_for', [serviceFor, 'All'])
         .eq('status', 'Actif')
-        .order('sort_order');
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true });
       
       if (error) throw error;
       return data as Treatment[];
