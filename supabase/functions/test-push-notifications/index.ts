@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
           service_for: 'Homme',
           price: 50,
           duration: 30,
-          buffer_time: 10,
+          lead_time: 10,
           hotel_id: testHotelId,
           status: 'Actif',
         })

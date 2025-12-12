@@ -133,7 +133,7 @@ export default function TreatmentMenus() {
     return `${minutes}min`;
   };
 
-  const formatBufferTime = (minutes: number | null) => {
+  const formatLeadTime = (minutes: number | null) => {
     if (!minutes) return "0";
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
@@ -222,7 +222,7 @@ export default function TreatmentMenus() {
                 <TableHead>Description</TableHead>
                 <TableHead className="text-center">Durée</TableHead>
                 <TableHead className="text-center">Tarif</TableHead>
-                <TableHead className="text-center">Intervalle</TableHead>
+                <TableHead className="text-center">Délai min</TableHead>
                 <TableHead className="text-center">Public</TableHead>
                 <TableHead className="text-center">Catégorie</TableHead>
                 <TableHead className="text-center">Établissement</TableHead>
@@ -263,7 +263,7 @@ export default function TreatmentMenus() {
                       {menu.price ? `${menu.price}€` : "0"}
                     </TableCell>
                     <TableCell className="align-middle text-center">
-                      {formatBufferTime(menu.buffer_time)}
+                      {formatLeadTime(menu.lead_time)}
                     </TableCell>
                     <TableCell className="align-middle text-center">
                       <span className="text-lg">

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date } = await req.json();
+    const { hotelId, date, treatmentIds } = await req.json();
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -24,6 +24,22 @@ serve(async (req) => {
     );
 
     console.log(`Checking availability for hotel ${hotelId} on ${date}`);
+
+    // Get the maximum lead_time from selected treatments (if provided)
+    let maxLeadTime = 0;
+    if (treatmentIds && treatmentIds.length > 0) {
+      const { data: treatments, error: treatmentsError } = await supabase
+        .from('treatment_menus')
+        .select('lead_time')
+        .in('id', treatmentIds);
+      
+      if (treatmentsError) {
+        console.error('Error fetching treatments:', treatmentsError);
+      } else if (treatments && treatments.length > 0) {
+        maxLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
+        console.log(`Maximum lead_time from selected treatments: ${maxLeadTime} minutes`);
+      }
+    }
 
     // Get all active hairdressers for this hotel
     const { data: hairdressers, error: hairdressersError } = await supabase
@@ -81,15 +97,38 @@ serve(async (req) => {
       }
     }
 
+    // Calculate the earliest bookable time based on lead_time
+    const now = new Date();
+    const requestedDate = new Date(date);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isToday = requestedDate.getTime() === today.getTime();
+    
+    let earliestBookableTime: string | null = null;
+    if (isToday && maxLeadTime > 0) {
+      // Add lead_time to current time
+      const earliestTime = new Date(now.getTime() + maxLeadTime * 60 * 1000);
+      const earliestHour = earliestTime.getHours();
+      const earliestMinute = earliestTime.getMinutes();
+      // Round up to next 30-minute slot
+      const roundedMinute = earliestMinute < 30 ? 30 : 0;
+      const roundedHour = earliestMinute < 30 ? earliestHour : earliestHour + 1;
+      earliestBookableTime = `${roundedHour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}:00`;
+      console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} (current time + ${maxLeadTime} min)`);
+    }
+
     // Check which slots have at least one available hairdresser
     const availableSlots = timeSlots.filter(slot => {
+      // Filter out slots that are too soon based on lead_time (only for today)
+      if (isToday && earliestBookableTime && slot < earliestBookableTime) {
+        return false;
+      }
+
       // Count how many hairdressers are busy at this time
       const busyHairdressers = new Set(
         (bookings || [])
           .filter(b => {
             // Format booking time to match our slot format
             const bookingTime = b.booking_time;
-            console.log(`Comparing slot ${slot} with booking time ${bookingTime}`);
             return bookingTime === slot;
           })
           .map(b => b.hairdresser_id)

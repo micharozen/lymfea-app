@@ -36,7 +36,7 @@ const formSchema = z.object({
   description: z.string().optional(),
   duration: z.string().default("0"),
   price: z.string().default("0"),
-  buffer_time: z.string().default("0"),
+  lead_time: z.string().default("0"),
   service_for: z.string().min(1, "Le service pour est requis"),
   category: z.string().min(1, "La catégorie est requise"),
   hotel_id: z.string().optional(),
@@ -65,7 +65,7 @@ export function AddTreatmentMenuDialog({
       description: "",
       duration: "0",
       price: "0",
-      buffer_time: "0",
+      lead_time: "0",
       service_for: "",
       category: "",
       hotel_id: "",
@@ -123,7 +123,7 @@ export function AddTreatmentMenuDialog({
       description: values.description || null,
       duration: parseInt(values.duration),
       price: parseFloat(values.price),
-      buffer_time: parseInt(values.buffer_time),
+      lead_time: parseInt(values.lead_time),
       service_for: values.service_for,
       category: values.category,
       hotel_id: values.hotel_id || null,
@@ -265,10 +265,10 @@ export function AddTreatmentMenuDialog({
 
               <FormField
                 control={form.control}
-                name="buffer_time"
+                name="lead_time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Intervalle (min)</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Délai min (min)</FormLabel>
                     <FormControl>
                       <Input type="number" placeholder="0" {...field} />
                     </FormControl>

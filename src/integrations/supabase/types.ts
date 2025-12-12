@@ -713,7 +713,6 @@ export type Database = {
       }
       treatment_menus: {
         Row: {
-          buffer_time: number | null
           category: string
           created_at: string
           description: string | null
@@ -721,6 +720,7 @@ export type Database = {
           hotel_id: string | null
           id: string
           image: string | null
+          lead_time: number | null
           name: string
           price: number | null
           price_on_request: boolean | null
@@ -730,7 +730,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          buffer_time?: number | null
           category: string
           created_at?: string
           description?: string | null
@@ -738,6 +737,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           image?: string | null
+          lead_time?: number | null
           name: string
           price?: number | null
           price_on_request?: boolean | null
@@ -747,7 +747,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          buffer_time?: number | null
           category?: string
           created_at?: string
           description?: string | null
@@ -755,6 +754,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           image?: string | null
+          lead_time?: number | null
           name?: string
           price?: number | null
           price_on_request?: boolean | null
