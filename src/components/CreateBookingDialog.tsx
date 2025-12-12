@@ -338,96 +338,107 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </div>
         )}
 
-        {/* VIEW 2: SERVICES & CART (VERTICAL STACK) */}
+        {/* VIEW 2: MINIMALIST SPA MENU */}
         {view === 2 && (
-          <form onSubmit={submit} className="flex flex-col h-full min-h-[500px] max-h-[80vh]">
+          <form onSubmit={submit} className="flex flex-col h-full min-h-[500px] max-h-[80vh] bg-background">
             
-            {/* 1. SCROLLABLE SERVICE LIST (Takes all available space) */}
-            <div className="flex-1 overflow-y-auto px-1">
+            {/* 1. SCROLLABLE SERVICE LIST */}
+            <div className="flex-1 overflow-y-auto">
               
-              {/* Search & Tabs */}
-              <div className="sticky top-0 bg-background z-10 py-2 border-b mb-2 px-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={back}>
+              {/* HEADER: Tabs + Back */}
+              <div className="sticky top-0 bg-background z-10 border-b border-border/50">
+                {/* Back Button Row */}
+                <div className="px-6 py-3 flex items-center">
+                  <button 
+                    type="button" 
+                    onClick={back}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     ← Retour
-                  </Button>
-                  <span className="text-sm font-medium">{clientFirstName} {clientLastName}</span>
-                  {roomNumber && <span className="text-xs text-muted-foreground">• Ch. {roomNumber}</span>}
+                  </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  {(["all", "female", "male"] as const).map(f => (
-                    <Button 
-                      key={f} 
-                      type="button" 
-                      variant={filter === f ? "default" : "outline"} 
-                      size="sm" 
-                      className="h-7 text-xs px-3"
+                
+                {/* Menu Tabs (Clean Underline Style) */}
+                <div className="px-6 flex items-center gap-8">
+                  {(["female", "male"] as const).map(f => (
+                    <button
+                      key={f}
+                      type="button"
                       onClick={() => setFilter(f)}
+                      className={cn(
+                        "pb-3 text-xs font-bold uppercase tracking-widest transition-colors",
+                        filter === f 
+                          ? "text-foreground border-b-2 border-foreground" 
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
-                    </Button>
+                      {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
+                    </button>
                   ))}
                   <div className="flex-1" />
-                  <div className="relative w-36">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <div className="relative w-40 pb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
                       value={search}
                       onChange={e => setSearch(e.target.value)}
-                      placeholder="Rechercher..."
-                      className="h-7 pl-7 text-xs"
+                      placeholder="Search..."
+                      className="h-8 pl-9 text-sm border-border/50"
                     />
                   </div>
                 </div>
               </div>
 
-              {Object.entries(grouped).map(([category, items]) => (
-                <div key={category} className="mb-6">
-                  {/* Category Header */}
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-4 px-2">
-                    {category}
-                  </h3>
-                  {/* Clean Service Rows */}
-                  <div className="space-y-1">
-                    {items.map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="group flex items-center justify-between py-3 px-2 border-b border-border/30 hover:bg-muted/40 transition-colors"
-                      >
-                        {/* Left: Name */}
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">
-                            {treatment.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {treatment.duration} min
-                          </span>
-                        </div>
-                        {/* Right: Price & Simple Add Button */}
-                        <div className="flex items-center gap-4">
-                          <span className="text-sm font-medium">
-                            {treatment.price}€
-                          </span>
-                          
-                          {/* SIMPLE BUTTON (+) */}
+              {/* SERVICE LIST */}
+              <div className="px-6 py-4">
+                {Object.entries(grouped).map(([category, items]) => (
+                  <div key={category} className="mb-8">
+                    {/* Category Header */}
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 pb-2 border-b border-border/30">
+                      {category}
+                    </h3>
+                    
+                    {/* Clean Service Rows */}
+                    <div>
+                      {items.map((treatment) => (
+                        <div 
+                          key={treatment.id} 
+                          className="flex items-center justify-between py-5 border-b border-border/20 group"
+                        >
+                          {/* Left: Info */}
+                          <div className="flex flex-col gap-1 flex-1 pr-4">
+                            <span className="font-bold text-foreground text-lg">
+                              {treatment.name}
+                            </span>
+                            {treatment.description && (
+                              <span className="text-sm text-muted-foreground line-clamp-1">
+                                {treatment.description}
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-foreground mt-1">
+                              {treatment.price}€ • {treatment.duration} min
+                            </span>
+                          </div>
+
+                          {/* Right: Black Pill Button */}
                           <button
                             type="button"
                             onClick={() => add(treatment.id)}
-                            className="h-8 w-8 flex items-center justify-center rounded-full border border-border text-muted-foreground hover:border-foreground hover:bg-foreground hover:text-background transition-all"
+                            className="bg-foreground text-background text-xs font-bold uppercase tracking-wide px-6 py-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
                           >
-                            <Plus className="h-4 w-4" />
+                            Select
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {!filtered.length && (
-                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                  Aucune prestation trouvée
-                </div>
-              )}
+                {!filtered.length && (
+                  <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                    No treatments found
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 2. STICKY FOOTER / RECAP (Bounded Height) */}
