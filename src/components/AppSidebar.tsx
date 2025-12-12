@@ -38,12 +38,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const menuItems = [
+const adminMenuItems = [
   { title: "Accueil", url: "/admin", icon: Home },
   { title: "Paramètres & Accès", url: "/admin/settings", icon: Settings },
 ];
 
-const subMenuItems = [
+const conciergeMenuItems = [
+  { title: "Accueil", url: "/admin", icon: Home },
+];
+
+const adminSubMenuItems = [
   { title: "Réservations", url: "/admin/booking", emoji: "🗓️" },
   { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
   { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
@@ -53,6 +57,14 @@ const subMenuItems = [
   { title: "Produits OOM", url: "/admin/oom-products", emoji: "💈" },
   { title: "Commandes", url: "/admin/oom-orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
+];
+
+const conciergeSubMenuItems = [
+  { title: "Réservations", url: "/admin/booking", emoji: "🗓️" },
+  { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
+  { title: "Menus de soins", url: "/admin/treatment-menus", emoji: "📓" },
+  { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
+  { title: "Transactions & Solde", url: "/admin/transactions", emoji: "💰" },
 ];
 
 export function AppSidebar() {
@@ -249,7 +261,7 @@ export function AppSidebar() {
         <SidebarGroup className="py-2">
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => {
+              {(userRole === 'Admin' ? adminMenuItems : conciergeMenuItems).map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -282,7 +294,7 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {subMenuItems.map((item) => {
+              {(userRole === 'Admin' ? adminSubMenuItems : conciergeSubMenuItems).map((item) => {
                 const isActive = location.pathname === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

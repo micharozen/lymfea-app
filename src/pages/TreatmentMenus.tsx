@@ -190,19 +190,21 @@ export default function TreatmentMenus() {
               </SelectContent>
             </Select>
 
-            <Select value={hotelFilter} onValueChange={setHotelFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrer par hôtel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les hôtels</SelectItem>
-                {hotels?.map((hotel) => (
-                  <SelectItem key={hotel.id} value={hotel.id}>
-                    {hotel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isAdmin && (
+              <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrer par hôtel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  {hotels?.map((hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">

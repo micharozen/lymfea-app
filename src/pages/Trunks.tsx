@@ -175,19 +175,21 @@ export default function Trunks() {
                 </SelectContent>
               </Select>
 
-              <Select value={hotelFilter} onValueChange={setHotelFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les hôtels" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tous les hôtels</SelectItem>
-                  {hotels?.map((hotel) => (
-                    <SelectItem key={hotel.id} value={hotel.id}>
-                      {hotel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isAdmin && (
+                <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Tous les hôtels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les hôtels</SelectItem>
+                    {hotels?.map((hotel) => (
+                      <SelectItem key={hotel.id} value={hotel.id}>
+                        {hotel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

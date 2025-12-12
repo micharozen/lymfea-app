@@ -36,10 +36,12 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import TreatmentRequestsList from "@/components/admin/TreatmentRequestsList";
 import { StatusBadge } from "@/components/StatusBadge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
+import { useUserContext } from "@/hooks/useUserContext";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Booking() {
+  const { isAdmin } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [mainTab, setMainTab] = useState<"bookings" | "requests">("bookings");
@@ -61,6 +63,7 @@ export default function Booking() {
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [hasOpenedFromUrl, setHasOpenedFromUrl] = useState(false);
+
 
   // Fetch pending treatment requests count
   const { data: pendingRequestsCount = 0 } = useQuery({
@@ -361,19 +364,21 @@ export default function Booking() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={hotelFilter} onValueChange={setHotelFilter}>
-                    <SelectTrigger className="w-full md:w-[140px]">
-                      <SelectValue placeholder="Hôtel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Tous</SelectItem>
-                      {hotels?.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isAdmin && (
+                    <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                      <SelectTrigger className="w-full md:w-[140px]">
+                        <SelectValue placeholder="Hôtel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tous</SelectItem>
+                        {hotels?.map((hotel) => (
+                          <SelectItem key={hotel.id} value={hotel.id}>
+                            {hotel.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
 
                   <Select value={hairdresserFilter} onValueChange={setHairdresserFilter}>
                     <SelectTrigger className="w-full md:w-[140px] col-span-2 md:col-span-1">
