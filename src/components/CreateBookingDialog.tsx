@@ -343,30 +343,30 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           <form onSubmit={submit} className="flex flex-col h-full min-h-[500px] max-h-[80vh] bg-background">
             
             {/* 1. SCROLLABLE SERVICE LIST */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               
               {/* HEADER: Tabs + Back */}
               <div className="sticky top-0 bg-background z-10 border-b border-border/50">
                 {/* Back Button Row */}
-                <div className="px-6 py-3 flex items-center">
+                <div className="px-4 py-2 flex items-center">
                   <button 
                     type="button" 
                     onClick={back}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Retour
                   </button>
                 </div>
                 
                 {/* Menu Tabs (Clean Underline Style) */}
-                <div className="px-6 flex items-center gap-8">
+                <div className="px-4 flex items-center gap-6">
                   {(["female", "male"] as const).map(f => (
                     <button
                       key={f}
                       type="button"
                       onClick={() => setFilter(f)}
                       className={cn(
-                        "pb-3 text-xs font-bold uppercase tracking-widest transition-colors",
+                        "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
                         filter === f 
                           ? "text-foreground border-b-2 border-foreground" 
                           : "text-muted-foreground hover:text-foreground"
@@ -376,54 +376,49 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     </button>
                   ))}
                   <div className="flex-1" />
-                  <div className="relative w-40 pb-3">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <div className="relative w-32 pb-2">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                     <Input 
                       value={search}
                       onChange={e => setSearch(e.target.value)}
                       placeholder="Search..."
-                      className="h-8 pl-9 text-sm border-border/50"
+                      className="h-6 pl-7 text-xs border-border/50"
                     />
                   </div>
                 </div>
               </div>
 
               {/* SERVICE LIST */}
-              <div className="px-6 py-4">
+              <div className="px-4 py-2">
                 {Object.entries(grouped).map(([category, items]) => (
-                  <div key={category} className="mb-8">
+                  <div key={category} className="mb-4">
                     {/* Category Header */}
-                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 pb-2 border-b border-border/30">
+                    <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
                       {category}
                     </h3>
                     
-                    {/* Clean Service Rows */}
+                    {/* Clean Service Rows - HIGH DENSITY */}
                     <div>
                       {items.map((treatment) => (
                         <div 
                           key={treatment.id} 
-                          className="flex items-center justify-between py-5 border-b border-border/20 group"
+                          className="flex items-center justify-between py-2 border-b border-border/20 group"
                         >
                           {/* Left: Info */}
-                          <div className="flex flex-col gap-1 flex-1 pr-4">
-                            <span className="font-bold text-foreground text-lg">
+                          <div className="flex flex-col gap-0.5 flex-1 pr-3">
+                            <span className="font-bold text-foreground text-sm">
                               {treatment.name}
                             </span>
-                            {treatment.description && (
-                              <span className="text-sm text-muted-foreground line-clamp-1">
-                                {treatment.description}
-                              </span>
-                            )}
-                            <span className="text-sm font-semibold text-foreground mt-1">
+                            <span className="text-xs font-medium text-muted-foreground">
                               {treatment.price}€ • {treatment.duration} min
                             </span>
                           </div>
 
-                          {/* Right: Black Pill Button */}
+                          {/* Right: Compact Black Pill Button */}
                           <button
                             type="button"
                             onClick={() => add(treatment.id)}
-                            className="bg-foreground text-background text-xs font-bold uppercase tracking-wide px-6 py-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                            className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
                           >
                             Select
                           </button>
@@ -434,7 +429,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 ))}
 
                 {!filtered.length && (
-                  <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                  <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
                     No treatments found
                   </div>
                 )}
@@ -445,31 +440,31 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
             <div className="shrink-0 border-t border-border bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20">
               
               {/* Header du Footer */}
-              <div className="p-4 pb-2 flex items-center justify-between">
-                <h3 className="font-semibold">Récapitulatif</h3>
-                <span className="text-sm text-muted-foreground">{cart.length} article(s)</span>
+              <div className="px-4 py-2 flex items-center justify-between">
+                <h3 className="font-semibold text-sm">Récapitulatif</h3>
+                <span className="text-xs text-muted-foreground">{cart.length} article(s)</span>
               </div>
 
-              {/* LISTE DES ARTICLES SÉLECTIONNÉS (Hauteur limitée) */}
+              {/* LISTE DES ARTICLES SÉLECTIONNÉS (Hard limit: 120px) */}
               {cart.length > 0 && (
-                <div className="max-h-[25vh] overflow-y-auto px-4 space-y-3 mb-2">
+                <div className="max-h-[120px] overflow-y-auto px-4 space-y-1.5">
                   {cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="flex items-center justify-between text-sm py-1">
+                    <div key={treatmentId} className="flex items-center justify-between text-xs py-0.5">
                       <span className="truncate flex-1 font-medium text-muted-foreground pr-2">
                         {t!.name}
                       </span>
                       
-                      <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-2 py-1 shrink-0">
-                        <button type="button" onClick={() => dec(treatmentId)} className="p-1 hover:text-destructive text-muted-foreground">
-                          <Minus className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-2 bg-muted/50 rounded-md px-1.5 py-0.5 shrink-0">
+                        <button type="button" onClick={() => dec(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
+                          <Minus className="h-3 w-3" />
                         </button>
-                        <span className="w-4 text-center font-semibold">{quantity}</span>
-                        <button type="button" onClick={() => add(treatmentId)} className="p-1 hover:text-foreground text-muted-foreground">
-                          <Plus className="h-3.5 w-3.5" />
+                        <span className="w-3 text-center font-semibold text-xs">{quantity}</span>
+                        <button type="button" onClick={() => add(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
+                          <Plus className="h-3 w-3" />
                         </button>
                       </div>
 
-                      <span className="font-medium w-[60px] text-right shrink-0">
+                      <span className="font-medium w-[50px] text-right shrink-0">
                         {(t!.price || 0) * quantity}€
                       </span>
                     </div>
@@ -478,18 +473,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               )}
 
               {/* Total & Action (Toujours visible en bas) */}
-              <div className="p-4 pt-2 bg-background">
-                <div className="flex items-center justify-between border-t border-dashed border-border pt-3 mb-4">
-                  <span className="font-bold text-lg">Total</span>
-                  <span className="font-bold text-lg">{totalPrice}€</span>
+              <div className="px-4 py-3 bg-background">
+                <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mb-3">
+                  <span className="font-bold text-sm">Total</span>
+                  <span className="font-bold text-sm">{totalPrice}€</span>
                 </div>
-                <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={back} className="px-4">
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={back} size="sm" className="px-3">
                     Retour
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={mutation.isPending || cart.length === 0} 
+                    size="sm"
                     className="flex-1 bg-foreground text-background hover:bg-foreground/90"
                   >
                     {mutation.isPending ? "Création..." : "Créer la réservation"}
