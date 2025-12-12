@@ -31,7 +31,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageIcon } from "lucide-react";
 
 const formSchema = z.object({
-  id: z.string().min(1, "L'identifiant est requis").regex(/^[a-z0-9-]+$/, "L'identifiant doit contenir uniquement des lettres minuscules, chiffres et tirets"),
   name: z.string().min(1, "Le nom est requis"),
   address: z.string().min(1, "L'adresse est requise"),
   postal_code: z.string().optional(),
@@ -60,7 +59,6 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      id: "",
       name: "",
       address: "",
       postal_code: "",
@@ -124,10 +122,9 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const { error } = await supabase
+      const { data: insertedHotel, error } = await supabase
         .from("hotels")
         .insert({
-          id: values.id,
           name: values.name,
           address: values.address,
           postal_code: values.postal_code || null,
@@ -140,18 +137,21 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
           status: values.status,
           image: hotelImage || null,
           cover_image: coverImage || null,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
       toast.success("Hôtel ajouté avec succès");
       
       // Show success message with QR code info
-      const bookingUrl = `${window.location.origin}/client/${values.id}`;
-      toast.success(
-        `Hôtel créé ! Le QR code de réservation est disponible dans la liste.`,
-        { duration: 5000 }
-      );
+      if (insertedHotel) {
+        toast.success(
+          `Hôtel créé avec l'ID: ${insertedHotel.id}. Le QR code de réservation est disponible dans la liste.`,
+          { duration: 5000 }
+        );
+      }
       
       form.reset();
       setHotelImage("");
@@ -330,19 +330,6 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Identifiant unique</FormLabel>
-                  <FormControl>
-                    <Input placeholder="sofitel-paris" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
