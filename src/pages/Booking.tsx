@@ -34,6 +34,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import TreatmentRequestsList from "@/components/admin/TreatmentRequestsList";
+import { StatusBadge } from "@/components/StatusBadge";
+import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -243,97 +245,33 @@ export default function Booking() {
     return now.getHours() === hour;
   };
 
-  const statusTranslations: Record<string, string> = {
-    "Assigned": "Assigné",
-    "Completed": "Terminé",
-    "Canceled": "Annulé",
-    "Pending": "En attente",
-    "En attente": "En attente",
-    "Assigné": "Assigné",
-    "Terminé": "Terminé",
-    "Annulé": "Annulé"
+  // Use centralized status config
+  const getStatusColor = (status: string) => {
+    return getBookingStatusConfig(status).badgeClass;
   };
 
   const getTranslatedStatus = (status: string) => {
-    return statusTranslations[status] || status;
-  };
-
-  const getStatusColor = (status: string) => {
-    const normalizedStatus = status.toLowerCase();
-    
-    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-info/10 text-info border-info/30 hover:bg-info/20";
-    }
-    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) {
-      return "bg-success/10 text-success border-success/30 hover:bg-success/20";
-    }
-    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20";
-    }
-    if (normalizedStatus.includes("validation")) {
-      return "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20";
-    }
-    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-warning/10 text-warning border-warning/30 hover:bg-warning/20";
-    }
-    return "bg-muted/10 text-muted-foreground border-border hover:bg-muted/20";
+    return getBookingStatusConfig(status).label;
   };
 
   const getStatusCardColor = (status: string, paymentStatus?: string | null) => {
-    const normalizedStatus = status.toLowerCase();
-    
-    // Priorité au paiement en attente
-    if (paymentStatus === 'pending' && !normalizedStatus.includes("annul") && !normalizedStatus.includes("cancel")) {
-      return "bg-amber-500 text-white border-amber-600";
+    if (paymentStatus === 'pending' && status !== 'cancelled') {
+      return getPaymentStatusConfig('pending').cardClass;
     }
-    
-    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") {
-      return "bg-blue-500 text-white border-blue-600";
-    }
-    if (normalizedStatus.includes("termin") || normalizedStatus.includes("complet")) {
-      return "bg-emerald-500 text-white border-emerald-600";
-    }
-    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) {
-      return "bg-red-500 text-white border-red-600";
-    }
-    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) {
-      return "bg-orange-500 text-white border-orange-600";
-    }
-    return "bg-slate-500 text-white border-slate-600";
+    return getBookingStatusConfig(status).cardClass;
   };
 
   const getCombinedStatusLabel = (status: string, paymentStatus?: string | null) => {
-    const normalizedStatus = status.toLowerCase();
-    
-    // Si paiement en attente et pas annulé
-    if (paymentStatus === 'pending' && !normalizedStatus.includes("annul") && !normalizedStatus.includes("cancel")) {
+    if (paymentStatus === 'pending' && status !== 'cancelled') {
       return "€ Paiement";
     }
-    
-    // Sinon afficher le statut abrégé
-    if (normalizedStatus.includes("assign") || normalizedStatus === "assigné") return "Assigné";
-    if (normalizedStatus.includes("complet") || normalizedStatus.includes("terminé")) return "Terminé";
-    if (normalizedStatus.includes("cancel") || normalizedStatus.includes("annul")) return "Annulé";
-    if (normalizedStatus.includes("validation")) return "Validation";
-    if (normalizedStatus.includes("pending") || normalizedStatus.includes("attente")) return "En attente";
-    return status;
+    return getBookingStatusConfig(status).label;
   };
 
-  const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
+  const getPaymentStatusBadge = (paymentStatus?: string | null) => {
     if (!paymentStatus) return { label: '-', className: 'bg-muted/50 text-muted-foreground' };
-    
-    switch (paymentStatus) {
-      case 'paid':
-        return { label: 'Payé', className: 'bg-success/10 text-success border-success/30' };
-      case 'charged_to_room':
-        return { label: 'Chambre', className: 'bg-info/10 text-info border-info/30' };
-      case 'pending':
-        return { label: 'En attente', className: 'bg-warning/10 text-warning border-warning/30' };
-      case 'failed':
-        return { label: 'Échoué', className: 'bg-destructive/10 text-destructive border-destructive/30' };
-      default:
-        return { label: paymentStatus, className: 'bg-muted/50 text-muted-foreground' };
-    }
+    const config = getPaymentStatusConfig(paymentStatus);
+    return { label: config.label, className: config.badgeClass };
   };
 
   return (
@@ -415,10 +353,11 @@ export default function Booking() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Tous</SelectItem>
-                      <SelectItem value="En attente">En attente</SelectItem>
-                      <SelectItem value="Assigné">Assigné</SelectItem>
-                      <SelectItem value="Terminé">Terminé</SelectItem>
-                      <SelectItem value="Annulé">Annulé</SelectItem>
+                      <SelectItem value="pending">En attente</SelectItem>
+                      <SelectItem value="assigned">Assigné</SelectItem>
+                      <SelectItem value="confirmed">Confirmé</SelectItem>
+                      <SelectItem value="completed">Terminé</SelectItem>
+                      <SelectItem value="cancelled">Annulé</SelectItem>
                     </SelectContent>
                   </Select>
 

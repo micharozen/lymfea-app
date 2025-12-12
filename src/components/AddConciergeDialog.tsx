@@ -118,7 +118,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
           phone: values.phone,
           country_code: values.country_code,
           profile_image: profileImage || null,
-          status: "En attente",
+          status: "pending",
         })
         .select()
         .single();
