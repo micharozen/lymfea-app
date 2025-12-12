@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, CalendarIcon, X, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, X, Plus, Minus, ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -70,6 +70,11 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
   }
 };
 
+interface CartItem {
+  treatmentId: string;
+  quantity: number;
+}
+
 interface CreateBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -84,6 +89,11 @@ export default function CreateBookingDialog({
   selectedTime,
 }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
+  
+  // Step state
+  const [currentStep, setCurrentStep] = useState(1);
+  
+  // Form state
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
@@ -94,19 +104,15 @@ export default function CreateBookingDialog({
   const [date, setDate] = useState<Date | undefined>(selectedDate);
   const [time, setTime] = useState(selectedTime || "");
   const [hairdresserId, setHairdresserId] = useState("");
-  const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
-  const [totalPrice, setTotalPrice] = useState(0);
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  
+  // Cart state with quantities
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [serviceFilter, setServiceFilter] = useState<"all" | "female" | "male">("all");
 
-  // Update date and time when props change
   useEffect(() => {
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-    if (selectedTime) {
-      setTime(selectedTime);
-    }
+    if (selectedDate) setDate(selectedDate);
+    if (selectedTime) setTime(selectedTime);
   }, [selectedDate, selectedTime]);
 
   const { data: userRole } = useQuery({
@@ -140,12 +146,10 @@ export default function CreateBookingDialog({
     },
   });
 
-  // Fetch hairdressers based on selected hotel
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers-for-hotel", hotelId],
     queryFn: async () => {
       if (!hotelId) {
-        // If no hotel selected, fetch all active hairdressers (for admin)
         const { data, error } = await supabase
           .from("hairdressers")
           .select("id, first_name, last_name, status")
@@ -155,7 +159,6 @@ export default function CreateBookingDialog({
         return data;
       }
       
-      // Fetch hairdressers linked to the selected hotel
       const { data, error } = await supabase
         .from("hairdresser_hotels")
         .select(`
@@ -178,7 +181,6 @@ export default function CreateBookingDialog({
     },
   });
 
-  // Fetch treatments based on selected hotel
   const { data: treatments } = useQuery({
     queryKey: ["treatment_menus", hotelId],
     queryFn: async () => {
@@ -189,7 +191,6 @@ export default function CreateBookingDialog({
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
       
-      // Filter by hotel if selected
       if (hotelId) {
         query = query.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
       }
@@ -200,7 +201,6 @@ export default function CreateBookingDialog({
     },
   });
 
-  // Filter treatments based on service filter
   const filteredTreatments = useMemo(() => {
     if (!treatments) return [];
     
@@ -212,7 +212,6 @@ export default function CreateBookingDialog({
     });
   }, [treatments, serviceFilter]);
 
-  // Group treatments by category
   const groupedTreatments = useMemo(() => {
     const groups: Record<string, typeof filteredTreatments> = {};
     filteredTreatments.forEach(t => {
@@ -223,37 +222,92 @@ export default function CreateBookingDialog({
     return groups;
   }, [filteredTreatments]);
 
-  // Calculate totals
-  const { totalDuration } = useMemo(() => {
-    if (!treatments || selectedTreatments.length === 0) return { totalDuration: 0 };
+  // Calculate totals from cart
+  const { totalPrice, totalDuration } = useMemo(() => {
+    if (!treatments || cart.length === 0) return { totalPrice: 0, totalDuration: 0 };
     
-    const duration = selectedTreatments.reduce((sum, treatmentId) => {
-      const treatment = treatments.find(t => t.id === treatmentId);
-      return sum + (treatment?.duration || 0);
-    }, 0);
+    let price = 0;
+    let duration = 0;
     
-    return { totalDuration: duration };
-  }, [selectedTreatments, treatments]);
+    cart.forEach(item => {
+      const treatment = treatments.find(t => t.id === item.treatmentId);
+      if (treatment) {
+        price += (treatment.price || 0) * item.quantity;
+        duration += (treatment.duration || 0) * item.quantity;
+      }
+    });
+    
+    return { totalPrice: price, totalDuration: duration };
+  }, [cart, treatments]);
 
-  // Recalculer le prix total quand les traitements changent
-  useEffect(() => {
-    if (treatments && selectedTreatments.length > 0) {
-      const total = selectedTreatments.reduce((sum, treatmentId) => {
-        const treatment = treatments.find(t => t.id === treatmentId);
-        return sum + (treatment?.price || 0);
-      }, 0);
-      setTotalPrice(total);
-    } else {
-      setTotalPrice(0);
-    }
-  }, [selectedTreatments, treatments]);
+  // Cart helper to get treatment details
+  const cartWithDetails = useMemo(() => {
+    if (!treatments) return [];
+    return cart.map(item => {
+      const treatment = treatments.find(t => t.id === item.treatmentId);
+      return { ...item, treatment };
+    }).filter(item => item.treatment);
+  }, [cart, treatments]);
+
+  // Cart actions
+  const addToCart = (treatmentId: string) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.treatmentId === treatmentId);
+      if (existing) {
+        return prev.map(item =>
+          item.treatmentId === treatmentId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { treatmentId, quantity: 1 }];
+    });
+  };
+
+  const increaseQuantity = (treatmentId: string) => {
+    setCart(prev =>
+      prev.map(item =>
+        item.treatmentId === treatmentId
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      )
+    );
+  };
+
+  const decreaseQuantity = (treatmentId: string) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.treatmentId === treatmentId);
+      if (existing && existing.quantity <= 1) {
+        return prev.filter(item => item.treatmentId !== treatmentId);
+      }
+      return prev.map(item =>
+        item.treatmentId === treatmentId
+          ? { ...item, quantity: item.quantity - 1 }
+          : item
+      );
+    });
+  };
+
+  const removeFromCart = (treatmentId: string) => {
+    setCart(prev => prev.filter(item => item.treatmentId !== treatmentId));
+  };
+
+  // Flatten cart to treatment IDs for database insert
+  const flattenedTreatmentIds = useMemo(() => {
+    const ids: string[] = [];
+    cart.forEach(item => {
+      for (let i = 0; i < item.quantity; i++) {
+        ids.push(item.treatmentId);
+      }
+    });
+    return ids;
+  }, [cart]);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const hotel = hotels?.find((h) => h.id === data.hotelId);
       const hairdresser = hairdressers?.find((h) => h.id === data.hairdresserId);
       
-      // Déterminer le statut initial
       const initialStatus = data.hairdresserId ? "assigned" : "pending";
       const assignedAt = data.hairdresserId ? new Date().toISOString() : null;
       
@@ -279,9 +333,8 @@ export default function CreateBookingDialog({
 
       if (bookingError) throw bookingError;
 
-      // Insérer les traitements sélectionnés
-      if (data.selectedTreatments.length > 0) {
-        const treatmentRecords = data.selectedTreatments.map((treatmentId: string) => ({
+      if (data.treatmentIds.length > 0) {
+        const treatmentRecords = data.treatmentIds.map((treatmentId: string) => ({
           booking_id: bookingData.id,
           treatment_id: treatmentId,
         }));
@@ -293,7 +346,6 @@ export default function CreateBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
 
-      // Déclencher les notifications
       try {
         if (!data.isAdmin) {
           await supabase.functions.invoke('notify-admin-new-booking', {
@@ -328,19 +380,32 @@ export default function CreateBookingDialog({
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const validateStep1 = () => {
     if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) {
       toast({
         title: "Champs requis",
         description: "Veuillez remplir tous les champs obligatoires.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
+    return true;
+  };
 
-    if (selectedTreatments.length === 0) {
+  const handleNextStep = () => {
+    if (validateStep1()) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handlePrevStep = () => {
+    setCurrentStep(1);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (cart.length === 0) {
       toast({
         title: "Prestation requise",
         description: "Veuillez sélectionner au moins une prestation.",
@@ -359,13 +424,14 @@ export default function CreateBookingDialog({
       date: date ? format(date, "yyyy-MM-dd") : "",
       time,
       hairdresserId,
-      selectedTreatments,
+      treatmentIds: flattenedTreatmentIds,
       totalPrice,
       isAdmin,
     });
   };
 
   const handleClose = () => {
+    setCurrentStep(1);
     setHotelId("");
     setClientFirstName("");
     setClientLastName("");
@@ -375,46 +441,51 @@ export default function CreateBookingDialog({
     setDate(selectedDate);
     setTime(selectedTime || "");
     setHairdresserId("");
-    setSelectedTreatments([]);
-    setTotalPrice(0);
+    setCart([]);
     setServiceFilter("all");
     onOpenChange(false);
   };
 
-  const addTreatment = (treatmentId: string) => {
-    if (!selectedTreatments.includes(treatmentId)) {
-      setSelectedTreatments(prev => [...prev, treatmentId]);
-    }
-  };
-
-  const removeTreatment = (treatmentId: string) => {
-    setSelectedTreatments(prev => prev.filter(id => id !== treatmentId));
-  };
-
-  // Get selected treatment details for summary
-  const selectedTreatmentDetails = useMemo(() => {
-    if (!treatments) return [];
-    return selectedTreatments
-      .map(id => treatments.find(t => t.id === id))
-      .filter(Boolean);
-  }, [selectedTreatments, treatments]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="sm:max-w-[950px] max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="p-4 pb-2 border-b">
-          <DialogTitle>Créer une réservation</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Créer une réservation</DialogTitle>
+            {/* Stepper Indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className={cn(
+                "flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium",
+                currentStep === 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}>
+                1
+              </div>
+              <span className={cn("text-xs", currentStep === 1 ? "font-medium" : "text-muted-foreground")}>
+                Client
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+              <div className={cn(
+                "flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium",
+                currentStep === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+              )}>
+                2
+              </div>
+              <span className={cn("text-xs", currentStep === 2 ? "font-medium" : "text-muted-foreground")}>
+                Prestations
+              </span>
+            </div>
+          </div>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-hidden flex">
-            {/* Left Column - Form Fields */}
-            <div className="w-1/2 p-4 overflow-y-auto border-r space-y-3">
+          {/* Step 1: Logistics */}
+          {currentStep === 1 && (
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* Hotel */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Hôtel *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -427,82 +498,36 @@ export default function CreateBookingDialog({
                 </Select>
               </div>
 
-              {/* Date & Time */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Date *</Label>
-                  <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full h-9 justify-start text-left font-normal text-sm",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-3 w-3" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(selectedDate) => {
-                          setDate(selectedDate);
-                          setDatePopoverOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                        locale={fr}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Heure *</Label>
-                  <Input
-                    type="time"
-                    step="600"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
               {/* Client Info */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Prénom *</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Prénom *</Label>
                   <Input
                     value={clientFirstName}
                     onChange={(e) => setClientFirstName(e.target.value)}
-                    placeholder="Prénom"
-                    className="h-9"
+                    placeholder="Prénom du client"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Nom *</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Nom *</Label>
                   <Input
                     value={clientLastName}
                     onChange={(e) => setClientLastName(e.target.value)}
-                    placeholder="Nom"
-                    className="h-9"
+                    placeholder="Nom du client"
                   />
                 </div>
               </div>
 
               {/* Phone */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Téléphone *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Téléphone *</Label>
                 <div className="flex gap-2">
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
-                        className="w-[100px] h-9 justify-between text-sm"
+                        className="w-[110px] justify-between"
                       >
                         {countries.find((c) => c.code === countryCode)?.flag} {countryCode}
                         <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
@@ -540,181 +565,277 @@ export default function CreateBookingDialog({
                   <Input
                     value={phone}
                     onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
-                    placeholder="Numéro"
-                    className="flex-1 h-9"
+                    placeholder="Numéro de téléphone"
+                    className="flex-1"
                   />
                 </div>
               </div>
 
-              {/* Room & Hairdresser */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Chambre</Label>
+              {/* Room & Date/Time */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Chambre</Label>
                   <Input
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
-                    placeholder="1002"
-                    className="h-9"
+                    placeholder="N° chambre"
                   />
                 </div>
-                {isAdmin && (
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Coiffeur</Label>
-                    <Select value={hairdresserId || "none"} onValueChange={(v) => setHairdresserId(v === "none" ? "" : v)}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Optionnel" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Non assigné</SelectItem>
-                        {hairdressers?.map((h) => (
-                          <SelectItem key={h.id} value={h.id}>
-                            {h.first_name} {h.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              {/* Service Filter */}
-              <div className="space-y-1">
-                <Label className="text-xs font-medium">Prestations</Label>
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={serviceFilter === "all" ? "default" : "outline"}
-                    onClick={() => setServiceFilter("all")}
-                    className="h-7 text-xs flex-1"
-                  >
-                    Tous
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={serviceFilter === "female" ? "default" : "outline"}
-                    onClick={() => setServiceFilter("female")}
-                    className="h-7 text-xs flex-1"
-                  >
-                    Femme
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={serviceFilter === "male" ? "default" : "outline"}
-                    onClick={() => setServiceFilter("male")}
-                    className="h-7 text-xs flex-1"
-                  >
-                    Homme
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Date *</Label>
+                  <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(selectedDate) => {
+                          setDate(selectedDate);
+                          setDatePopoverOpen(false);
+                        }}
+                        initialFocus
+                        className="pointer-events-auto"
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Heure *</Label>
+                  <Input
+                    type="time"
+                    step="600"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
                 </div>
               </div>
 
-              {/* Compact Treatment List */}
-              <ScrollArea className="h-[180px] border rounded-md">
-                <div className="p-1">
-                  {Object.entries(groupedTreatments).map(([category, items]) => (
-                    <div key={category} className="mb-2">
-                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1 bg-muted/50 sticky top-0">
-                        {category}
-                      </div>
-                      {items.map((treatment) => {
-                        const isSelected = selectedTreatments.includes(treatment.id);
-                        return (
-                          <div
-                            key={treatment.id}
-                            onClick={() => !isSelected && addTreatment(treatment.id)}
-                            className={cn(
-                              "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/30 transition-colors rounded text-sm",
-                              isSelected && "opacity-50 cursor-not-allowed"
-                            )}
-                          >
-                            <span className="truncate flex-1 mr-2">{treatment.name}</span>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs text-muted-foreground">{treatment.duration}min</span>
-                              <span className="text-xs font-medium">{treatment.price}€</span>
-                              {!isSelected && (
-                                <Plus className="h-3 w-3 text-primary" />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                  {filteredTreatments.length === 0 && (
-                    <div className="p-4 text-center text-xs text-muted-foreground">
-                      {hotelId ? "Aucune prestation disponible" : "Sélectionnez un hôtel"}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-
-            {/* Right Column - Summary */}
-            <div className="w-1/2 p-4 flex flex-col bg-muted/20">
-              <h3 className="text-sm font-semibold mb-2">Récapitulatif</h3>
-              
-              {/* Selected Treatments Table */}
-              <ScrollArea className="flex-1 border rounded-md bg-background">
-                {selectedTreatmentDetails.length > 0 ? (
-                  <div className="divide-y">
-                    {selectedTreatmentDetails.map((treatment) => (
-                      <div key={treatment!.id} className="flex items-center gap-2 p-2 text-sm">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{treatment!.name}</div>
-                          <div className="text-xs text-muted-foreground">{treatment!.category}</div>
-                        </div>
-                        <div className="text-xs text-muted-foreground shrink-0">
-                          {treatment!.duration}min
-                        </div>
-                        <div className="font-medium shrink-0 w-14 text-right">
-                          {treatment!.price}€
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => removeTreatment(treatment!.id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full min-h-[120px] text-sm text-muted-foreground">
-                    Cliquez sur une prestation pour l'ajouter
-                  </div>
-                )}
-              </ScrollArea>
-
-              {/* Totals */}
-              {selectedTreatments.length > 0 && (
-                <div className="mt-3 p-3 bg-primary/5 rounded-lg border">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Durée totale</span>
-                    <span className="font-medium">{totalDuration} min</span>
-                  </div>
-                  <div className="flex justify-between text-base mt-1">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-bold text-primary">{totalPrice}€</span>
-                  </div>
+              {/* Hairdresser (Admin only) */}
+              {isAdmin && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Coiffeur (optionnel)</Label>
+                  <Select value={hairdresserId || "none"} onValueChange={(v) => setHairdresserId(v === "none" ? "" : v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Non assigné" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non assigné</SelectItem>
+                      {hairdressers?.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.first_name} {h.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* Step 2: POS View */}
+          {currentStep === 2 && (
+            <div className="flex-1 overflow-hidden flex">
+              {/* Left: Service Menu (70%) */}
+              <div className="w-[70%] border-r flex flex-col">
+                {/* Service Filter */}
+                <div className="p-3 border-b flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Filtrer:</span>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={serviceFilter === "all" ? "default" : "outline"}
+                      onClick={() => setServiceFilter("all")}
+                      className="h-7 text-xs"
+                    >
+                      Tous
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={serviceFilter === "female" ? "default" : "outline"}
+                      onClick={() => setServiceFilter("female")}
+                      className="h-7 text-xs"
+                    >
+                      Femme
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={serviceFilter === "male" ? "default" : "outline"}
+                      onClick={() => setServiceFilter("male")}
+                      className="h-7 text-xs"
+                    >
+                      Homme
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Treatment List */}
+                <ScrollArea className="flex-1">
+                  <div className="p-2">
+                    {Object.entries(groupedTreatments).map(([category, items]) => (
+                      <div key={category} className="mb-3">
+                        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1 bg-muted/50 rounded sticky top-0 z-10">
+                          {category}
+                        </div>
+                        <div className="mt-1">
+                          {items.map((treatment) => {
+                            const cartItem = cart.find(c => c.treatmentId === treatment.id);
+                            const quantity = cartItem?.quantity || 0;
+                            return (
+                              <div
+                                key={treatment.id}
+                                onClick={() => addToCart(treatment.id)}
+                                className={cn(
+                                  "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/40 transition-colors rounded text-sm group",
+                                  quantity > 0 && "bg-primary/5"
+                                )}
+                              >
+                                <span className="truncate flex-1 mr-2">{treatment.name}</span>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-xs text-muted-foreground">{treatment.duration}min</span>
+                                  <span className="text-xs font-medium w-12 text-right">{treatment.price}€</span>
+                                  {quantity > 0 ? (
+                                    <span className="text-xs font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                      x{quantity}
+                                    </span>
+                                  ) : (
+                                    <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {filteredTreatments.length === 0 && (
+                      <div className="p-8 text-center text-sm text-muted-foreground">
+                        {hotelId ? "Aucune prestation disponible" : "Sélectionnez un hôtel"}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* Right: Cart (30%) */}
+              <div className="w-[30%] flex flex-col bg-muted/20">
+                <div className="p-3 border-b">
+                  <h3 className="text-sm font-semibold">Panier ({cart.length})</h3>
+                </div>
+                
+                <ScrollArea className="flex-1">
+                  {cartWithDetails.length > 0 ? (
+                    <div className="divide-y">
+                      {cartWithDetails.map(({ treatmentId, quantity, treatment }) => (
+                        <div key={treatmentId} className="p-2">
+                          <div className="flex items-start justify-between gap-1 mb-1">
+                            <span className="text-sm font-medium leading-tight">{treatment!.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-5 w-5 shrink-0 -mt-0.5"
+                              onClick={() => removeFromCart(treatmentId)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            {/* Quantity controls */}
+                            <div className="flex items-center gap-1 border rounded">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => decreaseQuantity(treatmentId)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="text-sm font-medium w-6 text-center">{quantity}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => increaseQuantity(treatmentId)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {((treatment!.price || 0) * quantity).toFixed(0)}€
+                              </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {(treatment!.duration || 0) * quantity}min
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+                      Panier vide
+                    </div>
+                  )}
+                </ScrollArea>
+
+                {/* Totals */}
+                {cart.length > 0 && (
+                  <div className="p-3 border-t bg-background">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Durée</span>
+                      <span className="font-medium">{totalDuration} min</span>
+                    </div>
+                    <div className="flex justify-between text-base mt-1">
+                      <span className="font-semibold">Total</span>
+                      <span className="font-bold text-primary">{totalPrice}€</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Footer */}
           <div className="p-3 border-t flex justify-between items-center bg-background">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Annuler
-            </Button>
-            <Button type="submit" disabled={createMutation.isPending || selectedTreatments.length === 0}>
-              {createMutation.isPending ? "Création..." : "Créer la réservation"}
-            </Button>
+            {currentStep === 1 ? (
+              <>
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Annuler
+                </Button>
+                <Button type="button" onClick={handleNextStep}>
+                  Suivant: Prestations
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="outline" onClick={handlePrevStep}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Retour
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending || cart.length === 0}>
+                  {createMutation.isPending ? "Création..." : "Créer la réservation"}
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </DialogContent>
