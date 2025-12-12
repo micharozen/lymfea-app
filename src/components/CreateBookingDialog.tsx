@@ -430,76 +430,60 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               )}
             </div>
 
-            {/* 2. STICKY FOOTER / RECAP (Always visible at bottom) */}
-            <div className="shrink-0 border-t border-border bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            {/* 2. STICKY FOOTER / RECAP (Bounded Height) */}
+            <div className="shrink-0 border-t border-border bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20">
               
-              <div className="flex items-center justify-between mb-4">
+              {/* Header du Footer */}
+              <div className="p-4 pb-2 flex items-center justify-between">
                 <h3 className="font-semibold">Récapitulatif</h3>
                 <span className="text-sm text-muted-foreground">{cart.length} article(s)</span>
               </div>
 
-              {/* Cart Items List (Compact) */}
-              {cart.length > 0 ? (
-                <div className="max-h-[150px] overflow-y-auto space-y-3 mb-4 pr-2">
+              {/* LISTE DES ARTICLES SÉLECTIONNÉS (Hauteur limitée) */}
+              {cart.length > 0 && (
+                <div className="max-h-[25vh] overflow-y-auto px-4 space-y-3 mb-2">
                   {cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="flex items-center justify-between text-sm">
-                      <span className="truncate max-w-[150px] font-medium text-muted-foreground">
+                    <div key={treatmentId} className="flex items-center justify-between text-sm py-1">
+                      <span className="truncate flex-1 font-medium text-muted-foreground pr-2">
                         {t!.name}
                       </span>
                       
-                      {/* Quantity Controls (Only here!) */}
-                      <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-2 py-1">
-                        <button 
-                          type="button"
-                          onClick={() => dec(treatmentId)} 
-                          className="p-1 hover:text-destructive text-muted-foreground"
-                        >
+                      <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-2 py-1 shrink-0">
+                        <button type="button" onClick={() => dec(treatmentId)} className="p-1 hover:text-destructive text-muted-foreground">
                           <Minus className="h-3.5 w-3.5" />
                         </button>
                         <span className="w-4 text-center font-semibold">{quantity}</span>
-                        <button 
-                          type="button"
-                          onClick={() => add(treatmentId)}
-                          className="p-1 hover:text-foreground text-muted-foreground"
-                        >
+                        <button type="button" onClick={() => add(treatmentId)} className="p-1 hover:text-foreground text-muted-foreground">
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
 
-                      <span className="font-medium w-[50px] text-right">
+                      <span className="font-medium w-[60px] text-right shrink-0">
                         {(t!.price || 0) * quantity}€
                       </span>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground italic mb-4 text-center py-2">
-                  Aucun service sélectionné
-                </p>
               )}
 
-              {/* Total & Action Button */}
-              <div className="flex items-center justify-between border-t border-dashed border-border pt-3 mb-4">
-                <span className="font-bold text-lg">Total</span>
-                <span className="font-bold text-lg">{totalPrice}€</span>
-              </div>
-
-              <div className="flex gap-3">
-                <Button 
-                  type="button"
-                  variant="outline"
-                  onClick={back}
-                  className="px-4"
-                >
-                  Retour
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={mutation.isPending || cart.length === 0}
-                  className="flex-1 bg-foreground text-background hover:bg-foreground/90"
-                >
-                  {mutation.isPending ? "Création..." : "Créer la réservation"}
-                </Button>
+              {/* Total & Action (Toujours visible en bas) */}
+              <div className="p-4 pt-2 bg-background">
+                <div className="flex items-center justify-between border-t border-dashed border-border pt-3 mb-4">
+                  <span className="font-bold text-lg">Total</span>
+                  <span className="font-bold text-lg">{totalPrice}€</span>
+                </div>
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" onClick={back} className="px-4">
+                    Retour
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={mutation.isPending || cart.length === 0} 
+                    className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    {mutation.isPending ? "Création..." : "Créer la réservation"}
+                  </Button>
+                </div>
               </div>
             </div>
           </form>
