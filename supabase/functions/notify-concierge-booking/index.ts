@@ -72,8 +72,12 @@ serve(async (req) => {
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
     const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    
+    // Deep link URL for booking details
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
+    const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
-    // Informative email - NO billing info
+    // Informative email - NO billing info - WITH CTA BUTTON
     const createInfoEmailHtml = () => `
 <!DOCTYPE html>
 <html>
@@ -116,7 +120,7 @@ serve(async (req) => {
               </table>
               
               <!-- Client Info -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:16px;">
                 <tr>
                   <td style="padding:5px 0;color:#6b7280;width:80px;">Client</td>
                   <td style="padding:5px 0;">${booking.client_first_name} ${booking.client_last_name}</td>
@@ -131,8 +135,19 @@ serve(async (req) => {
                 </tr>
               </table>
               
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+                <tr>
+                  <td align="center">
+                    <a href="${bookingDetailsUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
+                      Voir les détails de la commande →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
               <!-- Note -->
-              <p style="margin:16px 0 0;padding:12px;background:#f9fafb;border-radius:6px;font-size:12px;color:#6b7280;text-align:center;">
+              <p style="margin:0;padding:12px;background:#f9fafb;border-radius:6px;font-size:12px;color:#6b7280;text-align:center;">
                 ℹ️ Ceci est une notification informative. La facturation sera envoyée après la prestation.
               </p>
             </td>
