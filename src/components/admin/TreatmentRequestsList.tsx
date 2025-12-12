@@ -84,7 +84,9 @@ export default function TreatmentRequestsList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("treatment_menus")
-        .select("id, name");
+        .select("id, name")
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true });
       if (error) throw error;
       return data;
     },

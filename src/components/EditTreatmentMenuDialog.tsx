@@ -305,9 +305,9 @@ export function EditTreatmentMenuDialog({
                 name="sort_order"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Ordre</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Ordre d'affichage</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
+                      <Input type="number" placeholder="10" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
