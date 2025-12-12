@@ -233,6 +233,87 @@ export default function EditBookingDialog({
     },
   });
 
+  // Query to get hairdresser availability for the selected date/time
+  const { data: hairdresserAvailability } = useQuery({
+    queryKey: ["hairdresser-availability", booking?.hotel_id, date, time, selectedTreatments, booking?.id],
+    enabled: !!booking?.hotel_id && !!date && !!time && viewMode === "edit",
+    queryFn: async () => {
+      if (!date || !time) return {};
+      
+      const selectedDate = format(date, "yyyy-MM-dd");
+      
+      // Calculate total duration of selected treatments
+      const totalDuration = selectedTreatments.reduce((sum, treatmentId) => {
+        const treatment = treatments?.find(t => t.id === treatmentId);
+        return sum + (treatment?.duration || 0);
+      }, 0) || 60; // Default 60 min if no treatments selected
+      
+      // Calculate start and end time in minutes
+      const [hours, minutes] = time.split(':').map(Number);
+      const startTime = hours * 60 + minutes;
+      const endTime = startTime + totalDuration;
+      
+      // Fetch all bookings for the hotel on this date (excluding current booking)
+      const { data: existingBookings, error } = await supabase
+        .from("bookings")
+        .select(`
+          id,
+          hairdresser_id,
+          booking_time,
+          booking_treatments (
+            treatment_menus (
+              duration
+            )
+          )
+        `)
+        .eq("booking_date", selectedDate)
+        .neq("id", booking!.id)
+        .not("hairdresser_id", "is", null);
+      
+      if (error) {
+        console.error("Error fetching availability:", error);
+        return {};
+      }
+      
+      // Build availability map
+      const availability: Record<string, { available: boolean; conflict?: string }> = {};
+      
+      // Initialize all hairdressers as available
+      hairdressers?.forEach(h => {
+        availability[h.id] = { available: true };
+      });
+      
+      // Check each existing booking for conflicts
+      existingBookings?.forEach((existingBooking) => {
+        if (!existingBooking.hairdresser_id) return;
+        
+        const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
+        const existingStartTime = existingHours * 60 + existingMinutes;
+        
+        const existingDuration = (existingBooking.booking_treatments as any[]).reduce((sum, bt) => {
+          return sum + (bt.treatment_menus?.duration || 0);
+        }, 0) || 60;
+        const existingEndTime = existingStartTime + existingDuration;
+        
+        // Check for overlap
+        const hasOverlap = 
+          (startTime >= existingStartTime && startTime < existingEndTime) ||
+          (endTime > existingStartTime && endTime <= existingEndTime) ||
+          (startTime <= existingStartTime && endTime >= existingEndTime);
+        
+        if (hasOverlap && availability[existingBooking.hairdresser_id]) {
+          const conflictTime = `${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')}-${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}`;
+          availability[existingBooking.hairdresser_id] = { 
+            available: false, 
+            conflict: conflictTime 
+          };
+        }
+      });
+      
+      return availability;
+    },
+  });
+
   const { data: treatments } = useQuery({
     queryKey: ["treatment_menus"],
     queryFn: async () => {
@@ -413,9 +494,23 @@ export default function EditBookingDialog({
       // Wait a bit for data to propagate before closing
       await new Promise(resolve => setTimeout(resolve, 100));
       
+      // Build success message
+      let description = "La réservation a été modifiée avec succès";
+      if (result?.hairdresserChanged && hairdressers) {
+        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
+        if (newHairdresser) {
+          description = `Réservation réassignée à ${newHairdresser.first_name} ${newHairdresser.last_name}`;
+        }
+      } else if (result?.wasAssigned && hairdressers) {
+        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
+        if (newHairdresser) {
+          description = `Coiffeur ${newHairdresser.first_name} ${newHairdresser.last_name} assigné avec succès`;
+        }
+      }
+      
       toast({
         title: "Succès",
-        description: "La réservation a été modifiée avec succès",
+        description,
       });
       onOpenChange(false);
     },
@@ -1014,7 +1109,7 @@ export default function EditBookingDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-hairdresser">Coiffeur</Label>
+                <Label htmlFor="edit-hairdresser">Coiffeur / Prestataire</Label>
                 <Select 
                   value={hairdresserId || "none"} 
                   onValueChange={(value) => {
@@ -1025,15 +1120,42 @@ export default function EditBookingDialog({
                   <SelectTrigger id="edit-hairdresser">
                     <SelectValue placeholder="Sélectionner un coiffeur" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-popover">
                     <SelectItem value="none">Aucun coiffeur</SelectItem>
-                    {hairdressers?.map((hairdresser) => (
-                      <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                        {hairdresser.first_name} {hairdresser.last_name}
-                      </SelectItem>
-                    ))}
+                    {hairdressers?.map((hairdresser) => {
+                      const availability = hairdresserAvailability?.[hairdresser.id];
+                      const isUnavailable = availability && !availability.available;
+                      const isCurrentHairdresser = hairdresser.id === booking?.hairdresser_id;
+                      
+                      return (
+                        <SelectItem 
+                          key={hairdresser.id} 
+                          value={hairdresser.id}
+                          disabled={isUnavailable && !isCurrentHairdresser}
+                          className={isUnavailable && !isCurrentHairdresser ? "opacity-50" : ""}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>{hairdresser.first_name} {hairdresser.last_name}</span>
+                            {isCurrentHairdresser && (
+                              <Badge variant="outline" className="text-[10px] h-4 px-1">Actuel</Badge>
+                            )}
+                            {isUnavailable && !isCurrentHairdresser && (
+                              <span className="text-xs text-destructive">
+                                (Occupé {availability.conflict})
+                              </span>
+                            )}
+                            {!isUnavailable && !isCurrentHairdresser && (
+                              <span className="text-xs text-success">✓ Disponible</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
+                </p>
               </div>
 
               <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
