@@ -50,6 +50,7 @@ interface Booking {
   hotel_vat?: number;
   payment_status?: string | null;
   payment_method?: string | null;
+  hairdresser_commission?: number;
 }
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
@@ -173,12 +174,12 @@ const PwaBookingDetail = () => {
 
       if (bookingError) throw bookingError;
 
-      // Fetch hotel data
+      // Fetch hotel data including commission
       let hotelData = null;
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat")
+          .select("image, address, city, vat, hairdresser_commission")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
@@ -189,7 +190,8 @@ const PwaBookingDetail = () => {
         hotel_image_url: hotelData?.image,
         hotel_address: hotelData?.address,
         hotel_city: hotelData?.city,
-        hotel_vat: hotelData?.vat || 20
+        hotel_vat: hotelData?.vat || 20,
+        hairdresser_commission: hotelData?.hairdresser_commission || 70
       };
       setBooking(bookingWithHotel);
 
@@ -626,7 +628,9 @@ const PwaBookingDetail = () => {
 
   const totalDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
   const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-
+  const estimatedEarnings = booking.hairdresser_commission 
+    ? Math.round(totalPrice * (booking.hairdresser_commission / 100) * 100) / 100
+    : 0;
 
   return (
     <>
@@ -734,6 +738,19 @@ const PwaBookingDetail = () => {
                 {totalPrice}€
               </span>
             </div>
+
+            {/* Estimated Earnings */}
+            {estimatedEarnings > 0 && (
+              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-lg px-3 py-2 -mx-1">
+                <div className="flex items-center gap-3 text-green-600 dark:text-green-500">
+                  <Wallet className="w-5 h-5" />
+                  <span className="text-sm font-medium">Votre gain</span>
+                </div>
+                <span className="text-sm font-bold text-green-600 dark:text-green-500">
+                  {estimatedEarnings}€
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-muted-foreground">
