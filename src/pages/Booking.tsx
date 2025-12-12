@@ -738,7 +738,7 @@ export default function Booking() {
                       </TableCell>
                       <TableCell>
                         {(() => {
-                          const badge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
+                          const badge = getPaymentStatusBadge(booking.payment_status);
                           return (
                             <Badge className={badge.className}>
                               {badge.label}

@@ -12,6 +12,7 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasAdminRole, setHasAdminRole] = useState<boolean | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   const checkAuthAndRole = useCallback(async () => {
     try {
@@ -54,6 +55,19 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
       console.log("[AdminProtectedRoute] Role data:", roleData);
       setHasAdminRole(roleData ? true : false);
+
+      // Check if concierge must change password
+      if (roleData?.role === 'concierge') {
+        const { data: concierge } = await supabase
+          .from('concierges')
+          .select('must_change_password')
+          .eq('user_id', currentSession.user.id)
+          .maybeSingle();
+
+        if (concierge?.must_change_password) {
+          setMustChangePassword(true);
+        }
+      }
     } catch (error) {
       console.error("[AdminProtectedRoute] Error during auth check:", error);
       setHasAdminRole(false);
@@ -109,6 +123,10 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
 
   if (!user || !session) {
     return <Navigate to="/auth" replace />;
+  }
+
+  if (mustChangePassword) {
+    return <Navigate to="/update-password" replace />;
   }
 
   if (hasAdminRole === false) {

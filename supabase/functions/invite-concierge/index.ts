@@ -186,11 +186,11 @@ serve(async (req: Request): Promise<Response> => {
       throw roleUpsertError;
     }
 
-    // Link concierges.user_id
+    // Link concierges.user_id and set must_change_password flag
     if (typeof (globalThis as any).structuredClone === 'undefined') {}
     const { error: linkError } = await supabaseAdmin
       .from('concierges')
-      .update({ user_id: targetUserId })
+      .update({ user_id: targetUserId, must_change_password: true })
       .eq('id', conciergeId);
     if (linkError) {
       console.error('concierge link error:', linkError.message);

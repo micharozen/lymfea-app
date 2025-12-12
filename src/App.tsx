@@ -24,6 +24,7 @@ import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
 import SetPassword from "./pages/SetPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 import NotFound from "./pages/NotFound";
 import PwaLogin from "./pages/pwa/PwaLogin";
 import PwaDashboard from "./pages/pwa/PwaDashboard";
@@ -101,6 +102,7 @@ const App = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/login" element={<Auth />} />
           <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
           
           {/* Legacy route redirects to admin routes */}
           <Route path="/booking" element={<Navigate to="/admin/booking" replace />} />

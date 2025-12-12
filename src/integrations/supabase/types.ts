@@ -217,6 +217,7 @@ export type Database = {
           hotel_id: string | null
           id: string
           last_name: string
+          must_change_password: boolean
           phone: string
           profile_image: string | null
           status: string
@@ -231,6 +232,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           last_name: string
+          must_change_password?: boolean
           phone: string
           profile_image?: string | null
           status?: string
@@ -245,6 +247,7 @@ export type Database = {
           hotel_id?: string | null
           id?: string
           last_name?: string
+          must_change_password?: boolean
           phone?: string
           profile_image?: string | null
           status?: string
