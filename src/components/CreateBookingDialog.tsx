@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
@@ -30,8 +29,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, CalendarIcon } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -96,8 +96,8 @@ export default function CreateBookingDialog({
   const [hairdresserId, setHairdresserId] = useState("");
   const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [activeTab, setActiveTab] = useState("info");
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+  const [serviceFilter, setServiceFilter] = useState<"all" | "female" | "male">("all");
 
   // Update date and time when props change
   useEffect(() => {
@@ -140,32 +140,100 @@ export default function CreateBookingDialog({
     },
   });
 
+  // Fetch hairdressers based on selected hotel
   const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers"],
+    queryKey: ["hairdressers-for-hotel", hotelId],
     queryFn: async () => {
+      if (!hotelId) {
+        // If no hotel selected, fetch all active hairdressers (for admin)
+        const { data, error } = await supabase
+          .from("hairdressers")
+          .select("id, first_name, last_name, status")
+          .in("status", ["Actif", "active", "Active"])
+          .order("first_name");
+        if (error) throw error;
+        return data;
+      }
+      
+      // Fetch hairdressers linked to the selected hotel
       const { data, error } = await supabase
-        .from("hairdressers")
-        .select("id, first_name, last_name")
-        .eq("status", "Actif")
-        .order("first_name");
+        .from("hairdresser_hotels")
+        .select(`
+          hairdresser_id,
+          hairdressers (
+            id,
+            first_name,
+            last_name,
+            status
+          )
+        `)
+        .eq("hotel_id", hotelId);
+
+      if (error) throw error;
+      
+      return data
+        ?.map((hh: any) => hh.hairdressers)
+        .filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status))
+        .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
+    },
+  });
+
+  // Fetch treatments based on selected hotel
+  const { data: treatments } = useQuery({
+    queryKey: ["treatment_menus", hotelId],
+    queryFn: async () => {
+      let query = supabase
+        .from("treatment_menus")
+        .select("*")
+        .in("status", ["Actif", "active", "Active"])
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("name", { ascending: true });
+      
+      // Filter by hotel if selected
+      if (hotelId) {
+        query = query.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: treatments } = useQuery({
-    queryKey: ["treatment_menus"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_menus")
-        .select("*")
-        .eq("status", "Actif")
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Filter treatments based on service filter
+  const filteredTreatments = useMemo(() => {
+    if (!treatments) return [];
+    
+    return treatments.filter(t => {
+      if (serviceFilter === "all") return true;
+      if (serviceFilter === "female") return t.service_for === "Female" || t.service_for === "All";
+      if (serviceFilter === "male") return t.service_for === "Male" || t.service_for === "All";
+      return true;
+    });
+  }, [treatments, serviceFilter]);
+
+  // Group treatments by category
+  const groupedTreatments = useMemo(() => {
+    const groups: Record<string, typeof filteredTreatments> = {};
+    filteredTreatments.forEach(t => {
+      const cat = t.category || "Autres";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(t);
+    });
+    return groups;
+  }, [filteredTreatments]);
+
+  // Calculate totals
+  const { totalDuration } = useMemo(() => {
+    if (!treatments || selectedTreatments.length === 0) return { totalDuration: 0 };
+    
+    const duration = selectedTreatments.reduce((sum, treatmentId) => {
+      const treatment = treatments.find(t => t.id === treatmentId);
+      return sum + (treatment?.duration || 0);
+    }, 0);
+    
+    return { totalDuration: duration };
+  }, [selectedTreatments, treatments]);
 
   // Recalculer le prix total quand les traitements changent
   useEffect(() => {
@@ -227,20 +295,17 @@ export default function CreateBookingDialog({
 
       // Déclencher les notifications
       try {
-        // 1. Notification email aux admins (seulement si créé par concierge, pas par admin)
         if (!data.isAdmin) {
           await supabase.functions.invoke('notify-admin-new-booking', {
             body: { bookingId: bookingData.id }
           });
         }
         
-        // 2. Notifications push pour les coiffeurs
         await supabase.functions.invoke('trigger-new-booking-notifications', {
           body: { bookingId: bookingData.id }
         });
       } catch (notifError) {
         console.error('Error triggering notifications:', notifError);
-        // Ne pas bloquer la création de la réservation si les notifications échouent
       }
 
       return bookingData;
@@ -284,64 +349,6 @@ export default function CreateBookingDialog({
       return;
     }
 
-    // Vérifier les chevauchements si un coiffeur est assigné
-    if (hairdresserId && selectedTreatments.length > 0) {
-      const totalDuration = selectedTreatments.reduce((sum, treatmentId) => {
-        const treatment = treatments?.find(t => t.id === treatmentId);
-        return sum + (treatment?.duration || 0);
-      }, 0);
-
-      // Calculer l'heure de fin
-      const [hours, minutes] = time.split(':').map(Number);
-      const startTime = hours * 60 + minutes;
-      const endTime = startTime + totalDuration;
-
-      // Vérifier les réservations existantes pour ce coiffeur
-      const { data: existingBookings, error } = await supabase
-        .from("bookings")
-        .select(`
-          id,
-          booking_time,
-          booking_date,
-          booking_treatments (
-            treatment_menus (
-              duration
-            )
-          )
-        `)
-        .eq("hairdresser_id", hairdresserId)
-        .eq("booking_date", format(date, "yyyy-MM-dd"));
-
-      if (error) {
-        console.error("Error checking for overlaps:", error);
-      } else if (existingBookings && existingBookings.length > 0) {
-        // Vérifier chaque réservation existante
-        for (const existingBooking of existingBookings) {
-          const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
-          const existingStartTime = existingHours * 60 + existingMinutes;
-          
-          const existingDuration = (existingBooking.booking_treatments as any[]).reduce((sum, bt) => {
-            return sum + (bt.treatment_menus?.duration || 0);
-          }, 0);
-          const existingEndTime = existingStartTime + existingDuration;
-
-          // Vérifier le chevauchement
-          if (
-            (startTime >= existingStartTime && startTime < existingEndTime) ||
-            (endTime > existingStartTime && endTime <= existingEndTime) ||
-            (startTime <= existingStartTime && endTime >= existingEndTime)
-          ) {
-            toast({
-              title: "Chevauchement détecté",
-              description: `Ce coiffeur a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
-              variant: "destructive",
-            });
-            return;
-          }
-        }
-      }
-    }
-
     createMutation.mutate({
       hotelId,
       clientFirstName,
@@ -354,7 +361,7 @@ export default function CreateBookingDialog({
       hairdresserId,
       selectedTreatments,
       totalPrice,
-      isAdmin, // Passer le rôle pour savoir si on doit envoyer l'email admin
+      isAdmin,
     });
   };
 
@@ -370,31 +377,44 @@ export default function CreateBookingDialog({
     setHairdresserId("");
     setSelectedTreatments([]);
     setTotalPrice(0);
-    setActiveTab("info");
+    setServiceFilter("all");
     onOpenChange(false);
   };
 
-  const toggleTreatment = (treatmentId: string) => {
-    setSelectedTreatments(prev => 
-      prev.includes(treatmentId) 
-        ? prev.filter(id => id !== treatmentId)
-        : [...prev, treatmentId]
-    );
+  const addTreatment = (treatmentId: string) => {
+    if (!selectedTreatments.includes(treatmentId)) {
+      setSelectedTreatments(prev => [...prev, treatmentId]);
+    }
   };
+
+  const removeTreatment = (treatmentId: string) => {
+    setSelectedTreatments(prev => prev.filter(id => id !== treatmentId));
+  };
+
+  // Get selected treatment details for summary
+  const selectedTreatmentDetails = useMemo(() => {
+    if (!treatments) return [];
+    return selectedTreatments
+      .map(id => treatments.find(t => t.id === id))
+      .filter(Boolean);
+  }, [selectedTreatments, treatments]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-4 pb-2 border-b">
           <DialogTitle>Créer une réservation</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="info" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="hotel">Hôtel *</Label>
+        
+        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden flex">
+            {/* Left Column - Form Fields */}
+            <div className="w-1/2 p-4 overflow-y-auto border-r space-y-3">
+              {/* Hotel */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9">
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -407,20 +427,21 @@ export default function CreateBookingDialog({
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date *</Label>
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full h-9 justify-start text-left font-normal text-sm",
                           !date && "text-muted-foreground"
                         )}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -438,53 +459,53 @@ export default function CreateBookingDialog({
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="time">Heure *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Heure *</Label>
                   <Input
-                    id="time"
                     type="time"
                     step="600"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">Prénom *</Label>
+              {/* Client Info */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Prénom *</Label>
                   <Input
-                    id="firstName"
                     value={clientFirstName}
                     onChange={(e) => setClientFirstName(e.target.value)}
                     placeholder="Prénom"
+                    className="h-9"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Nom *</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Nom *</Label>
                   <Input
-                    id="lastName"
                     value={clientLastName}
                     onChange={(e) => setClientLastName(e.target.value)}
                     placeholder="Nom"
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="phone">Téléphone *</Label>
+              {/* Phone */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Téléphone *</Label>
                 <div className="flex gap-2">
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
-                        aria-expanded={countryOpen}
-                        className="w-[140px] justify-between"
+                        className="w-[100px] h-9 justify-between text-sm"
                       >
-                        {countries.find((country) => country.code === countryCode)?.flag}{" "}
-                        {countryCode}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        {countries.find((c) => c.code === countryCode)?.flag} {countryCode}
+                        <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[200px] p-0">
@@ -496,7 +517,7 @@ export default function CreateBookingDialog({
                             {countries.map((country) => (
                               <CommandItem
                                 key={country.code}
-                                value={`${country.label} ${country.code}`}
+                                value={country.code}
                                 onSelect={() => {
                                   setCountryCode(country.code);
                                   setCountryOpen(false);
@@ -508,7 +529,7 @@ export default function CreateBookingDialog({
                                     countryCode === country.code ? "opacity-100" : "opacity-0"
                                   )}
                                 />
-                                {country.flag} {country.label} ({country.code})
+                                {country.flag} {country.label}
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -517,163 +538,184 @@ export default function CreateBookingDialog({
                     </PopoverContent>
                   </Popover>
                   <Input
-                    id="phone"
                     value={phone}
                     onChange={(e) => setPhone(formatPhoneNumber(e.target.value, countryCode))}
-                    placeholder="6 14 21 64 42"
-                    className="flex-1"
+                    placeholder="Numéro"
+                    className="flex-1 h-9"
                   />
                 </div>
               </div>
 
-              {isAdmin && (
-                <div className="space-y-2">
-                  <Label htmlFor="hairdresser">Coiffeur</Label>
-                  <Select 
-                    value={hairdresserId || "none"} 
-                    onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
+              {/* Room & Hairdresser */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Chambre</Label>
+                  <Input
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    placeholder="1002"
+                    className="h-9"
+                  />
+                </div>
+                {isAdmin && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Coiffeur</Label>
+                    <Select value={hairdresserId || "none"} onValueChange={(v) => setHairdresserId(v === "none" ? "" : v)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Optionnel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Non assigné</SelectItem>
+                        {hairdressers?.map((h) => (
+                          <SelectItem key={h.id} value={h.id}>
+                            {h.first_name} {h.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Service Filter */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Prestations</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={serviceFilter === "all" ? "default" : "outline"}
+                    onClick={() => setServiceFilter("all")}
+                    className="h-7 text-xs flex-1"
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un coiffeur (optionnel)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucun coiffeur</SelectItem>
-                      {hairdressers?.map((hairdresser) => (
-                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                          {hairdresser.first_name} {hairdresser.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    Tous
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={serviceFilter === "female" ? "default" : "outline"}
+                    onClick={() => setServiceFilter("female")}
+                    className="h-7 text-xs flex-1"
+                  >
+                    Femme
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={serviceFilter === "male" ? "default" : "outline"}
+                    onClick={() => setServiceFilter("male")}
+                    className="h-7 text-xs flex-1"
+                  >
+                    Homme
+                  </Button>
                 </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="roomNumber">Numéro de chambre</Label>
-                <Input
-                  id="roomNumber"
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                  placeholder="1002"
-                />
               </div>
 
-              <div className="flex justify-end pt-4">
-                <Button 
-                  type="button" 
-                  onClick={() => setActiveTab("prestations")}
-                >
-                  Suivant
-                </Button>
-              </div>
-            </TabsContent>
+              {/* Compact Treatment List */}
+              <ScrollArea className="h-[180px] border rounded-md">
+                <div className="p-1">
+                  {Object.entries(groupedTreatments).map(([category, items]) => (
+                    <div key={category} className="mb-2">
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1 bg-muted/50 sticky top-0">
+                        {category}
+                      </div>
+                      {items.map((treatment) => {
+                        const isSelected = selectedTreatments.includes(treatment.id);
+                        return (
+                          <div
+                            key={treatment.id}
+                            onClick={() => !isSelected && addTreatment(treatment.id)}
+                            className={cn(
+                              "flex items-center justify-between px-2 py-1.5 cursor-pointer hover:bg-muted/30 transition-colors rounded text-sm",
+                              isSelected && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            <span className="truncate flex-1 mr-2">{treatment.name}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs text-muted-foreground">{treatment.duration}min</span>
+                              <span className="text-xs font-medium">{treatment.price}€</span>
+                              {!isSelected && (
+                                <Plus className="h-3 w-3 text-primary" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                  {filteredTreatments.length === 0 && (
+                    <div className="p-4 text-center text-xs text-muted-foreground">
+                      {hotelId ? "Aucune prestation disponible" : "Sélectionnez un hôtel"}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
 
-            <TabsContent value="prestations" className="space-y-4 mt-4">
-              <Tabs defaultValue="Women" className="w-full">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
-                  <TabsTrigger value="Men">MEN'S MENU</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="Women" className="mt-4">
-                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-semibold text-base">{treatment.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                          {treatment.description && (
-                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                          )}
-                          <div className="text-sm font-medium mt-2">
-                            {treatment.price}€ • {treatment.duration} min
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                          onClick={() => toggleTreatment(treatment.id)}
-                          className="ml-4"
-                        >
-                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                        </Button>
-                      </div>
-                    ))}
-                    {!treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").length && (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
-                        Aucune prestation disponible
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="Men" className="mt-4">
-                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-semibold text-base">{treatment.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                          {treatment.description && (
-                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                          )}
-                          <div className="text-sm font-medium mt-2">
-                            {treatment.price}€ • {treatment.duration} min
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                          onClick={() => toggleTreatment(treatment.id)}
-                          className="ml-4"
-                        >
-                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                        </Button>
-                      </div>
-                    ))}
-                    {!treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").length && (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
-                        Aucune prestation disponible
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+            {/* Right Column - Summary */}
+            <div className="w-1/2 p-4 flex flex-col bg-muted/20">
+              <h3 className="text-sm font-semibold mb-2">Récapitulatif</h3>
               
+              {/* Selected Treatments Table */}
+              <ScrollArea className="flex-1 border rounded-md bg-background">
+                {selectedTreatmentDetails.length > 0 ? (
+                  <div className="divide-y">
+                    {selectedTreatmentDetails.map((treatment) => (
+                      <div key={treatment!.id} className="flex items-center gap-2 p-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{treatment!.name}</div>
+                          <div className="text-xs text-muted-foreground">{treatment!.category}</div>
+                        </div>
+                        <div className="text-xs text-muted-foreground shrink-0">
+                          {treatment!.duration}min
+                        </div>
+                        <div className="font-medium shrink-0 w-14 text-right">
+                          {treatment!.price}€
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0"
+                          onClick={() => removeTreatment(treatment!.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full min-h-[120px] text-sm text-muted-foreground">
+                    Cliquez sur une prestation pour l'ajouter
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Totals */}
               {selectedTreatments.length > 0 && (
-                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
-                  <span>Prix total</span>
-                  <span className="text-lg">{totalPrice}€</span>
+                <div className="mt-3 p-3 bg-primary/5 rounded-lg border">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Durée totale</span>
+                    <span className="font-medium">{totalDuration} min</span>
+                  </div>
+                  <div className="flex justify-between text-base mt-1">
+                    <span className="font-semibold">Total</span>
+                    <span className="font-bold text-primary">{totalPrice}€</span>
+                  </div>
                 </div>
               )}
+            </div>
+          </div>
 
-              <div className="flex justify-between gap-3 pt-4 mt-4 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setActiveTab("info")}
-                >
-                  Retour
-                </Button>
-                <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={handleClose}>
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Création..." : "Créer la réservation"}
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+          {/* Footer */}
+          <div className="p-3 border-t flex justify-between items-center bg-background">
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={createMutation.isPending || selectedTreatments.length === 0}>
+              {createMutation.isPending ? "Création..." : "Créer la réservation"}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
