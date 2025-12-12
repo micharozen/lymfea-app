@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { CreditCard, Hotel, Loader2, ExternalLink, Check, AlertTriangle, X } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { CreditCard, Hotel, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2 } from "lucide-react";
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import {
@@ -22,17 +22,45 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// QR Code component for payment URL - LOCKED STATE
+// Success Animation Component
+const PaymentSuccessView = ({ onComplete }: { onComplete: () => void }) => {
+  useEffect(() => {
+    // Auto-complete after animation
+    const timer = setTimeout(onComplete, 2500);
+    return () => clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in duration-500">
+      <div className="relative">
+        <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" />
+        <div className="relative w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+          <CheckCircle2 className="w-12 h-12 text-white animate-in zoom-in duration-300 delay-200" />
+        </div>
+      </div>
+      <h3 className="text-xl font-bold text-green-600 mt-6 animate-in slide-in-from-bottom duration-500 delay-300">
+        Paiement reçu !
+      </h3>
+      <p className="text-sm text-muted-foreground mt-2 animate-in slide-in-from-bottom duration-500 delay-500">
+        La prestation est finalisée
+      </p>
+    </div>
+  );
+};
+
+// QR Code component for payment URL - LOCKED STATE with polling
 const PaymentQRCodeView = ({ 
   paymentUrl, 
   onOpenPaymentLink, 
   onCancelPayment,
-  cancelling
+  cancelling,
+  isPolling
 }: { 
   paymentUrl: string; 
   onOpenPaymentLink: () => void; 
   onCancelPayment: () => void;
   cancelling: boolean;
+  isPolling: boolean;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrGenerated, setQrGenerated] = useState(false);
@@ -61,15 +89,23 @@ const PaymentQRCodeView = ({
 
   return (
     <div className="space-y-6">
-      {/* Success Banner */}
+      {/* Success Banner with polling indicator */}
       <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
         <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
         <p className="font-medium text-green-800 dark:text-green-200">
           Lien de paiement actif
         </p>
-        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-          En attente du paiement client...
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          {isPolling && (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+          )}
+          <p className="text-xs text-green-600 dark:text-green-400">
+            En attente du paiement client...
+          </p>
+        </div>
       </div>
 
       {/* QR Code Display - Full Focus */}
@@ -136,7 +172,7 @@ interface PaymentSelectionDrawerProps {
   onPaymentComplete: () => void;
 }
 
-type PaymentStep = 'selection' | 'card-processing' | 'card-ready' | 'room-processing';
+type PaymentStep = 'selection' | 'card-processing' | 'card-ready' | 'room-processing' | 'success';
 
 export const PaymentSelectionDrawer = ({
   open,
@@ -155,13 +191,88 @@ export const PaymentSelectionDrawer = ({
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // Calculate breakdown
   const totalHT = totalPrice / (1 + vatRate / 100);
   const tvaAmount = totalPrice - totalHT;
 
   // Check if in a locked/pending state (cannot go back normally)
-  const isPaymentPending = step === 'card-processing' || step === 'card-ready' || step === 'room-processing';
+  const isPaymentPending = step === 'card-processing' || step === 'card-ready' || step === 'room-processing' || step === 'success';
+
+  // Polling function to check payment status
+  const checkPaymentStatus = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('payment_status, status')
+        .eq('id', bookingId)
+        .single();
+
+      if (error) {
+        console.error('Error checking payment status:', error);
+        return false;
+      }
+
+      // Check if payment is completed
+      if (data?.payment_status === 'paid' || data?.status === 'Terminé' || data?.status === 'completed') {
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      console.error('Polling error:', err);
+      return false;
+    }
+  }, [bookingId]);
+
+  // Start polling when QR code is ready
+  useEffect(() => {
+    if (step === 'card-ready' && paymentUrl) {
+      setIsPolling(true);
+      
+      // Poll every 3 seconds
+      pollingRef.current = setInterval(async () => {
+        const isPaid = await checkPaymentStatus();
+        if (isPaid) {
+          // Stop polling
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          setIsPolling(false);
+          setStep('success');
+          toast.success("Paiement reçu !");
+        }
+      }, 3000);
+
+      return () => {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        setIsPolling(false);
+      };
+    }
+  }, [step, paymentUrl, checkPaymentStatus]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  // Handle success completion
+  const handleSuccessComplete = useCallback(() => {
+    setStep('selection');
+    setPaymentUrl(null);
+    onOpenChange(false);
+    onPaymentComplete();
+  }, [onOpenChange, onPaymentComplete]);
 
   const handleCardPayment = async () => {
     setProcessing(true);
@@ -261,11 +372,12 @@ export const PaymentSelectionDrawer = ({
         <DrawerContent className="pb-safe max-h-[90vh]">
           <DrawerHeader className="border-b border-border pb-4">
             <div className="flex items-center gap-3">
-              <DrawerTitle className="text-lg font-semibold flex-1">
+            <DrawerTitle className="text-lg font-semibold flex-1">
                 {step === 'selection' && "Finaliser la prestation"}
                 {step === 'card-processing' && "Préparation du paiement..."}
                 {step === 'card-ready' && "Paiement par carte"}
                 {step === 'room-processing' && "Traitement en cours..."}
+                {step === 'success' && "Paiement confirmé"}
               </DrawerTitle>
               
               {/* Lock indicator when pending */}
@@ -364,7 +476,13 @@ export const PaymentSelectionDrawer = ({
                 onOpenPaymentLink={handleOpenPaymentLink}
                 onCancelPayment={handleCancelPaymentRequest}
                 cancelling={cancelling}
+                isPolling={isPolling}
               />
+            )}
+
+            {/* Success Step - Auto-closes */}
+            {step === 'success' && (
+              <PaymentSuccessView onComplete={handleSuccessComplete} />
             )}
           </div>
         </DrawerContent>
