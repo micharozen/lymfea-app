@@ -359,10 +359,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               </span>
             </div>
 
-            {/* POS Split Layout - Full Height */}
-            <div className="flex-1 flex min-h-0">
-              {/* LEFT: Service Menu (70%) */}
-              <div className="w-[70%] flex flex-col border-r min-h-0">
+            {/* Single Column Layout */}
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* SECTION A: Service List (Top) */}
+              <div className="flex-1 flex flex-col min-h-0">
                 {/* Tabs + Search */}
                 <div className="h-11 px-3 flex items-center gap-2 border-b shrink-0">
                   <div className="flex items-center gap-1">
@@ -432,53 +432,40 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </ScrollArea>
               </div>
 
-              {/* RIGHT: Cart / Ticket (30%) */}
-              <div className="w-[30%] flex flex-col min-h-0 bg-muted/20">
-                {/* Cart Header */}
-                <div className="h-11 px-3 flex items-center border-b shrink-0">
-                  <span className="text-sm font-medium">Ticket</span>
-                  <span className="ml-2 text-xs text-muted-foreground">({itemCount} article{itemCount > 1 ? 's' : ''})</span>
-                </div>
+              {/* SECTION B: Summary / Cart (Bottom) */}
+              {cart.length > 0 && (
+                <div className="border-t bg-muted/20 shrink-0">
+                  {/* Cart Header */}
+                  <div className="h-9 px-3 flex items-center border-b bg-muted/40">
+                    <span className="text-sm font-medium">Récapitulatif</span>
+                    <span className="ml-2 text-xs text-muted-foreground">({itemCount} article{itemCount > 1 ? 's' : ''})</span>
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-muted-foreground">Durée: <span className="font-medium text-foreground">{totalDuration} min</span></span>
+                      <span className="text-muted-foreground">Total: <span className="font-bold text-primary text-sm">{totalPrice}€</span></span>
+                    </div>
+                  </div>
 
-                {/* Cart Items */}
-                <ScrollArea className="flex-1">
-                  {cartDetails.length ? (
-                    <div className="p-1">
-                      {cartDetails.map(({ treatmentId, quantity, t }) => (
-                        <div key={treatmentId} className="h-9 flex items-center gap-1 px-2 text-xs border-b border-dashed border-muted-foreground/20">
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 hover:bg-destructive/10" onClick={() => dec(treatmentId)}>
+                  {/* Cart Items - Compact Table */}
+                  <div className="max-h-32 overflow-y-auto">
+                    {cartDetails.map(({ treatmentId, quantity, t }) => (
+                      <div key={treatmentId} className="h-8 flex items-center gap-2 px-3 text-xs border-b border-border/30 hover:bg-muted/30">
+                        <span className="flex-1 truncate text-sm">{t!.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10" onClick={() => dec(treatmentId)}>
                             <Minus className="h-3 w-3" />
                           </Button>
                           <span className="w-5 text-center font-semibold">{quantity}</span>
-                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => inc(treatmentId)}>
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => inc(treatmentId)}>
                             <Plus className="h-3 w-3" />
                           </Button>
-                          <span className="flex-1 truncate ml-1 text-xs">{t!.name}</span>
-                          <span className="font-medium shrink-0">{((t!.price || 0) * quantity)}€</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                      Panier vide
-                    </div>
-                  )}
-                </ScrollArea>
-
-                {/* Cart Footer - Totals */}
-                {cart.length > 0 && (
-                  <div className="px-3 py-3 border-t bg-background shrink-0 space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Durée estimée</span>
-                      <span>{totalDuration} min</span>
-                    </div>
-                    <div className="flex justify-between text-base font-bold">
-                      <span>TOTAL</span>
-                      <span className="text-primary">{totalPrice}€</span>
-                    </div>
+                        <span className="w-16 text-right font-medium shrink-0">{((t!.price || 0) * quantity)}€</span>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Footer */}
