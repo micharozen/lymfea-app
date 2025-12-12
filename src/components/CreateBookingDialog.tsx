@@ -29,7 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, ArrowLeft, ChevronLeft } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -78,7 +78,7 @@ interface CreateBookingDialogProps {
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
-  const [step, setStep] = useState(1);
+  const [view, setView] = useState<1 | 2>(1);
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
@@ -92,6 +92,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [filter, setFilter] = useState<"all" | "female" | "male">("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (selectedDate) setDate(selectedDate);
@@ -135,8 +136,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const filtered = useMemo(() => {
     if (!treatments) return [];
-    return treatments.filter(t => filter === "all" || (filter === "female" ? (t.service_for === "Female" || t.service_for === "All") : (t.service_for === "Male" || t.service_for === "All")));
-  }, [treatments, filter]);
+    let list = treatments.filter(t => filter === "all" || (filter === "female" ? (t.service_for === "Female" || t.service_for === "All") : (t.service_for === "Male" || t.service_for === "All")));
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      list = list.filter(t => t.name.toLowerCase().includes(s));
+    }
+    return list;
+  }, [treatments, filter, search]);
 
   const grouped = useMemo(() => {
     const g: Record<string, typeof filtered> = {};
@@ -186,124 +192,307 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     return true;
   };
 
-  const next = () => { if (validate()) setStep(2); };
-  const back = () => setStep(1);
+  const next = () => { if (validate()) setView(2); };
+  const back = () => setView(1);
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!cart.length) { toast({ title: "Sélectionnez une prestation", variant: "destructive" }); return; }
     mutation.mutate({ hotelId, clientFirstName, clientLastName, phone, countryCode, roomNumber, date: date ? format(date, "yyyy-MM-dd") : "", time, hairdresserId, treatmentIds: flatIds, totalPrice, isAdmin });
   };
-  const close = () => { setStep(1); setHotelId(""); setClientFirstName(""); setClientLastName(""); setPhone(""); setCountryCode("+33"); setRoomNumber(""); setDate(selectedDate); setTime(selectedTime || ""); setHairdresserId(""); setCart([]); setFilter("all"); onOpenChange(false); };
+  const close = () => { setView(1); setHotelId(""); setClientFirstName(""); setClientLastName(""); setPhone(""); setCountryCode("+33"); setRoomNumber(""); setDate(selectedDate); setTime(selectedTime || ""); setHairdresserId(""); setCart([]); setFilter("all"); setSearch(""); onOpenChange(false); };
 
   const hotel = hotels?.find(h => h.id === hotelId);
   const itemCount = cart.reduce((s, c) => s + c.quantity, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[860px] h-[80vh] max-h-[640px] p-0 gap-0 flex flex-col overflow-hidden">
-        {/* STEP 1: Client Form */}
-        {step === 1 && (
-          <>
-            <div className="h-10 px-3 flex items-center border-b text-sm font-medium shrink-0">Nouvelle réservation</div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-[11px]">Hôtel *</Label><Select value={hotelId} onValueChange={setHotelId}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{hotels?.map(h => <SelectItem key={h.id} value={h.id} className="text-xs">{h.name}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label className="text-[11px]">Chambre</Label><Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-8 text-xs" placeholder="N°" /></div>
+      <DialogContent className={cn(
+        "p-0 gap-0 flex flex-col overflow-hidden",
+        view === 1 ? "sm:max-w-[480px]" : "sm:max-w-[900px] h-[85vh] max-h-[700px]"
+      )}>
+        {/* ══════════════════════════════════════════════════════════════════
+            VIEW 1: CLIENT & CONTEXT FORM
+        ══════════════════════════════════════════════════════════════════ */}
+        {view === 1 && (
+          <div className="flex flex-col">
+            {/* Header */}
+            <div className="px-6 py-4 border-b">
+              <h2 className="text-lg font-semibold">Nouvelle réservation</h2>
+              <p className="text-sm text-muted-foreground">Informations client et contexte</p>
+            </div>
+
+            {/* Form Body */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Row 1: Hotel */}
+              <div>
+                <Label className="text-sm font-medium">Hôtel *</Label>
+                <Select value={hotelId} onValueChange={setHotelId}>
+                  <SelectTrigger className="mt-1.5 h-10">
+                    <SelectValue placeholder="Sélectionner un hôtel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hotels?.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-[11px]">Prénom *</Label><Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-8 text-xs" /></div>
-                <div><Label className="text-[11px]">Nom *</Label><Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-8 text-xs" /></div>
-              </div>
-              <div><Label className="text-[11px]">Téléphone *</Label>
-                <div className="flex gap-1.5">
-                  <Popover open={countryOpen} onOpenChange={setCountryOpen}><PopoverTrigger asChild><Button variant="outline" className="w-20 h-8 text-[11px] px-1.5 justify-between">{countries.find(c => c.code === countryCode)?.flag} {countryCode}<ChevronsUpDown className="h-2.5 w-2.5 opacity-50" /></Button></PopoverTrigger><PopoverContent className="w-40 p-0"><Command><CommandInput placeholder="..." className="h-7 text-xs" /><CommandList><CommandEmpty>-</CommandEmpty><CommandGroup>{countries.map(c => <CommandItem key={c.code} value={c.code} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="text-xs"><Check className={cn("mr-1.5 h-3 w-3", countryCode === c.code ? "opacity-100" : "opacity-0")} />{c.flag} {c.label}</CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover>
-                  <Input value={phone} onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} className="flex-1 h-8 text-xs" />
+
+              {/* Row 2: First Name / Last Name */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-sm font-medium">Prénom *</Label>
+                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="mt-1.5 h-10" placeholder="Prénom" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Nom *</Label>
+                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="mt-1.5 h-10" placeholder="Nom" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div><Label className="text-[11px]">Date *</Label><Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}><PopoverTrigger asChild><Button variant="outline" className={cn("w-full h-8 justify-start text-xs", !date && "text-muted-foreground")}><CalendarIcon className="mr-1.5 h-3 w-3" />{date ? format(date, "dd/MM/yy", { locale: fr }) : "..."}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={date} onSelect={d => { setDate(d); setDatePopoverOpen(false); }} initialFocus locale={fr} /></PopoverContent></Popover></div>
-                <div><Label className="text-[11px]">Heure *</Label><Input type="time" step="600" value={time} onChange={e => setTime(e.target.value)} className="h-8 text-xs" /></div>
+
+              {/* Row 3: Phone */}
+              <div>
+                <Label className="text-sm font-medium">Téléphone *</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-24 h-10 px-2 justify-between font-normal">
+                        {countries.find(c => c.code === countryCode)?.flag} {countryCode}
+                        <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-48 p-0">
+                      <Command>
+                        <CommandInput placeholder="Rechercher..." className="h-9" />
+                        <CommandList>
+                          <CommandEmpty>Non trouvé</CommandEmpty>
+                          <CommandGroup>
+                            {countries.map(c => (
+                              <CommandItem key={c.code} value={c.code} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", countryCode === c.code ? "opacity-100" : "opacity-0")} />
+                                {c.flag} {c.label} ({c.code})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <Input 
+                    value={phone} 
+                    onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
+                    className="flex-1 h-10" 
+                    placeholder="Numéro de téléphone" 
+                  />
+                </div>
               </div>
-              {isAdmin && <div><Label className="text-[11px]">Coiffeur</Label><Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Non assigné" /></SelectTrigger><SelectContent><SelectItem value="none" className="text-xs">Non assigné</SelectItem>{hairdressers?.map(h => <SelectItem key={h.id} value={h.id} className="text-xs">{h.first_name} {h.last_name}</SelectItem>)}</SelectContent></Select></div>}
+
+              {/* Row 4: Room / Date / Time */}
+              <div className="grid grid-cols-4 gap-3">
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Chambre</Label>
+                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="mt-1.5 h-10" placeholder="N° chambre" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Date *</Label>
+                  <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd/MM", { locale: fr }) : "Date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={date} onSelect={d => { setDate(d); setDatePopoverOpen(false); }} initialFocus locale={fr} className="pointer-events-auto" />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Heure *</Label>
+                  <Input type="time" step="600" value={time} onChange={e => setTime(e.target.value)} className="mt-1.5 h-10" />
+                </div>
+              </div>
+
+              {/* Row 5: Hairdresser (Admin only) */}
+              {isAdmin && (
+                <div>
+                  <Label className="text-sm font-medium">Coiffeur / Staff</Label>
+                  <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
+                    <SelectTrigger className="mt-1.5 h-10">
+                      <SelectValue placeholder="Non assigné" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Non assigné</SelectItem>
+                      {hairdressers?.map(h => <SelectItem key={h.id} value={h.id}>{h.first_name} {h.last_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
-            <div className="h-11 px-3 flex items-center justify-between border-t shrink-0">
-              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={close}>Annuler</Button>
-              <Button type="button" size="sm" className="h-7 text-xs" onClick={next}>Services <ArrowRight className="ml-1 h-3 w-3" /></Button>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/30">
+              <Button type="button" variant="ghost" onClick={close}>Annuler</Button>
+              <Button type="button" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
+                Services <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* STEP 2: POS View */}
-        {step === 2 && (
+        {/* ══════════════════════════════════════════════════════════════════
+            VIEW 2: SERVICES & CART (POS INTERFACE)
+        ══════════════════════════════════════════════════════════════════ */}
+        {view === 2 && (
           <form onSubmit={submit} className="flex flex-col h-full">
             {/* Header Badge */}
-            <div className="h-9 px-2 flex items-center gap-2 border-b bg-muted/40 text-[11px] shrink-0">
-              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={back}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-              <span className="font-medium">{clientFirstName} {clientLastName}</span>
-              {roomNumber && <span className="text-muted-foreground">• Ch.{roomNumber}</span>}
-              <span className="text-muted-foreground">• {hotel?.name}</span>
-              <span className="text-muted-foreground ml-auto">{date ? format(date, "dd/MM", { locale: fr }) : ""} {time}</span>
+            <div className="h-12 px-4 flex items-center justify-between border-b bg-muted/40 shrink-0">
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={back}>
+                  ← Retour
+                </Button>
+                <div className="h-5 w-px bg-border" />
+                <span className="text-sm font-medium">{clientFirstName} {clientLastName}</span>
+                {roomNumber && <span className="text-sm text-muted-foreground">• Chambre {roomNumber}</span>}
+                <span className="text-sm text-muted-foreground">• {hotel?.name}</span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {date ? format(date, "dd MMM", { locale: fr }) : ""} à {time}
+              </span>
             </div>
 
-            {/* POS Split */}
+            {/* POS Split Layout - Full Height */}
             <div className="flex-1 flex min-h-0">
-              {/* LEFT: Menu 60% */}
-              <div className="w-[60%] flex flex-col border-r min-h-0">
-                <div className="h-8 px-1.5 flex items-center gap-0.5 border-b shrink-0">
-                  {(["all", "female", "male"] as const).map(f => (
-                    <Button key={f} type="button" variant={filter === f ? "secondary" : "ghost"} size="sm" className="h-6 text-[10px] px-2" onClick={() => setFilter(f)}>
-                      {f === "all" ? "Tous" : f === "female" ? "F" : "H"}
-                    </Button>
-                  ))}
+              {/* LEFT: Service Menu (70%) */}
+              <div className="w-[70%] flex flex-col border-r min-h-0">
+                {/* Tabs + Search */}
+                <div className="h-11 px-3 flex items-center gap-2 border-b shrink-0">
+                  <div className="flex items-center gap-1">
+                    {(["all", "female", "male"] as const).map(f => (
+                      <Button 
+                        key={f} 
+                        type="button" 
+                        variant={filter === f ? "secondary" : "ghost"} 
+                        size="sm" 
+                        className="h-7 text-xs px-3"
+                        onClick={() => setFilter(f)}
+                      >
+                        {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex-1" />
+                  <div className="relative w-48">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input 
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Rechercher..."
+                      className="h-7 pl-8 text-xs"
+                    />
+                  </div>
                 </div>
+
+                {/* Service List */}
                 <ScrollArea className="flex-1">
                   {Object.entries(grouped).map(([cat, items]) => (
                     <div key={cat}>
-                      <div className="h-6 px-2 flex items-center bg-muted/50 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground sticky top-0 z-10">{cat}</div>
+                      <div className="h-7 px-3 flex items-center bg-muted/60 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 z-10">
+                        {cat}
+                      </div>
                       {items.map(t => {
                         const qty = cart.find(c => c.treatmentId === t.id)?.quantity || 0;
                         return (
-                          <div key={t.id} onClick={() => add(t.id)} className={cn("h-9 flex items-center px-2 text-xs cursor-pointer hover:bg-muted/30", qty > 0 && "bg-primary/5")}>
-                            <span className="flex-1 truncate">{t.name}</span>
-                            <span className="w-10 text-right text-muted-foreground text-[10px]">{t.duration}′</span>
-                            <span className="w-12 text-right font-medium">{t.price}€</span>
-                            <div className="w-7 flex justify-end">{qty > 0 ? <span className="text-[10px] font-bold text-primary">×{qty}</span> : <Plus className="h-3 w-3 text-muted-foreground" />}</div>
+                          <div 
+                            key={t.id} 
+                            onClick={() => add(t.id)} 
+                            className={cn(
+                              "h-10 flex items-center px-3 cursor-pointer border-b border-border/30 hover:bg-muted/40 transition-colors",
+                              qty > 0 && "bg-primary/5"
+                            )}
+                          >
+                            <span className="flex-1 text-sm truncate">{t.name}</span>
+                            <span className="w-16 text-right text-xs text-muted-foreground">{t.duration} min</span>
+                            <span className="w-16 text-right text-sm font-medium">{t.price}€</span>
+                            <div className="w-10 flex justify-end">
+                              {qty > 0 ? (
+                                <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">×{qty}</span>
+                              ) : (
+                                <Plus className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
                   ))}
-                  {!filtered.length && <div className="p-4 text-center text-xs text-muted-foreground">Aucune prestation</div>}
+                  {!filtered.length && (
+                    <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                      Aucune prestation trouvée
+                    </div>
+                  )}
                 </ScrollArea>
               </div>
 
-              {/* RIGHT: Cart 40% */}
-              <div className="w-[40%] flex flex-col min-h-0 bg-muted/20">
-                <div className="h-8 px-2 flex items-center text-xs font-medium border-b shrink-0">Ticket ({itemCount})</div>
+              {/* RIGHT: Cart / Ticket (30%) */}
+              <div className="w-[30%] flex flex-col min-h-0 bg-muted/20">
+                {/* Cart Header */}
+                <div className="h-11 px-3 flex items-center border-b shrink-0">
+                  <span className="text-sm font-medium">Ticket</span>
+                  <span className="ml-2 text-xs text-muted-foreground">({itemCount} article{itemCount > 1 ? 's' : ''})</span>
+                </div>
+
+                {/* Cart Items */}
                 <ScrollArea className="flex-1">
-                  {cartDetails.length ? cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="h-8 flex items-center gap-1 px-1.5 text-[11px] border-b border-dashed border-muted">
-                      <Button type="button" variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => dec(treatmentId)}><Minus className="h-2.5 w-2.5" /></Button>
-                      <span className="w-4 text-center font-medium">{quantity}</span>
-                      <Button type="button" variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => inc(treatmentId)}><Plus className="h-2.5 w-2.5" /></Button>
-                      <span className="flex-1 truncate ml-1">{t!.name}</span>
-                      <span className="font-medium shrink-0">{((t!.price || 0) * quantity).toFixed(0)}€</span>
+                  {cartDetails.length ? (
+                    <div className="p-1">
+                      {cartDetails.map(({ treatmentId, quantity, t }) => (
+                        <div key={treatmentId} className="h-9 flex items-center gap-1 px-2 text-xs border-b border-dashed border-muted-foreground/20">
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0 hover:bg-destructive/10" onClick={() => dec(treatmentId)}>
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-5 text-center font-semibold">{quantity}</span>
+                          <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => inc(treatmentId)}>
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                          <span className="flex-1 truncate ml-1 text-xs">{t!.name}</span>
+                          <span className="font-medium shrink-0">{((t!.price || 0) * quantity)}€</span>
+                        </div>
+                      ))}
                     </div>
-                  )) : <div className="h-20 flex items-center justify-center text-xs text-muted-foreground">Vide</div>}
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                      Panier vide
+                    </div>
+                  )}
                 </ScrollArea>
+
+                {/* Cart Footer - Totals */}
                 {cart.length > 0 && (
-                  <div className="px-2 py-1.5 border-t bg-background shrink-0">
-                    <div className="flex justify-between text-[10px] text-muted-foreground"><span>Durée</span><span>{totalDuration} min</span></div>
-                    <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span className="text-primary">{totalPrice}€</span></div>
+                  <div className="px-3 py-3 border-t bg-background shrink-0 space-y-1">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Durée estimée</span>
+                      <span>{totalDuration} min</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold">
+                      <span>TOTAL</span>
+                      <span className="text-primary">{totalPrice}€</span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Footer */}
-            <div className="h-10 px-2 flex items-center justify-between border-t shrink-0">
-              <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={back}><ArrowLeft className="mr-1 h-3 w-3" />Retour</Button>
-              <Button type="submit" size="sm" className="h-7 text-xs" disabled={mutation.isPending || !cart.length}>{mutation.isPending ? "..." : "Créer"}</Button>
+            <div className="h-14 px-4 flex items-center justify-between border-t bg-background shrink-0">
+              <Button type="button" variant="outline" onClick={back}>
+                ← Retour
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={mutation.isPending || !cart.length}
+                className="bg-foreground text-background hover:bg-foreground/90 px-6"
+              >
+                {mutation.isPending ? "Création..." : "Créer la réservation"}
+              </Button>
             </div>
           </form>
         )}
