@@ -31,10 +31,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 import { EditConciergeDialog } from "@/components/EditConciergeDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface Concierge {
   id: string;
@@ -229,8 +229,9 @@ export default function Concierges() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="Actif">Actif</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
 
@@ -300,16 +301,7 @@ export default function Concierges() {
                     <span className="text-sm">{getHotelNames(concierge.hotels)}</span>
                   </TableCell>
                   <TableCell className="align-middle">
-                    <Badge 
-                      variant={concierge.status === "Actif" ? "default" : "secondary"}
-                      className={cn(
-                        "font-medium",
-                        concierge.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                        concierge.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
-                      )}
-                    >
-                      {concierge.status}
-                    </Badge>
+                    <StatusBadge status={concierge.status} type="entity" />
                   </TableCell>
                   {userRole === "admin" && (
                     <TableCell className="align-middle">

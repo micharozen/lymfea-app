@@ -186,7 +186,7 @@ export default function CreateBookingDialog({
       const hairdresser = hairdressers?.find((h) => h.id === data.hairdresserId);
       
       // Déterminer le statut initial
-      const initialStatus = data.hairdresserId ? "Assigné" : "En attente";
+      const initialStatus = data.hairdresserId ? "assigned" : "pending";
       const assignedAt = data.hairdresserId ? new Date().toISOString() : null;
       
       const { data: bookingData, error: bookingError } = await supabase

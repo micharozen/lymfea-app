@@ -27,12 +27,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 
 interface Hotel {
   id: string;
@@ -257,8 +256,9 @@ export default function HairDresser() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="Actif">Actif</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
 
@@ -335,16 +335,7 @@ export default function HairDresser() {
                       <span className="text-lg">{getSkillsDisplay(hairdresser.skills)}</span>
                     </TableCell>
                     <TableCell className="align-middle">
-                      <Badge
-                        variant={hairdresser.status === "Actif" ? "default" : "secondary"}
-                        className={cn(
-                          "font-medium",
-                          hairdresser.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                          hairdresser.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
-                        )}
-                      >
-                        {hairdresser.status}
-                      </Badge>
+                      <StatusBadge status={hairdresser.status} type="entity" />
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="align-middle">

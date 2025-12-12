@@ -111,7 +111,7 @@ export function AddTrunkDialog({
       trunk_id: values.trunk_id,
       hotel_id: values.hotel_id || null,
       image: trunkImage || null,
-      status: "Available",
+      status: "active",
     });
 
     if (error) {

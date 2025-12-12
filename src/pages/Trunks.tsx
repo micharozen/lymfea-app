@@ -18,11 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, Pencil, Trash2, Plus } from "lucide-react";
 import { AddTrunkDialog } from "@/components/AddTrunkDialog";
 import { EditTrunkDialog } from "@/components/EditTrunkDialog";
+import { StatusBadge } from "@/components/StatusBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,8 +170,8 @@ export default function Trunks() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="Actif">Actif</SelectItem>
-                  <SelectItem value="Inactif">Inactif</SelectItem>
+                  <SelectItem value="active">Actif</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -241,15 +241,7 @@ export default function Trunks() {
                           : "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          className={
-                            trunk.status === "Actif"
-                              ? "bg-green-500/10 text-green-700 hover:bg-green-500/10"
-                              : "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
-                          }
-                        >
-                          {trunk.status}
-                        </Badge>
+                        <StatusBadge status={trunk.status} type="entity" />
                       </TableCell>
                       {isAdmin && (
                         <TableCell className="text-right">

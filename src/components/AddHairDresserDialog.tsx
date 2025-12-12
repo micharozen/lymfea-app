@@ -81,7 +81,7 @@ export default function AddHairDresserDialog({
     email: "",
     country_code: "+33",
     phone: "",
-    status: "En attente",
+    status: "pending",
   });
 
   useEffect(() => {
@@ -470,8 +470,9 @@ export default function AddHairDresserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Actif">Actif</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
           </div>
