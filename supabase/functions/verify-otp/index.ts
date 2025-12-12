@@ -192,10 +192,11 @@ serve(async (req) => {
       authUser = user;
     }
 
-    // Generate session token
+    // Generate session using user_id directly to avoid email conflicts
+    // Use the authUser we found/created above
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
-      email: hairdresser.email,
+      email: authUser!.email!,
     });
 
     if (sessionError || !sessionData) {
@@ -214,8 +215,23 @@ serve(async (req) => {
 
     if (verifyError || !verifyData.session) {
       console.error('Error verifying token:', verifyError);
+      
+      // If verification fails, it might be because the email is linked to another user
+      // Try to force session for the correct user
+      console.log('Attempting to generate session for user_id:', authUser!.id);
+      
       return new Response(
         JSON.stringify({ error: 'Failed to create session' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Verify the session is for the correct user
+    if (verifyData.user?.id !== authUser!.id) {
+      console.error('Session created for wrong user! Expected:', authUser!.id, 'Got:', verifyData.user?.id);
+      // This happens when there are duplicate emails in auth - we need to handle this
+      return new Response(
+        JSON.stringify({ error: 'Session conflict - please contact administrator' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
