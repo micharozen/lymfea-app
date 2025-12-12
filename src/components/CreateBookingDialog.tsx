@@ -339,168 +339,153 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         )}
 
         {/* ══════════════════════════════════════════════════════════════════
-            VIEW 2: SERVICES & CART (POS INTERFACE)
+            VIEW 2: SERVICES MENU (Vertical Stack - Delivery App Style)
         ══════════════════════════════════════════════════════════════════ */}
         {view === 2 && (
-          <form onSubmit={submit} className="flex flex-col h-full">
-            {/* Header Badge */}
+          <form onSubmit={submit} className="flex flex-col h-full w-full">
+            {/* Header Bar */}
             <div className="h-12 px-4 flex items-center justify-between border-b bg-muted/40 shrink-0">
               <div className="flex items-center gap-3">
                 <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={back}>
                   ← Retour
                 </Button>
-                <div className="h-5 w-px bg-border" />
                 <span className="text-sm font-medium">{clientFirstName} {clientLastName}</span>
-                {roomNumber && <span className="text-sm text-muted-foreground">• Chambre {roomNumber}</span>}
-                <span className="text-sm text-muted-foreground">• {hotel?.name}</span>
+                {roomNumber && <span className="text-xs text-muted-foreground">• Ch. {roomNumber}</span>}
               </div>
-              <span className="text-sm text-muted-foreground">
-                {date ? format(date, "dd MMM", { locale: fr }) : ""} à {time}
+              <span className="text-xs text-muted-foreground">
+                {date ? format(date, "dd MMM", { locale: fr }) : ""} {time}
               </span>
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════
-                TOP SECTION: Tabs + Search + Service List (flex-1, scrollable)
-            ═══════════════════════════════════════════════════════════ */}
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              {/* Tabs + Search Bar */}
-              <div className="h-11 px-4 flex items-center gap-2 border-b shrink-0 bg-background">
-                <div className="flex items-center gap-1">
-                  {(["all", "female", "male"] as const).map(f => (
-                    <Button 
-                      key={f} 
-                      type="button" 
-                      variant={filter === f ? "secondary" : "ghost"} 
-                      size="sm" 
-                      className="h-7 text-xs px-3"
-                      onClick={() => setFilter(f)}
-                    >
-                      {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
-                    </Button>
-                  ))}
-                </div>
-                <div className="flex-1" />
-                <div className="relative w-48">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input 
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Rechercher..."
-                    className="h-7 pl-8 text-xs"
-                  />
-                </div>
-              </div>
-
-              {/* Service List - Scrollable */}
-              <div className="flex-1 overflow-y-auto">
-                {Object.entries(grouped).map(([cat, items]) => (
-                  <div key={cat}>
-                    <div className="h-8 px-4 flex items-center bg-muted/60 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground sticky top-0 z-10 border-b border-border/30">
-                      {cat}
-                    </div>
-                    {items.map(t => {
-                      const qty = cart.find(c => c.treatmentId === t.id)?.quantity || 0;
-                      return (
-                        <div 
-                          key={t.id} 
-                          onClick={() => add(t.id)} 
-                          className={cn(
-                            "h-12 flex items-center px-4 cursor-pointer border-b border-border/20 hover:bg-muted/40 transition-colors",
-                            qty > 0 && "bg-primary/5"
-                          )}
-                        >
-                          <span className="flex-1 text-sm truncate">{t.name}</span>
-                          <span className="w-20 text-right text-sm font-medium">{t.price}€</span>
-                          <div className="w-12 flex justify-end">
-                            {qty > 0 ? (
-                              <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">×{qty}</span>
-                            ) : (
-                              <div className="h-7 w-7 rounded-full border border-border flex items-center justify-center hover:bg-muted">
-                                <Plus className="h-4 w-4 text-muted-foreground" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-                {!filtered.length && (
-                  <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
-                    Aucune prestation trouvée
-                  </div>
-                )}
+            {/* Filter Tabs */}
+            <div className="h-10 px-4 flex items-center gap-2 border-b shrink-0 bg-background">
+              {(["all", "female", "male"] as const).map(f => (
+                <Button 
+                  key={f} 
+                  type="button" 
+                  variant={filter === f ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-xs px-4"
+                  onClick={() => setFilter(f)}
+                >
+                  {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
+                </Button>
+              ))}
+              <div className="flex-1" />
+              <div className="relative w-40">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input 
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="h-7 pl-7 text-xs"
+                />
               </div>
             </div>
 
             {/* ═══════════════════════════════════════════════════════════
-                BOTTOM SECTION: Récapitulatif (shrink-0, sticky footer)
+                SERVICE LIST (Scrollable, Full Width, Grouped by Category)
             ═══════════════════════════════════════════════════════════ */}
-            <div className="shrink-0 border-t-2 border-border bg-background">
-              {/* Section Header */}
-              <div className="h-11 px-4 flex items-center bg-muted/50 border-b border-border/50">
-                <span className="text-sm font-semibold">Récapitulatif</span>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {Object.entries(grouped).map(([category, items]) => (
+                <div key={category}>
+                  {/* Category Header */}
+                  <div className="h-10 px-4 flex items-center bg-muted sticky top-0 z-10 border-b border-border">
+                    <span className="text-xs font-bold uppercase tracking-wide">{category}</span>
+                  </div>
+                  
+                  {/* Service Rows */}
+                  {items.map(treatment => {
+                    const qty = cart.find(c => c.treatmentId === treatment.id)?.quantity || 0;
+                    return (
+                      <div 
+                        key={treatment.id} 
+                        className={cn(
+                          "h-14 flex items-center px-4 border-b border-border/30",
+                          qty > 0 && "bg-primary/5"
+                        )}
+                      >
+                        {/* Service Name */}
+                        <span className="flex-1 text-sm truncate pr-4">{treatment.name}</span>
+                        
+                        {/* Quantity Control: [ - qty + ] */}
+                        <div className="flex items-center shrink-0 border border-border rounded-lg overflow-hidden bg-background">
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-none hover:bg-muted"
+                            onClick={() => dec(treatment.id)}
+                            disabled={qty === 0}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="w-8 text-center text-sm font-semibold">{qty}</span>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-none hover:bg-muted"
+                            onClick={() => add(treatment.id)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Price */}
+                        <span className="w-20 text-right text-sm font-semibold">{treatment.price}€</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              
+              {!filtered.length && (
+                <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+                  Aucune prestation trouvée
+                </div>
+              )}
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════
+                BOTTOM RECAP (Sticky Footer - Always Visible)
+            ═══════════════════════════════════════════════════════════ */}
+            <div className="shrink-0 border-t-2 border-foreground/20 bg-background">
+              {/* Recap Header with Total */}
+              <div className="h-12 px-4 flex items-center bg-muted/60">
+                <span className="text-sm font-bold">Récapitulatif</span>
                 {cart.length > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground">({itemCount} article{itemCount > 1 ? 's' : ''})</span>
+                  <span className="ml-2 text-xs text-muted-foreground">({itemCount})</span>
                 )}
                 <div className="flex-1" />
-                {cart.length > 0 && (
-                  <>
-                    <span className="text-xs text-muted-foreground mr-4">{totalDuration} min</span>
-                    <span className="text-lg font-bold">Total: {totalPrice}€</span>
-                  </>
-                )}
+                <span className="text-lg font-bold">{totalPrice}€</span>
               </div>
 
-              {/* Selected Items List */}
-              <div className="max-h-36 overflow-y-auto">
-                {cart.length === 0 ? (
-                  <div className="h-14 flex items-center justify-center text-sm text-muted-foreground">
-                    Sélectionnez un service ci-dessus
-                  </div>
-                ) : (
-                  cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="h-11 flex items-center px-4 border-b border-border/30">
-                      <span className="flex-1 text-sm truncate pr-2">{t!.name}</span>
-                      
-                      {/* Qty Controls: [ - qty + ] */}
-                      <div className="flex items-center shrink-0 border border-border rounded-md bg-muted/30">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 rounded-none rounded-l-md hover:bg-muted"
-                          onClick={() => dec(treatmentId)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center text-sm font-medium">{quantity}</span>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 rounded-none rounded-r-md hover:bg-muted"
-                          onClick={() => inc(treatmentId)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-
-                      <span className="w-20 text-right text-sm font-medium">{((t!.price || 0) * quantity)}€</span>
+              {/* Selected Items (compact list) */}
+              {cart.length > 0 && (
+                <div className="max-h-28 overflow-y-auto border-t border-border/50">
+                  {cartDetails.map(({ treatmentId, quantity, t }) => (
+                    <div key={treatmentId} className="h-9 flex items-center px-4 text-sm border-b border-border/20">
+                      <span className="flex-1 truncate text-muted-foreground">{t!.name}</span>
+                      <span className="text-muted-foreground mx-2">×{quantity}</span>
+                      <span className="font-medium">{((t!.price || 0) * quantity)}€</span>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Action Footer */}
-              <div className="h-14 px-4 flex items-center justify-between border-t bg-muted/30">
-                <Button type="button" variant="outline" size="sm" onClick={back}>
-                  ← Retour
-                </Button>
+              {cart.length === 0 && (
+                <div className="h-10 flex items-center justify-center text-xs text-muted-foreground border-t border-border/50">
+                  Ajoutez des services avec les boutons + ci-dessus
+                </div>
+              )}
+
+              {/* Action Button */}
+              <div className="h-14 px-4 flex items-center justify-end border-t bg-muted/30">
                 <Button 
                   type="submit" 
                   disabled={mutation.isPending || !cart.length}
-                  className="bg-foreground text-background hover:bg-foreground/90 px-6"
+                  className="bg-foreground text-background hover:bg-foreground/90 px-8 h-10"
                 >
                   {mutation.isPending ? "Création..." : "Créer la réservation"}
                 </Button>
