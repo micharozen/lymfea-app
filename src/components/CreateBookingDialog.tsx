@@ -436,59 +436,49 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               </div>
             </div>
 
-            {/* 2. STICKY FOOTER / RECAP (Bounded Height) */}
-            <div className="shrink-0 border-t border-border bg-background shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-20">
+            {/* 2. COMPACT STICKY FOOTER */}
+            <div className="shrink-0 border-t border-border bg-background z-20">
               
-              {/* Header du Footer */}
-              <div className="px-4 py-2 flex items-center justify-between">
-                <h3 className="font-semibold text-sm">Récapitulatif</h3>
-                <span className="text-xs text-muted-foreground">{cart.length} article(s)</span>
-              </div>
-
-              {/* LISTE DES ARTICLES SÉLECTIONNÉS (Hard limit: 120px) */}
-              {cart.length > 0 && (
-                <div className="max-h-[120px] overflow-y-auto px-4 space-y-1.5">
-                  {cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="flex items-center justify-between text-xs py-0.5">
-                      <span className="truncate flex-1 font-medium text-muted-foreground pr-2">
-                        {t!.name}
-                      </span>
-                      
-                      <div className="flex items-center gap-2 bg-muted/50 rounded-md px-1.5 py-0.5 shrink-0">
-                        <button type="button" onClick={() => dec(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <span className="w-3 text-center font-semibold text-xs">{quantity}</span>
-                        <button type="button" onClick={() => add(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
-                          <Plus className="h-3 w-3" />
-                        </button>
-                      </div>
-
-                      <span className="font-medium w-[50px] text-right shrink-0">
-                        {(t!.price || 0) * quantity}€
-                      </span>
+              {/* Single Row: Cart Summary + Total + Button */}
+              <div className="px-4 py-2 flex items-center gap-3">
+                
+                {/* Left: Cart Items (Compact inline) */}
+                <div className="flex-1 min-w-0">
+                  {cart.length > 0 ? (
+                    <div className="flex items-center gap-2 overflow-x-auto">
+                      {cartDetails.slice(0, 3).map(({ treatmentId, quantity, t }) => (
+                        <div key={treatmentId} className="flex items-center gap-1 bg-muted/50 rounded px-2 py-1 shrink-0">
+                          <span className="text-[10px] font-medium truncate max-w-[80px]">{t!.name}</span>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => dec(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
+                              <Minus className="h-2.5 w-2.5" />
+                            </button>
+                            <span className="text-[10px] font-bold w-3 text-center">{quantity}</span>
+                            <button type="button" onClick={() => add(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
+                              <Plus className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {cartDetails.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
+                      )}
                     </div>
-                  ))}
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Aucun service</span>
+                  )}
                 </div>
-              )}
 
-              {/* Total & Action (Toujours visible en bas) */}
-              <div className="px-4 py-3 bg-background">
-                <div className="flex items-center justify-between border-t border-dashed border-border pt-2 mb-3">
-                  <span className="font-bold text-sm">Total</span>
+                {/* Right: Total + Submit */}
+                <div className="flex items-center gap-3 shrink-0">
                   <span className="font-bold text-sm">{totalPrice}€</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={back} size="sm" className="px-3">
-                    Retour
-                  </Button>
                   <Button 
                     type="submit" 
                     disabled={mutation.isPending || cart.length === 0} 
                     size="sm"
-                    className="flex-1 bg-foreground text-background hover:bg-foreground/90"
+                    className="bg-foreground text-background hover:bg-foreground/90 h-8 px-4"
                   >
-                    {mutation.isPending ? "Création..." : "Créer la réservation"}
+                    {mutation.isPending ? "..." : "Créer"}
                   </Button>
                 </div>
               </div>
