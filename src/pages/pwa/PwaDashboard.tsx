@@ -368,21 +368,18 @@ const PwaDashboard = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      // Si la réservation est assignée à ce coiffeur, elle doit être dans upcoming
+      // Si la réservation est assignée à ce coiffeur
       const isAssignedToMe = hairdresser && booking.hairdresser_id === hairdresser.id;
       
-      console.log('Filtering booking:', {
-        id: booking.booking_id,
-        status: booking.status,
-        date: booking.booking_date,
-        bookingDate: bookingDate,
-        today: today,
-        isUpcoming: (booking.status === "Assigné" || isAssignedToMe) && bookingDate >= today
-      });
+      // Statuts actifs qui bloquent un créneau (doivent être visibles dans "upcoming")
+      const activeStatuses = ["Assigné", "En cours", "Confirmé"];
+      const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {
-        return booking.status !== "Terminé" &&
-               (booking.status === "Assigné" || isAssignedToMe) && 
+        // Show all bookings assigned to me that are not completed or cancelled
+        return isAssignedToMe && 
+               booking.status !== "Terminé" && 
+               booking.status !== "Annulé" &&
                bookingDate >= today;
       } else if (activeTab === "history") {
         return booking.status === "Terminé" && isAssignedToMe;

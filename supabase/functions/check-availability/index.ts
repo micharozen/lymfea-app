@@ -54,18 +54,21 @@ serve(async (req) => {
     const hairdresserIds = hairdressers.map(h => h.hairdresser_id);
     console.log(`Found ${hairdresserIds.length} active hairdressers`);
 
-    // Get all confirmed bookings for these hairdressers on this date
+    // Get all bookings that block slots (assigned to hairdressers, not cancelled/terminated)
+    // Exclude: Annulé, Terminé - these should NOT block availability
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select('booking_time, hairdresser_id')
+      .select('booking_time, hairdresser_id, status')
       .eq('booking_date', date)
       .in('hairdresser_id', hairdresserIds)
-      .in('status', ['Assigné', 'En cours']);
+      .not('status', 'in', '("Annulé","Terminé")');
 
     if (bookingsError) {
       console.error('Error fetching bookings:', bookingsError);
       throw bookingsError;
     }
+    
+    console.log('Bookings blocking slots:', bookings?.map(b => ({ time: b.booking_time, status: b.status })));
 
     console.log(`Found ${bookings?.length || 0} existing bookings`);
 

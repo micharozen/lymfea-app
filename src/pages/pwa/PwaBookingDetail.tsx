@@ -420,7 +420,7 @@ const PwaBookingDetail = () => {
 
       console.log('[Booking] 💇 Hairdresser found:', hairdresserData.id);
 
-      // Check for conflicts with existing confirmed bookings
+      // Check for conflicts with existing bookings (exclude cancelled/completed)
       console.log('[Booking] 🔍 Checking for schedule conflicts...');
       const { data: existingBookings } = await supabase
         .from("bookings")
@@ -434,7 +434,7 @@ const PwaBookingDetail = () => {
         `)
         .eq("hairdresser_id", hairdresserData.id)
         .eq("booking_date", booking.booking_date)
-        .in("status", ["Assigné"]);
+        .not("status", "in", '("Annulé","Terminé")');
 
       console.log('[Booking] 📅 Existing bookings:', existingBookings?.length || 0);
 
