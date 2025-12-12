@@ -338,108 +338,91 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════
-            VIEW 2: SERVICES MENU (Vertical Stack - Delivery App Style)
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 2: SERVICES & CART (VERTICAL STACK) */}
         {view === 2 && (
-          <form onSubmit={submit} className="flex flex-col h-full w-full">
-            {/* Header Bar */}
-            <div className="h-12 px-4 flex items-center justify-between border-b bg-muted/40 shrink-0">
-              <div className="flex items-center gap-3">
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={back}>
-                  ← Retour
-                </Button>
-                <span className="text-sm font-medium">{clientFirstName} {clientLastName}</span>
-                {roomNumber && <span className="text-xs text-muted-foreground">• Ch. {roomNumber}</span>}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                {date ? format(date, "dd MMM", { locale: fr }) : ""} {time}
-              </span>
-            </div>
-
-            {/* Filter Tabs */}
-            <div className="h-10 px-4 flex items-center gap-2 border-b shrink-0 bg-background">
-              {(["all", "female", "male"] as const).map(f => (
-                <Button 
-                  key={f} 
-                  type="button" 
-                  variant={filter === f ? "default" : "outline"} 
-                  size="sm" 
-                  className="h-7 text-xs px-4"
-                  onClick={() => setFilter(f)}
-                >
-                  {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
-                </Button>
-              ))}
-              <div className="flex-1" />
-              <div className="relative w-40">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input 
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Rechercher..."
-                  className="h-7 pl-7 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════════════════════
-                SERVICE LIST (Scrollable, Full Width, Grouped by Category)
-            ═══════════════════════════════════════════════════════════ */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              {Object.entries(grouped).map(([category, items]) => (
-                <div key={category}>
-                  {/* Category Header */}
-                  <div className="h-10 px-4 flex items-center bg-muted sticky top-0 z-10 border-b border-border">
-                    <span className="text-xs font-bold uppercase tracking-wide">{category}</span>
+          <form onSubmit={submit} className="flex flex-col h-full min-h-[500px] max-h-[80vh]">
+            
+            {/* 1. SCROLLABLE SERVICE LIST (Takes all available space) */}
+            <div className="flex-1 overflow-y-auto px-1">
+              
+              {/* Search & Tabs */}
+              <div className="sticky top-0 bg-background z-10 py-2 border-b mb-2 px-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={back}>
+                    ← Retour
+                  </Button>
+                  <span className="text-sm font-medium">{clientFirstName} {clientLastName}</span>
+                  {roomNumber && <span className="text-xs text-muted-foreground">• Ch. {roomNumber}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  {(["all", "female", "male"] as const).map(f => (
+                    <Button 
+                      key={f} 
+                      type="button" 
+                      variant={filter === f ? "default" : "outline"} 
+                      size="sm" 
+                      className="h-7 text-xs px-3"
+                      onClick={() => setFilter(f)}
+                    >
+                      {f === "all" ? "Tous" : f === "female" ? "Femmes" : "Hommes"}
+                    </Button>
+                  ))}
+                  <div className="flex-1" />
+                  <div className="relative w-36">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input 
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Rechercher..."
+                      className="h-7 pl-7 text-xs"
+                    />
                   </div>
-                  
-                  {/* Service Rows */}
-                  {items.map(treatment => {
-                    const qty = cart.find(c => c.treatmentId === treatment.id)?.quantity || 0;
-                    return (
+                </div>
+              </div>
+
+              {Object.entries(grouped).map(([category, items]) => (
+                <div key={category} className="mb-6">
+                  {/* Category Header */}
+                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 mt-4 px-2">
+                    {category}
+                  </h3>
+                  {/* Clean Service Rows */}
+                  <div className="space-y-1">
+                    {items.map((treatment) => (
                       <div 
                         key={treatment.id} 
-                        className={cn(
-                          "h-14 flex items-center px-4 border-b border-border/30",
-                          qty > 0 && "bg-primary/5"
-                        )}
+                        className="group flex items-center justify-between py-3 px-2 border-b border-border/30 hover:bg-muted/40 transition-colors"
                       >
-                        {/* Service Name */}
-                        <span className="flex-1 text-sm truncate pr-4">{treatment.name}</span>
-                        
-                        {/* Quantity Control: [ - qty + ] */}
-                        <div className="flex items-center shrink-0 border border-border rounded-lg overflow-hidden bg-background">
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 rounded-none hover:bg-muted"
-                            onClick={() => dec(treatment.id)}
-                            disabled={qty === 0}
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </Button>
-                          <span className="w-8 text-center text-sm font-semibold">{qty}</span>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 rounded-none hover:bg-muted"
-                            onClick={() => add(treatment.id)}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </Button>
+                        {/* Left: Name */}
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">
+                            {treatment.name}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {treatment.duration} min
+                          </span>
                         </div>
-
-                        {/* Price */}
-                        <span className="w-20 text-right text-sm font-semibold">{treatment.price}€</span>
+                        {/* Right: Price & Simple Add Button */}
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-medium">
+                            {treatment.price}€
+                          </span>
+                          
+                          {/* SIMPLE BUTTON (+) */}
+                          <button
+                            type="button"
+                            onClick={() => add(treatment.id)}
+                            className="h-8 w-8 flex items-center justify-center rounded-full border border-border text-muted-foreground hover:border-foreground hover:bg-foreground hover:text-background transition-all"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
               ))}
-              
+
               {!filtered.length && (
                 <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
                   Aucune prestation trouvée
@@ -447,45 +430,73 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               )}
             </div>
 
-            {/* ═══════════════════════════════════════════════════════════
-                BOTTOM RECAP (Sticky Footer - Always Visible)
-            ═══════════════════════════════════════════════════════════ */}
-            <div className="shrink-0 border-t-2 border-foreground/20 bg-background">
-              {/* Recap Header with Total */}
-              <div className="h-12 px-4 flex items-center bg-muted/60">
-                <span className="text-sm font-bold">Récapitulatif</span>
-                {cart.length > 0 && (
-                  <span className="ml-2 text-xs text-muted-foreground">({itemCount})</span>
-                )}
-                <div className="flex-1" />
-                <span className="text-lg font-bold">{totalPrice}€</span>
+            {/* 2. STICKY FOOTER / RECAP (Always visible at bottom) */}
+            <div className="shrink-0 border-t border-border bg-background p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+              
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Récapitulatif</h3>
+                <span className="text-sm text-muted-foreground">{cart.length} article(s)</span>
               </div>
 
-              {/* Selected Items (compact list) */}
-              {cart.length > 0 && (
-                <div className="max-h-28 overflow-y-auto border-t border-border/50">
+              {/* Cart Items List (Compact) */}
+              {cart.length > 0 ? (
+                <div className="max-h-[150px] overflow-y-auto space-y-3 mb-4 pr-2">
                   {cartDetails.map(({ treatmentId, quantity, t }) => (
-                    <div key={treatmentId} className="h-9 flex items-center px-4 text-sm border-b border-border/20">
-                      <span className="flex-1 truncate text-muted-foreground">{t!.name}</span>
-                      <span className="text-muted-foreground mx-2">×{quantity}</span>
-                      <span className="font-medium">{((t!.price || 0) * quantity)}€</span>
+                    <div key={treatmentId} className="flex items-center justify-between text-sm">
+                      <span className="truncate max-w-[150px] font-medium text-muted-foreground">
+                        {t!.name}
+                      </span>
+                      
+                      {/* Quantity Controls (Only here!) */}
+                      <div className="flex items-center gap-3 bg-muted/50 rounded-lg px-2 py-1">
+                        <button 
+                          type="button"
+                          onClick={() => dec(treatmentId)} 
+                          className="p-1 hover:text-destructive text-muted-foreground"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="w-4 text-center font-semibold">{quantity}</span>
+                        <button 
+                          type="button"
+                          onClick={() => add(treatmentId)}
+                          className="p-1 hover:text-foreground text-muted-foreground"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <span className="font-medium w-[50px] text-right">
+                        {(t!.price || 0) * quantity}€
+                      </span>
                     </div>
                   ))}
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic mb-4 text-center py-2">
+                  Aucun service sélectionné
+                </p>
               )}
 
-              {cart.length === 0 && (
-                <div className="h-10 flex items-center justify-center text-xs text-muted-foreground border-t border-border/50">
-                  Ajoutez des services avec les boutons + ci-dessus
-                </div>
-              )}
+              {/* Total & Action Button */}
+              <div className="flex items-center justify-between border-t border-dashed border-border pt-3 mb-4">
+                <span className="font-bold text-lg">Total</span>
+                <span className="font-bold text-lg">{totalPrice}€</span>
+              </div>
 
-              {/* Action Button */}
-              <div className="h-14 px-4 flex items-center justify-end border-t bg-muted/30">
+              <div className="flex gap-3">
                 <Button 
-                  type="submit" 
-                  disabled={mutation.isPending || !cart.length}
-                  className="bg-foreground text-background hover:bg-foreground/90 px-8 h-10"
+                  type="button"
+                  variant="outline"
+                  onClick={back}
+                  className="px-4"
+                >
+                  Retour
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={mutation.isPending || cart.length === 0}
+                  className="flex-1 bg-foreground text-background hover:bg-foreground/90"
                 >
                   {mutation.isPending ? "Création..." : "Créer la réservation"}
                 </Button>
