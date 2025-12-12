@@ -822,7 +822,7 @@ const PwaBookingDetail = () => {
             {booking.status === "Assigné" && (
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}
-                className="w-full h-12 mt-4 bg-foreground text-background font-bold text-sm rounded-lg hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                className="w-full h-9 mt-3 bg-foreground text-background font-medium text-xs rounded-md hover:bg-foreground/90 transition-all active:scale-[0.98]"
               >
                 + {t('bookingDetail.add')}
               </button>
