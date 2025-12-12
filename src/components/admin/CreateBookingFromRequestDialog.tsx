@@ -302,7 +302,7 @@ export default function CreateBookingFromRequestDialog({
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
-                step="900"
+                step="600"
               />
             </div>
           </div>
