@@ -138,11 +138,15 @@ serve(async (req) => {
       throw new Error(`Hotel not found: ${booking.hotel_id}`);
     }
 
+    // Get currency for Stripe operations (lowercase)
+    const currency = (hotel.currency || 'EUR').toLowerCase();
+
     log("Hotel found", { 
       name: hotel.name, 
       vat: hotel.vat, 
       hotel_commission: hotel.hotel_commission,
-      hairdresser_commission: hotel.hairdresser_commission 
+      hairdresser_commission: hotel.hairdresser_commission,
+      currency: currency
     });
 
     // 3. Récupérer le coiffeur avec son compte Stripe
@@ -271,7 +275,7 @@ serve(async (req) => {
         customer: customerId,
         invoice: invoice.id,
         amount: Math.round(totalTTC * 100), // In cents
-        currency: hotel.currency?.toLowerCase() || 'eur',
+        currency: currency,
         description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name}`,
       });
 
@@ -367,7 +371,7 @@ serve(async (req) => {
         customer: customerId,
         invoice: invoice.id,
         amount: Math.round(totalTTC * 100),
-        currency: hotel.currency?.toLowerCase() || 'eur',
+        currency: currency,
         description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name} - Chambre ${booking.room_number || 'N/A'}`,
       });
 
@@ -407,7 +411,7 @@ serve(async (req) => {
 
           const transfer = await stripe.transfers.create({
             amount: Math.round(breakdown.hairdresserShare * 100), // En centimes
-            currency: hotel.currency?.toLowerCase() || 'eur',
+            currency: currency,
             destination: hairdresser.stripe_account_id,
             transfer_group: `booking_${booking.booking_id}`,
             metadata: {
@@ -466,8 +470,10 @@ serve(async (req) => {
       }
 
       // Ajouter au Ledger (Hôtel doit à OOM)
-      // Montant positif = l'hôtel collecte l'argent et doit à OOM
-      const ledgerAmount = totalTTC - breakdown.hotelCommission;
+      // Formula: ledgerDebt = total - (baseHT * hotelCommissionRate * (1 + vatRate))
+      // This ensures hotel keeps its commission TTC, rest goes to OOM
+      const hotelCommissionTTC = breakdown.hotelCommission * (1 + vatRate / 100);
+      const ledgerAmount = totalTTC - hotelCommissionTTC;
       
       await supabase
         .from('hotel_ledger')
