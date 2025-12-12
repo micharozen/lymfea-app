@@ -21,8 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Search, Pencil, Trash2, Plus } from "lucide-react";
-import { AddBoxDialog } from "@/components/AddBoxDialog";
-import { EditBoxDialog } from "@/components/EditBoxDialog";
+import { AddTrunkDialog } from "@/components/AddTrunkDialog";
+import { EditTrunkDialog } from "@/components/EditTrunkDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,14 +34,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-export default function Boxes() {
+export default function Trunks() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedBox, setSelectedBox] = useState<any>(null);
+  const [selectedTrunk, setSelectedTrunk] = useState<any>(null);
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
 
@@ -66,11 +66,11 @@ export default function Boxes() {
 
   const isAdmin = userRole === "admin";
 
-  const { data: boxes, isLoading } = useQuery({
-    queryKey: ["boxes"],
+  const { data: trunks, isLoading } = useQuery({
+    queryKey: ["trunks"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("boxes")
+        .from("trunks")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -94,45 +94,45 @@ export default function Boxes() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("boxes").delete().eq("id", id);
+      const { error } = await supabase.from("trunks").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boxes"] });
-      toast.success("Box supprimée avec succès");
+      queryClient.invalidateQueries({ queryKey: ["trunks"] });
+      toast.success("Trunk supprimé avec succès");
       setIsDeleteDialogOpen(false);
-      setSelectedBox(null);
+      setSelectedTrunk(null);
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression de la box");
+      toast.error("Erreur lors de la suppression du trunk");
     },
   });
 
-  const filteredBoxes = boxes?.filter((box) => {
+  const filteredTrunks = trunks?.filter((trunk) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
-      box.name?.toLowerCase().includes(searchLower) ||
-      box.box_model?.toLowerCase().includes(searchLower);
+      trunk.name?.toLowerCase().includes(searchLower) ||
+      trunk.trunk_model?.toLowerCase().includes(searchLower);
     
-    const matchesStatus = statusFilter === "all" || box.status === statusFilter;
-    const matchesHotel = hotelFilter === "all" || box.hotel_id === hotelFilter;
+    const matchesStatus = statusFilter === "all" || trunk.status === statusFilter;
+    const matchesHotel = hotelFilter === "all" || trunk.hotel_id === hotelFilter;
 
     return matchesSearch && matchesStatus && matchesHotel;
   });
 
-  const handleEdit = (box: any) => {
-    setSelectedBox(box);
+  const handleEdit = (trunk: any) => {
+    setSelectedTrunk(trunk);
     setIsEditDialogOpen(true);
   };
 
-  const handleDelete = (box: any) => {
-    setSelectedBox(box);
+  const handleDelete = (trunk: any) => {
+    setSelectedTrunk(trunk);
     setIsDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (selectedBox) {
-      deleteMutation.mutate(selectedBox.id);
+    if (selectedTrunk) {
+      deleteMutation.mutate(selectedTrunk.id);
     }
   };
 
@@ -141,12 +141,12 @@ export default function Boxes() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            📦 Boxes
+            🧳 Trunks (Malles)
           </h1>
           {isAdmin && (
             <Button onClick={() => setIsAddDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter une box
+              Ajouter un trunk
             </Button>
           )}
         </div>
@@ -157,7 +157,7 @@ export default function Boxes() {
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search"
+                  placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -196,8 +196,8 @@ export default function Boxes() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
-                  <TableHead>Modèle de box</TableHead>
-                  <TableHead>Id</TableHead>
+                  <TableHead>Modèle</TableHead>
+                  <TableHead>ID</TableHead>
                   <TableHead>Hôtel</TableHead>
                   <TableHead>Coiffeur</TableHead>
                   <TableHead>Prochaine réservation</TableHead>
@@ -212,43 +212,43 @@ export default function Boxes() {
                       Chargement...
                     </TableCell>
                   </TableRow>
-                ) : filteredBoxes && filteredBoxes.length > 0 ? (
-                  filteredBoxes.map((box) => (
-                    <TableRow key={box.id}>
+                ) : filteredTrunks && filteredTrunks.length > 0 ? (
+                  filteredTrunks.map((trunk) => (
+                    <TableRow key={trunk.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          {box.image ? (
+                          {trunk.image ? (
                             <img
-                              src={box.image}
-                              alt={box.name}
+                              src={trunk.image}
+                              alt={trunk.name}
                               className="h-10 w-10 rounded-md object-cover"
                             />
                           ) : (
                             <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                              📦
+                              🧳
                             </div>
                           )}
-                          <span className="font-medium">{box.name}</span>
+                          <span className="font-medium">{trunk.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{box.box_model}</TableCell>
-                      <TableCell>{box.box_id}</TableCell>
-                      <TableCell>{box.hotel_name || "-"}</TableCell>
-                      <TableCell>{box.hairdresser_name || "-"}</TableCell>
+                      <TableCell>{trunk.trunk_model}</TableCell>
+                      <TableCell>{trunk.trunk_id}</TableCell>
+                      <TableCell>{trunk.hotel_name || "-"}</TableCell>
+                      <TableCell>{trunk.hairdresser_name || "-"}</TableCell>
                       <TableCell>
-                        {box.next_booking
-                          ? new Date(box.next_booking).toLocaleString("fr-FR")
+                        {trunk.next_booking
+                          ? new Date(trunk.next_booking).toLocaleString("fr-FR")
                           : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge
                           className={
-                            box.status === "Actif"
+                            trunk.status === "Actif"
                               ? "bg-green-500/10 text-green-700 hover:bg-green-500/10"
                               : "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
                           }
                         >
-                          {box.status}
+                          {trunk.status}
                         </Badge>
                       </TableCell>
                       {isAdmin && (
@@ -257,14 +257,14 @@ export default function Boxes() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEdit(box)}
+                              onClick={() => handleEdit(trunk)}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(box)}
+                              onClick={() => handleDelete(trunk)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -276,7 +276,7 @@ export default function Boxes() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center">
-                      Aucune box trouvée
+                      Aucun trunk trouvé
                     </TableCell>
                   </TableRow>
                 )}
@@ -286,21 +286,21 @@ export default function Boxes() {
         </div>
       </div>
 
-      <AddBoxDialog
+      <AddTrunkDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["boxes"] });
+          queryClient.invalidateQueries({ queryKey: ["trunks"] });
         }}
       />
 
-      {selectedBox && (
-        <EditBoxDialog
+      {selectedTrunk && (
+        <EditTrunkDialog
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
-          box={selectedBox}
+          trunk={selectedTrunk}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["boxes"] });
+            queryClient.invalidateQueries({ queryKey: ["trunks"] });
           }}
         />
       )}
@@ -310,7 +310,7 @@ export default function Boxes() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette box ? Cette action est
+              Êtes-vous sûr de vouloir supprimer ce trunk ? Cette action est
               irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>

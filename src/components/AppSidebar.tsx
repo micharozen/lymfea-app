@@ -48,7 +48,7 @@ const subMenuItems = [
   { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
   { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
   { title: "Menus de soins", url: "/admin/treatment-menus", emoji: "📓" },
-  { title: "Box", url: "/admin/boxes", emoji: "📦" },
+  { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
   { title: "Produits OOM", url: "/admin/oom-products", emoji: "💈" },
   { title: "Commandes", url: "/admin/oom-orders", emoji: "🚚" },

@@ -49,7 +49,7 @@ interface HairDresser {
   phone: string;
   profile_image: string | null;
   status: string;
-  boxes: string | null;
+  trunks: string | null;
   skills: string[];
   hairdresser_hotels?: { hotel_id: string }[];
 }
@@ -329,7 +329,7 @@ export default function HairDresser() {
                       <span className="text-sm">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
                     </TableCell>
                     <TableCell className="align-middle">
-                      <span className="text-sm">{hairdresser.boxes || "-"}</span>
+                      <span className="text-sm">{hairdresser.trunks || "-"}</span>
                     </TableCell>
                     <TableCell className="align-middle">
                       <span className="text-lg">{getSkillsDisplay(hairdresser.skills)}</span>
