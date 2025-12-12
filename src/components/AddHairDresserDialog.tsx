@@ -46,12 +46,12 @@ const SKILLS_OPTIONS = [
   { value: "beauty", label: "💅 Beauté" },
 ];
 
-const BOXES_OPTIONS = [
-  { value: "box1", label: "Box 1" },
-  { value: "box2", label: "Box 2" },
-  { value: "box3", label: "Box 3" },
-  { value: "box4", label: "Box 4" },
-  { value: "box5", label: "Box 5" },
+const TRUNKS_OPTIONS = [
+  { value: "trunk1", label: "Trunk 1" },
+  { value: "trunk2", label: "Trunk 2" },
+  { value: "trunk3", label: "Trunk 3" },
+  { value: "trunk4", label: "Trunk 4" },
+  { value: "trunk5", label: "Trunk 5" },
 ];
 
 const formSchema = z.object({
@@ -71,7 +71,7 @@ export default function AddHairDresserDialog({
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedBoxes, setSelectedBoxes] = useState<string[]>([]);
+  const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,7 +165,7 @@ export default function AddHairDresserDialog({
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        boxes: selectedBoxes.join(", ") || null,
+        trunks: selectedTrunks.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
         profile_image: profileImage,
@@ -212,7 +212,7 @@ export default function AddHairDresserDialog({
     });
     setSelectedHotels([]);
     setSelectedSkills([]);
-    setSelectedBoxes([]);
+    setSelectedTrunks([]);
     setProfileImage(null);
   };
 
@@ -366,7 +366,7 @@ export default function AddHairDresserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Box</Label>
+            <Label>Trunk (Malle)</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -374,32 +374,32 @@ export default function AddHairDresserDialog({
                   className="w-full justify-between font-normal"
                 >
                   <span>
-                    {selectedBoxes.length === 0
-                      ? "Sélectionner des boxes"
-                      : `${selectedBoxes.length} box(es) sélectionnée(s)`}
+                    {selectedTrunks.length === 0
+                      ? "Sélectionner des trunks"
+                      : `${selectedTrunks.length} trunk(s) sélectionné(s)`}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[350px] p-0" align="start">
-                <div className="p-3 space-y-2">
-                  {BOXES_OPTIONS.map((box) => (
+                <div className="max-h-60 overflow-y-auto p-3 space-y-2">
+                  {TRUNKS_OPTIONS.map((trunk) => (
                     <div
-                      key={box.value}
+                      key={trunk.value}
                       className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
                     >
-                      <Label htmlFor={`box-${box.value}`} className="flex-1 cursor-pointer font-normal">
-                        {box.label}
+                      <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal">
+                        {trunk.label}
                       </Label>
                       <Checkbox
-                        id={`box-${box.value}`}
-                        checked={selectedBoxes.includes(box.value)}
+                        id={`trunk-${trunk.value}`}
+                        checked={selectedTrunks.includes(trunk.value)}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedBoxes([...selectedBoxes, box.value]);
+                            setSelectedTrunks([...selectedTrunks, trunk.value]);
                           } else {
-                            setSelectedBoxes(
-                              selectedBoxes.filter((b) => b !== box.value)
+                            setSelectedTrunks(
+                              selectedTrunks.filter((t) => t !== trunk.value)
                             );
                           }
                         }}
