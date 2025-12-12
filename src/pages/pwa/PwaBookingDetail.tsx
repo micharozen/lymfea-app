@@ -944,7 +944,8 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {booking.status === "Assigné" && !booking.client_signature && (
+                {/* Show for all active bookings (Assigné, Confirmé) that are not yet signed/completed */}
+                {["Assigné", "Confirmé"].includes(booking.status) && !booking.client_signature && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
