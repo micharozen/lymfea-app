@@ -54,6 +54,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
   const [hotelImage, setHotelImage] = useState<string>("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [currentHotelId, setCurrentHotelId] = useState<string>("");
   const [uploading, setUploading] = useState(false);
   const hotelImageRef = useRef<HTMLInputElement>(null);
   const coverImageRef = useRef<HTMLInputElement>(null);
@@ -106,6 +107,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       
       setHotelImage(hotel.image || "");
       setCoverImage(hotel.cover_image || "");
+      setCurrentHotelId(hotel.id);
     } catch (error: any) {
       toast.error("Erreur lors du chargement de l'hôtel");
       console.error(error);
@@ -268,6 +270,16 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                   </Button>
                 </div>
               </div>
+            </div>
+
+            {/* Read-only Hotel ID display */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Hotel ID (auto-generated)</label>
+              <Input 
+                value={currentHotelId} 
+                disabled 
+                className="bg-muted/50 text-muted-foreground cursor-not-allowed"
+              />
             </div>
 
             <FormField

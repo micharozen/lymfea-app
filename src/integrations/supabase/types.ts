@@ -567,7 +567,7 @@ export type Database = {
           currency?: string | null
           hairdresser_commission?: number | null
           hotel_commission?: number | null
-          id: string
+          id?: string
           image?: string | null
           name: string
           postal_code?: string | null
