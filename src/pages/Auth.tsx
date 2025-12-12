@@ -257,6 +257,18 @@ const Auth = () => {
           .eq("user_id", data.user.id);
       }
 
+      // Check if concierge needs to change password
+      const { data: concierge } = await supabase
+        .from("concierges")
+        .select("must_change_password")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (concierge?.must_change_password) {
+        navigate("/update-password", { replace: true });
+        return;
+      }
+
       toast({
         title: "Connexion réussie",
         description: "Bienvenue !",
