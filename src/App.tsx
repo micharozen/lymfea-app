@@ -20,6 +20,7 @@ import Concierges from "./pages/Concierges";
 import OomProducts from "./pages/OomProducts";
 import OomOrders from "./pages/OomOrders";
 import Finance from "./pages/Finance";
+import ConciergeTransactions from "./pages/ConciergeTransactions";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
@@ -213,6 +214,7 @@ const App = () => {
                           <Route path="/oom-products" element={<OomProducts />} />
                           <Route path="/oom-orders" element={<OomOrders />} />
                           <Route path="/finance" element={<Finance />} />
+                          <Route path="/transactions" element={<ConciergeTransactions />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/profile" element={<Profile />} />
                           <Route path="*" element={<NotFound />} />
