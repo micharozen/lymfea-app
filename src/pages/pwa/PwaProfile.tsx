@@ -150,8 +150,8 @@ const PwaProfile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">{t('common:loading')}</div>
+      <div className="h-full flex items-center justify-center">
+        <div className="text-sm">{t('common:loading')}</div>
       </div>
     );
   }
@@ -173,7 +173,7 @@ const PwaProfile = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full flex flex-col bg-background">
       <PwaHeader
         title={t('profile.title')}
         showBack
@@ -181,29 +181,22 @@ const PwaProfile = () => {
       />
 
       {/* Content */}
-      <div className="p-6 space-y-6">
-        {/* Profile Header */}
-        <div className="flex flex-col items-center text-center space-y-3">
-          <div className="relative">
-            <Avatar className="h-20 w-20">
+      <div className="flex-1 flex flex-col px-4 pt-4 pb-6">
+        {/* Compact Profile Header - Row Layout */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-shrink-0">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={hairdresser.profile_image || undefined} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute bottom-0 right-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              style={{ 
-                width: 28, 
-                height: 28, 
-                minWidth: 28, 
-                minHeight: 28, 
-                borderRadius: '50%' 
-              }}
+              className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-5 h-5 rounded-full"
             >
-              <Camera className="h-3.5 w-3.5" />
+              <Camera className="h-2.5 w-2.5" />
             </button>
             <input
               ref={fileInputRef}
@@ -213,40 +206,42 @@ const PwaProfile = () => {
               className="hidden"
             />
           </div>
-          <div>
-            <h2 className="text-xl font-bold">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base font-semibold truncate">
               {hairdresser.first_name} {hairdresser.last_name}
             </h2>
-            <div className="flex items-center justify-center gap-1 mt-1">
-              <span className="text-yellow-500">⭐</span>
-              <span className="text-sm font-medium">3.0</span>
+            <div className="flex items-center gap-1">
+              <span className="text-yellow-500 text-xs">⭐</span>
+              <span className="text-xs text-muted-foreground">3.0</span>
             </div>
           </div>
         </div>
 
-        {/* Menu Items */}
-        <div className="space-y-1">
+        {/* Compact Menu Items */}
+        <div className="space-y-0.5 flex-1">
           {menuItems.map((item, index) => (
             <button
               key={index}
               onClick={item.onClick}
-              className="w-full flex items-center justify-between p-4 hover:bg-muted/50 rounded-lg transition-all active:scale-[0.98] active:bg-muted"
+              className="w-full flex items-center justify-between py-2.5 px-3 hover:bg-muted/50 rounded-lg transition-all active:scale-[0.98] active:bg-muted"
             >
-              <div className="flex items-center gap-3">
-                <item.icon className="h-5 w-5" />
-                <span className="font-medium">{item.label}</span>
+              <div className="flex items-center gap-2.5">
+                <item.icon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm">{item.label}</span>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
           ))}
         </div>
 
-        {/* Logout Button */}
+        {/* Logout Button - pushed to bottom */}
         <Button
           variant="ghost"
-          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
+          size="sm"
+          className="w-full mt-auto text-destructive hover:text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
           onClick={handleLogout}
         >
+          <LogOut className="h-4 w-4 mr-2" />
           {t('profile.logout')}
         </Button>
       </div>
