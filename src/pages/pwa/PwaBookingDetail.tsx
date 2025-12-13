@@ -634,195 +634,181 @@ const PwaBookingDetail = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-background pb-24">
-        {/* Header */}
-        <div className="bg-background px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 flex items-center justify-between sticky top-0 z-10 border-b border-border">
+      <div className="min-h-screen bg-background pb-20">
+        {/* Header - Compact */}
+        <div className="bg-background px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-2 flex items-center justify-between sticky top-0 z-10 border-b border-border">
           <button 
             onClick={() => {
               const from = (location.state as any)?.from;
               navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
             }} 
-            className="p-2 -ml-2"
+            className="p-1.5 -ml-1"
           >
-            <ChevronLeft className="w-6 h-6 text-foreground" />
+            <ChevronLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="text-base font-semibold text-foreground">{t('bookingDetail.myBooking')}</h1>
-          <div className="w-10" />
+          <h1 className="text-sm font-semibold text-foreground">{t('bookingDetail.myBooking')}</h1>
+          <div className="w-8" />
         </div>
 
-        <div className="px-6 pt-6">
-          {/* Hotel Image */}
-          <div className="relative w-24 h-24 mx-auto mb-4">
-            {booking.hotel_image_url ? (
-              <img 
-                src={booking.hotel_image_url} 
-                alt={booking.hotel_name}
-                className="w-full h-full object-cover rounded-2xl"
-              />
-            ) : (
-              <div className="w-full h-full bg-muted rounded-2xl" />
-            )}
+        <div className="px-4 pt-3">
+          {/* Hotel Header - Compact Grid Layout */}
+          <div className="flex items-start gap-3 mb-3">
+            {/* Hotel Image - Smaller */}
+            <div className="w-14 h-14 flex-shrink-0">
+              {booking.hotel_image_url ? (
+                <img 
+                  src={booking.hotel_image_url} 
+                  alt={booking.hotel_name}
+                  className="w-full h-full object-cover rounded-xl"
+                />
+              ) : (
+                <div className="w-full h-full bg-muted rounded-xl" />
+              )}
+            </div>
+
+            {/* Hotel Info */}
+            <div className="flex-1 min-w-0">
+              <h2 className="font-semibold text-sm text-foreground truncate">{booking.hotel_name}</h2>
+              <button 
+                onClick={() => setShowNavigationDrawer(true)}
+                className="text-xs text-muted-foreground flex items-center gap-0.5 hover:text-foreground transition-colors"
+              >
+                <Navigation className="w-3 h-3" />
+                <span className="truncate">
+                  {booking.hotel_address && booking.hotel_city 
+                    ? `${booking.hotel_address}`
+                    : booking.hotel_name}
+                </span>
+              </button>
+              {/* Payment Status Badge */}
+              {booking.payment_status && (
+                <div className="mt-1">
+                  {(() => {
+                    const badge = getPaymentStatusBadge(booking.payment_status);
+                    return badge ? (
+                      <Badge className={`text-[10px] px-2 py-0 h-4 ${badge.className}`}>
+                        {badge.label}
+                      </Badge>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Hotel Name */}
-          <div className="text-center mb-2">
-            <h2 className="font-semibold text-lg text-foreground">{booking.hotel_name}</h2>
+          {/* Details Grid - 2 Columns Compact */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">{t('booking.date')}</p>
+                <p className="text-xs font-medium text-foreground truncate">
+                  {format(new Date(booking.booking_date), "d MMM yyyy")}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">{t('booking.time')}</p>
+                <p className="text-xs font-medium text-foreground">
+                  {booking.booking_time.substring(0, 5)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+              <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">{t('booking.duration')}</p>
+                <p className="text-xs font-medium text-foreground">{totalDuration} min</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+              <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted-foreground">{t('bookingDetail.price')}</p>
+                <p className="text-xs font-medium text-foreground">{totalPrice}€</p>
+              </div>
+            </div>
           </div>
 
-          {/* Address */}
-          <div className="text-center mb-6">
-            <button 
-              onClick={() => setShowNavigationDrawer(true)}
-              className="text-sm text-muted-foreground flex items-center justify-center gap-1 hover:text-foreground transition-colors mx-auto"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              {booking.hotel_address && booking.hotel_city 
-                ? `${booking.hotel_address}, ${booking.hotel_city}`
-                : booking.hotel_name}
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-            </button>
-          </div>
-
-          {/* Payment Status Badge */}
-          {booking.payment_status && (
-            <div className="flex justify-center mb-6">
-              {(() => {
-                const badge = getPaymentStatusBadge(booking.payment_status);
-                return badge ? (
-                  <Badge className={`text-xs px-3 py-1 ${badge.className}`}>
-                    {badge.label}
-                  </Badge>
-                ) : null;
-              })()}
+          {/* Earnings - Compact */}
+          {estimatedEarnings > 0 && (
+            <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-lg px-3 py-2 mb-3">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
+                <Wallet className="w-4 h-4" />
+                <span className="text-xs font-medium">Votre gain</span>
+              </div>
+              <span className="text-xs font-bold text-green-600 dark:text-green-500">
+                {estimatedEarnings}€
+              </span>
             </div>
           )}
 
-          {/* Details */}
-          <div className="space-y-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Calendar className="w-5 h-5" />
-                <span className="text-sm">{t('booking.date')}</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {format(new Date(booking.booking_date), "d MMMM yyyy")}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Clock className="w-5 h-5" />
-                <span className="text-sm">{t('booking.time')}</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {booking.booking_time.substring(0, 5)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Timer className="w-5 h-5" />
-                <span className="text-sm">{t('booking.duration')}</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {totalDuration} Min
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Euro className="w-5 h-5" />
-                <span className="text-sm">{t('bookingDetail.price')}</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">
-                {totalPrice}€
-              </span>
-            </div>
-
-            {/* Estimated Earnings */}
-            {estimatedEarnings > 0 && (
-              <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-lg px-3 py-2 -mx-1">
-                <div className="flex items-center gap-3 text-green-600 dark:text-green-500">
-                  <Wallet className="w-5 h-5" />
-                  <span className="text-sm font-medium">Votre gain</span>
-                </div>
-                <span className="text-sm font-bold text-green-600 dark:text-green-500">
-                  {estimatedEarnings}€
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <User className="w-5 h-5" />
-                <span className="text-sm">{t('bookingDetail.name')}</span>
-              </div>
-              <span className="text-sm font-medium text-foreground">
+          {/* Client Info - Compact Row */}
+          <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 mb-3">
+            <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-foreground">
                 {booking.client_first_name} {booking.client_last_name}
-              </span>
+              </p>
+              {booking.room_number && (
+                <p className="text-[10px] text-muted-foreground">
+                  {t('booking.room')}: {booking.room_number}
+                </p>
+              )}
             </div>
-
-            {booking.room_number && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 text-muted-foreground">
-                  <Hotel className="w-5 h-5" />
-                  <span className="text-sm">{t('booking.room')}</span>
-                </div>
-                <span className="text-sm font-medium text-foreground">
-                  {booking.room_number}
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Client Note */}
+          {/* Client Note - Compact */}
           {booking.client_note && (
-            <div className="mb-6 p-4 bg-muted/50 rounded-xl">
-              <div className="flex items-start gap-3">
-                <MessageSquare className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Note du client</p>
-                  <p className="text-sm text-muted-foreground">{booking.client_note}</p>
+            <div className="mb-3 p-2.5 bg-muted/50 rounded-lg">
+              <div className="flex items-start gap-2">
+                <MessageSquare className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium text-foreground mb-0.5">Note du client</p>
+                  <p className="text-xs text-muted-foreground">{booking.client_note}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Treatments */}
-          <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-foreground">{t('booking.treatments')}</h3>
-          </div>
+          {/* Treatments - Compact */}
+          <div className="mb-3">
+            <h3 className="text-xs font-semibold text-foreground mb-2">{t('booking.treatments')}</h3>
             {treatments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
+              <p className="text-xs text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-1.5">
                 {treatments.map((treatment) => (
-                  <div key={treatment.id} className="flex items-start gap-3 group">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{treatment.treatment_menus?.name || 'Treatment'}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0} min
-                    </p>
+                  <div key={treatment.id} className="flex items-center gap-2 group py-1">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">{treatment.treatment_menus?.name || 'Treatment'}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0}min
+                      </p>
+                    </div>
+                    {(booking.status !== "Terminé" && booking.status !== "En attente") && (
+                      <button
+                        onClick={() => setTreatmentToDelete(treatment.id)}
+                        className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </button>
+                    )}
                   </div>
-                  {(booking.status !== "Terminé" && booking.status !== "En attente") && (
-                    <button
-                      onClick={() => setTreatmentToDelete(treatment.id)}
-                      className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </button>
-                  )}
-                </div>
                 ))}
               </div>
             )}
             
-            {/* Add Treatment Button - Primary Block */}
+            {/* Add Treatment Button */}
             {booking.status === "Assigné" && (
               <button
                 onClick={() => setShowAddTreatmentDialog(true)}
-                className="w-full h-9 mt-3 bg-foreground text-background font-medium text-xs rounded-md hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                className="w-full h-8 mt-2 bg-foreground text-background font-medium text-xs rounded-md hover:bg-foreground/90 transition-all active:scale-[0.98]"
               >
                 + {t('bookingDetail.add')}
               </button>
@@ -830,9 +816,9 @@ const PwaBookingDetail = () => {
           </div>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-6 py-4 pb-[calc(env(safe-area-inset-bottom)+8px)] z-10">
-          <div className="flex items-center gap-3">
+        {/* Bottom Actions - Compact */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
+          <div className="flex items-center gap-2">
             {/* For Pending Requests (not assigned to anyone) */}
             {booking.status === "En attente" && !booking.hairdresser_id ? (
               <>
@@ -840,48 +826,48 @@ const PwaBookingDetail = () => {
                 <button
                   onClick={() => setShowDeclineDialog(true)}
                   disabled={updating}
-                  className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-95"
+                  className="w-10 h-10 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-95"
                 >
-                  <X className="w-5 h-5 text-destructive" />
+                  <X className="w-4 h-4 text-destructive" />
                 </button>
 
                 {/* More Options Button */}
                 <Drawer>
                   <DrawerTrigger asChild>
-                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
-                      <MoreVertical className="w-5 h-5 text-foreground" />
+                    <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
+                      <MoreVertical className="w-4 h-4 text-foreground" />
                     </button>
                   </DrawerTrigger>
                   <DrawerContent className="pb-safe">
-                    <div className="p-6 space-y-2">
+                    <div className="p-4 space-y-1">
                       {conciergeContact && (
                         <a
                           href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                         >
-                          <Phone className="w-5 h-5 text-primary" />
-                          <span className="text-base font-medium">{t('bookingDetail.contactConcierge')}</span>
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
                       <a
                         href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">{t('booking.contactClient')}</span>
+                        <Phone className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                       </a>
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <MessageCircle className="w-5 h-5 text-[#25D366]" />
-                        <span className="text-base font-medium">{t('bookingDetail.contactOOM')}</span>
+                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                        <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
                     </div>
                   </DrawerContent>
@@ -896,7 +882,7 @@ const PwaBookingDetail = () => {
                     handleAcceptBooking();
                   }}
                   disabled={updating}
-                  className="flex-1 bg-primary text-primary-foreground rounded-full py-3 px-6 text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {updating ? "..." : t('dashboard.accept')}
                 </button>
@@ -907,22 +893,22 @@ const PwaBookingDetail = () => {
                 {/* Contact Drawer */}
                 <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
                   <DrawerTrigger asChild>
-                    <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
-                      <MoreVertical className="w-5 h-5 text-foreground" />
+                    <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
+                      <MoreVertical className="w-4 h-4 text-foreground" />
                     </button>
                   </DrawerTrigger>
                   <DrawerContent className="pb-safe">
-                    <div className="p-6 space-y-2">
+                    <div className="p-4 space-y-1">
                       {conciergeContact && (
                         <a
                           href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={() => setShowContactDrawer(false)}
-                          className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                         >
-                          <Phone className="w-5 h-5 text-primary" />
-                          <span className="text-base font-medium">{t('bookingDetail.contactConcierge')}</span>
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
                       <a
@@ -930,47 +916,46 @@ const PwaBookingDetail = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <Phone className="w-5 h-5 text-primary" />
-                        <span className="text-base font-medium">{t('booking.contactClient')}</span>
+                        <Phone className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                       </a>
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors"
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
                       >
-                        <MessageCircle className="w-5 h-5 text-[#25D366]" />
-                        <span className="text-base font-medium">{t('bookingDetail.contactOOM')}</span>
+                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
+                        <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
                       
-                      <div className="h-px bg-border my-2" />
+                      <div className="h-px bg-border my-1" />
                       
                       <button
                         onClick={() => {
                           setShowContactDrawer(false);
                           setShowUnassignDialog(true);
                         }}
-                        className="flex items-center gap-3 p-4 rounded-lg hover:bg-destructive/10 transition-colors w-full"
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-destructive/10 transition-colors w-full"
                       >
-                        <X className="w-5 h-5 text-destructive" />
-                        <span className="text-base font-medium text-destructive">{t('bookingDetail.unassignBooking')}</span>
+                        <X className="w-4 h-4 text-destructive" />
+                        <span className="text-sm font-medium text-destructive">{t('bookingDetail.unassignBooking')}</span>
                       </button>
                     </div>
                   </DrawerContent>
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {/* Show for all active bookings (Assigné, Confirmé) that are not yet signed/completed */}
                 {["Assigné", "Confirmé"].includes(booking.status) && !booking.client_signature && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
-                    className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-3 px-6 text-sm font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg"
+                    className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
-                    <Wallet className="w-5 h-5" />
+                    <Wallet className="w-4 h-4" />
                     Finaliser ({totalPrice}€)
                   </button>
                 )}
@@ -983,28 +968,28 @@ const PwaBookingDetail = () => {
       {/* Navigation App Selector Drawer */}
       <Drawer open={showNavigationDrawer} onOpenChange={setShowNavigationDrawer}>
         <DrawerContent className="pb-safe">
-          <div className="p-6 space-y-2">
-            <h3 className="text-lg font-semibold mb-4">{t('bookingDetail.chooseApp')}</h3>
+          <div className="p-4 space-y-1">
+            <h3 className="text-sm font-semibold mb-2">{t('bookingDetail.chooseApp')}</h3>
             <button
               onClick={() => openInMaps('apple')}
-              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
             >
-              <Navigation className="w-5 h-5 text-primary" />
-              <span className="text-base font-medium">Apple Maps</span>
+              <Navigation className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Apple Maps</span>
             </button>
             <button
               onClick={() => openInMaps('google')}
-              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
             >
-              <Navigation className="w-5 h-5 text-primary" />
-              <span className="text-base font-medium">Google Maps</span>
+              <Navigation className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Google Maps</span>
             </button>
             <button
               onClick={() => openInMaps('waze')}
-              className="flex items-center gap-3 p-4 rounded-lg hover:bg-muted transition-colors w-full text-left"
+              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
             >
-              <Navigation className="w-5 h-5 text-primary" />
-              <span className="text-base font-medium">Waze</span>
+              <Navigation className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Waze</span>
             </button>
           </div>
         </DrawerContent>

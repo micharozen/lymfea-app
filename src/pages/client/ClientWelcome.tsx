@@ -59,43 +59,43 @@ export default function ClientWelcome() {
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
       
-      {/* Language Switcher - Mobile friendly pill style */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Language Switcher */}
+      <div className="absolute top-3 right-3 z-20">
         <LanguageSwitcher variant="client" />
       </div>
       
-      {/* Content */}
-      <div className="relative z-10 h-full flex flex-col items-center justify-between p-6 text-center">
-        {/* Logo */}
-        <div className="pt-8 flex-shrink-0">
-          <img src={oomLogo} alt="OOM" className="h-16 w-16 mx-auto mb-6 animate-fade-in" />
-          <h1 className="text-white text-3xl font-kormelink animate-fade-in">
+      {/* Content - Compact */}
+      <div className="relative z-10 h-full flex flex-col items-center justify-between p-4 text-center">
+        {/* Logo - Smaller */}
+        <div className="pt-6 flex-shrink-0">
+          <img src={oomLogo} alt="OOM" className="h-12 w-12 mx-auto mb-3 animate-fade-in" />
+          <h1 className="text-white text-xl font-kormelink animate-fade-in">
             {hotel.name}
           </h1>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col justify-center max-w-md animate-fade-in">
-          <h2 className="text-white text-2xl font-semibold mb-3">
+        {/* Main Content - Compact */}
+        <div className="flex-1 flex flex-col justify-center max-w-md animate-fade-in py-4">
+          <h2 className="text-white text-lg font-semibold mb-2">
             {t('welcome.beautyRoomService')}
           </h2>
-          <p className="text-white/90 text-base mb-0 leading-relaxed">
+          <p className="text-white/90 text-sm leading-relaxed">
             {t('welcome.description')}
           </p>
         </div>
 
-        {/* Buttons */}
-        <div className="w-full max-w-md space-y-3 pb-8 flex-shrink-0 animate-fade-in">
+        {/* Buttons - Compact */}
+        <div className="w-full max-w-md space-y-2 pb-6 flex-shrink-0 animate-fade-in">
           <Button
             onClick={() => navigate(`/client/${hotelId}/menu?gender=women`)}
-            className="w-full h-12 text-base bg-white text-primary hover:bg-white/90 transition-all duration-300 hover:scale-[1.02]"
+            className="w-full h-11 text-sm bg-white text-primary hover:bg-white/90 transition-all duration-300"
           >
             {t('welcome.womensMenu')}
           </Button>
           <Button
             onClick={() => navigate(`/client/${hotelId}/menu?gender=men`)}
             variant="outline"
-            className="w-full h-12 text-base bg-transparent border-2 border-white text-white hover:bg-white/10 transition-all duration-300 hover:scale-[1.02]"
+            className="w-full h-11 text-sm bg-transparent border-2 border-white text-white hover:bg-white/10 transition-all duration-300"
           >
             {t('welcome.mensMenu')}
           </Button>
