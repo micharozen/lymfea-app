@@ -154,14 +154,14 @@ const PwaWallet = () => {
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-24">
+    <div className="h-full flex flex-col bg-muted/30">
       <PwaHeader
-        title={t('wallet.myEarnings', 'My earnings')}
+        title="Wallet"
         centerSlot={
           currentEarnings.stripeAccountId ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 text-base font-semibold text-foreground">
-                {t('wallet.myEarnings', 'My earnings')}
+                Wallet
                 <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center" className="bg-background">
@@ -180,57 +180,116 @@ const PwaWallet = () => {
         }
       />
 
-      {/* Content */}
+      {/* Content with Stripe */}
       {currentEarnings.stripeAccountId && (
-        <div className="px-6 pt-6">
-          {/* Period Label */}
-          <p className="text-xs text-muted-foreground text-center mb-4">{getPeriodLabel()}</p>
-          
-          {/* Total Earnings */}
-          <div className="text-center mb-6">
-            <p className="text-5xl font-bold text-foreground tracking-tight">
-              {formatTotal(currentEarnings.total)}
-            </p>
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-6 pt-4">
+            {/* Period Label */}
+            <p className="text-xs text-muted-foreground text-center mb-3">{getPeriodLabel()}</p>
+            
+            {/* Total Earnings */}
+            <div className="text-center mb-4">
+              <p className="text-4xl font-bold text-foreground tracking-tight">
+                {formatTotal(currentEarnings.total)}
+              </p>
+            </div>
+
+            {/* Open Stripe Button */}
+            <button
+              onClick={openStripe}
+              className="flex items-center gap-2 mx-auto px-4 py-2 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
+            >
+              <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
+                <span className="text-background text-xs font-bold">S</span>
+              </div>
+              Open Stripe
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Open Stripe Button */}
-          <button
-            onClick={openStripe}
-            className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
-          >
-            <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
-              <span className="text-background text-xs font-bold">S</span>
+          {/* Payouts Card */}
+          <div className="mx-4 mt-4 bg-background rounded-2xl shadow-sm mb-4">
+            <div className="px-5 pt-4 pb-2">
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t('wallet.latestPayouts', 'Latest Payouts')}
+              </h2>
             </div>
-            Open Stripe
-            <ChevronRight className="w-4 h-4" />
-          </button>
+
+            {currentEarnings.payouts.length === 0 ? (
+              <div className="px-5 pb-5 text-center py-8">
+                <p className="text-muted-foreground text-sm">{t('wallet.noPayouts', 'No payouts for this period')}</p>
+              </div>
+            ) : (
+              <div className="px-5 pb-5 space-y-4">
+                {currentEarnings.payouts.map((payout) => (
+                  <div
+                    key={payout.id}
+                    className="flex items-center gap-4"
+                  >
+                    {/* Hotel Image */}
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
+                      {payout.hotel_image ? (
+                        <img
+                          src={payout.hotel_image}
+                          alt={payout.hotel_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted" />
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">
+                        {payout.hotel_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Ref {payout.booking_id} •{" "}
+                        <span className={payout.status === "completed" ? "text-foreground" : ""}>
+                          {payout.status === "completed" 
+                            ? t('wallet.completed', 'Completed') 
+                            : t('wallet.pending', 'Pending')}
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* Amount & Date */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-medium text-foreground">
+                        {formatPrice(payout.amount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {payout.date ? format(new Date(payout.date), "MMM dd") : "-"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Empty State - No Stripe Account */}
       {!currentEarnings.stripeAccountId && (
-        <div className="px-6 pt-16 pb-6">
-          <div className="text-center mb-8">
-            <h1 className="text-base font-semibold text-foreground">
-              {t('wallet.myEarnings', 'My earnings')}
-            </h1>
-          </div>
-          <div className="mx-auto max-w-sm bg-white rounded-2xl shadow-sm p-8 text-center">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">S</span>
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-sm bg-background rounded-2xl shadow-sm p-8 text-center">
+            <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-7 h-7 bg-foreground rounded-full flex items-center justify-center">
+                <span className="text-background text-xs font-bold">S</span>
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
+            <h3 className="text-base font-semibold text-foreground mb-2">
               {t('wallet.noStripeAccount', 'Connect your Stripe account')}
             </h3>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-5">
               {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
             </p>
             <button
               onClick={handleSetupStripe}
               disabled={connectingStripe}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-full text-sm font-medium hover:bg-black/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
             >
               {connectingStripe ? (
                 <>
@@ -246,70 +305,6 @@ const PwaWallet = () => {
             </button>
           </div>
         </div>
-      )}
-
-      {/* Payouts Card */}
-      {currentEarnings.stripeAccountId && (
-      <div className="mx-4 bg-white rounded-2xl shadow-sm">
-        <div className="px-5 pt-5 pb-2">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            {t('wallet.latestPayouts', 'Latest Payouts')}
-          </h2>
-        </div>
-
-        {currentEarnings.payouts.length === 0 ? (
-          <div className="px-5 pb-5 text-center py-8">
-            <p className="text-muted-foreground text-sm">{t('wallet.noPayouts', 'No payouts for this period')}</p>
-          </div>
-        ) : (
-          <div className="px-5 pb-5 space-y-5">
-            {currentEarnings.payouts.map((payout) => (
-              <div
-                key={payout.id}
-                className="flex items-center gap-4"
-              >
-                {/* Hotel Image */}
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                  {payout.hotel_image ? (
-                    <img
-                      src={payout.hotel_image}
-                      alt={payout.hotel_name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-muted" />
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {payout.hotel_name}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Ref {payout.booking_id} •{" "}
-                    <span className={payout.status === "completed" ? "text-foreground" : ""}>
-                      {payout.status === "completed" 
-                        ? t('wallet.completed', 'Completed') 
-                        : t('wallet.pending', 'Pending')}
-                    </span>
-                  </p>
-                </div>
-
-                {/* Amount & Date */}
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-medium text-foreground">
-                    {formatPrice(payout.amount)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {payout.date ? format(new Date(payout.date), "MMM dd") : "-"}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
       )}
     </div>
   );
