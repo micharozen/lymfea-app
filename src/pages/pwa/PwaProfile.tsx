@@ -42,10 +42,35 @@ const PwaProfile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Fetch profile on mount - keep existing data while refreshing
+  // Fetch profile on mount - use cache first, refresh in background
   useEffect(() => {
-    fetchProfile();
-  }, []);
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/pwa/login");
+        return;
+      }
+
+      // Check for cached hairdresser data first
+      const cachedHairdresser = queryClient.getQueryData<Hairdresser>(["hairdresser", user.id]);
+      
+      if (cachedHairdresser) {
+        setHairdresser(cachedHairdresser);
+        setEditForm({
+          first_name: cachedHairdresser.first_name,
+          last_name: cachedHairdresser.last_name,
+          phone: cachedHairdresser.phone,
+          email: cachedHairdresser.email,
+        });
+        setLoading(false);
+      }
+
+      // Always fetch fresh data in background
+      fetchProfile();
+    };
+
+    loadProfile();
+  }, [queryClient, navigate]);
 
   const fetchProfile = async () => {
     try {
@@ -63,6 +88,10 @@ const PwaProfile = () => {
         .single();
 
       if (error) throw error;
+      
+      // Cache the data
+      queryClient.setQueryData(["hairdresser", user.id], data);
+      
       setHairdresser(data);
       setEditForm({
         first_name: data.first_name,
