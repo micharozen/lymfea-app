@@ -14,7 +14,7 @@ const PwaWelcome = () => {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   
-  return <div className="min-h-screen bg-white relative overflow-hidden">
+  return <div className="h-screen bg-white relative overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0 bg-cover bg-center" style={{
       backgroundImage: `url(${welcomeBg})`
@@ -23,11 +23,11 @@ const PwaWelcome = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 min-h-screen flex flex-col p-6 text-white">
+      <div className="relative z-10 h-screen flex flex-col p-4 text-white">
         {/* Top Logo and Language Switcher */}
-        <div className="pt-12 flex justify-between items-start">
+        <div className="pt-8 flex justify-between items-start">
           <div className="flex-1" />
-          <img src={oomLogo} alt="OOM" className="w-16 h-16" />
+          <img src={oomLogo} alt="OOM" className="w-12 h-12" />
           <div className="flex-1 flex justify-end">
             <LanguageSwitcher variant="client" />
           </div>
@@ -35,21 +35,21 @@ const PwaWelcome = () => {
       </div>
 
       {/* Bottom Content - absolutely positioned */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-6 pb-8 space-y-6 text-white">
-        <div className="space-y-3">
-          <h1 className="text-4xl font-bold leading-tight">
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-4 pb-6 space-y-4 text-white">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold leading-tight">
             Beauty Room Service
           </h1>
-          <p className="text-base text-white/90 leading-relaxed">
+          <p className="text-sm text-white/90 leading-relaxed">
             {t('welcome.subtitle')}
           </p>
         </div>
 
-        <Button onClick={() => navigate("/pwa/login")} className="w-full h-14 text-base bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
+        <Button onClick={() => navigate("/pwa/login")} className="w-full h-12 text-sm bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
           {t('welcome.getStarted')}
         </Button>
 
-        <p className="text-xs text-center text-white/70 px-4 leading-relaxed">
+        <p className="text-[10px] text-center text-white/70 px-2 leading-relaxed">
           {t('welcome.termsIntro')}
           <br />
           <button onClick={() => setShowTerms(true)} className="underline hover:text-white transition-colors">

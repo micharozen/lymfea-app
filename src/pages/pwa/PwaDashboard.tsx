@@ -507,16 +507,16 @@ const PwaDashboard = () => {
   const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
   return (
-    <div className="min-h-full bg-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 pt-safe flex items-center justify-between">
-        <h1 className="text-4xl font-bold font-kormelink tracking-wider">OOM</h1>
+    <div className="h-full bg-white flex flex-col min-h-0">
+      {/* Header - Compact */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2 pt-safe flex items-center justify-between flex-shrink-0">
+        <h1 className="text-2xl font-bold font-kormelink tracking-wider">OOM</h1>
         <Avatar
-          className="h-9 w-9 ring-2 ring-gray-200 cursor-pointer"
+          className="h-7 w-7 ring-1 ring-gray-200 cursor-pointer"
           onClick={() => navigate("/pwa/profile")}
         >
           <AvatarImage src={hairdresser?.profile_image || undefined} />
-          <AvatarFallback className="bg-gray-100 text-black text-xs font-medium">
+          <AvatarFallback className="bg-gray-100 text-black text-[10px] font-medium">
             {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
           </AvatarFallback>
         </Avatar>
@@ -525,32 +525,32 @@ const PwaDashboard = () => {
       {/* Pull to refresh indicator */}
       {pullDistance > 0 && (
         <div 
-          className="flex justify-center items-center py-2 transition-opacity"
+          className="flex justify-center items-center py-1 transition-opacity flex-shrink-0"
           style={{ 
             opacity: Math.min(pullDistance / 60, 1),
             transform: `translateY(${Math.min(pullDistance - 20, 0)}px)`
           }}
         >
-          <div className={`w-6 h-6 border-2 border-black border-t-transparent rounded-full ${refreshing ? 'animate-spin' : ''}`} />
+          <div className={`w-5 h-5 border-2 border-black border-t-transparent rounded-full ${refreshing ? 'animate-spin' : ''}`} />
         </div>
       )}
 
-      {/* Content */}
+      {/* Content - Scrollable */}
       <div 
-        className="pb-4"
+        className="flex-1 overflow-y-auto min-h-0 pb-2"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* My Bookings Section */}
-        <div className="px-6 pt-5">
-          <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-black">{t('dashboard.myBookings')}</h2>
+        <div className="px-4 pt-3">
+          <h2 className="text-[10px] font-bold uppercase tracking-wider mb-2 text-black">{t('dashboard.myBookings')}</h2>
           
-          {/* Tabs */}
-          <div className="flex gap-6 mb-5 border-b border-gray-200">
+          {/* Tabs - Compact */}
+          <div className="flex gap-4 mb-3 border-b border-gray-200">
             <button
               onClick={() => setActiveTab("upcoming")}
-              className={`pb-3 text-sm font-medium transition-colors relative ${
+              className={`pb-2 text-xs font-medium transition-colors relative ${
                 activeTab === "upcoming"
                   ? "text-black"
                   : "text-gray-400"
@@ -563,7 +563,7 @@ const PwaDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("history")}
-              className={`pb-3 text-sm font-medium transition-colors relative ${
+              className={`pb-2 text-xs font-medium transition-colors relative ${
                 activeTab === "history"
                   ? "text-black"
                   : "text-gray-400"
@@ -576,7 +576,7 @@ const PwaDashboard = () => {
             </button>
             <button
               onClick={() => setActiveTab("cancelled")}
-              className={`pb-3 text-sm font-medium transition-colors relative ${
+              className={`pb-2 text-xs font-medium transition-colors relative ${
                 activeTab === "cancelled"
                   ? "text-black"
                   : "text-gray-400"
@@ -589,33 +589,32 @@ const PwaDashboard = () => {
             </button>
           </div>
 
-          {/* Bookings List */}
-          <div className="space-y-3">
+          {/* Bookings List - Compact */}
+          <div className="space-y-1">
             {loading ? (
               <>
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-3 py-2">
-                    <Skeleton className="w-14 h-14 rounded-lg" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-3 w-48" />
-                      <Skeleton className="h-3 w-16" />
+                  <div key={i} className="flex items-center gap-2 py-1.5">
+                    <Skeleton className="w-10 h-10 rounded-lg" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-2.5 w-40" />
                     </div>
-                    <Skeleton className="w-5 h-5 rounded" />
+                    <Skeleton className="w-4 h-4 rounded" />
                   </div>
                 ))}
               </>
             ) : filteredBookings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                <div className="text-6xl mb-4">
+              <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+                <div className="text-3xl mb-2">
                   {activeTab === "upcoming" ? "📅" : activeTab === "history" ? "✅" : "🚫"}
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-sm font-medium text-gray-900 mb-1">
                   {activeTab === "upcoming" ? t('dashboard.noUpcoming') : 
                    activeTab === "history" ? t('dashboard.noHistory') : 
                    t('dashboard.noCancelled')}
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs text-gray-500">
                   {activeTab === "upcoming" ? t('dashboard.upcomingWillAppear') : 
                    activeTab === "history" ? t('dashboard.historyWillAppear') : 
                    t('dashboard.cancelledWillAppear')}
@@ -627,9 +626,9 @@ const PwaDashboard = () => {
                   <div
                     key={booking.id}
                     onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                    className="flex items-center gap-3 cursor-pointer py-2"
+                    className="flex items-center gap-2 cursor-pointer py-1.5"
                   >
-                    <div className="w-14 h-14 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex-shrink-0 overflow-hidden relative">
+                    <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex-shrink-0 overflow-hidden relative">
                       {index === 0 && (
                         <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-pink-500" />
                       )}
@@ -641,28 +640,27 @@ const PwaDashboard = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
+                      <div className="flex items-center gap-1.5 mb-0">
+                        <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
                         {booking.hairdresser_id && booking.status === "En attente" && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                          <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
                             {t('dashboard.toConfirm')}
                           </Badge>
                         )}
                         {(() => {
                           const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
                           return paymentBadge ? (
-                            <Badge className={`text-[10px] px-1.5 py-0 h-4 ${paymentBadge.className}`}>
+                            <Badge className={`text-[8px] px-1 py-0 h-3 ${paymentBadge.className}`}>
                               {paymentBadge.label}
                             </Badge>
                           ) : null;
                         })()}
                       </div>
-                      <p className="text-[13px] text-gray-500">
-                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
+                      <p className="text-[11px] text-gray-500">
+                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • €{calculateTotalPrice(booking)}
                       </p>
-                      <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                    <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                   </div>
                 ))}
               </>
@@ -671,7 +669,7 @@ const PwaDashboard = () => {
             {filteredBookings.length > 3 && !showAllBookings && (
               <button 
                 onClick={() => setShowAllBookings(true)}
-                className="text-sm text-black font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
+                className="text-xs text-black font-medium w-full text-center py-2 hover:bg-gray-50 rounded-lg transition-colors"
               >
                 {t('dashboard.showMore', { count: filteredBookings.length - 3 })}
               </button>
@@ -680,7 +678,7 @@ const PwaDashboard = () => {
             {showAllBookings && filteredBookings.length > 3 && (
               <button 
                 onClick={() => setShowAllBookings(false)}
-                className="text-sm text-gray-500 font-medium w-full text-center py-3 hover:bg-gray-50 rounded-lg transition-colors"
+                className="text-xs text-gray-500 font-medium w-full text-center py-2 hover:bg-gray-50 rounded-lg transition-colors"
               >
                 {t('dashboard.showLess')}
               </button>
@@ -688,67 +686,63 @@ const PwaDashboard = () => {
           </div>
         </div>
 
-        {/* Pending Requests Section - Always visible */}
-        <div className="px-6 pt-6 pb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-black">{t('dashboard.pendingRequests')}</h2>
-            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-              <span className="text-[10px] font-semibold text-gray-600">{pendingRequests.length}</span>
+        {/* Pending Requests Section - Compact */}
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center gap-1.5 mb-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-wider text-black">{t('dashboard.pendingRequests')}</h2>
+            <div className="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <span className="text-[9px] font-semibold text-gray-600">{pendingRequests.length}</span>
             </div>
           </div>
           
           {loading ? (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {[1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="w-14 h-14 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-48" />
-                    <Skeleton className="h-3 w-16" />
+                <div key={i} className="flex items-center gap-2">
+                  <Skeleton className="w-10 h-10 rounded-lg" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2.5 w-40" />
                   </div>
-                  <Skeleton className="w-5 h-5 rounded" />
+                  <Skeleton className="w-4 h-4 rounded" />
                 </div>
               ))}
             </div>
           ) : pendingRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-              <div className="text-6xl mb-4">⏱️</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <div className="flex flex-col items-center justify-center py-6 px-4 text-center">
+              <div className="text-3xl mb-2">⏱️</div>
+              <h3 className="text-sm font-medium text-gray-900 mb-1">
                 {t('dashboard.noPending')}
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs text-gray-500">
                 {t('dashboard.pendingWillAppear')}
               </p>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-3">
               {groupedPendingRequests.map(([date, bookings]) => (
                 <div key={date}>
-                  <p className="text-[11px] text-gray-400 mb-3 font-medium uppercase tracking-wide">
+                  <p className="text-[10px] text-gray-400 mb-1.5 font-medium uppercase tracking-wide">
                     {format(new Date(date), "d MMM")} • {format(new Date(date), "EEEE")}
                   </p>
-                  <div className="space-y-4">
+                  <div className="space-y-1">
                     {bookings.map((booking, index) => (
                       <div key={booking.id}>
                         <div
                           onClick={() => navigate(`/pwa/booking/${booking.id}`)}
-                          className="flex items-center gap-3 cursor-pointer"
+                          className="flex items-center gap-2 cursor-pointer py-1"
                         >
-                          <div className="w-14 h-14 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
+                          <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h3 className="font-semibold text-[15px] text-black">{booking.hotel_name}</h3>
-                            </div>
-                            <p className="text-[13px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)} min
+                            <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
+                            <p className="text-[11px] text-gray-500">
+                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • €{calculateTotalPrice(booking)}
                             </p>
-                            <p className="text-[13px] text-gray-500">€{calculateTotalPrice(booking)}</p>
                           </div>
-                          <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+                          <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                         </div>
                         {index < bookings.length - 1 && (
-                          <div className="h-px bg-gray-100 mt-4" />
+                          <div className="h-px bg-gray-100 mt-1" />
                         )}
                       </div>
                     ))}
