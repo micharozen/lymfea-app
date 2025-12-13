@@ -42,12 +42,8 @@ const PwaProfile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Clear cache and fetch fresh data on mount
+  // Fetch profile on mount - keep existing data while refreshing
   useEffect(() => {
-    // Reset state immediately to prevent showing stale data
-    setHairdresser(null);
-    setLoading(true);
-    
     fetchProfile();
   }, []);
 
@@ -156,8 +152,8 @@ const PwaProfile = () => {
     navigate("/pwa/login");
   };
 
-  // Show loader while loading
-  if (loading || !hairdresser) {
+  // Only show loader on very first load
+  if (loading && !hairdresser) {
     return (
       <PwaPageLoader 
         title={t('profile.title')} 
@@ -165,6 +161,10 @@ const PwaProfile = () => {
         backPath="/pwa/dashboard" 
       />
     );
+  }
+
+  if (!hairdresser) {
+    return null;
   }
 
   const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();

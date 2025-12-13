@@ -124,15 +124,16 @@ const PwaBookingDetail = () => {
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
   const isAcceptingRef = useRef(false);
 
-  // Reset state when booking ID changes to prevent showing stale data
+  // Fetch booking detail when ID changes - keep existing data while loading new booking
   useEffect(() => {
-    // Clear previous booking data immediately when navigating to a new booking
-    setBooking(null);
-    setTreatments([]);
-    setLoading(true);
-    setConciergeContact(null);
-    setAdminContact(null);
-    setHairdresserProfile(null);
+    // Only clear data if navigating to a DIFFERENT booking
+    if (booking && booking.id !== id) {
+      setBooking(null);
+      setTreatments([]);
+      setLoading(true);
+    } else if (!booking) {
+      setLoading(true);
+    }
     
     fetchBookingDetail();
 
@@ -622,7 +623,8 @@ const PwaBookingDetail = () => {
     setShowNavigationDrawer(false);
   };
 
-  if (loading) {
+  // Only show loader on first load when we have no booking data
+  if (loading && !booking) {
     return (
       <PwaPageLoader 
         title={t('bookingDetail.myBooking')} 

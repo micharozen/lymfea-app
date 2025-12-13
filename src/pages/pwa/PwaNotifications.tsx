@@ -44,20 +44,21 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     setPushEnabled(isOneSignalSubscribed());
   }, []);
 
-  // Clear cache and fetch fresh data on mount
+  // Load notifications - use cache first, then refresh in background
   useEffect(() => {
     const loadNotifications = async () => {
-      // Reset state immediately to prevent showing stale data
-      setNotifications(null);
-      setLoading(true);
-      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Clear any cached data to prevent flicker
-      queryClient.removeQueries({ queryKey: ["notifications", user.id] });
+      // Check for cached data first - show immediately if available
+      const cachedNotifications = queryClient.getQueryData<Notification[]>(["notifications", user.id]);
+      
+      if (cachedNotifications) {
+        setNotifications(cachedNotifications);
+        setLoading(false);
+      }
 
-      // Fetch fresh data
+      // Always fetch fresh data in background
       fetchNotifications();
     };
 
@@ -278,10 +279,11 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     }
   };
 
-  const unreadCount = notifications?.filter(n => !n.read).length || 0;
+  const notificationsList = notifications || [];
+  const unreadCount = notificationsList.filter(n => !n.read).length;
 
-  // Show loader while loading
-  if (loading || notifications === null) {
+  // Only show loader on very first load when we have no data at all
+  if (loading && notificationsList.length === 0 && notifications === null) {
     return (
       <PwaPageLoader 
         title={t('notifications.title')} 
@@ -334,7 +336,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
       {/* Notifications List */}
       <div className="pb-4">
-        {notifications.length === 0 ? (
+        {notificationsList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -346,7 +348,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {notifications.map((notification) => {
+            {notificationsList.map((notification) => {
               const swipeOffset = swipeStates[notification.id] || 0;
               const isSwipingNumber = typeof swipeOffset === 'number' && swipeOffset < 0;
               
