@@ -183,20 +183,20 @@ const PwaProfile = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col px-4 pt-4 pb-6">
         {/* Compact Profile Header - Row Layout */}
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-shrink-0">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-20 w-20">
               <AvatarImage src={hairdresser.profile_image || undefined} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-bold">
+              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-5 h-5 rounded-full"
+              className="absolute bottom-0 right-0 flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-7 h-7 rounded-full"
             >
-              <Camera className="h-2.5 w-2.5" />
+              <Camera className="h-3.5 w-3.5" />
             </button>
             <input
               ref={fileInputRef}
