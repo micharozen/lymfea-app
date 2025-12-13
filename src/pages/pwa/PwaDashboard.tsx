@@ -29,6 +29,7 @@ interface Booking {
   client_first_name: string;
   client_last_name: string;
   hotel_name: string;
+  hotel_id: string;
   room_number: string;
   status: string;
   total_price: number | null;
@@ -42,7 +43,17 @@ interface Booking {
       duration: number;
     } | null;
   }>;
+  hotels?: { image: string | null } | { image: string | null }[] | null;
 }
+
+// Helper to get hotel image from booking (handles both object and array)
+const getHotelImage = (booking: Booking): string | null => {
+  if (!booking.hotels) return null;
+  if (Array.isArray(booking.hotels)) {
+    return booking.hotels[0]?.image || null;
+  }
+  return booking.hotels.image;
+};
 
 const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
   if (!paymentStatus) return null;
@@ -270,6 +281,9 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
+        hotels (
+          image
+        ),
         booking_treatments (
           treatment_menus (
             price,
@@ -294,6 +308,9 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
+        hotels (
+          image
+        ),
         booking_treatments (
           treatment_menus (
             price,
@@ -632,15 +649,17 @@ const PwaDashboard = () => {
                     onClick={() => navigate(`/pwa/booking/${booking.id}`)}
                     className="flex items-center gap-2 cursor-pointer py-1.5"
                   >
-                    <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-purple-500 rounded-lg flex-shrink-0 overflow-hidden relative">
-                      {index === 0 && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-pink-500" />
-                      )}
-                      {index === 1 && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-indigo-500" />
-                      )}
-                      {index === 2 && (
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-cyan-500" />
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                      {getHotelImage(booking) ? (
+                        <img 
+                          src={getHotelImage(booking)!} 
+                          alt={booking.hotel_name} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                          <span className="text-gray-500 text-xs font-bold">{booking.hotel_name?.[0]}</span>
+                        </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -736,7 +755,19 @@ const PwaDashboard = () => {
                           onClick={() => navigate(`/pwa/booking/${booking.id}`)}
                           className="flex items-center gap-2 cursor-pointer py-1"
                         >
-                          <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex-shrink-0 overflow-hidden" />
+                          <div className="w-10 h-10 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                            {getHotelImage(booking) ? (
+                              <img 
+                                src={getHotelImage(booking)!} 
+                                alt={booking.hotel_name} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
+                                <span className="text-gray-500 text-xs font-bold">{booking.hotel_name?.[0]}</span>
+                              </div>
+                            )}
+                          </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
                             <p className="text-[11px] text-gray-500">
