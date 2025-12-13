@@ -651,10 +651,10 @@ const PwaBookingDetail = () => {
         </div>
 
         <div className="px-4 pt-3">
-          {/* Hotel Header - Compact Grid Layout */}
-          <div className="flex items-start gap-3 mb-3">
-            {/* Hotel Image - Smaller */}
-            <div className="w-14 h-14 flex-shrink-0">
+          {/* Hotel Header - Centered */}
+          <div className="flex flex-col items-center mb-4">
+            {/* Hotel Image - Centered */}
+            <div className="w-16 h-16 mb-2">
               {booking.hotel_image_url ? (
                 <img 
                   src={booking.hotel_image_url} 
@@ -666,82 +666,81 @@ const PwaBookingDetail = () => {
               )}
             </div>
 
-            {/* Hotel Info */}
-            <div className="flex-1 min-w-0">
-              <h2 className="font-semibold text-sm text-foreground truncate">{booking.hotel_name}</h2>
-              <button 
-                onClick={() => setShowNavigationDrawer(true)}
-                className="text-xs text-muted-foreground flex items-center gap-0.5 hover:text-foreground transition-colors"
-              >
-                <Navigation className="w-3 h-3" />
-                <span className="truncate">
-                  {booking.hotel_address && booking.hotel_city 
-                    ? `${booking.hotel_address}`
-                    : booking.hotel_name}
-                </span>
-              </button>
-              {/* Payment Status Badge */}
-              {booking.payment_status && (
-                <div className="mt-1">
-                  {(() => {
-                    const badge = getPaymentStatusBadge(booking.payment_status);
-                    return badge ? (
-                      <Badge className={`text-[10px] px-2 py-0 h-4 ${badge.className}`}>
-                        {badge.label}
-                      </Badge>
-                    ) : null;
-                  })()}
-                </div>
-              )}
-            </div>
+            {/* Hotel Name */}
+            <h2 className="font-semibold text-sm text-foreground text-center">{booking.hotel_name}</h2>
+            
+            {/* Address */}
+            <button 
+              onClick={() => setShowNavigationDrawer(true)}
+              className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors mt-0.5"
+            >
+              <Navigation className="w-3 h-3" />
+              <span>
+                {booking.hotel_address && booking.hotel_city 
+                  ? `${booking.hotel_address}`
+                  : booking.hotel_name}
+              </span>
+            </button>
+
+            {/* Payment Status Badge */}
+            {booking.payment_status && (
+              <div className="mt-1.5">
+                {(() => {
+                  const badge = getPaymentStatusBadge(booking.payment_status);
+                  return badge ? (
+                    <Badge className={`text-[10px] px-2 py-0 h-4 ${badge.className}`}>
+                      {badge.label}
+                    </Badge>
+                  ) : null;
+                })()}
+              </div>
+            )}
           </div>
 
-          {/* Details List - Vertical */}
-          <div className="space-y-2 mb-3">
-            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
+          {/* Details List - Vertical Uniform */}
+          <div className="space-y-0 mb-3">
+            <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('booking.date')}</span>
-              <span className="text-xs font-medium text-foreground">
+              <span className="text-xs font-medium text-foreground ml-auto">
                 {format(new Date(booking.booking_date), "d MMM yyyy")}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
+            <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
-              <span className="text-xs font-medium text-foreground">
+              <span className="text-xs font-medium text-foreground ml-auto">
                 {booking.booking_time.substring(0, 5)}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
+            <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('booking.duration')}</span>
-              <span className="text-xs font-medium text-foreground">{totalDuration} min</span>
+              <span className="text-xs font-medium text-foreground ml-auto">{totalDuration} min</span>
             </div>
 
-            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
+            <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('bookingDetail.price')}</span>
-              <span className="text-xs font-medium text-foreground">{totalPrice}€</span>
+              <span className="text-xs font-medium text-foreground ml-auto">{totalPrice}€</span>
             </div>
           </div>
 
-          {/* Earnings - Compact */}
+          {/* Earnings */}
           {estimatedEarnings > 0 && (
-            <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 rounded-lg px-3 py-2 mb-3">
-              <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
-                <Wallet className="w-4 h-4" />
-                <span className="text-xs font-medium">Votre gain</span>
-              </div>
-              <span className="text-xs font-bold text-green-600 dark:text-green-500">
+            <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
+              <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
+              <span className="text-xs text-green-600 dark:text-green-500 font-medium">Votre gain</span>
+              <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
                 {estimatedEarnings}€
               </span>
             </div>
           )}
 
-          {/* Client Info - Compact Row */}
-          <div className="flex items-center gap-3 bg-muted/30 rounded-lg px-3 py-2 mb-3">
+          {/* Client Info */}
+          <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
             <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground">
@@ -755,7 +754,7 @@ const PwaBookingDetail = () => {
             </div>
           </div>
 
-          {/* Client Note - Compact */}
+          {/* Client Note */}
           {booking.client_note && (
             <div className="mb-3 p-2.5 bg-muted/50 rounded-lg">
               <div className="flex items-start gap-2">
@@ -768,14 +767,14 @@ const PwaBookingDetail = () => {
             </div>
           )}
 
-          {/* Treatments - Compact */}
+          {/* Treatments */}
           <div className="mb-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-foreground">{t('booking.treatments')}</h3>
               {booking.status === "Assigné" && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
-                  className="px-2.5 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                  className="px-4 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
                 >
                   + {t('bookingDetail.add')}
                 </button>
