@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import PwaHeader from "@/components/pwa/PwaHeader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,21 +154,17 @@ const PwaWallet = () => {
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] pb-24">
-      {/* Header - Sticky */}
-      {currentEarnings.stripeAccountId && (
-        <div className="bg-background sticky top-0 z-50 shadow-sm px-6 pt-12 pb-6">
-          <div className="text-center">
-            <h1 className="text-base font-semibold text-foreground">
-              {t('wallet.myEarnings', 'My earnings')}
-            </h1>
-            
+    <div className="min-h-screen bg-muted/30 pb-24">
+      <PwaHeader
+        title={t('wallet.myEarnings', 'My earnings')}
+        centerSlot={
+          currentEarnings.stripeAccountId ? (
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-1 mx-auto text-sm text-muted-foreground mt-1">
-                {getPeriodLabel()}
-                <ChevronDown className="w-3 h-3" />
+              <DropdownMenuTrigger className="flex items-center gap-1 text-base font-semibold text-foreground">
+                {t('wallet.myEarnings', 'My earnings')}
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-white">
+              <DropdownMenuContent align="center" className="bg-background">
                 <DropdownMenuItem onClick={() => setPeriod("this_month")}>
                   {t('wallet.thisMonth', 'This Month')}
                 </DropdownMenuItem>
@@ -179,10 +176,18 @@ const PwaWallet = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          ) : undefined
+        }
+      />
 
+      {/* Content */}
+      {currentEarnings.stripeAccountId && (
+        <div className="px-6 pt-6">
+          {/* Period Label */}
+          <p className="text-xs text-muted-foreground text-center mb-4">{getPeriodLabel()}</p>
+          
           {/* Total Earnings */}
-          <div className="text-center mt-8 mb-6">
+          <div className="text-center mb-6">
             <p className="text-5xl font-bold text-foreground tracking-tight">
               {formatTotal(currentEarnings.total)}
             </p>
@@ -191,10 +196,10 @@ const PwaWallet = () => {
           {/* Open Stripe Button */}
           <button
             onClick={openStripe}
-            className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-[#e8e8e8] rounded-full text-sm font-medium text-foreground hover:bg-[#dedede] transition-colors"
+            className="flex items-center gap-2 mx-auto px-4 py-2.5 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
           >
-            <div className="w-5 h-5 bg-black rounded-full flex items-center justify-center">
-              <span className="text-white text-xs font-bold">S</span>
+            <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
+              <span className="text-background text-xs font-bold">S</span>
             </div>
             Open Stripe
             <ChevronRight className="w-4 h-4" />

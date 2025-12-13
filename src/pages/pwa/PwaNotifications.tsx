@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, Trash2, Bell, ArrowLeft } from "lucide-react";
+import { Check, CheckCheck, Trash2, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
+import PwaHeader from "@/components/pwa/PwaHeader";
 
 interface Notification {
   id: string;
@@ -279,42 +280,22 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="min-h-full bg-gray-50">
-      {/* Header - Sticky */}
-      <div className="bg-background border-b border-border sticky top-0 z-50 shadow-sm">
-        <div className="px-4 py-4 flex items-center justify-between">
-          {standalone && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/pwa/profile")}
-              className="mr-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          )}
-          <div className="flex-1">
-            <h1 className="text-xl font-semibold">{t('notifications.title')}</h1>
-            {unreadCount > 0 && (
-              <p className="text-xs text-gray-500">
-                {t('notifications.unreadCount', { count: unreadCount })}
-              </p>
-            )}
-          </div>
-          
-          {unreadCount > 0 && (
-            <Button
+    <div className="min-h-full bg-muted/30">
+      <PwaHeader
+        title={t('notifications.title')}
+        showBack={standalone}
+        backPath="/pwa/profile"
+        rightSlot={
+          unreadCount > 0 ? (
+            <button
               onClick={markAllAsRead}
-              variant="ghost"
-              size="sm"
-              className="text-xs"
+              className="p-1.5 hover:bg-muted rounded-lg transition-colors"
             >
-              <CheckCheck className="h-4 w-4 mr-1" />
-              {t('notifications.markAllRead')}
-            </Button>
-          )}
-        </div>
-      </div>
+              <CheckCheck className="h-4 w-4 text-muted-foreground" />
+            </button>
+          ) : null
+        }
+      />
 
       {/* Push Notifications Settings */}
       <div className="bg-white border-b border-gray-200 px-4 py-4">

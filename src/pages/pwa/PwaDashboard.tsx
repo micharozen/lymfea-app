@@ -11,6 +11,7 @@ import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
+import PwaHeader from "@/components/pwa/PwaHeader";
 
 interface Hairdresser {
   id: string;
@@ -508,19 +509,22 @@ const PwaDashboard = () => {
 
   return (
     <div className="h-full bg-white flex flex-col min-h-0">
-      {/* Header - Sticky */}
-      <div className="bg-background border-b border-border px-4 py-2 pt-safe flex items-center justify-between flex-shrink-0 sticky top-0 z-50">
-        <h1 className="text-2xl font-bold font-kormelink tracking-wider">OOM</h1>
-        <Avatar
-          className="h-7 w-7 ring-1 ring-border cursor-pointer"
-          onClick={() => navigate("/pwa/profile")}
-        >
-          <AvatarImage src={hairdresser?.profile_image || undefined} />
-          <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
-            {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
-          </AvatarFallback>
-        </Avatar>
-      </div>
+      <PwaHeader
+        leftSlot={
+          <h1 className="text-xl font-bold font-kormelink tracking-wider">OOM</h1>
+        }
+        rightSlot={
+          <Avatar
+            className="h-7 w-7 ring-1 ring-border cursor-pointer"
+            onClick={() => navigate("/pwa/profile")}
+          >
+            <AvatarImage src={hairdresser?.profile_image || undefined} />
+            <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
+              {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
+            </AvatarFallback>
+          </Avatar>
+        }
+      />
 
       {/* Pull to refresh indicator */}
       {pullDistance > 0 && (
