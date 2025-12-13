@@ -53,6 +53,7 @@ import ClientInfo from "./pages/client/ClientInfo";
 import ClientPayment from "./pages/client/ClientPayment";
 import ClientConfirmation from "./pages/client/ClientConfirmation";
 import { BasketProvider } from "./pages/client/context/BasketContext";
+import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import RateHairdresser from "./pages/RateHairdresser";
 
 const queryClient = new QueryClient({
@@ -80,20 +81,26 @@ const App = () => {
           {/* Root - Smart redirect based on user type */}
           <Route path="/" element={<Home />} />
           
-          {/* Client Routes (QR Code - Public Access) */}
-          <Route path="/client/:hotelId" element={<ClientWelcome />} />
+          {/* Client Routes (QR Code - Public Access with Isolated Session) */}
+          <Route path="/client/:hotelId" element={
+            <ClientFlowWrapper>
+              <ClientWelcome />
+            </ClientFlowWrapper>
+          } />
           <Route path="/client/:hotelId/*" element={
-            <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
-              <Routes>
-                <Route path="/menu" element={<ClientMenu />} />
-                <Route path="/basket" element={<ClientBasket />} />
-                <Route path="/datetime" element={<ClientDateTime />} />
-                <Route path="/info" element={<ClientInfo />} />
-                <Route path="/payment" element={<ClientPayment />} />
-                <Route path="/checkout" element={<ClientCheckout />} />
-                <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
-              </Routes>
-            </BasketProvider>
+            <ClientFlowWrapper>
+              <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
+                <Routes>
+                  <Route path="/menu" element={<ClientMenu />} />
+                  <Route path="/basket" element={<ClientBasket />} />
+                  <Route path="/datetime" element={<ClientDateTime />} />
+                  <Route path="/info" element={<ClientInfo />} />
+                  <Route path="/payment" element={<ClientPayment />} />
+                  <Route path="/checkout" element={<ClientCheckout />} />
+                  <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
+                </Routes>
+              </BasketProvider>
+            </ClientFlowWrapper>
           } />
           
           {/* Rating Page (Public) */}
