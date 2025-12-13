@@ -10,6 +10,7 @@ import { fr, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
 import PwaHeader from "@/components/pwa/PwaHeader";
 
@@ -28,7 +29,7 @@ interface PwaNotificationsProps {
 
 const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   const { t, i18n } = useTranslation('pwa');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [swipeStates, setSwipeStates] = useState<Record<string, number>>({});
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -43,25 +44,25 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     setPushEnabled(isOneSignalSubscribed());
   }, []);
 
+  // Clear cache and fetch fresh data on mount
   useEffect(() => {
     const loadNotifications = async () => {
+      // Reset state immediately to prevent showing stale data
+      setNotifications(null);
+      setLoading(true);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const cachedNotifications = queryClient.getQueryData<Notification[]>(["notifications", user.id]);
-      
-      if (cachedNotifications) {
-        console.log('📦 Using cached notifications data');
-        setNotifications(cachedNotifications);
-        setLoading(false);
-        return;
-      }
+      // Clear any cached data to prevent flicker
+      queryClient.removeQueries({ queryKey: ["notifications", user.id] });
 
+      // Fetch fresh data
       fetchNotifications();
     };
 
     loadNotifications();
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     const channel = supabase
@@ -277,7 +278,50 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications?.filter(n => !n.read).length || 0;
+
+  // Show skeleton while loading
+  if (loading || notifications === null) {
+    return (
+      <div className="min-h-full bg-muted/30">
+        <PwaHeader
+          title={t('notifications.title')}
+          showBack={standalone}
+          backPath="/pwa/profile"
+        />
+
+        {/* Push Notifications Settings Skeleton */}
+        <div className="bg-white border-b border-gray-200 px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-5 w-5 rounded" />
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+            </div>
+            <Skeleton className="h-6 w-11 rounded-full" />
+          </div>
+        </div>
+
+        {/* Notifications List Skeleton */}
+        <div className="divide-y divide-gray-200">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white px-4 py-4">
+              <div className="flex gap-3">
+                <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-full max-w-[280px]" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="w-2.5 h-2.5 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-muted/30">
@@ -322,7 +366,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
       {/* Notifications List */}
       <div className="pb-4">
-        {loading ? null : notifications.length === 0 ? (
+        {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
