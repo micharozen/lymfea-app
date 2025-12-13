@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-
+import PwaPageLoader from "@/components/pwa/PwaPageLoader";
 interface Payout {
   id: string;
   booking_id: number | null;
@@ -129,52 +129,9 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Show skeleton on initial mount or when loading without data
+  // Show loader on initial mount or when loading without data
   if (isInitialMount || isLoading || !earnings) {
-    return (
-      <div className="h-full flex flex-col bg-muted/30">
-        <PwaHeader title="Wallet" />
-        
-        <div className="px-6 pt-4">
-          {/* Period Label Skeleton */}
-          <div className="flex justify-center mb-3">
-            <Skeleton className="h-3 w-20" />
-          </div>
-          
-          {/* Total Earnings Skeleton */}
-          <div className="text-center mb-4">
-            <Skeleton className="h-10 w-32 mx-auto" />
-          </div>
-
-          {/* Stripe Button Skeleton */}
-          <div className="flex justify-center mb-4">
-            <Skeleton className="h-10 w-32 rounded-full" />
-          </div>
-        </div>
-
-        {/* Payouts Card Skeleton */}
-        <div className="mx-4 bg-background rounded-2xl shadow-sm">
-          <div className="px-5 pt-4 pb-2">
-            <Skeleton className="h-3 w-28" />
-          </div>
-          <div className="px-5 pb-5 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="w-10 h-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <div className="space-y-2 text-right">
-                  <Skeleton className="h-4 w-14 ml-auto" />
-                  <Skeleton className="h-3 w-10 ml-auto" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <PwaPageLoader title="Wallet" />;
   }
 
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };

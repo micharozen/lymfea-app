@@ -9,10 +9,10 @@ import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, C
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaPageLoader from "@/components/pwa/PwaPageLoader";
 
 interface Hairdresser {
   id: string;
@@ -156,41 +156,14 @@ const PwaProfile = () => {
     navigate("/pwa/login");
   };
 
-  // Show skeleton while loading
+  // Show loader while loading
   if (loading || !hairdresser) {
     return (
-      <div className="h-full flex flex-col bg-background">
-        <PwaHeader
-          title={t('profile.title')}
-          showBack
-          backPath="/pwa/dashboard"
-        />
-        
-        <div className="flex-1 flex flex-col px-4 pt-4 pb-6">
-          {/* Profile Header Skeleton */}
-          <div className="flex flex-col items-center text-center mb-4">
-            <Skeleton className="h-20 w-20 rounded-full" />
-            <Skeleton className="h-5 w-32 mt-2" />
-            <Skeleton className="h-4 w-12 mt-1" />
-          </div>
-
-          {/* Menu Items Skeleton */}
-          <div className="space-y-0.5 flex-1">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} className="flex items-center justify-between py-2.5 px-3">
-                <div className="flex items-center gap-2.5">
-                  <Skeleton className="h-4 w-4 rounded" />
-                  <Skeleton className="h-4 w-28" />
-                </div>
-                <Skeleton className="h-4 w-4" />
-              </div>
-            ))}
-          </div>
-
-          {/* Logout Button Skeleton */}
-          <Skeleton className="h-9 w-full mt-auto" />
-        </div>
-      </div>
+      <PwaPageLoader 
+        title={t('profile.title')} 
+        showBack 
+        backPath="/pwa/dashboard" 
+      />
     );
   }
 

@@ -10,9 +10,9 @@ import { fr, enUS } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
 import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaPageLoader from "@/components/pwa/PwaPageLoader";
 
 interface Notification {
   id: string;
@@ -280,46 +280,14 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
   const unreadCount = notifications?.filter(n => !n.read).length || 0;
 
-  // Show skeleton while loading
+  // Show loader while loading
   if (loading || notifications === null) {
     return (
-      <div className="min-h-full bg-muted/30">
-        <PwaHeader
-          title={t('notifications.title')}
-          showBack={standalone}
-          backPath="/pwa/profile"
-        />
-
-        {/* Push Notifications Settings Skeleton */}
-        <div className="bg-white border-b border-gray-200 px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-5 w-5 rounded" />
-              <div className="space-y-1">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-48" />
-              </div>
-            </div>
-            <Skeleton className="h-6 w-11 rounded-full" />
-          </div>
-        </div>
-
-        {/* Notifications List Skeleton */}
-        <div className="divide-y divide-gray-200">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white px-4 py-4">
-              <div className="flex gap-3">
-                <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-full max-w-[280px]" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-                <Skeleton className="w-2.5 h-2.5 rounded-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <PwaPageLoader 
+        title={t('notifications.title')} 
+        showBack={standalone} 
+        backPath="/pwa/profile" 
+      />
     );
   }
 
