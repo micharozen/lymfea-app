@@ -61,7 +61,7 @@ export const InvoiceSignatureDialog = ({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="h-[95vh] max-h-[95vh]">
+      <DrawerContent className="h-[95vh] max-h-[95vh] overscroll-contain">
         <div className="flex flex-col h-full">
           {/* Header */}
           <DrawerHeader className="flex-shrink-0 border-b border-border px-4 py-3">
@@ -128,11 +128,15 @@ export const InvoiceSignatureDialog = ({
                   Clear
                 </button>
               </div>
-              <div className="border-2 border-dashed border-border rounded-xl bg-muted/30 overflow-hidden">
+              <div 
+                className="border-2 border-dashed border-border rounded-xl bg-muted/30 overflow-hidden touch-none"
+                style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+              >
                 <SignatureCanvas
                   ref={signatureRef}
                   canvasProps={{
-                    className: "w-full h-40 touch-none",
+                    className: "w-full h-40",
+                    style: { touchAction: 'none' }
                   }}
                   backgroundColor="transparent"
                   onBegin={handleBeginStroke}
