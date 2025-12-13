@@ -15,20 +15,26 @@ serve(async (req) => {
   try {
     console.log("[CREATE-CHECKOUT] Starting checkout session creation");
 
-    const { bookingData, clientData, treatments, totalPrice, hotelId } = await req.json();
+    const { bookingData, clientData, treatmentIds, hotelId } = await req.json();
 
-    if (!bookingData || !clientData || !treatments || !totalPrice || !hotelId) {
+    // Validate required fields
+    if (!bookingData || !clientData || !treatmentIds || !hotelId) {
       throw new Error("Missing required data");
+    }
+
+    if (!Array.isArray(treatmentIds) || treatmentIds.length === 0) {
+      throw new Error("At least one treatment is required");
+    }
+
+    // Validate client data
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone) {
+      throw new Error("Missing required client information");
     }
 
     console.log("[CREATE-CHECKOUT] Data received:", { 
       hotelId, 
-      totalPrice, 
-      treatmentsCount: treatments.length 
-    });
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
+      treatmentIds,
+      clientName: `${clientData.firstName} ${clientData.lastName}`
     });
 
     const supabase = createClient(
@@ -36,10 +42,44 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Récupérer les infos de l'hôtel pour la devise
+    // SECURITY: Fetch treatments from database to get verified prices
+    const { data: treatments, error: treatmentsError } = await supabase
+      .from('treatment_menus')
+      .select('id, name, price, hotel_id, status')
+      .in('id', treatmentIds);
+
+    if (treatmentsError) {
+      console.error("[CREATE-CHECKOUT] Treatments fetch error:", treatmentsError);
+      throw new Error("Failed to fetch treatments");
+    }
+
+    if (!treatments || treatments.length === 0) {
+      throw new Error("No valid treatments found");
+    }
+
+    // SECURITY: Validate all treatments belong to the specified hotel and are active
+    const invalidTreatments = treatments.filter(t => 
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'Actif'
+    );
+
+    if (invalidTreatments.length > 0) {
+      console.error("[CREATE-CHECKOUT] Invalid treatments detected:", invalidTreatments);
+      throw new Error("Some treatments are not available for this hotel");
+    }
+
+    // SECURITY: Calculate total price server-side from verified database prices
+    const verifiedTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
+
+    if (verifiedTotalPrice <= 0) {
+      throw new Error("Invalid total price calculated");
+    }
+
+    console.log("[CREATE-CHECKOUT] Verified total price:", verifiedTotalPrice);
+
+    // Fetch hotel info for currency
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('currency')
+      .select('currency, name')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -48,22 +88,33 @@ serve(async (req) => {
       throw hotelError;
     }
 
+    if (!hotel) {
+      throw new Error("Hotel not found");
+    }
+
     const currency = hotel?.currency?.toLowerCase() || 'eur';
     console.log("[CREATE-CHECKOUT] Currency:", currency);
 
-    // Créer une session Stripe Checkout
+    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+      apiVersion: "2025-08-27.basil",
+    });
+
+    // Create treatment description for Stripe
+    const treatmentNames = treatments.map(t => t.name).join(', ');
+
+    // Create Stripe Checkout session with verified server-side price
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      customer_email: clientData.email,
+      customer_email: clientData.email || undefined,
       line_items: [
         {
           price_data: {
             currency: currency,
             product_data: {
               name: 'Prestations coiffure',
-              description: `Réservation pour ${clientData.firstName} ${clientData.lastName}`,
+              description: `${treatmentNames} - ${clientData.firstName} ${clientData.lastName}`,
             },
-            unit_amount: Math.round(totalPrice * 100), // Stripe utilise les centimes
+            unit_amount: Math.round(verifiedTotalPrice * 100), // Stripe uses cents
           },
           quantity: 1,
         },
@@ -74,14 +125,14 @@ serve(async (req) => {
         hotel_id: hotelId,
         client_first_name: clientData.firstName,
         client_last_name: clientData.lastName,
-        client_email: clientData.email,
+        client_email: clientData.email || '',
         client_phone: clientData.phone,
         room_number: clientData.roomNumber || '',
         client_note: clientData.note || '',
         booking_date: bookingData.date,
         booking_time: bookingData.time,
-        treatments: JSON.stringify(treatments),
-        total_price: totalPrice.toString(),
+        treatment_ids: JSON.stringify(treatmentIds),
+        verified_total_price: verifiedTotalPrice.toString(),
       },
     });
 
