@@ -135,12 +135,13 @@ serve(async (req) => {
       }
     }
 
-    // Return information needed for login flow
+    // Return minimal information for login flow - avoid exposing hasAccount to prevent enumeration
+    // Always proceed to password step if user exists, the actual auth will determine if they need to signup
     return new Response(
       JSON.stringify({ 
         exists: true, 
-        email: userEmail,
-        hasAccount: hasAccount
+        email: userEmail
+        // Note: hasAccount removed to prevent user enumeration attacks
       }),
       {
         status: 200,

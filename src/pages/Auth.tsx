@@ -109,14 +109,9 @@ const Auth = () => {
         // Store the email for authentication (even if user entered phone)
         setFoundEmail(checkResult.email);
         
-        // Admin record exists, check if they have an account
-        if (checkResult.hasAccount) {
-          // User has already signed up, show password field for login
-          setStep("password");
-        } else {
-          // Admin exists but hasn't signed up yet, show signup
-          setStep("signup");
-        }
+        // Security: Always proceed to password step to prevent user enumeration
+        // The actual authentication attempt will reveal if account needs setup
+        setStep("password");
       } else {
         // User doesn't exist in admins table, show contact admin message
         setStep("not-found");
@@ -233,10 +228,53 @@ const Auth = () => {
       });
 
       if (error) {
+        // Check if user needs to sign up (account exists in admin/concierge table but no auth account)
         if (error.message.includes("Invalid login credentials")) {
+          // Try to sign up the user instead - this handles the case where admin record exists
+          // but the user hasn't created their auth account yet
+          const { error: signupError } = await supabase.auth.signUp({
+            email: emailToUse,
+            password: password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/`,
+            },
+          });
+
+          if (!signupError) {
+            // Sign up succeeded, now sign in
+            const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+              email: emailToUse,
+              password: password,
+            });
+
+            if (!signInError && signInData?.user) {
+              toast({
+                title: "Compte créé",
+                description: "Bienvenue !",
+              });
+              
+              // Check user role to redirect appropriately
+              const { data: roles } = await supabase
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', signInData.user.id)
+                .single();
+
+              if (roles?.role === 'admin' || roles?.role === 'concierge') {
+                navigate("/admin", { replace: true });
+              } else if (roles?.role === 'hairdresser') {
+                navigate("/pwa/dashboard", { replace: true });
+              } else {
+                navigate("/", { replace: true });
+              }
+              return;
+            }
+          }
+
+          // If signup also failed, show generic error
           toast({
             title: "Erreur de connexion",
-            description: "Email ou mot de passe incorrect",
+            description: "Identifiants incorrects",
             variant: "destructive",
           });
         } else {
