@@ -11,6 +11,48 @@ serve(async (req) => {
   }
 
   try {
+    // Security: Verify the request is coming from an authorized source
+    // This function should only be called by other edge functions using service role
+    const authHeader = req.headers.get("authorization");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!authHeader) {
+      console.error("[OneSignal] Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Missing authorization" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if the request uses the service role key (for internal edge function calls)
+    // or a valid user JWT (for authenticated users)
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === serviceRoleKey;
+    
+    if (!isServiceRole) {
+      // For non-service-role calls, verify it's a valid Supabase JWT
+      // by checking if it's coming from an authenticated Supabase client
+      const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      const isAnonKey = token === anonKey;
+      
+      if (isAnonKey) {
+        // Anonymous calls are not allowed - this function is for internal use only
+        console.error("[OneSignal] Unauthorized: Anonymous access not allowed");
+        return new Response(
+          JSON.stringify({ error: "Unauthorized - This function is for internal use only" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // For user JWTs, we could validate them here, but for now we'll be strict
+      // and only allow service role calls
+      console.error("[OneSignal] Unauthorized: Only service role calls allowed");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized - Only internal service calls allowed" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
     const SITE_URL = Deno.env.get("SITE_URL") || "https://oom-clone-genesis.lovable.app";
