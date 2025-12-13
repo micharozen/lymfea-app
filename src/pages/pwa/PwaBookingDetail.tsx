@@ -696,42 +696,34 @@ const PwaBookingDetail = () => {
             </div>
           </div>
 
-          {/* Details Grid - 2 Columns Compact */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+          {/* Details List - Vertical */}
+          <div className="space-y-2 mb-3">
+            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
               <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">{t('booking.date')}</p>
-                <p className="text-xs font-medium text-foreground truncate">
-                  {format(new Date(booking.booking_date), "d MMM yyyy")}
-                </p>
-              </div>
+              <span className="text-xs text-muted-foreground w-16">{t('booking.date')}</span>
+              <span className="text-xs font-medium text-foreground">
+                {format(new Date(booking.booking_date), "d MMM yyyy")}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
               <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">{t('booking.time')}</p>
-                <p className="text-xs font-medium text-foreground">
-                  {booking.booking_time.substring(0, 5)}
-                </p>
-              </div>
+              <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
+              <span className="text-xs font-medium text-foreground">
+                {booking.booking_time.substring(0, 5)}
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
               <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">{t('booking.duration')}</p>
-                <p className="text-xs font-medium text-foreground">{totalDuration} min</p>
-              </div>
+              <span className="text-xs text-muted-foreground w-16">{t('booking.duration')}</span>
+              <span className="text-xs font-medium text-foreground">{totalDuration} min</span>
             </div>
 
-            <div className="flex items-center gap-2 bg-muted/30 rounded-lg px-2.5 py-2">
+            <div className="flex items-center gap-3 py-1.5 border-b border-border/50">
               <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">{t('bookingDetail.price')}</p>
-                <p className="text-xs font-medium text-foreground">{totalPrice}€</p>
-              </div>
+              <span className="text-xs text-muted-foreground w-16">{t('bookingDetail.price')}</span>
+              <span className="text-xs font-medium text-foreground">{totalPrice}€</span>
             </div>
           </div>
 
@@ -778,7 +770,17 @@ const PwaBookingDetail = () => {
 
           {/* Treatments - Compact */}
           <div className="mb-3">
-            <h3 className="text-xs font-semibold text-foreground mb-2">{t('booking.treatments')}</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-foreground">{t('booking.treatments')}</h3>
+              {booking.status === "Assigné" && (
+                <button
+                  onClick={() => setShowAddTreatmentDialog(true)}
+                  className="px-2.5 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                >
+                  + {t('bookingDetail.add')}
+                </button>
+              )}
+            </div>
             {treatments.length === 0 ? (
               <p className="text-xs text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
             ) : (
@@ -802,16 +804,6 @@ const PwaBookingDetail = () => {
                   </div>
                 ))}
               </div>
-            )}
-            
-            {/* Add Treatment Button */}
-            {booking.status === "Assigné" && (
-              <button
-                onClick={() => setShowAddTreatmentDialog(true)}
-                className="w-full h-8 mt-2 bg-foreground text-background font-medium text-xs rounded-md hover:bg-foreground/90 transition-all active:scale-[0.98]"
-              >
-                + {t('bookingDetail.add')}
-              </button>
             )}
           </div>
         </div>
