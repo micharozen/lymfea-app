@@ -276,14 +276,19 @@ const PwaDashboard = () => {
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
     console.log('🏨 Hotel IDs:', hotelIds);
 
+    // Fetch hotel images separately (no FK relationship)
+    const { data: hotelImages } = await supabase
+      .from("hotels")
+      .select("id, image")
+      .in("id", hotelIds);
+    
+    const hotelImageMap = new Map(hotelImages?.map(h => [h.id, h.image]) || []);
+
     // 1. Get bookings assigned to this hairdresser (any status)
     const { data: myBookings, error: myError } = await supabase
       .from("bookings")
       .select(`
         *,
-        hotels (
-          image
-        ),
         booking_treatments (
           treatment_menus (
             price,
@@ -294,23 +299,26 @@ const PwaDashboard = () => {
       .eq("hairdresser_id", hairdresserId)
       .in("hotel_id", hotelIds);
 
+    // Add hotel images to bookings
+    const myBookingsWithImages = myBookings?.map(b => ({
+      ...b,
+      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+    })) || [];
+
     if (myError) {
       console.error('❌ Error fetching my bookings:', myError);
     } else {
       // Cache my bookings
-      queryClient.setQueryData(["myBookings", hairdresserId], myBookings);
+      queryClient.setQueryData(["myBookings", hairdresserId], myBookingsWithImages);
     }
 
-    console.log('👤 My bookings:', myBookings?.length || 0);
+    console.log('👤 My bookings:', myBookingsWithImages?.length || 0);
 
     // 2. Get ONLY pending bookings (not assigned to anyone)
     const { data: pendingBookings, error: pendingError } = await supabase
       .from("bookings")
       .select(`
         *,
-        hotels (
-          image
-        ),
         booking_treatments (
           treatment_menus (
             price,
@@ -322,14 +330,20 @@ const PwaDashboard = () => {
       .is("hairdresser_id", null)
       .in("status", ["En attente", "Pending"]);
 
+    // Add hotel images to pending bookings
+    const pendingBookingsWithImages = pendingBookings?.map(b => ({
+      ...b,
+      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+    })) || [];
+
     if (pendingError) {
       console.error('❌ Error fetching pending bookings:', pendingError);
     } else {
       // Cache pending bookings
-      queryClient.setQueryData(["pendingBookings", hairdresserId], pendingBookings);
+      queryClient.setQueryData(["pendingBookings", hairdresserId], pendingBookingsWithImages);
     }
 
-    console.log('⏳ Pending bookings:', pendingBookings?.length || 0);
+    console.log('⏳ Pending bookings:', pendingBookingsWithImages?.length || 0);
 
     // Only return if BOTH queries failed
     if (myError && pendingError) {
@@ -340,7 +354,7 @@ const PwaDashboard = () => {
     }
 
     // Combine and sort both sets of bookings
-    const allData = [...(myBookings || []), ...(pendingBookings || [])];
+    const allData = [...myBookingsWithImages, ...pendingBookingsWithImages];
     const sortedData = allData.sort((a, b) => {
       const dateCompare = a.booking_date.localeCompare(b.booking_date);
       if (dateCompare !== 0) return dateCompare;
