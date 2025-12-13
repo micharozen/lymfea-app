@@ -508,15 +508,15 @@ const PwaDashboard = () => {
 
   return (
     <div className="h-full bg-white flex flex-col min-h-0">
-      {/* Header - Compact */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2 pt-safe flex items-center justify-between flex-shrink-0">
+      {/* Header - Sticky */}
+      <div className="bg-background border-b border-border px-4 py-2 pt-safe flex items-center justify-between flex-shrink-0 sticky top-0 z-50">
         <h1 className="text-2xl font-bold font-kormelink tracking-wider">OOM</h1>
         <Avatar
-          className="h-7 w-7 ring-1 ring-gray-200 cursor-pointer"
+          className="h-7 w-7 ring-1 ring-border cursor-pointer"
           onClick={() => navigate("/pwa/profile")}
         >
           <AvatarImage src={hairdresser?.profile_image || undefined} />
-          <AvatarFallback className="bg-gray-100 text-black text-[10px] font-medium">
+          <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
             {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
           </AvatarFallback>
         </Avatar>

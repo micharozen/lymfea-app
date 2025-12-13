@@ -280,8 +280,8 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
   return (
     <div className="min-h-full bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      {/* Header - Sticky */}
+      <div className="bg-background border-b border-border sticky top-0 z-50 shadow-sm">
         <div className="px-4 py-4 flex items-center justify-between">
           {standalone && (
             <Button

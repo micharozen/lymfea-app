@@ -154,9 +154,9 @@ const PwaWallet = () => {
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] pb-24">
-      {/* Header - Only show when Stripe account connected */}
+      {/* Header - Sticky */}
       {currentEarnings.stripeAccountId && (
-        <div className="bg-[#f5f5f5] px-6 pt-12 pb-6">
+        <div className="bg-background sticky top-0 z-50 shadow-sm px-6 pt-12 pb-6">
           <div className="text-center">
             <h1 className="text-base font-semibold text-foreground">
               {t('wallet.myEarnings', 'My earnings')}
