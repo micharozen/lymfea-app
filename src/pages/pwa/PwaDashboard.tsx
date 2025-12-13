@@ -90,7 +90,7 @@ const PwaDashboard = () => {
     checkAuth();
   }, []);
 
-  // Single useEffect to handle initial load
+  // Single useEffect to handle initial load - use cache first
   useEffect(() => {
     if (!hairdresser) return;
 
@@ -103,12 +103,28 @@ const PwaDashboard = () => {
       queryClient.removeQueries({ queryKey: ["pendingBookings", hairdresser.id] });
       // Clear navigation state
       navigate(location.pathname, { replace: true, state: {} });
+      fetchAllBookings(hairdresser.id);
+      return;
     }
 
-    // Always fetch fresh data when mounting the dashboard
-    // This ensures hotel images and booking data are always up-to-date
+    // Check for cached bookings first - show immediately if available
+    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", hairdresser.id]);
+    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", hairdresser.id]);
 
-    console.log('🔄 Fetching initial bookings...');
+    if (cachedMyBookings || cachedPendingBookings) {
+      console.log('📦 Using cached bookings data');
+      const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
+      const sortedData = allData.sort((a, b) => {
+        const dateCompare = a.booking_date.localeCompare(b.booking_date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.booking_time.localeCompare(b.booking_time);
+      });
+      setAllBookings(sortedData);
+      setLoading(false);
+    }
+
+    // Always fetch fresh data in background
+    console.log('🔄 Fetching bookings in background...');
     fetchAllBookings(hairdresser.id);
   }, [hairdresser, location.state?.forceRefresh]);
 
