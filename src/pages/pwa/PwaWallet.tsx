@@ -53,9 +53,9 @@ const PwaWallet = () => {
         stripeAccountId: data.stripeAccountId,
       };
     },
-    staleTime: 30000, // 30 seconds
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: 'always', // Always refetch when mounting
+    staleTime: 0, // Always consider data stale
+    gcTime: 0, // Don't cache data
+    refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
 
