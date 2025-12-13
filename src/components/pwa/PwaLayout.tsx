@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
@@ -10,6 +10,11 @@ const PwaLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const queryClient = useQueryClient();
+
+  // Scroll to top on every route change - use useLayoutEffect for immediate execution
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Set up notification click handler for push notifications
   useEffect(() => {
