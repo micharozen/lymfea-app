@@ -7,6 +7,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// SECURITY: Only allow DEV_MODE in non-production environments
+const isDevModeAllowed = (): boolean => {
+  const siteUrl = Deno.env.get('SITE_URL') || '';
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  
+  // Block DEV_MODE if running on production domains
+  const productionIndicators = [
+    'lovable.app',
+    'lovableproject.com',
+    '.vercel.app',
+    '.netlify.app',
+  ];
+  
+  const isProduction = productionIndicators.some(domain => 
+    siteUrl.includes(domain) || supabaseUrl.includes(domain)
+  );
+  
+  // Only allow DEV_MODE if explicitly set AND not in production
+  const devModeEnv = Deno.env.get('DEV_MODE') === 'true';
+  
+  if (devModeEnv && isProduction) {
+    console.warn('⚠️ SECURITY: DEV_MODE is enabled but blocked in production environment');
+    return false;
+  }
+  
+  return devModeEnv;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -63,19 +91,19 @@ serve(async (req) => {
     // Format phone number with country code
     const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
-    // Check for DEV_MODE to bypass Twilio
-    const DEV_MODE = Deno.env.get('DEV_MODE') === 'true';
+    // SECURITY: Check DEV_MODE with production safeguard
+    const DEV_MODE = isDevModeAllowed();
     
     if (DEV_MODE) {
-      console.log('🔧 DEV MODE: Skipping Twilio SMS');
+      console.log('🔧 DEV MODE: Skipping Twilio SMS (local development only)');
       console.log('📱 Use code: 123456 for phone:', fullPhoneNumber);
       
       return new Response(
         JSON.stringify({ 
           success: true, 
           status: 'pending',
-          message: 'OTP sent successfully (DEV MODE)',
-          devCode: '123456' // Only returned in dev mode
+          message: 'OTP sent successfully (DEV MODE)'
+          // SECURITY: Never return devCode in response, even in dev mode
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

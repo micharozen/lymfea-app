@@ -47,12 +47,8 @@ export default function ClientPayment() {
               date: dateTime.date,
               time: dateTime.time,
             },
-            treatments: items.map(item => ({
-              id: item.id,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            totalPrice: total,
+            // SECURITY: Only send treatment IDs - price is calculated server-side
+            treatmentIds: items.map(item => item.id),
           },
         });
 

@@ -7,6 +7,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// SECURITY: Only allow DEV_MODE in non-production environments
+const isDevModeAllowed = (): boolean => {
+  const siteUrl = Deno.env.get('SITE_URL') || '';
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  
+  // Block DEV_MODE if running on production domains
+  const productionIndicators = [
+    'lovable.app',
+    'lovableproject.com',
+    '.vercel.app',
+    '.netlify.app',
+  ];
+  
+  const isProduction = productionIndicators.some(domain => 
+    siteUrl.includes(domain) || supabaseUrl.includes(domain)
+  );
+  
+  // Only allow DEV_MODE if explicitly set AND not in production
+  const devModeEnv = Deno.env.get('DEV_MODE') === 'true';
+  
+  if (devModeEnv && isProduction) {
+    console.warn('⚠️ SECURITY: DEV_MODE is enabled but blocked in production environment');
+    return false;
+  }
+  
+  return devModeEnv;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -30,14 +58,13 @@ serve(async (req) => {
     
     console.log('=== OTP Verification Attempt ===');
     console.log('Phone Number:', fullPhoneNumber.slice(0, -4) + '****');
-    console.log('OTP Code: [REDACTED]');
     console.log('===============================');
 
-    // Check for DEV_MODE - must match send-otp behavior
-    const DEV_MODE = Deno.env.get('DEV_MODE') === 'true';
+    // SECURITY: Check DEV_MODE with production safeguard
+    const DEV_MODE = isDevModeAllowed();
     
     if (DEV_MODE) {
-      console.info('🔧 DEV MODE: Checking mock OTP');
+      console.info('🔧 DEV MODE: Checking mock OTP (local development only)');
       if (code !== '123456') {
         console.log('⚠️ DEV MODE: Invalid code provided');
         return new Response(
@@ -83,12 +110,10 @@ serve(async (req) => {
 
       const data = await response.json();
       console.log('Twilio response status:', response.status);
-      console.log('Twilio response data:', JSON.stringify(data));
       
       if (!response.ok) {
         console.error('❌ Twilio verification error:');
         console.error('Status:', response.status);
-        console.error('Error details:', JSON.stringify(data));
         
         // More helpful error message for 404
         if (response.status === 404) {
@@ -121,7 +146,7 @@ serve(async (req) => {
         );
       }
 
-      console.log('✅ OTP verified successfully');
+      console.log('✅ OTP verified successfully via Twilio');
     }
 
     console.log('✅ OTP verified successfully');
@@ -193,7 +218,6 @@ serve(async (req) => {
     }
 
     // Generate session using user_id directly to avoid email conflicts
-    // Use the authUser we found/created above
     const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: authUser!.email!,
@@ -215,9 +239,6 @@ serve(async (req) => {
 
     if (verifyError || !verifyData.session) {
       console.error('Error verifying token:', verifyError);
-      
-      // If verification fails, it might be because the email is linked to another user
-      // Try to force session for the correct user
       console.log('Attempting to generate session for user_id:', authUser!.id);
       
       return new Response(
@@ -229,7 +250,6 @@ serve(async (req) => {
     // Verify the session is for the correct user
     if (verifyData.user?.id !== authUser!.id) {
       console.error('Session created for wrong user! Expected:', authUser!.id, 'Got:', verifyData.user?.id);
-      // This happens when there are duplicate emails in auth - we need to handle this
       return new Response(
         JSON.stringify({ error: 'Session conflict - please contact administrator' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
