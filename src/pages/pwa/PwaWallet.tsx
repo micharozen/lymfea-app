@@ -34,7 +34,7 @@ const PwaWallet = () => {
   const [period, setPeriod] = useState("this_month");
   const [connectingStripe, setConnectingStripe] = useState(false);
 
-  const { data: earnings, isLoading } = useQuery({
+  const { data: earnings, isLoading, isFetching } = useQuery({
     queryKey: ["wallet-earnings", period],
     queryFn: async (): Promise<EarningsData> => {
       const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
@@ -53,9 +53,10 @@ const PwaWallet = () => {
         stripeAccountId: data.stripeAccountId,
       };
     },
-    staleTime: 60000, // 1 minute
+    staleTime: 30000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes
-    placeholderData: (previousData) => previousData, // Keep old data while fetching new period
+    refetchOnMount: 'always', // Always refetch when mounting
+    refetchOnWindowFocus: true,
   });
 
   const openStripe = () => {
