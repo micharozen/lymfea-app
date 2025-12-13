@@ -2,13 +2,14 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
+import PwaHeader from "@/components/pwa/PwaHeader";
 import {
   Drawer,
   DrawerClose,
@@ -635,20 +636,14 @@ const PwaBookingDetail = () => {
   return (
     <>
       <div className="min-h-screen bg-background pb-20">
-        {/* Header - Compact */}
-        <div className="bg-background px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-2 flex items-center justify-between sticky top-0 z-10 border-b border-border">
-          <button 
-            onClick={() => {
-              const from = (location.state as any)?.from;
-              navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
-            }} 
-            className="p-1.5 -ml-1"
-          >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
-          </button>
-          <h1 className="text-sm font-semibold text-foreground">{t('bookingDetail.myBooking')}</h1>
-          <div className="w-8" />
-        </div>
+        <PwaHeader
+          title={t('bookingDetail.myBooking')}
+          showBack
+          onBack={() => {
+            const from = (location.state as any)?.from;
+            navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
+          }}
+        />
 
         <div className="px-4 pt-3">
           {/* Hotel Header - Centered */}
