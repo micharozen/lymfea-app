@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Security: Escape HTML entities to prevent XSS attacks
+const escapeHtml = (unsafe: string | null | undefined): string => {
+  if (unsafe === null || unsafe === undefined) return '';
+  return String(unsafe)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
 interface InvoiceData {
   booking: any;
   treatments: any[];
@@ -17,9 +28,9 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   
   const treatmentRows = treatments.map(t => `
     <tr>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${t.name}</td>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 14px;">${t.duration} min</td>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 500; font-size: 14px;">${t.price}€</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${escapeHtml(t.name)}</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 14px;">${escapeHtml(t.duration)} min</td>
+      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 500; font-size: 14px;">${escapeHtml(t.price)}€</td>
     </tr>
   `).join('');
 
@@ -213,16 +224,16 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       <div class="info-grid">
         <div class="info-card">
           <div class="section-title">Bill To</div>
-          <p class="name">${booking.client_first_name} ${booking.client_last_name}</p>
-          <p style="color: #6b7280;">${booking.phone}</p>
-          ${booking.room_number ? `<p style="color: #6b7280;">Room ${booking.room_number}</p>` : ''}
+          <p class="name">${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</p>
+          <p style="color: #6b7280;">${escapeHtml(booking.phone)}</p>
+          ${booking.room_number ? `<p style="color: #6b7280;">Room ${escapeHtml(booking.room_number)}</p>` : ''}
         </div>
         
         <div class="info-card">
           <div class="section-title">Hotel</div>
-          <p class="name">${hotel?.name || booking.hotel_name || 'N/A'}</p>
-          ${hotel?.address ? `<p style="color: #6b7280;">${hotel.address}</p>` : ''}
-          ${hotel?.city ? `<p style="color: #6b7280;">${hotel.postal_code || ''} ${hotel.city}</p>` : ''}
+          <p class="name">${escapeHtml(hotel?.name || booking.hotel_name || 'N/A')}</p>
+          ${hotel?.address ? `<p style="color: #6b7280;">${escapeHtml(hotel.address)}</p>` : ''}
+          ${hotel?.city ? `<p style="color: #6b7280;">${escapeHtml(hotel.postal_code || '')} ${escapeHtml(hotel.city)}</p>` : ''}
         </div>
       </div>
 
@@ -234,7 +245,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
         <p>
           <strong>Time:</strong> ${booking.booking_time.substring(0, 5)}
         </p>
-        ${booking.hairdresser_name ? `<p><strong>Stylist:</strong> ${booking.hairdresser_name}</p>` : ''}
+        ${booking.hairdresser_name ? `<p><strong>Stylist:</strong> ${escapeHtml(booking.hairdresser_name)}</p>` : ''}
       </div>
 
       <table>
