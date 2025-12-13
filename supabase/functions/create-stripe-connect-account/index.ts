@@ -53,7 +53,7 @@ serve(async (req) => {
     }
     logStep("Hairdresser found", { hairdresserId: hairdresser.id });
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
     let stripeAccountId = hairdresser.stripe_account_id;
 
