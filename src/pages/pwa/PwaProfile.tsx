@@ -182,9 +182,9 @@ const PwaProfile = () => {
 
       {/* Content */}
       <div className="flex-1 flex flex-col px-4 pt-4 pb-6">
-        {/* Compact Profile Header - Row Layout */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="relative flex-shrink-0">
+        {/* Profile Header - Centered */}
+        <div className="flex flex-col items-center text-center mb-4">
+          <div className="relative">
             <Avatar className="h-20 w-20">
               <AvatarImage src={hairdresser.profile_image || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
@@ -207,14 +207,12 @@ const PwaProfile = () => {
               className="hidden"
             />
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-semibold truncate">
-              {hairdresser.first_name} {hairdresser.last_name}
-            </h2>
-            <div className="flex items-center gap-1">
-              <span className="text-yellow-500 text-xs">⭐</span>
-              <span className="text-xs text-muted-foreground">3.0</span>
-            </div>
+          <h2 className="text-base font-semibold mt-2">
+            {hairdresser.first_name} {hairdresser.last_name}
+          </h2>
+          <div className="flex items-center gap-1 mt-0.5">
+            <span className="text-yellow-500 text-sm">⭐</span>
+            <span className="text-sm text-muted-foreground">3.0</span>
           </div>
         </div>
 
