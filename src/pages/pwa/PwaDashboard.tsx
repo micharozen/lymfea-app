@@ -105,22 +105,8 @@ const PwaDashboard = () => {
       navigate(location.pathname, { replace: true, state: {} });
     }
 
-    // Check if we have cached bookings (and not forcing refresh)
-    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", hairdresser.id]);
-    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", hairdresser.id]);
-
-    if (!shouldForceRefresh && cachedMyBookings && cachedPendingBookings) {
-      console.log('📦 Using cached bookings data');
-      const allData = [...cachedMyBookings, ...cachedPendingBookings];
-      const sortedData = allData.sort((a, b) => {
-        const dateCompare = a.booking_date.localeCompare(b.booking_date);
-        if (dateCompare !== 0) return dateCompare;
-        return a.booking_time.localeCompare(b.booking_time);
-      });
-      setAllBookings(sortedData);
-      setLoading(false);
-      return;
-    }
+    // Always fetch fresh data when mounting the dashboard
+    // This ensures hotel images and booking data are always up-to-date
 
     console.log('🔄 Fetching initial bookings...');
     fetchAllBookings(hairdresser.id);
