@@ -11,6 +11,7 @@ import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/PwaHeader";
 import { Skeleton } from "@/components/ui/skeleton";
+import PwaPageLoader from "@/components/pwa/PwaPageLoader";
 import {
   Drawer,
   DrawerClose,
@@ -623,61 +624,11 @@ const PwaBookingDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <PwaHeader
-          title={t('bookingDetail.myBooking')}
-          showBack
-          onBack={() => navigate('/pwa/dashboard')}
-        />
-        
-        <div className="px-4 pt-3">
-          {/* Hotel Header Skeleton */}
-          <div className="flex flex-col items-center mb-4">
-            <Skeleton className="w-16 h-16 rounded-xl mb-2" />
-            <Skeleton className="h-4 w-32 mb-1" />
-            <Skeleton className="h-3 w-40" />
-          </div>
-
-          {/* Details Skeleton */}
-          <div className="space-y-0 mb-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-3 py-2 border-b border-border/50">
-                <Skeleton className="w-4 h-4 rounded" />
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-20 ml-auto" />
-              </div>
-            ))}
-          </div>
-
-          {/* Client Info Skeleton */}
-          <div className="bg-muted/50 rounded-xl p-3 mb-3">
-            <div className="flex items-center gap-3">
-              <Skeleton className="w-10 h-10 rounded-full" />
-              <div className="flex-1 space-y-1">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            </div>
-          </div>
-
-          {/* Treatments Skeleton */}
-          <div className="mb-3">
-            <Skeleton className="h-3 w-24 mb-2" />
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="flex items-center gap-3 py-2">
-                  <Skeleton className="w-12 h-12 rounded-lg" />
-                  <div className="flex-1 space-y-1">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-2.5 w-20" />
-                  </div>
-                  <Skeleton className="h-4 w-12" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <PwaPageLoader 
+        title={t('bookingDetail.myBooking')} 
+        showBack 
+        backPath="/pwa/dashboard" 
+      />
     );
   }
 
