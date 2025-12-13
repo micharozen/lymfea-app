@@ -37,15 +37,12 @@ const PwaWallet = () => {
   const [isInitialMount, setIsInitialMount] = useState(true);
   const queryClient = useQueryClient();
 
-  // Clear cache on mount to prevent showing stale data
+  // Don't clear cache - just refetch in background
   useEffect(() => {
-    // Invalidate all wallet queries immediately on mount
-    queryClient.removeQueries({ queryKey: ["wallet-earnings"] });
-    
-    // After a brief moment, mark as no longer initial mount
-    const timer = setTimeout(() => setIsInitialMount(false), 50);
+    // Mark as no longer initial mount after first render
+    const timer = setTimeout(() => setIsInitialMount(false), 0);
     return () => clearTimeout(timer);
-  }, [queryClient]);
+  }, []);
 
   const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
@@ -129,8 +126,8 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Show loader on initial mount or when loading without data
-  if (isInitialMount || isLoading || !earnings) {
+  // Only show loader on very first load when we have no cached data
+  if (isInitialMount && !earnings) {
     return <PwaPageLoader title="Wallet" />;
   }
 
