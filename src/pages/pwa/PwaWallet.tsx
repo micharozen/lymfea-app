@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import PwaHeader from "@/components/pwa/PwaHeader";
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Payout {
   id: string;
@@ -33,8 +34,20 @@ const PwaWallet = () => {
   const { t } = useTranslation('pwa');
   const [period, setPeriod] = useState("this_month");
   const [connectingStripe, setConnectingStripe] = useState(false);
+  const [isInitialMount, setIsInitialMount] = useState(true);
+  const queryClient = useQueryClient();
 
-  const { data: earnings, isLoading, isFetching } = useQuery({
+  // Clear cache on mount to prevent showing stale data
+  useEffect(() => {
+    // Invalidate all wallet queries immediately on mount
+    queryClient.removeQueries({ queryKey: ["wallet-earnings"] });
+    
+    // After a brief moment, mark as no longer initial mount
+    const timer = setTimeout(() => setIsInitialMount(false), 50);
+    return () => clearTimeout(timer);
+  }, [queryClient]);
+
+  const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
     queryFn: async (): Promise<EarningsData> => {
       const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
@@ -53,10 +66,12 @@ const PwaWallet = () => {
         stripeAccountId: data.stripeAccountId,
       };
     },
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache data
+    staleTime: 0,
+    gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    // Only enable query after initial cache clear
+    enabled: !isInitialMount,
   });
 
   const openStripe = () => {
@@ -114,35 +129,45 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Show simple loading state only on first load
-  if (isLoading && !earnings) {
+  // Show skeleton on initial mount or when loading without data
+  if (isInitialMount || isLoading || !earnings) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] pb-24">
-        <div className="px-6 pt-12 pb-6">
-          <div className="text-center">
-            <h1 className="text-base font-semibold text-foreground">
-              {t('wallet.myEarnings', 'My earnings')}
-            </h1>
+      <div className="h-full flex flex-col bg-muted/30">
+        <PwaHeader title="Wallet" />
+        
+        <div className="px-6 pt-4">
+          {/* Period Label Skeleton */}
+          <div className="flex justify-center mb-3">
+            <Skeleton className="h-3 w-20" />
           </div>
-          <div className="text-center mt-8 mb-6">
-            <div className="h-14 w-40 bg-muted/50 rounded-lg animate-pulse mx-auto" />
+          
+          {/* Total Earnings Skeleton */}
+          <div className="text-center mb-4">
+            <Skeleton className="h-10 w-32 mx-auto" />
+          </div>
+
+          {/* Stripe Button Skeleton */}
+          <div className="flex justify-center mb-4">
+            <Skeleton className="h-10 w-32 rounded-full" />
           </div>
         </div>
-        <div className="mx-4 bg-white rounded-2xl shadow-sm">
-          <div className="px-5 pt-5 pb-2">
-            <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+
+        {/* Payouts Card Skeleton */}
+        <div className="mx-4 bg-background rounded-2xl shadow-sm">
+          <div className="px-5 pt-4 pb-2">
+            <Skeleton className="h-3 w-28" />
           </div>
           <div className="px-5 pb-5 space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-muted/50 animate-pulse" />
+                <Skeleton className="w-10 h-10 rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
-                  <div className="h-3 w-24 bg-muted/50 rounded animate-pulse" />
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
                 </div>
                 <div className="space-y-2 text-right">
-                  <div className="h-4 w-16 bg-muted/50 rounded animate-pulse ml-auto" />
-                  <div className="h-3 w-12 bg-muted/50 rounded animate-pulse ml-auto" />
+                  <Skeleton className="h-4 w-14 ml-auto" />
+                  <Skeleton className="h-3 w-10 ml-auto" />
                 </div>
               </div>
             ))}
