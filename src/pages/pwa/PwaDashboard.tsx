@@ -628,7 +628,7 @@ const PwaDashboard = () => {
 
           {/* Bookings List - Compact */}
           <div className="space-y-1">
-            {loading ? (
+            {loading && allBookings.length === 0 ? (
               <>
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="flex items-center gap-2 py-1.5">
