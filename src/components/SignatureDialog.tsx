@@ -53,11 +53,15 @@ export const SignatureDialog = ({
             Demandez au client de signer ci-dessous pour valider les prestations
           </p>
 
-          <div className="border-2 border-border rounded-lg bg-background overflow-hidden">
+          <div 
+            className="border-2 border-border rounded-lg bg-background overflow-hidden touch-none"
+            style={{ touchAction: 'none', overscrollBehavior: 'contain' }}
+          >
             <SignatureCanvas
               ref={signatureRef}
               canvasProps={{
-                className: "w-full h-48 touch-none",
+                className: "w-full h-48",
+                style: { touchAction: 'none' }
               }}
               backgroundColor="white"
               onBegin={handleBeginStroke}
