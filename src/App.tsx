@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,52 +10,54 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
-import PwaLayout from "./components/pwa/PwaLayout";
-import Dashboard from "./pages/Dashboard";
-import Booking from "./pages/Booking";
-import HairDresser from "./pages/HairDresser";
-import Hotels from "./pages/Hotels";
-import TreatmentMenus from "./pages/TreatmentMenus";
-import Trunks from "./pages/Trunks";
-import Concierges from "./pages/Concierges";
-import OomProducts from "./pages/OomProducts";
-import OomOrders from "./pages/OomOrders";
-import Finance from "./pages/Finance";
-import ConciergeTransactions from "./pages/ConciergeTransactions";
-import Settings from "./pages/Settings";
-import Profile from "./pages/Profile";
-import Auth from "./pages/Auth";
-import SetPassword from "./pages/SetPassword";
-import UpdatePassword from "./pages/UpdatePassword";
-import NotFound from "./pages/NotFound";
-import PwaLogin from "./pages/pwa/PwaLogin";
-import PwaDashboard from "./pages/pwa/PwaDashboard";
-import PwaBookings from "./pages/pwa/PwaBookings";
-import PwaBookingDetail from "./pages/pwa/PwaBookingDetail";
-import PwaProfile from "./pages/pwa/PwaProfile";
-import PwaAccountSecurity from "./pages/pwa/PwaAccountSecurity";
-import PwaHotels from "./pages/pwa/PwaHotels";
-import PwaSplash from "./pages/pwa/PwaSplash";
-import PwaWelcome from "./pages/pwa/PwaWelcome";
-import PwaOnboarding from "./pages/pwa/PwaOnboarding";
-import PwaNotifications from "./pages/pwa/PwaNotifications";
-import PwaInstall from "./pages/pwa/PwaInstall";
-import PwaTestNotifications from "./pages/pwa/PwaTestNotifications";
-import PwaWallet from "./pages/pwa/PwaWallet";
-import PwaStripeCallback from "./pages/pwa/PwaStripeCallback";
-
-import Home from "./pages/Home";
-import ClientWelcome from "./pages/client/ClientWelcome";
-import ClientMenu from "./pages/client/ClientMenu";
-import ClientBasket from "./pages/client/ClientBasket";
-import ClientCheckout from "./pages/client/ClientCheckout";
-import ClientDateTime from "./pages/client/ClientDateTime";
-import ClientInfo from "./pages/client/ClientInfo";
-import ClientPayment from "./pages/client/ClientPayment";
-import ClientConfirmation from "./pages/client/ClientConfirmation";
 import { BasketProvider } from "./pages/client/context/BasketContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
-import RateHairdresser from "./pages/RateHairdresser";
+
+// Lazy load all page components for code splitting
+const PwaLayout = lazy(() => import("./components/pwa/PwaLayout"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Booking = lazy(() => import("./pages/Booking"));
+const HairDresser = lazy(() => import("./pages/HairDresser"));
+const Hotels = lazy(() => import("./pages/Hotels"));
+const TreatmentMenus = lazy(() => import("./pages/TreatmentMenus"));
+const Trunks = lazy(() => import("./pages/Trunks"));
+const Concierges = lazy(() => import("./pages/Concierges"));
+const OomProducts = lazy(() => import("./pages/OomProducts"));
+const OomOrders = lazy(() => import("./pages/OomOrders"));
+const Finance = lazy(() => import("./pages/Finance"));
+const ConciergeTransactions = lazy(() => import("./pages/ConciergeTransactions"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Auth = lazy(() => import("./pages/Auth"));
+const SetPassword = lazy(() => import("./pages/SetPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const PwaLogin = lazy(() => import("./pages/pwa/PwaLogin"));
+const PwaDashboard = lazy(() => import("./pages/pwa/PwaDashboard"));
+const PwaBookings = lazy(() => import("./pages/pwa/PwaBookings"));
+const PwaBookingDetail = lazy(() => import("./pages/pwa/PwaBookingDetail"));
+const PwaProfile = lazy(() => import("./pages/pwa/PwaProfile"));
+const PwaAccountSecurity = lazy(() => import("./pages/pwa/PwaAccountSecurity"));
+const PwaHotels = lazy(() => import("./pages/pwa/PwaHotels"));
+const PwaSplash = lazy(() => import("./pages/pwa/PwaSplash"));
+const PwaWelcome = lazy(() => import("./pages/pwa/PwaWelcome"));
+const PwaOnboarding = lazy(() => import("./pages/pwa/PwaOnboarding"));
+const PwaNotifications = lazy(() => import("./pages/pwa/PwaNotifications"));
+const PwaInstall = lazy(() => import("./pages/pwa/PwaInstall"));
+const PwaTestNotifications = lazy(() => import("./pages/pwa/PwaTestNotifications"));
+const PwaWallet = lazy(() => import("./pages/pwa/PwaWallet"));
+const PwaStripeCallback = lazy(() => import("./pages/pwa/PwaStripeCallback"));
+
+const Home = lazy(() => import("./pages/Home"));
+const ClientWelcome = lazy(() => import("./pages/client/ClientWelcome"));
+const ClientMenu = lazy(() => import("./pages/client/ClientMenu"));
+const ClientBasket = lazy(() => import("./pages/client/ClientBasket"));
+const ClientCheckout = lazy(() => import("./pages/client/ClientCheckout"));
+const ClientDateTime = lazy(() => import("./pages/client/ClientDateTime"));
+const ClientInfo = lazy(() => import("./pages/client/ClientInfo"));
+const ClientPayment = lazy(() => import("./pages/client/ClientPayment"));
+const ClientConfirmation = lazy(() => import("./pages/client/ClientConfirmation"));
+const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +69,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 const App = () => {
   // Initialize OneSignal for push notifications
@@ -77,163 +86,165 @@ const App = () => {
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {/* Root - Smart redirect based on user type */}
-          <Route path="/" element={<Home />} />
-          
-          {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-          <Route path="/client/:hotelId" element={
-            <ClientFlowWrapper>
-              <ClientWelcome />
-            </ClientFlowWrapper>
-          } />
-          <Route path="/client/:hotelId/*" element={
-            <ClientFlowWrapper>
-              <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
-                <Routes>
-                  <Route path="/menu" element={<ClientMenu />} />
-                  <Route path="/basket" element={<ClientBasket />} />
-                  <Route path="/datetime" element={<ClientDateTime />} />
-                  <Route path="/info" element={<ClientInfo />} />
-                  <Route path="/payment" element={<ClientPayment />} />
-                  <Route path="/checkout" element={<ClientCheckout />} />
-                  <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
-                </Routes>
-              </BasketProvider>
-            </ClientFlowWrapper>
-          } />
-          
-          {/* Rating Page (Public) */}
-          <Route path="/rate/:token" element={<RateHairdresser />} />
-          
-          {/* Admin Auth Routes */}
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/login" element={<Auth />} />
-          <Route path="/set-password" element={<SetPassword />} />
-          <Route path="/update-password" element={<UpdatePassword />} />
-          
-          {/* Legacy route redirects to admin routes */}
-          <Route path="/booking" element={<Navigate to="/admin/booking" replace />} />
-          <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="/hair-dresser" element={<Navigate to="/admin/hair-dresser" replace />} />
-          <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
-          <Route path="/treatment-menus" element={<Navigate to="/admin/treatment-menus" replace />} />
-          <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
-          <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
-          <Route path="/oom-products" element={<Navigate to="/admin/oom-products" replace />} />
-          <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
-          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
-          <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
-          <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
-          
-          {/* PWA Public Routes (no TabBar, no auth) */}
-          <Route path="/pwa/splash" element={<PwaSplash />} />
-          <Route path="/pwa/welcome" element={<PwaWelcome />} />
-          <Route path="/pwa/install" element={<PwaInstall />} />
-          <Route path="/pwa/login" element={<PwaLogin />} />
-          <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
-          <Route
-            path="/pwa/onboarding"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaOnboarding />
-              </HairdresserProtectedRoute>
-            }
-          />
-          <Route
-            path="/pwa/stripe-callback"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaStripeCallback />
-              </HairdresserProtectedRoute>
-            }
-          />
-          {/* PWA routes with TabBar */}
-          <Route
-            path="/pwa"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaLayout />
-              </HairdresserProtectedRoute>
-            }
-          >
-            <Route index element={<Navigate to="/pwa/dashboard" replace />} />
-            <Route path="dashboard" element={<PwaDashboard />} />
-            <Route path="bookings" element={<PwaBookings />} />
-            <Route path="booking/:id" element={<PwaBookingDetail />} />
-            <Route path="notifications" element={<PwaNotifications />} />
-            <Route path="hotels" element={<PwaHotels />} />
-            <Route path="wallet" element={<PwaWallet />} />
-          </Route>
-          {/* PWA routes without TabBar (still protected) */}
-          <Route
-            path="/pwa/profile"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaProfile />
-              </HairdresserProtectedRoute>
-            }
-          />
-          <Route
-            path="/pwa/profile/notifications"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaNotifications standalone />
-              </HairdresserProtectedRoute>
-            }
-          />
-          <Route
-            path="/pwa/profile/hotels"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaHotels standalone />
-              </HairdresserProtectedRoute>
-            }
-          />
-          <Route
-            path="/pwa/account-security"
-            element={
-              <HairdresserProtectedRoute>
-                <PwaAccountSecurity />
-              </HairdresserProtectedRoute>
-            }
-          />
-          
-          {/* Admin Dashboard Routes */}
-          <Route
-            path="/admin/*"
-            element={
-              <AdminProtectedRoute>
-                <SidebarProvider>
-                  <div className="flex min-h-screen w-full">
-                    <AppSidebar />
-                    <div className="flex-1 flex flex-col">
-                      <main className="flex-1">
-                        <Routes>
-                          <Route path="/" element={<Dashboard />} />
-                          <Route path="/dashboard" element={<Dashboard />} />
-                          <Route path="/booking" element={<Booking />} />
-                          <Route path="/hair-dresser" element={<HairDresser />} />
-                          <Route path="/hotels" element={<Hotels />} />
-                          <Route path="/treatment-menus" element={<TreatmentMenus />} />
-                          <Route path="/trunks" element={<Trunks />} />
-                          <Route path="/concierges" element={<Concierges />} />
-                          <Route path="/oom-products" element={<OomProducts />} />
-                          <Route path="/oom-orders" element={<OomOrders />} />
-                          <Route path="/finance" element={<Finance />} />
-                          <Route path="/transactions" element={<ConciergeTransactions />} />
-                          <Route path="/settings" element={<Settings />} />
-                          <Route path="/profile" element={<Profile />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </main>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            {/* Root - Smart redirect based on user type */}
+            <Route path="/" element={<Home />} />
+            
+            {/* Client Routes (QR Code - Public Access with Isolated Session) */}
+            <Route path="/client/:hotelId" element={
+              <ClientFlowWrapper>
+                <ClientWelcome />
+              </ClientFlowWrapper>
+            } />
+            <Route path="/client/:hotelId/*" element={
+              <ClientFlowWrapper>
+                <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
+                  <Routes>
+                    <Route path="/menu" element={<ClientMenu />} />
+                    <Route path="/basket" element={<ClientBasket />} />
+                    <Route path="/datetime" element={<ClientDateTime />} />
+                    <Route path="/info" element={<ClientInfo />} />
+                    <Route path="/payment" element={<ClientPayment />} />
+                    <Route path="/checkout" element={<ClientCheckout />} />
+                    <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
+                  </Routes>
+                </BasketProvider>
+              </ClientFlowWrapper>
+            } />
+            
+            {/* Rating Page (Public) */}
+            <Route path="/rate/:token" element={<RateHairdresser />} />
+            
+            {/* Admin Auth Routes */}
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Auth />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
+            
+            {/* Legacy route redirects to admin routes */}
+            <Route path="/booking" element={<Navigate to="/admin/booking" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="/hair-dresser" element={<Navigate to="/admin/hair-dresser" replace />} />
+            <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
+            <Route path="/treatment-menus" element={<Navigate to="/admin/treatment-menus" replace />} />
+            <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
+            <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
+            <Route path="/oom-products" element={<Navigate to="/admin/oom-products" replace />} />
+            <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
+            <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
+            <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
+            
+            {/* PWA Public Routes (no TabBar, no auth) */}
+            <Route path="/pwa/splash" element={<PwaSplash />} />
+            <Route path="/pwa/welcome" element={<PwaWelcome />} />
+            <Route path="/pwa/install" element={<PwaInstall />} />
+            <Route path="/pwa/login" element={<PwaLogin />} />
+            <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
+            <Route
+              path="/pwa/onboarding"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaOnboarding />
+                </HairdresserProtectedRoute>
+              }
+            />
+            <Route
+              path="/pwa/stripe-callback"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaStripeCallback />
+                </HairdresserProtectedRoute>
+              }
+            />
+            {/* PWA routes with TabBar */}
+            <Route
+              path="/pwa"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaLayout />
+                </HairdresserProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/pwa/dashboard" replace />} />
+              <Route path="dashboard" element={<PwaDashboard />} />
+              <Route path="bookings" element={<PwaBookings />} />
+              <Route path="booking/:id" element={<PwaBookingDetail />} />
+              <Route path="notifications" element={<PwaNotifications />} />
+              <Route path="hotels" element={<PwaHotels />} />
+              <Route path="wallet" element={<PwaWallet />} />
+            </Route>
+            {/* PWA routes without TabBar (still protected) */}
+            <Route
+              path="/pwa/profile"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaProfile />
+                </HairdresserProtectedRoute>
+              }
+            />
+            <Route
+              path="/pwa/profile/notifications"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaNotifications standalone />
+                </HairdresserProtectedRoute>
+              }
+            />
+            <Route
+              path="/pwa/profile/hotels"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaHotels standalone />
+                </HairdresserProtectedRoute>
+              }
+            />
+            <Route
+              path="/pwa/account-security"
+              element={
+                <HairdresserProtectedRoute>
+                  <PwaAccountSecurity />
+                </HairdresserProtectedRoute>
+              }
+            />
+            
+            {/* Admin Dashboard Routes */}
+            <Route
+              path="/admin/*"
+              element={
+                <AdminProtectedRoute>
+                  <SidebarProvider>
+                    <div className="flex min-h-screen w-full">
+                      <AppSidebar />
+                      <div className="flex-1 flex flex-col">
+                        <main className="flex-1">
+                          <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/booking" element={<Booking />} />
+                            <Route path="/hair-dresser" element={<HairDresser />} />
+                            <Route path="/hotels" element={<Hotels />} />
+                            <Route path="/treatment-menus" element={<TreatmentMenus />} />
+                            <Route path="/trunks" element={<Trunks />} />
+                            <Route path="/concierges" element={<Concierges />} />
+                            <Route path="/oom-products" element={<OomProducts />} />
+                            <Route path="/oom-orders" element={<OomOrders />} />
+                            <Route path="/finance" element={<Finance />} />
+                            <Route path="/transactions" element={<ConciergeTransactions />} />
+                            <Route path="/settings" element={<Settings />} />
+                            <Route path="/profile" element={<Profile />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </main>
+                      </div>
                     </div>
-                  </div>
-                </SidebarProvider>
-              </AdminProtectedRoute>
-            }
-          />
-        </Routes>
+                  </SidebarProvider>
+                </AdminProtectedRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
