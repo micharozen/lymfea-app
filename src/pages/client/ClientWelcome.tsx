@@ -13,16 +13,14 @@ export default function ClientWelcome() {
   const { t } = useTranslation('client');
 
   const { data: hotel, isLoading } = useQuery({
-    queryKey: ['hotel', hotelId],
+    queryKey: ['public-hotel', hotelId],
     queryFn: async () => {
+      // Use secure function that doesn't expose commission rates
       const { data, error } = await supabase
-        .from('hotels')
-        .select('*')
-        .eq('id', hotelId)
-        .single();
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
       
       if (error) throw error;
-      return data;
+      return data?.[0] || null;
     },
     enabled: !!hotelId,
   });

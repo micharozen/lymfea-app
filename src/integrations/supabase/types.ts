@@ -881,6 +881,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_treatment_request: {
+        Args: {
+          _client_email?: string
+          _client_first_name: string
+          _client_last_name?: string
+          _client_phone: string
+          _description?: string
+          _hotel_id: string
+          _preferred_date?: string
+          _preferred_time?: string
+          _room_number?: string
+          _treatment_id?: string
+        }
+        Returns: string
+      }
       get_concierge_hotels: {
         Args: { _user_id: string }
         Returns: {
@@ -888,6 +903,49 @@ export type Database = {
         }[]
       }
       get_hairdresser_id: { Args: { _user_id: string }; Returns: string }
+      get_public_hotel_by_id: {
+        Args: { _hotel_id: string }
+        Returns: {
+          city: string
+          country: string
+          cover_image: string
+          currency: string
+          id: string
+          image: string
+          name: string
+          status: string
+          vat: number
+        }[]
+      }
+      get_public_hotels: {
+        Args: never
+        Returns: {
+          city: string
+          country: string
+          cover_image: string
+          currency: string
+          id: string
+          image: string
+          name: string
+          status: string
+        }[]
+      }
+      get_public_treatments: {
+        Args: { _hotel_id: string }
+        Returns: {
+          category: string
+          description: string
+          duration: number
+          id: string
+          image: string
+          lead_time: number
+          name: string
+          price: number
+          price_on_request: boolean
+          service_for: string
+          sort_order: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -898,6 +956,16 @@ export type Database = {
       unassign_booking: {
         Args: { _booking_id: string; _hairdresser_id: string }
         Returns: Json
+      }
+      validate_treatment_request: {
+        Args: {
+          _client_email?: string
+          _client_first_name: string
+          _client_phone: string
+          _description?: string
+          _hotel_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
