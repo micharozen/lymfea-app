@@ -40,33 +40,32 @@ export default function ClientMenu() {
   };
 
   const { data: hotel } = useQuery({
-    queryKey: ['hotel', hotelId],
+    queryKey: ['public-hotel', hotelId],
     queryFn: async () => {
+      // Use secure function that doesn't expose commission rates
       const { data, error } = await supabase
-        .from('hotels')
-        .select('*')
-        .eq('id', hotelId)
-        .single();
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
       if (error) throw error;
-      return data;
+      return data?.[0] || null;
     },
   });
 
   const { data: treatments = [], isLoading } = useQuery({
-    queryKey: ['treatments', hotelId, gender],
+    queryKey: ['public-treatments', hotelId, gender],
     queryFn: async () => {
       const serviceFor = gender === 'women' ? 'Female' : gender === 'men' ? 'Male' : 'All';
+      // Use secure function for public treatment data
       const { data, error } = await supabase
-        .from('treatment_menus')
-        .select('*')
-        .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
-        .in('service_for', [serviceFor, 'All'])
-        .eq('status', 'Actif')
-        .order('sort_order', { ascending: true, nullsFirst: false })
-        .order('name', { ascending: true });
+        .rpc('get_public_treatments', { _hotel_id: hotelId });
       
       if (error) throw error;
-      return data as Treatment[];
+      
+      // Filter by service_for client-side since the function returns all treatments for the hotel
+      const filtered = (data || []).filter((t: any) => 
+        t.service_for === serviceFor || t.service_for === 'All'
+      );
+      
+      return filtered as Treatment[];
     },
   });
 

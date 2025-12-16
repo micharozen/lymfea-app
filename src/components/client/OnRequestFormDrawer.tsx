@@ -95,24 +95,20 @@ export default function OnRequestFormDrawer({
     setIsSubmitting(true);
 
     try {
-      // Insert the request into treatment_requests table
-      const { data: requestData, error: insertError } = await supabase
-        .from("treatment_requests")
-        .insert({
-          hotel_id: hotelId,
-          treatment_id: treatment?.id || null,
-          client_first_name: firstName,
-          client_last_name: lastName || null,
-          client_phone: `${countryCode} ${phone}`,
-          client_email: email || null,
-          room_number: roomNumber || null,
-          preferred_date: preferredDate ? format(preferredDate, "yyyy-MM-dd") : null,
-          preferred_time: preferredTime || null,
-          description: description || null,
-          status: "pending",
-        })
-        .select()
-        .single();
+      // Use secure function with server-side validation
+      const { data: requestId, error: insertError } = await supabase
+        .rpc("create_treatment_request", {
+          _client_first_name: firstName,
+          _client_phone: `${countryCode} ${phone}`,
+          _hotel_id: hotelId,
+          _client_last_name: lastName || null,
+          _client_email: email || null,
+          _room_number: roomNumber || null,
+          _description: description || null,
+          _treatment_id: treatment?.id || null,
+          _preferred_date: preferredDate ? format(preferredDate, "yyyy-MM-dd") : null,
+          _preferred_time: preferredTime || null,
+        });
 
       if (insertError) throw insertError;
 
@@ -120,7 +116,7 @@ export default function OnRequestFormDrawer({
       try {
         await supabase.functions.invoke("send-treatment-request-email", {
           body: {
-            requestId: requestData.id,
+            requestId: requestId,
             treatmentName: treatment?.name || "Soin sur demande",
             clientName: `${firstName} ${lastName}`.trim(),
             clientPhone: `${countryCode} ${phone}`,
