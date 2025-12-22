@@ -174,7 +174,7 @@ export default function Booking() {
   // Generate hourly slots from 07:00 to 21:00 for main display (working hours only)
   const START_HOUR = 7;
   const END_HOUR = 22;
-  const HOUR_HEIGHT = 60; // pixels per hour
+  const HOUR_HEIGHT = 48; // pixels per hour - compact view
   
   const hours = useMemo(() => {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
@@ -247,7 +247,7 @@ export default function Booking() {
     // Calculate height based on duration
     const height = (duration / 60) * HOUR_HEIGHT;
     
-    return { top, height: Math.max(height, 24) }; // minimum 24px height for visibility
+    return { top, height: Math.max(height, 20) }; // minimum 20px height for visibility
   };
 
   const isCurrentHour = (date: Date, hour: number) => {
@@ -518,7 +518,7 @@ export default function Booking() {
                                       style={{ 
                                         top: `${top}px`, 
                                         height: `${height}px`,
-                                        minHeight: '24px'
+                                        minHeight: '20px'
                                       }}
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -528,11 +528,11 @@ export default function Booking() {
                                     >
                                       <div className="p-1 h-full flex flex-col">
                                         <div className="font-bold text-[11px] leading-tight">{booking.booking_time?.substring(0, 5)}</div>
-                                        {height >= 40 && (
-                                          <div className="truncate text-[9px] opacity-90">{booking.hotel_name}</div>
+                                        {height >= 32 && (
+                                          <div className="truncate text-[8px] opacity-90">{booking.hotel_name}</div>
                                         )}
-                                        {height >= 55 && (
-                                          <div className="text-[8px] opacity-75">{durationFormatted}</div>
+                                        {height >= 45 && (
+                                          <div className="text-[7px] opacity-75">{durationFormatted}</div>
                                         )}
                                       </div>
                                     </div>
