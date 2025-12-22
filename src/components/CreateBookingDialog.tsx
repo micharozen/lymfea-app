@@ -207,8 +207,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "p-0 gap-0 flex flex-col overflow-hidden",
-        view === 1 ? "sm:max-w-[480px]" : "sm:max-w-[700px] h-[80vh] max-h-[800px]"
+        "p-0 gap-0 flex flex-col overflow-hidden border shadow-2xl rounded-xl",
+        view === 1 ? "sm:max-w-[420px]" : "sm:max-w-[600px] max-h-[70vh]"
       )}>
         {/* ══════════════════════════════════════════════════════════════════
             VIEW 1: CLIENT & CONTEXT FORM
