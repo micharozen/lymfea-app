@@ -45,9 +45,20 @@ const PwaWelcome = () => {
           </p>
         </div>
 
-        <Button onClick={() => navigate("/pwa/login")} className="w-full h-12 text-sm bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
-          {t('welcome.getStarted')}
-        </Button>
+        <div className="space-y-3">
+          <Button onClick={() => navigate("/pwa/login")} className="w-full h-12 text-sm bg-white text-black hover:bg-white/90 font-medium rounded-full" size="lg">
+            {t('welcome.getStarted')}
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => navigate("/auth")}
+            className="w-full h-12 text-sm bg-transparent border-white/60 text-white hover:bg-white/10 hover:text-white font-medium rounded-full"
+            size="lg"
+          >
+            Connexion Admin
+          </Button>
+        </div>
 
         <p className="text-[10px] text-center text-white/70 px-2 leading-relaxed">
           {t('welcome.termsIntro')}

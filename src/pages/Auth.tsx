@@ -59,22 +59,13 @@ const Auth = () => {
 
       if (!session?.user) return;
 
-      // Role-based redirect. If no role is assigned, force a clean sign-out so the user can access /auth.
-      const { role, redirectPath } = await getRoleRedirect(session.user.id);
-      if (!role) {
-        await supabase.auth.signOut().catch(() => {});
-        toast({
-          title: "Session réinitialisée",
-          description: "Veuillez vous reconnecter.",
-        });
-        return;
-      }
-
+      // Role-based redirect (handles legacy users missing user_roles via fallback inference)
+      const { redirectPath } = await getRoleRedirect(session.user.id);
       navigate(redirectPath, { replace: true });
     };
 
     checkAuthStatus();
-  }, [navigate, toast]);
+  }, [navigate]);
 
   const handleNext = async () => {
     if (!emailOrPhone.trim()) {
