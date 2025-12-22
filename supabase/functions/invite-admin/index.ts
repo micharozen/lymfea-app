@@ -66,35 +66,39 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Verify authentication
+    // Verify authentication using the JWT token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error("Missing Authorization header");
       return jsonResponse({ error: "unauthorized" }, 401);
     }
 
-    const supabaseClient = createClient(
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      console.error("Missing token in Authorization header");
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+
+    // Use the service role client to verify the JWT and get the user
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } },
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     const {
       data: { user },
       error: userError,
-    } = await supabaseClient.auth.getUser();
+    } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       console.error("Invalid authentication:", userError);
       return jsonResponse({ error: "invalid_authentication" }, 401);
     }
 
-    // Initialize Supabase admin client
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
+    console.log("Authenticated user:", user.id, user.email);
 
-    // Verify admin role
+    // Verify admin role (reuse supabaseAdmin)
     const { data: roles, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
