@@ -216,18 +216,18 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         {view === 1 && (
           <div className="flex flex-col">
             {/* Header */}
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold">Nouvelle réservation</h2>
-              <p className="text-sm text-muted-foreground">Informations client et contexte</p>
+            <div className="px-6 py-5 border-b bg-muted/20">
+              <h2 className="text-lg font-semibold tracking-tight">Nouvelle réservation</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">Informations client et contexte</p>
             </div>
 
             {/* Form Body */}
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-6 space-y-5">
               {/* Row 1: Hotel */}
-              <div>
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="mt-1.5 h-10">
+                  <SelectTrigger className="h-11">
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -237,31 +237,31 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               </div>
 
               {/* Row 2: First Name / Last Name */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Prénom *</Label>
-                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="mt-1.5 h-10" placeholder="Prénom" />
+                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-11" placeholder="Prénom" />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Nom *</Label>
-                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="mt-1.5 h-10" placeholder="Nom" />
+                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-11" placeholder="Nom" />
                 </div>
               </div>
 
               {/* Row 3: Phone */}
-              <div>
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">Téléphone *</Label>
-                <div className="flex gap-2 mt-1.5">
+                <div className="flex gap-3">
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-24 min-h-10 h-10 px-2 justify-between font-normal box-border">
+                      <Button variant="outline" className="w-[100px] h-11 px-3 justify-between font-normal">
                         {countries.find(c => c.code === countryCode)?.flag} {countryCode}
-                        <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
+                        <ChevronsUpDown className="h-3.5 w-3.5 opacity-50 ml-1" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0 border shadow-lg">
+                    <PopoverContent className="w-52 p-0 border shadow-lg">
                       <Command>
-                        <CommandInput placeholder="Rechercher..." className="h-9 border-b" />
+                        <CommandInput placeholder="Rechercher..." className="h-10 border-b" />
                         <CommandList>
                           <CommandEmpty>Non trouvé</CommandEmpty>
                           <CommandGroup>
@@ -279,25 +279,25 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <Input 
                     value={phone} 
                     onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
-                    className="flex-1 h-10" 
+                    className="flex-1 h-11" 
                     placeholder="Numéro de téléphone" 
                   />
                 </div>
               </div>
 
               {/* Row 4: Room */}
-              <div>
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">Chambre</Label>
-                <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="mt-1.5 h-10" placeholder="N° chambre" />
+                <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-11" placeholder="N° chambre (optionnel)" />
               </div>
 
-              {/* Row 5: Date / Time - same height and aligned */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              {/* Row 5: Date / Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full mt-1.5 min-h-10 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground box-border", !date && "text-muted-foreground")}>
+                      <Button variant="outline" className={cn("w-full h-11 justify-start font-normal", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                         {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
                       </Button>
@@ -307,13 +307,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Heure *</Label>
                   <Select 
                     value={time || ''} 
                     onValueChange={setTime}
                   >
-                    <SelectTrigger className="mt-1.5 min-h-10 h-10 box-border">
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                     <SelectContent>
@@ -332,12 +332,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              {/* Row 5: Hairdresser (Admin only) */}
+              {/* Row 6: Hairdresser (Admin only) */}
               {isAdmin && (
-                <div>
+                <div className="space-y-2">
                   <Label className="text-sm font-medium">Coiffeur / Staff</Label>
                   <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
-                    <SelectTrigger className="mt-1.5 h-10">
+                    <SelectTrigger className="h-11">
                       <SelectValue placeholder="Non assigné" />
                     </SelectTrigger>
                     <SelectContent>
@@ -351,9 +351,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
             {/* Footer */}
             <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/30">
-              <Button type="button" variant="ghost" onClick={close}>Annuler</Button>
-              <Button type="button" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
-                Services <ArrowRight className="ml-2 h-4 w-4" />
+              <Button type="button" variant="ghost" onClick={close} className="h-10">Annuler</Button>
+              <Button type="button" onClick={next} className="h-10 bg-foreground text-background hover:bg-foreground/90">
+                Continuer <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>
