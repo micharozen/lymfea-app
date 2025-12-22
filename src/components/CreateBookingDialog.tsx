@@ -225,7 +225,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="h-9 text-sm">
+                  <SelectTrigger className="h-9 min-h-9 text-sm">
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -253,7 +253,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <div className="flex gap-1.5 items-stretch">
                     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[80px] h-9 min-h-9 px-2 justify-between font-normal text-sm shrink-0">
+                        <Button variant="outline" className="w-[80px] h-9 min-h-9 px-2 justify-between font-normal text-sm shrink-0 hover:bg-transparent">
                           {countries.find(c => c.code === countryCode)?.flag} {countryCode}
                           <ChevronsUpDown className="h-3 w-3 opacity-50" />
                         </Button>
@@ -295,7 +295,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <Label className="text-xs font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-9 justify-start font-normal text-sm", !date && "text-muted-foreground")}>
+                      <Button variant="outline" className={cn("w-full h-9 min-h-9 justify-start font-normal text-sm hover:bg-transparent", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                         {date ? format(date, "dd/MM/yy", { locale: fr }) : "Date"}
                       </Button>
@@ -308,7 +308,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Heure *</Label>
                   <Select value={time || ''} onValueChange={setTime}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-9 min-h-9 text-sm">
                       <SelectValue placeholder="Heure" />
                     </SelectTrigger>
                     <SelectContent>
@@ -328,7 +328,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Coiffeur / Staff</Label>
                   <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
-                    <SelectTrigger className="h-9 text-sm">
+                    <SelectTrigger className="h-9 min-h-9 text-sm">
                       <SelectValue placeholder="Non assigné" />
                     </SelectTrigger>
                     <SelectContent>
