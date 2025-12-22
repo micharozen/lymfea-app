@@ -32,8 +32,6 @@ import { fr } from "date-fns/locale";
 import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TimePickerWheel } from "@/components/ui/time-picker-wheel";
-import { Clock } from "lucide-react";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -311,29 +309,38 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        className={cn(
-                          "w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground",
-                          !time && "text-muted-foreground"
-                        )}
-                      >
-                        <Clock className="mr-2 h-4 w-4" />
-                        {time || "Sélectionner l'heure"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
-                      <TimePickerWheel
-                        value={time}
-                        onChange={setTime}
-                        minHour={7}
-                        maxHour={23}
-                        minuteStep={10}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex gap-2 mt-1.5">
+                    <Select 
+                      value={time ? time.split(':')[0] : ''} 
+                      onValueChange={(h) => setTime(`${h}:${time?.split(':')[1] || '00'}`)}
+                    >
+                      <SelectTrigger className="h-10 flex-1">
+                        <SelectValue placeholder="Heure" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 17 }, (_, i) => i + 7).map(h => (
+                          <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+                            {h.toString().padStart(2, '0')}h
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select 
+                      value={time ? time.split(':')[1] : ''} 
+                      onValueChange={(m) => setTime(`${time?.split(':')[0] || '07'}:${m}`)}
+                    >
+                      <SelectTrigger className="h-10 w-20">
+                        <SelectValue placeholder="Min" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0, 10, 20, 30, 40, 50].map(m => (
+                          <SelectItem key={m} value={m.toString().padStart(2, '0')}>
+                            {m.toString().padStart(2, '0')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
