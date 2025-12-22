@@ -286,9 +286,9 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-auto">
       <div className="max-w-7xl mx-auto w-full p-3 md:p-4">
-        <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2 sticky top-0 bg-background z-20 py-2">
+        <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2 sticky top-0 bg-background z-20 py-2 -mx-3 md:-mx-4 px-3 md:px-4">
           <h1 className="text-xl md:text-3xl font-bold text-foreground flex items-center gap-2">
             📅 Réservations
           </h1>
