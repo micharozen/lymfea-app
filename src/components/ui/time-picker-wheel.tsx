@@ -95,10 +95,11 @@ export function TimePickerWheel({
         />
         <div
           ref={hourRef}
-          className="relative z-10 overflow-y-auto scrollbar-hide"
+          className="relative z-10 w-16 overflow-y-auto touch-pan-y overscroll-contain"
           style={{
             height: ITEM_HEIGHT * VISIBLE_ITEMS,
             scrollSnapType: "y mandatory",
+            WebkitOverflowScrolling: "touch",
           }}
           onScroll={() => handleScroll(hourRef, hours, setSelectedHour)}
         >
@@ -138,10 +139,11 @@ export function TimePickerWheel({
         />
         <div
           ref={minuteRef}
-          className="relative z-10 overflow-y-auto scrollbar-hide"
+          className="relative z-10 w-16 overflow-y-auto touch-pan-y overscroll-contain"
           style={{
             height: ITEM_HEIGHT * VISIBLE_ITEMS,
             scrollSnapType: "y mandatory",
+            WebkitOverflowScrolling: "touch",
           }}
           onScroll={() => handleScroll(minuteRef, minutes, setSelectedMinute)}
         >
