@@ -272,41 +272,48 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader>
+      <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
+        <CardHeader className="pb-2">
           <CardTitle className="text-xl font-bold text-foreground">Vue d&apos;ensemble</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-0">
           {hotelData.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-muted-foreground font-normal">Nom de l&apos;hôtel</TableHead>
-                  <TableHead className="text-muted-foreground font-normal">Ventes totales</TableHead>
-                  <TableHead className="text-muted-foreground font-normal">Réservations totales</TableHead>
-                  <TableHead className="text-muted-foreground font-normal">Sessions totales</TableHead>
-                  <TableHead className="text-muted-foreground font-normal">Annulations totales</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {hotelData.map((hotel, index) => (
-                  <TableRow key={index} className="h-10">
-                    <TableCell className="py-2 flex items-center gap-2">
-                      <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-xs">
-                        🏨
-                      </div>
-                      <span className="font-medium">{hotel.name}</span>
-                    </TableCell>
-                    <TableCell className="py-2">{hotel.totalSales}</TableCell>
-                    <TableCell className="py-2">{hotel.totalBookings}</TableCell>
-                    <TableCell className="py-2">{hotel.totalSessions}</TableCell>
-                    <TableCell className="py-2">{hotel.totalCancelled}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-border/50 hover:bg-transparent">
+                    <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3">Nom de l&apos;hôtel</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">Ventes totales</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">Réservations</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">Sessions</TableHead>
+                    <TableHead className="text-muted-foreground font-medium text-xs uppercase tracking-wider whitespace-nowrap px-6 py-3 text-right">Annulations</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {hotelData.map((hotel, index) => (
+                    <TableRow 
+                      key={index} 
+                      className="border-b border-border/30 last:border-0 hover:bg-accent/50 transition-colors"
+                    >
+                      <TableCell className="py-4 px-6 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-sm shrink-0">
+                            🏨
+                          </div>
+                          <span className="font-semibold text-base text-foreground">{hotel.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4 px-6 whitespace-nowrap text-right font-medium tabular-nums">{hotel.totalSales}</TableCell>
+                      <TableCell className="py-4 px-6 whitespace-nowrap text-right font-medium tabular-nums text-muted-foreground">{hotel.totalBookings}</TableCell>
+                      <TableCell className="py-4 px-6 whitespace-nowrap text-right font-medium tabular-nums text-muted-foreground">{hotel.totalSessions}</TableCell>
+                      <TableCell className="py-4 px-6 whitespace-nowrap text-right font-medium tabular-nums text-muted-foreground">{hotel.totalCancelled}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
-            <div className="py-12 text-center">
+            <div className="py-12 text-center px-6">
               <p className="text-muted-foreground">Aucun hôtel trouvé</p>
             </div>
           )}
