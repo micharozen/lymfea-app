@@ -290,17 +290,17 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {hotelData.map((hotel, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center text-xs">
+                  <TableRow key={index} className="h-10">
+                    <TableCell className="py-2 flex items-center gap-2">
+                      <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-xs">
                         🏨
                       </div>
                       <span className="font-medium">{hotel.name}</span>
                     </TableCell>
-                    <TableCell>{hotel.totalSales}</TableCell>
-                    <TableCell>{hotel.totalBookings}</TableCell>
-                    <TableCell>{hotel.totalSessions}</TableCell>
-                    <TableCell>{hotel.totalCancelled}</TableCell>
+                    <TableCell className="py-2">{hotel.totalSales}</TableCell>
+                    <TableCell className="py-2">{hotel.totalBookings}</TableCell>
+                    <TableCell className="py-2">{hotel.totalSessions}</TableCell>
+                    <TableCell className="py-2">{hotel.totalCancelled}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
