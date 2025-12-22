@@ -634,8 +634,8 @@ export default function Booking() {
                     <TableHead className="font-medium text-muted-foreground py-2">Date</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Start time</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Status</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2">Payment</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Client name</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Client phone</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Total price</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Hotel</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Hair dresser</TableHead>
@@ -659,20 +659,22 @@ export default function Booking() {
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">
-                        {booking.booking_time.substring(0, 5).replace(':', ':')}PM
+                        {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell className="py-2">
                         <Badge variant="outline" className={`${getStatusColor(booking.status)} text-xs px-3 py-0.5`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
+                      <TableCell className="py-2">
+                        <Badge variant="outline" className={`${getPaymentStatusConfig(booking.payment_status || 'pending').badgeClass} text-xs px-3 py-0.5`}>
+                          {getPaymentStatusConfig(booking.payment_status || 'pending').label}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">
-                        {booking.phone || "-"}
-                      </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">€{booking.total_price?.toFixed(2) || "0.00"}</TableCell>
+                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.total_price?.toFixed(2) || "0.00"}€</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2">
