@@ -314,9 +314,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       <SelectValue placeholder="Sélectionner l'heure" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
-                      {Array.from({ length: 24 * 6 }, (_, i) => {
-                        const hours = Math.floor(i / 6);
-                        const minutes = (i % 6) * 10;
+                      {Array.from({ length: (23 - 7) * 6 + 1 }, (_, i) => {
+                        const totalMinutes = 7 * 60 + i * 10;
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
                         const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
                         return (
                           <SelectItem key={timeValue} value={timeValue}>
