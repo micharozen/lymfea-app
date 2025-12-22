@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
+import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
 const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
@@ -30,46 +31,46 @@ const Auth = () => {
     const checkAuthStatus = async () => {
       // Check for auth token in URL hash (from email link)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const type = hashParams.get('type');
-      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get("type");
+      const accessToken = hashParams.get("access_token");
 
       // Also check URL search params for explicit flow marker from our invite email
       const searchParams = new URLSearchParams(window.location.search);
-      const flow = searchParams.get('flow'); // 'invite' | 'recovery'
-      
+      const flow = searchParams.get("flow"); // 'invite' | 'recovery'
+
       // If there's an access token and type is invite/recovery/signup, redirect to set-password
-      if (accessToken && (type === 'invite' || type === 'recovery' || type === 'signup')) {
-        console.log('Invitation/recovery/signup link detected, redirecting to /set-password');
+      if (accessToken && (type === "invite" || type === "recovery" || type === "signup")) {
+        console.log("Invitation/recovery/signup link detected, redirecting to /set-password");
         navigate("/set-password" + window.location.hash + window.location.search, { replace: true });
         return;
       }
 
       // If we were redirected with a flow marker, redirect to set-password
-      if (flow === 'invite' || flow === 'recovery') {
-        console.log('Flow marker detected in query params, redirecting to /set-password');
+      if (flow === "invite" || flow === "recovery") {
+        console.log("Flow marker detected in query params, redirecting to /set-password");
         navigate("/set-password" + window.location.search, { replace: true });
         return;
       }
 
       // Otherwise check if already authenticated
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Check user role to redirect appropriately
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .single();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (roles?.role === 'admin' || roles?.role === 'concierge') {
-          navigate("/admin", { replace: true });
-        } else if (roles?.role === 'hairdresser') {
-          navigate("/pwa/dashboard", { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
+      if (!session?.user) return;
+
+      // Role-based redirect. If no role is assigned, force a clean sign-out so the user can access /auth.
+      const { role, redirectPath } = await getRoleRedirect(session.user.id);
+      if (!role) {
+        await supabase.auth.signOut().catch(() => {});
+        toast({
+          title: "Session réinitialisée",
+          description: "Veuillez vous reconnecter.",
+        });
         return;
       }
+
+      navigate(redirectPath, { replace: true });
     };
 
     checkAuthStatus();
