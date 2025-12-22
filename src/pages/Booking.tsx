@@ -286,9 +286,9 @@ export default function Booking() {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      <div className="max-w-7xl mx-auto w-full flex flex-col h-full p-3 md:p-4">
-        <div className="mb-2 flex flex-col md:flex-row md:items-center justify-between gap-2 flex-shrink-0">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-7xl mx-auto w-full p-3 md:p-4">
+        <div className="mb-4 flex flex-col md:flex-row md:items-center justify-between gap-2 sticky top-0 bg-background z-20 py-2">
           <h1 className="text-xl md:text-3xl font-bold text-foreground flex items-center gap-2">
             📅 Réservations
           </h1>
@@ -318,8 +318,8 @@ export default function Booking() {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg border border-border flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="p-2 md:p-3 border-b border-border flex-shrink-0">
+        <div className="bg-card rounded-lg border border-border">
+          <div className="p-2 md:p-3 border-b border-border sticky top-14 bg-card z-10">
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center justify-between">
               <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center flex-1">
                 <div className="relative flex-1 min-w-0">
@@ -637,10 +637,10 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="flex-1 overflow-auto">
+            <div>
+              <div>
                 <Table className="text-xs w-full table-fixed">
-                  <TableHeader className="sticky top-0 bg-card z-10">
+                  <TableHeader className="sticky top-[106px] bg-card z-10">
                     <TableRow className="border-b h-10">
                       <TableHead className="font-semibold text-foreground py-2 w-[50px]">ID</TableHead>
                       <TableHead className="font-semibold text-foreground py-2 w-[70px]">Date</TableHead>
