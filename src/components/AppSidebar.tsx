@@ -190,19 +190,20 @@ export function AppSidebar() {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
+    // Si session_not_found, la session est déjà invalide - on nettoie quand même
+    if (error && !error.message?.includes("session_not_found") && error.status !== 403) {
       toast({
         title: "Erreur",
         description: "Impossible de se déconnecter",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Déconnexion réussie",
-        description: "À bientôt !",
-      });
-      navigate("/auth");
+      return;
     }
+    toast({
+      title: "Déconnexion réussie",
+      description: "À bientôt !",
+    });
+    navigate("/auth");
   };
 
   return (
