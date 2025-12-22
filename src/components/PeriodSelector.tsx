@@ -161,7 +161,7 @@ export function PeriodSelector({ onPeriodChange }: PeriodSelectorProps) {
           <ChevronDown className="ml-2 h-4 w-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[240px] p-0 bg-card border border-border" align="end">
+      <PopoverContent className="w-auto p-0 bg-card border border-border shadow-lg z-50" align="end">
         {!showCustomCalendar ? (
           <div className="p-2">
             {periods.map((period) => (
