@@ -171,8 +171,8 @@ export default function Booking() {
     
     // Get actual header height (title + filters)
     const headerHeight = headerRef.current?.offsetHeight || 120;
-    // Pagination height
-    const paginationHeight = 48; // fixed height for pagination row
+    // Pagination height (0 when hidden)
+    const paginationHeight = paginationRef.current?.offsetHeight || 0;
     // Content padding (px-4 pb-4 = 16px each side roughly)
     const contentPadding = 32;
     
@@ -250,6 +250,14 @@ export default function Booking() {
 
     return matchesSearch && matchesStatus && matchesHotel && matchesHairdresser;
   });
+
+  const paginatedBookings =
+    filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
+
+  // Keep layout stable across pagination: render empty rows to fill the table height
+  const totalListColumns = 11;
+  const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
+  const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
   const handleCalendarClick = (date: Date, time: string) => {
     setSelectedDate(date);
@@ -675,14 +683,15 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div>
-              <Table className="text-sm w-full">
+            <div className="h-full flex flex-col">
+              <Table className="text-sm w-full table-fixed">
                 <TableHeader>
                   <TableRow className="border-b h-10 bg-muted/30">
                     <TableHead className="font-medium text-muted-foreground py-2">Booking ID</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Date</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Start time</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Status</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2">Payment</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Client name</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Client phone</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Total price</TableHead>
@@ -691,11 +700,10 @@ export default function Booking() {
                     <TableHead className="font-medium text-muted-foreground py-2">Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
-                  {filteredBookings
-                    ?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                    .map((booking) => (
-                    <TableRow 
+                  {paginatedBookings.map((booking) => (
+                    <TableRow
                       key={booking.id}
                       className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-11"
                       onClick={() => {
@@ -711,21 +719,26 @@ export default function Booking() {
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell className="py-2">
-                        <Badge className={`${getStatusColor(booking.status)} text-xs px-3 py-0.5 border`}>
-                          {getTranslatedStatus(booking.status)}
-                        </Badge>
+                        <StatusBadge status={booking.status} type="booking" className="text-xs px-3 py-0.5" />
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <StatusBadge
+                          status={booking.payment_status || "pending"}
+                          type="payment"
+                          className="text-xs px-3 py-0.5"
+                        />
                       </TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
+                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.phone || "-"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">
-                        {booking.phone || "-"}
+                        €{booking.total_price?.toFixed(2) || "0.00"}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">€{booking.total_price?.toFixed(2) || "0.00"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2">
-                        {(booking.stripe_invoice_url || booking.payment_status === 'paid' || booking.status === 'completed') && (
+                        {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -733,18 +746,20 @@ export default function Booking() {
                             onClick={(e) => {
                               e.stopPropagation();
                               if (booking.stripe_invoice_url) {
-                                window.open(booking.stripe_invoice_url, '_blank');
+                                window.open(booking.stripe_invoice_url, "_blank");
                               } else {
                                 // Generate invoice
-                                supabase.functions.invoke('generate-invoice', {
-                                  body: { bookingId: booking.id }
-                                }).then(({ data, error }) => {
-                                  if (!error && data) {
-                                    setInvoiceHTML(data.html);
-                                    setInvoiceBookingId(data.bookingId);
-                                    setIsInvoicePreviewOpen(true);
-                                  }
-                                });
+                                supabase.functions
+                                  .invoke("generate-invoice", {
+                                    body: { bookingId: booking.id },
+                                  })
+                                  .then(({ data, error }) => {
+                                    if (!error && data) {
+                                      setInvoiceHTML(data.html);
+                                      setInvoiceBookingId(data.bookingId);
+                                      setIsInvoicePreviewOpen(true);
+                                    }
+                                  });
                               }
                             }}
                           >
@@ -755,18 +770,31 @@ export default function Booking() {
                       </TableCell>
                     </TableRow>
                   ))}
+
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={totalListColumns} className="text-center text-muted-foreground py-8">
                         No bookings found
                       </TableCell>
                     </TableRow>
                   )}
+
+                  {filteredBookings?.length
+                    ? Array.from({ length: emptyRowsCount }).map((_, idx) => (
+                        <TableRow key={`empty-${idx}`} className="h-11 border-b">
+                          <TableCell colSpan={totalListColumns} className="py-2">&nbsp;</TableCell>
+                        </TableRow>
+                      ))
+                    : null}
                 </TableBody>
               </Table>
+
               {/* Pagination */}
               {filteredBookings && filteredBookings.length > itemsPerPage && (
-                <div className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card">
+                <div
+                  ref={paginationRef}
+                  className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card"
+                >
                   <div className="text-sm text-muted-foreground">
                     Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings.length)} on {filteredBookings.length} entries
                   </div>
@@ -774,17 +802,18 @@ export default function Booking() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
                     >
                       Previous
                     </Button>
-                    {Array.from({ length: Math.ceil(filteredBookings.length / itemsPerPage) }, (_, i) => i + 1)
-                      .filter(page => {
-                        const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
-                        return page === 1 || 
-                               page === totalPages ||
-                               (page >= currentPage - 1 && page <= currentPage + 1);
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 1 && page <= currentPage + 1)
+                        );
                       })
                       .map((page, idx, arr) => (
                         <div key={page} className="flex items-center">
@@ -804,8 +833,8 @@ export default function Booking() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredBookings.length / itemsPerPage), p + 1))}
-                      disabled={currentPage === Math.ceil(filteredBookings.length / itemsPerPage)}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
                     >
                       Next
                     </Button>
