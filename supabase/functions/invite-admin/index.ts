@@ -73,12 +73,18 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse({ error: "unauthorized" }, 401);
     }
 
-    // Extract the JWT token from the Authorization header
-    const token = authHeader.replace("Bearer ", "");
+    // Extract the JWT token from the Authorization header (robust to casing/spacing)
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+
     if (!token) {
-      console.error("Missing token in Authorization header");
+      console.error("Invalid Authorization header format");
       return jsonResponse({ error: "unauthorized" }, 401);
     }
+
+    // Safe debug (no token logged)
+    const jwtLooksValid = token.split(".").length === 3;
+    console.log("Auth received:", { hasBearer: !!match, jwtLooksValid });
 
     // Use the service role client to verify the JWT and get the user
     const supabaseAdmin = createClient(
