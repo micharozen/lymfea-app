@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
+import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
 const UpdatePassword = () => {
   const [newPassword, setNewPassword] = useState("");
@@ -110,8 +111,9 @@ const UpdatePassword = () => {
         description: "Votre mot de passe a été mis à jour",
       });
 
-      // Redirect to admin dashboard
-      navigate("/admin", { replace: true });
+      // Role-based redirect
+      const { redirectPath } = await getRoleRedirect(user.id);
+      navigate(redirectPath, { replace: true });
     } catch (error: any) {
       console.error("Password update error:", error);
       toast({

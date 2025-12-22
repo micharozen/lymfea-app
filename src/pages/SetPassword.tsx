@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Check, X } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
 import { z } from "zod";
+import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
 const passwordSchema = z
   .string()
@@ -128,6 +129,12 @@ const SetPassword = () => {
           .from("admins")
           .update({ status: "Actif" })
           .eq("user_id", data.user.id);
+
+        // Also update hairdresser if applicable
+        await supabase
+          .from("hairdressers")
+          .update({ password_set: true })
+          .eq("user_id", data.user.id);
       }
 
       toast({
@@ -135,8 +142,13 @@ const SetPassword = () => {
         description: "Votre compte est maintenant actif. Connexion en cours...",
       });
 
-      // User is automatically logged in after password update
-      navigate("/", { replace: true });
+      // Role-based redirect
+      if (data.user) {
+        const { redirectPath } = await getRoleRedirect(data.user.id);
+        navigate(redirectPath, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
     } catch (error: any) {
       toast({
         title: "Erreur",
