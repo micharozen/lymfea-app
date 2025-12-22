@@ -309,13 +309,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <div className="flex gap-2 mt-1.5">
+                  <div className="flex gap-1.5 mt-1.5">
                     <Select 
                       value={time ? time.split(':')[0] : ''} 
                       onValueChange={(h) => setTime(`${h}:${time?.split(':')[1] || '00'}`)}
                     >
-                      <SelectTrigger className="h-10 flex-1">
-                        <SelectValue placeholder="Heure" />
+                      <SelectTrigger className="h-9 w-[70px] text-sm">
+                        <SelectValue placeholder="HH" />
                       </SelectTrigger>
                       <SelectContent>
                         {Array.from({ length: 17 }, (_, i) => i + 7).map(h => (
@@ -325,12 +325,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                         ))}
                       </SelectContent>
                     </Select>
+                    <span className="flex items-center text-muted-foreground">:</span>
                     <Select 
                       value={time ? time.split(':')[1] : ''} 
                       onValueChange={(m) => setTime(`${time?.split(':')[0] || '07'}:${m}`)}
                     >
-                      <SelectTrigger className="h-10 w-20">
-                        <SelectValue placeholder="Min" />
+                      <SelectTrigger className="h-9 w-[60px] text-sm">
+                        <SelectValue placeholder="MM" />
                       </SelectTrigger>
                       <SelectContent>
                         {[0, 10, 20, 30, 40, 50].map(m => (
