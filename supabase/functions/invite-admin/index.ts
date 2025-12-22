@@ -143,7 +143,8 @@ serve(async (req: Request): Promise<Response> => {
     // Generate a secure password
     const generatedPassword = generatePassword();
 
-    // Create the user with the generated password
+    // Try to create the user first
+    let userId: string | undefined;
     const { data: userData, error: createError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -156,14 +157,69 @@ serve(async (req: Request): Promise<Response> => {
       });
 
     if (createError) {
-      console.error("Error creating user:", createError);
-      // common case: user already exists
-      const msg = (createError as any)?.message || "create_user_failed";
-      const status = msg.toLowerCase().includes("already") ? 409 : 500;
-      return jsonResponse({ error: "create_user_failed", details: msg }, status);
-    }
+      // If user already exists, update their password and resend email
+      const msg = (createError as any)?.message || "";
+      const alreadyExists = msg.toLowerCase().includes("already");
 
-    console.log("User created:", userData.user?.id);
+      if (alreadyExists) {
+        console.log("User already exists, fetching and updating password...");
+
+        // List users to find the existing one
+        const { data: usersList, error: listError } =
+          await supabaseAdmin.auth.admin.listUsers();
+
+        if (listError) {
+          console.error("Error listing users:", listError);
+          return jsonResponse(
+            { error: "list_users_failed", details: listError.message },
+            500,
+          );
+        }
+
+        const existingUser = usersList.users.find(
+          (u) => u.email?.toLowerCase() === email.toLowerCase(),
+        );
+
+        if (!existingUser) {
+          console.error("User said to exist but not found in list");
+          return jsonResponse(
+            { error: "user_not_found", details: "Conflict but user not found" },
+            500,
+          );
+        }
+
+        userId = existingUser.id;
+
+        // Update user password
+        const { error: updateError } =
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
+            password: generatedPassword,
+            user_metadata: {
+              first_name: firstName,
+              last_name: lastName,
+            },
+          });
+
+        if (updateError) {
+          console.error("Error updating user password:", updateError);
+          return jsonResponse(
+            { error: "update_user_failed", details: updateError.message },
+            500,
+          );
+        }
+
+        console.log("User password updated:", userId);
+      } else {
+        console.error("Error creating user:", createError);
+        return jsonResponse(
+          { error: "create_user_failed", details: msg },
+          500,
+        );
+      }
+    } else {
+      userId = userData.user?.id;
+      console.log("User created:", userId);
+    }
 
     // Send email with login credentials
     const resendResponse = await fetch("https://api.resend.com/emails", {
