@@ -176,7 +176,8 @@ const PwaProfile = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // On ignore l'erreur si la session n'existe plus côté serveur
+    await supabase.auth.signOut().catch(() => {});
     toast.success(t('common:toasts.success'));
     navigate("/pwa/login");
   };
