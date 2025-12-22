@@ -299,7 +299,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner une date"}
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -309,39 +309,26 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <div className="flex gap-1.5 mt-1.5">
-                    <Select 
-                      value={time ? time.split(':')[0] : ''} 
-                      onValueChange={(h) => setTime(`${h}:${time?.split(':')[1] || '00'}`)}
-                    >
-                      <SelectTrigger className="h-9 w-[70px] text-sm">
-                        <SelectValue placeholder="HH" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 17 }, (_, i) => i + 7).map(h => (
-                          <SelectItem key={h} value={h.toString().padStart(2, '0')}>
-                            {h.toString().padStart(2, '0')}h
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="flex items-center text-muted-foreground">:</span>
-                    <Select 
-                      value={time ? time.split(':')[1] : ''} 
-                      onValueChange={(m) => setTime(`${time?.split(':')[0] || '07'}:${m}`)}
-                    >
-                      <SelectTrigger className="h-9 w-[60px] text-sm">
-                        <SelectValue placeholder="MM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0, 10, 20, 30, 40, 50].map(m => (
-                          <SelectItem key={m} value={m.toString().padStart(2, '0')}>
-                            {m.toString().padStart(2, '0')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Select 
+                    value={time || ''} 
+                    onValueChange={setTime}
+                  >
+                    <SelectTrigger className="mt-1.5 h-10">
+                      <SelectValue placeholder="Sélectionner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 17 }, (_, i) => i + 7).flatMap(h => 
+                        [0, 30].map(m => {
+                          const timeValue = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                          return (
+                            <SelectItem key={timeValue} value={timeValue}>
+                              {timeValue}
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
