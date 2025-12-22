@@ -207,27 +207,25 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "p-0 gap-0 flex flex-col overflow-hidden border shadow-2xl rounded-xl",
-        view === 1 ? "sm:max-w-[420px]" : "sm:max-w-[600px] max-h-[70vh]"
+        "p-0 gap-0 flex flex-col overflow-hidden border shadow-2xl rounded-xl h-auto",
+        view === 1 ? "max-w-[460px] max-h-[85vh]" : "max-w-[580px] max-h-[85vh]"
       )}>
-        {/* ══════════════════════════════════════════════════════════════════
-            VIEW 1: CLIENT & CONTEXT FORM
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* VIEW 1: COMPACT CLIENT FORM */}
         {view === 1 && (
-          <div className="flex flex-col">
-            {/* Header */}
-            <div className="px-6 py-5 border-b bg-muted/20">
-              <h2 className="text-lg font-semibold tracking-tight">Nouvelle réservation</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">Informations client et contexte</p>
+          <div className="flex flex-col max-h-[85vh]">
+            {/* Header - Compact */}
+            <div className="px-5 py-3 border-b bg-muted/20">
+              <h2 className="text-base font-semibold tracking-tight">Nouvelle réservation</h2>
+              <p className="text-xs text-muted-foreground">Informations client</p>
             </div>
 
-            {/* Form Body */}
-            <div className="px-6 py-6 space-y-5">
-              {/* Row 1: Hotel */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Hôtel *</Label>
+            {/* Form Body - Compact with scroll */}
+            <div className="px-5 py-4 space-y-3 overflow-y-auto">
+              {/* Hotel */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -236,95 +234,88 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </Select>
               </div>
 
-              {/* Row 2: First Name / Last Name */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Prénom *</Label>
-                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-11" placeholder="Prénom" />
+              {/* Prénom / Nom - Same row */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Prénom *</Label>
+                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-9 text-sm" placeholder="Prénom" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Nom *</Label>
-                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-11" placeholder="Nom" />
-                </div>
-              </div>
-
-              {/* Row 3: Phone */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Téléphone *</Label>
-                <div className="flex gap-3">
-                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[100px] h-11 px-3 justify-between font-normal">
-                        {countries.find(c => c.code === countryCode)?.flag} {countryCode}
-                        <ChevronsUpDown className="h-3.5 w-3.5 opacity-50 ml-1" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-52 p-0 border shadow-lg">
-                      <Command>
-                        <CommandInput placeholder="Rechercher..." className="h-10 border-b" />
-                        <CommandList>
-                          <CommandEmpty>Non trouvé</CommandEmpty>
-                          <CommandGroup>
-                            {countries.map(c => (
-                              <CommandItem key={c.code} value={c.code} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }}>
-                                <Check className={cn("mr-2 h-4 w-4", countryCode === c.code ? "opacity-100" : "opacity-0")} />
-                                {c.flag} {c.label} ({c.code})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <Input 
-                    value={phone} 
-                    onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
-                    className="flex-1 h-11" 
-                    placeholder="Numéro de téléphone" 
-                  />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Nom *</Label>
+                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-9 text-sm" placeholder="Nom" />
                 </div>
               </div>
 
-              {/* Row 4: Room */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Chambre</Label>
-                <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-11" placeholder="N° chambre (optionnel)" />
+              {/* Phone + Room - Same row */}
+              <div className="grid grid-cols-[1fr_100px] gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Téléphone *</Label>
+                  <div className="flex gap-1.5">
+                    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-[80px] h-9 px-2 justify-between font-normal text-sm">
+                          {countries.find(c => c.code === countryCode)?.flag} {countryCode}
+                          <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-48 p-0 border shadow-lg z-50">
+                        <Command>
+                          <CommandInput placeholder="Rechercher..." className="h-8 text-sm" />
+                          <CommandList>
+                            <CommandEmpty>Non trouvé</CommandEmpty>
+                            <CommandGroup>
+                              {countries.map(c => (
+                                <CommandItem key={c.code} value={c.code} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="text-sm">
+                                  <Check className={cn("mr-2 h-3.5 w-3.5", countryCode === c.code ? "opacity-100" : "opacity-0")} />
+                                  {c.flag} {c.label} ({c.code})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <Input 
+                      value={phone} 
+                      onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
+                      className="flex-1 h-9 text-sm" 
+                      placeholder="Numéro" 
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Chambre</Label>
+                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-9 text-sm" placeholder="N°" />
+                </div>
               </div>
 
-              {/* Row 5: Date / Time */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Date *</Label>
+              {/* Date / Time - Same row */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-11 justify-start font-normal", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
+                      <Button variant="outline" className={cn("w-full h-9 justify-start font-normal text-sm", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                        {date ? format(date, "dd/MM/yy", { locale: fr }) : "Date"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
                       <Calendar mode="single" selected={date} onSelect={d => { setDate(d); setDatePopoverOpen(false); }} initialFocus locale={fr} className="pointer-events-auto" />
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Heure *</Label>
-                  <Select 
-                    value={time || ''} 
-                    onValueChange={setTime}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Sélectionner" />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Heure *</Label>
+                  <Select value={time || ''} onValueChange={setTime}>
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Heure" />
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 17 }, (_, i) => i + 7).flatMap(h => 
                         [0, 30].map(m => {
                           const timeValue = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                          return (
-                            <SelectItem key={timeValue} value={timeValue}>
-                              {timeValue}
-                            </SelectItem>
-                          );
+                          return <SelectItem key={timeValue} value={timeValue}>{timeValue}</SelectItem>;
                         })
                       )}
                     </SelectContent>
@@ -332,12 +323,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              {/* Row 6: Hairdresser (Admin only) */}
+              {/* Hairdresser (Admin only) */}
               {isAdmin && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Coiffeur / Staff</Label>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Coiffeur / Staff</Label>
                   <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
-                    <SelectTrigger className="h-11">
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Non assigné" />
                     </SelectTrigger>
                     <SelectContent>
@@ -349,11 +340,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               )}
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/30">
-              <Button type="button" variant="ghost" onClick={close} className="h-10">Annuler</Button>
-              <Button type="button" onClick={next} className="h-10 bg-foreground text-background hover:bg-foreground/90">
-                Continuer <ArrowRight className="ml-2 h-4 w-4" />
+            {/* Footer - Compact */}
+            <div className="px-5 py-3 border-t flex items-center justify-between bg-muted/20">
+              <Button type="button" variant="ghost" size="sm" onClick={close}>Annuler</Button>
+              <Button type="button" size="sm" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
+                Continuer <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
