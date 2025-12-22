@@ -285,19 +285,21 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              {/* Row 4: Room / Date / Time */}
-              <div className="grid grid-cols-4 gap-3">
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium">Chambre</Label>
-                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="mt-1.5 h-10" placeholder="N° chambre" />
-                </div>
+              {/* Row 4: Room */}
+              <div>
+                <Label className="text-sm font-medium">Chambre</Label>
+                <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="mt-1.5 h-10" placeholder="N° chambre" />
+              </div>
+
+              {/* Row 5: Date / Time - same height and aligned */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM", { locale: fr }) : "Date"}
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner une date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
@@ -307,7 +309,23 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <Input type="time" step="600" value={time} onChange={e => setTime(e.target.value)} className="mt-1.5 h-10" />
+                  <Select value={time} onValueChange={setTime}>
+                    <SelectTrigger className="mt-1.5 h-10">
+                      <SelectValue placeholder="Sélectionner l'heure" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {Array.from({ length: 24 * 6 }, (_, i) => {
+                        const hours = Math.floor(i / 6);
+                        const minutes = (i % 6) * 10;
+                        const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                        return (
+                          <SelectItem key={timeValue} value={timeValue}>
+                            {timeValue}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
