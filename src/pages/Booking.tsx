@@ -638,72 +638,67 @@ export default function Booking() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-                <Table>
+                <Table className="text-sm">
                   <TableHeader>
-                    <TableRow className="border-b">
-                      <TableHead className="font-semibold text-foreground">Booking ID</TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4" />
+                    <TableRow className="border-b h-10">
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">ID</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="h-3.5 w-3.5" />
                           Date
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Start time
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          Heure
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
                           Durée
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">Status</TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <CreditCard className="h-4 w-4" />
+                      <TableHead className="font-semibold text-foreground py-2">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">
+                        <div className="flex items-center gap-1">
+                          <CreditCard className="h-3.5 w-3.5" />
                           Paiement
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          Client name
+                      <TableHead className="font-semibold text-foreground py-2">
+                        <div className="flex items-center gap-1">
+                          <User className="h-3.5 w-3.5" />
+                          Client
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          Client phone
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-3.5 w-3.5" />
+                          Téléphone
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">Chambre</TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Euro className="h-4 w-4" />
-                          Total price
+                      <TableHead className="font-semibold text-foreground py-2">Ch.</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
+                        <div className="flex items-center gap-1">
+                          <Euro className="h-3.5 w-3.5" />
+                          Prix
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          Hotel
+                      <TableHead className="font-semibold text-foreground py-2">
+                        <div className="flex items-center gap-1">
+                          <Building2 className="h-3.5 w-3.5" />
+                          Hôtel
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Hair dresser
+                      <TableHead className="font-semibold text-foreground py-2">
+                        <div className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />
+                          Coiffeur
                         </div>
                       </TableHead>
-                      <TableHead className="font-semibold text-foreground">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Invoice
-                        </div>
-                      </TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Facture</TableHead>
                     </TableRow>
                   </TableHeader>
                 <TableBody>
@@ -712,20 +707,20 @@ export default function Booking() {
                     .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-12"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(booking.booking_date), "dd-MM-yyyy")}
+                      <TableCell className="font-medium py-2 whitespace-nowrap">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
+                        {format(new Date(booking.booking_date), "dd/MM/yy")}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
                         {(booking as any).totalDuration > 0 
                           ? (() => {
                               const hours = Math.floor((booking as any).totalDuration / 60);
@@ -737,46 +732,47 @@ export default function Booking() {
                           : "-"
                         }
                       </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(booking.status)}>
+                      <TableCell className="py-2">
+                        <Badge className={`${getStatusColor(booking.status)} h-6 text-xs px-2`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2">
                         {(() => {
                           const badge = getPaymentStatusBadge(booking.payment_status);
                           return (
-                            <Badge className={badge.className}>
+                            <Badge className={`${badge.className} h-6 text-xs px-2`}>
                               {badge.label}
                             </Badge>
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-medium py-2 whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{booking.phone}</TableCell>
-                      <TableCell className="text-muted-foreground">{booking.room_number || "-"}</TableCell>
-                      <TableCell className="font-semibold">{booking.total_price}€</TableCell>
-                      <TableCell className="text-muted-foreground">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-muted-foreground">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">{booking.phone}</TableCell>
+                      <TableCell className="text-muted-foreground py-2">{booking.room_number || "-"}</TableCell>
+                      <TableCell className="font-semibold py-2 whitespace-nowrap">{booking.total_price}€</TableCell>
+                      <TableCell className="text-muted-foreground py-2 max-w-[120px] truncate">{booking.hotel_name || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground py-2 max-w-[100px] truncate">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-2">
                         {booking.stripe_invoice_url ? (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-7 w-7"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(booking.stripe_invoice_url, '_blank');
                             }}
                           >
-                            <FileText className="h-4 w-4 mr-2" />
-                            Invoice
+                            <FileText className="h-4 w-4" />
                           </Button>
                         ) : (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-7 w-7"
                             disabled={booking.payment_status !== 'paid' && booking.status !== 'Terminé'}
                             onClick={async (e) => {
                               e.stopPropagation();
@@ -795,8 +791,7 @@ export default function Booking() {
                               }
                             }}
                           >
-                            <FileText className="h-4 w-4 mr-2" />
-                            {booking.payment_status !== 'paid' && booking.status !== 'Terminé' ? 'En attente' : 'Invoice'}
+                            <FileText className="h-4 w-4" />
                           </Button>
                         )}
                       </TableCell>
