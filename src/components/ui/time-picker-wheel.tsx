@@ -85,6 +85,14 @@ export function TimePickerWheel({
     });
   };
 
+  const handleWheel = (ref: React.RefObject<HTMLDivElement>) => (e: React.WheelEvent) => {
+    if (!ref.current) return;
+    // Ensure mouse wheel scrolls the wheel instead of the page
+    e.preventDefault();
+    e.stopPropagation();
+    ref.current.scrollTop += e.deltaY;
+  };
+
   return (
     <div className="flex items-center gap-2 p-4">
       {/* Hours */}
@@ -101,6 +109,7 @@ export function TimePickerWheel({
             scrollSnapType: "y mandatory",
             WebkitOverflowScrolling: "touch",
           }}
+          onWheel={handleWheel(hourRef)}
           onScroll={() => handleScroll(hourRef, hours, setSelectedHour)}
         >
           <div style={{ height: ITEM_HEIGHT * 2 }} />
@@ -145,6 +154,7 @@ export function TimePickerWheel({
             scrollSnapType: "y mandatory",
             WebkitOverflowScrolling: "touch",
           }}
+          onWheel={handleWheel(minuteRef)}
           onScroll={() => handleScroll(minuteRef, minutes, setSelectedMinute)}
         >
           <div style={{ height: ITEM_HEIGHT * 2 }} />
