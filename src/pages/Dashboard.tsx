@@ -117,9 +117,12 @@ export default function Dashboard() {
   // Calculer les statistiques basées sur les vraies données
   const calculateStats = () => {
     const totalSales = filteredBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const upcomingBookings = filteredBookings.filter(b => {
       const bookingDate = parseISO(b.booking_date);
-      return bookingDate > new Date() && b.status === 'Assigné';
+      // Réservations à venir : date future et statut confirmé ou en attente
+      return bookingDate >= today && ['Confirmé', 'En attente', 'Assigné'].includes(b.status);
     }).length;
     const totalBookings = filteredBookings.length;
     const completedBookings = filteredBookings.filter(b => b.status === 'Terminé').length;
