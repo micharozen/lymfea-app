@@ -309,24 +309,40 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <Select value={time} onValueChange={setTime}>
-                    <SelectTrigger className="mt-1.5 h-10">
-                      <SelectValue placeholder="Sélectionner l'heure" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-60">
-                      {Array.from({ length: (23 - 7) * 6 + 1 }, (_, i) => {
-                        const totalMinutes = 7 * 60 + i * 10;
-                        const hours = Math.floor(totalMinutes / 60);
-                        const minutes = totalMinutes % 60;
-                        const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                        return (
-                          <SelectItem key={timeValue} value={timeValue}>
-                            {timeValue}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground", !time && "text-muted-foreground")}>
+                        {time || "Sélectionner l'heure"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-3" align="start">
+                      <div className="grid grid-cols-6 gap-1">
+                        {Array.from({ length: 17 }, (_, h) => h + 7).map(hour => (
+                          <div key={hour} className="space-y-1">
+                            <div className="text-xs font-medium text-center text-muted-foreground pb-1">{hour}h</div>
+                            {[0, 10, 20, 30, 40, 50].map(min => {
+                              const timeValue = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+                              return (
+                                <button
+                                  key={timeValue}
+                                  type="button"
+                                  onClick={() => setTime(timeValue)}
+                                  className={cn(
+                                    "w-full text-xs py-1 px-1 rounded transition-colors",
+                                    time === timeValue 
+                                      ? "bg-primary text-primary-foreground" 
+                                      : "hover:bg-muted"
+                                  )}
+                                >
+                                  :{min.toString().padStart(2, '0')}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
