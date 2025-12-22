@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SITE_URL = Deno.env.get("SITE_URL") || "https://oom.lovable.app";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,89 @@ function escapeHtml(unsafe: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Generate beautiful email HTML
+function generateEmailHtml(emailOrPhone: string): string {
+  const adminUrl = `${SITE_URL}/admin/hairdressers`;
+  
+  return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demande d'accès OOM</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px 40px; text-align: center;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: 2px;">OOM</h1>
+              <p style="margin: 8px 0 0 0; color: #cccccc; font-size: 14px;">Panel Administrateur</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Badge -->
+              <div style="text-align: center; margin-bottom: 30px;">
+                <span style="display: inline-block; background-color: #fef3c7; color: #92400e; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500;">
+                  ⚡ Nouvelle demande d'accès
+                </span>
+              </div>
+              
+              <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 22px; font-weight: 600; text-align: center;">
+                Quelqu'un souhaite accéder au panel
+              </h2>
+              
+              <p style="margin: 0 0 30px 0; color: #666666; font-size: 15px; line-height: 1.6; text-align: center;">
+                Une personne a tenté de se connecter au panel OOM mais n'a pas de compte actif.
+              </p>
+              
+              <!-- Info Box -->
+              <div style="background-color: #f8f9fa; border-left: 4px solid #1a1a1a; border-radius: 0 8px 8px 0; padding: 20px; margin-bottom: 30px;">
+                <p style="margin: 0 0 8px 0; color: #888888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">
+                  Identifiant utilisé
+                </p>
+                <p style="margin: 0; color: #1a1a1a; font-size: 18px; font-weight: 600;">
+                  ${emailOrPhone}
+                </p>
+              </div>
+              
+              <!-- CTA Button -->
+              <div style="text-align: center; margin-bottom: 30px;">
+                <a href="${adminUrl}" style="display: inline-block; background-color: #1a1a1a; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 500; transition: background-color 0.2s;">
+                  Gérer les utilisateurs →
+                </a>
+              </div>
+              
+              <p style="margin: 0; color: #999999; font-size: 13px; text-align: center; line-height: 1.5;">
+                Si vous reconnaissez cette personne, vous pouvez créer un compte administrateur, concierge ou coiffeur depuis le panel.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e5e5e5;">
+              <p style="margin: 0; color: #888888; font-size: 12px;">
+                © ${new Date().getFullYear()} OOM World • Cet email a été envoyé automatiquement
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
 }
 
 interface ContactAdminRequest {
@@ -55,13 +139,8 @@ const handler = async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "OOM App <booking@oomworld.com>",
         to: ["tom@oomworld.com"],
-        subject: "Demande d'accès au panel OOM",
-        html: `
-          <h2>Nouvelle demande d'accès au panel</h2>
-          <p><strong>Email ou téléphone :</strong> ${safeEmailOrPhone}</p>
-          <p>Cette personne a tenté de se connecter au panel OOM mais n'a pas de compte.</p>
-          <p><strong>Note :</strong> Cet email est envoyé à tom@oomworld.com. Pour recevoir les emails sur booking@oomworld.com, veuillez vérifier votre domaine sur resend.com/domains.</p>
-        `,
+        subject: "🔐 Demande d'accès au panel OOM",
+        html: generateEmailHtml(safeEmailOrPhone),
       }),
     });
 
