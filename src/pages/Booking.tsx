@@ -637,68 +637,21 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-                <Table className="text-sm">
+            <div className="w-full">
+                <Table className="text-sm w-full table-fixed">
                   <TableHeader>
                     <TableRow className="border-b h-10">
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">ID</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <CalendarIcon className="h-3.5 w-3.5" />
-                          Date
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          Heure
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          Durée
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Status</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">
-                        <div className="flex items-center gap-1">
-                          <CreditCard className="h-3.5 w-3.5" />
-                          Paiement
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3.5 w-3.5" />
-                          Client
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3.5 w-3.5" />
-                          Téléphone
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Ch.</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <Euro className="h-3.5 w-3.5" />
-                          Prix
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="h-3.5 w-3.5" />
-                          Hôtel
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">
-                        <div className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" />
-                          Coiffeur
-                        </div>
-                      </TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Facture</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[60px]">ID</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[80px]">Date</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[50px]">Heure</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[55px]">Durée</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[90px]">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[85px]">Paiement</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Client</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[60px]">Prix</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Hôtel</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Coiffeur</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                 <TableBody>
@@ -713,14 +666,14 @@ export default function Booking() {
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium py-2 whitespace-nowrap">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
+                      <TableCell className="font-medium py-2 truncate">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-muted-foreground py-2 truncate">
                         {format(new Date(booking.booking_date), "dd/MM/yy")}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
+                      <TableCell className="text-muted-foreground py-2 truncate">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
+                      <TableCell className="text-muted-foreground py-2 truncate">
                         {(booking as any).totalDuration > 0 
                           ? (() => {
                               const hours = Math.floor((booking as any).totalDuration / 60);
@@ -747,14 +700,12 @@ export default function Booking() {
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="font-medium py-2 whitespace-nowrap">
+                      <TableCell className="font-medium py-2 truncate">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">{booking.phone}</TableCell>
-                      <TableCell className="text-muted-foreground py-2">{booking.room_number || "-"}</TableCell>
-                      <TableCell className="font-semibold py-2 whitespace-nowrap">{booking.total_price}€</TableCell>
-                      <TableCell className="text-muted-foreground py-2 max-w-[120px] truncate">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-muted-foreground py-2 max-w-[100px] truncate">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="font-semibold py-2 truncate">{booking.total_price}€</TableCell>
+                      <TableCell className="text-muted-foreground py-2 truncate">{booking.hotel_name || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground py-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2">
                         {booking.stripe_invoice_url ? (
                           <Button
@@ -799,7 +750,7 @@ export default function Booking() {
                   ))}
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={12} className="text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         Aucune réservation trouvée
                       </TableCell>
                     </TableRow>
