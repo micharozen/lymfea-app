@@ -250,10 +250,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               <div className="grid grid-cols-[1fr_100px] gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs font-medium">Téléphone *</Label>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 items-stretch">
                     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[80px] h-9 px-2 justify-between font-normal text-sm">
+                        <Button variant="outline" className="w-[80px] h-9 min-h-9 px-2 justify-between font-normal text-sm shrink-0">
                           {countries.find(c => c.code === countryCode)?.flag} {countryCode}
                           <ChevronsUpDown className="h-3 w-3 opacity-50" />
                         </Button>
@@ -278,7 +278,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     <Input 
                       value={phone} 
                       onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
-                      className="flex-1 h-9 text-sm" 
+                      className="flex-1 h-9 min-h-9 text-sm" 
                       placeholder="Numéro" 
                     />
                   </div>
