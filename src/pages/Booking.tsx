@@ -286,9 +286,9 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Sticky Header & Filters */}
-      <div className="sticky top-0 z-20 bg-background p-4 md:p-6 pb-0">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      {/* Header & Filters - Fixed */}
+      <div className="flex-shrink-0 p-4 md:p-6 pb-0">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
@@ -300,7 +300,7 @@ export default function Booking() {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border">
+        <div className="flex flex-wrap items-center gap-3 pb-4 border-b border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -389,12 +389,12 @@ export default function Booking() {
             List
           </Button>
         </div>
-      </div>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="px-4 md:px-6 pb-4 md:pb-6">
-        <div className="bg-card rounded-lg border border-border">
+      {/* Content - Takes remaining space */}
+      <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
         {view === "calendar" ? (
             <div className="p-2 md:p-6 overflow-x-auto">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
