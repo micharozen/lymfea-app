@@ -43,6 +43,45 @@ const countries = [
   { code: "+41", label: "Suisse", flag: "🇨🇭" },
   { code: "+32", label: "Belgique", flag: "🇧🇪" },
   { code: "+971", label: "EAU", flag: "🇦🇪" },
+  { code: "+31", label: "Pays-Bas", flag: "🇳🇱" },
+  { code: "+351", label: "Portugal", flag: "🇵🇹" },
+  { code: "+43", label: "Autriche", flag: "🇦🇹" },
+  { code: "+46", label: "Suède", flag: "🇸🇪" },
+  { code: "+47", label: "Norvège", flag: "🇳🇴" },
+  { code: "+45", label: "Danemark", flag: "🇩🇰" },
+  { code: "+358", label: "Finlande", flag: "🇫🇮" },
+  { code: "+48", label: "Pologne", flag: "🇵🇱" },
+  { code: "+420", label: "Tchéquie", flag: "🇨🇿" },
+  { code: "+36", label: "Hongrie", flag: "🇭🇺" },
+  { code: "+30", label: "Grèce", flag: "🇬🇷" },
+  { code: "+353", label: "Irlande", flag: "🇮🇪" },
+  { code: "+352", label: "Luxembourg", flag: "🇱🇺" },
+  { code: "+377", label: "Monaco", flag: "🇲🇨" },
+  { code: "+7", label: "Russie", flag: "🇷🇺" },
+  { code: "+81", label: "Japon", flag: "🇯🇵" },
+  { code: "+86", label: "Chine", flag: "🇨🇳" },
+  { code: "+82", label: "Corée du Sud", flag: "🇰🇷" },
+  { code: "+91", label: "Inde", flag: "🇮🇳" },
+  { code: "+55", label: "Brésil", flag: "🇧🇷" },
+  { code: "+52", label: "Mexique", flag: "🇲🇽" },
+  { code: "+54", label: "Argentine", flag: "🇦🇷" },
+  { code: "+61", label: "Australie", flag: "🇦🇺" },
+  { code: "+64", label: "Nouvelle-Zélande", flag: "🇳🇿" },
+  { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
+  { code: "+212", label: "Maroc", flag: "🇲🇦" },
+  { code: "+216", label: "Tunisie", flag: "🇹🇳" },
+  { code: "+20", label: "Égypte", flag: "🇪🇬" },
+  { code: "+966", label: "Arabie Saoudite", flag: "🇸🇦" },
+  { code: "+974", label: "Qatar", flag: "🇶🇦" },
+  { code: "+965", label: "Koweït", flag: "🇰🇼" },
+  { code: "+90", label: "Turquie", flag: "🇹🇷" },
+  { code: "+972", label: "Israël", flag: "🇮🇱" },
+  { code: "+65", label: "Singapour", flag: "🇸🇬" },
+  { code: "+66", label: "Thaïlande", flag: "🇹🇭" },
+  { code: "+62", label: "Indonésie", flag: "🇮🇩" },
+  { code: "+60", label: "Malaisie", flag: "🇲🇾" },
+  { code: "+63", label: "Philippines", flag: "🇵🇭" },
+  { code: "+84", label: "Vietnam", flag: "🇻🇳" },
 ];
 
 const formatPhoneNumber = (value: string, countryCode: string): string => {
@@ -258,14 +297,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                           <ChevronsUpDown className="h-3 w-3 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-48 p-0 border shadow-lg z-50">
+                      <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
                         <Command>
-                          <CommandInput placeholder="Rechercher..." className="h-8 text-sm" />
-                          <CommandList>
-                            <CommandEmpty>Non trouvé</CommandEmpty>
+                          <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
+                          <CommandList className="max-h-[200px]">
+                            <CommandEmpty>Pays non trouvé</CommandEmpty>
                             <CommandGroup>
                               {countries.map(c => (
-                                <CommandItem key={c.code} value={c.code} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="text-sm">
+                                <CommandItem key={c.code} value={`${c.label} ${c.code}`} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="text-sm cursor-pointer">
                                   <Check className={cn("mr-2 h-3.5 w-3.5", countryCode === c.code ? "opacity-100" : "opacity-0")} />
                                   {c.flag} {c.label} ({c.code})
                                 </CommandItem>
