@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -156,21 +156,38 @@ export default function Booking() {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-fit the number of rows so the page never needs scrolling
-  useEffect(() => {
-    const compute = () => {
-      const rowHeight = 44; // h-11
-      const chrome = 260; // header + filters + paddings + pagination space
-      const available = Math.max(0, window.innerHeight - chrome);
-      const rows = Math.max(8, Math.floor(available / rowHeight));
-      setItemsPerPage(rows);
-      setCurrentPage(1);
-    };
+  // Refs for measuring actual heights
+  const headerRef = useRef<HTMLDivElement>(null);
+  const paginationRef = useRef<HTMLDivElement>(null);
 
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    if (view !== 'list') return;
+    
+    const rowHeight = 44; // h-11 = 44px
+    const tableHeaderHeight = 40; // h-10 = 40px
+    const cardPadding = 0; // minimal padding
+    const safetyMargin = 8; // small buffer
+    
+    // Get actual header height (title + filters)
+    const headerHeight = headerRef.current?.offsetHeight || 120;
+    // Pagination height
+    const paginationHeight = 48; // fixed height for pagination row
+    // Content padding (px-4 pb-4 = 16px each side roughly)
+    const contentPadding = 32;
+    
+    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + safetyMargin;
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+    
+    setItemsPerPage(rows);
   }, [view]);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
 
   // Update selectedBooking when bookings data changes
   useEffect(() => {
@@ -316,9 +333,9 @@ export default function Booking() {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters - Fixed */}
-      <div className="flex-shrink-0 p-4 md:p-6 pb-0">
+      <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
             📅 Bookings
           </h1>
@@ -666,8 +683,8 @@ export default function Booking() {
                     <TableHead className="font-medium text-muted-foreground py-2">Date</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Start time</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Status</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Payment</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Client name</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2">Client phone</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Total price</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Hotel</TableHead>
                     <TableHead className="font-medium text-muted-foreground py-2">Hair dresser</TableHead>
@@ -698,15 +715,13 @@ export default function Booking() {
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-2">
-                        <Badge className={`${getPaymentStatusConfig(booking.payment_status || 'pending').badgeClass} text-xs px-3 py-0.5 border`}>
-                          {getPaymentStatusConfig(booking.payment_status || 'pending').label}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.total_price?.toFixed(2) || "0.00"}€</TableCell>
+                      <TableCell className="text-foreground py-2 whitespace-nowrap">
+                        {booking.phone || "-"}
+                      </TableCell>
+                      <TableCell className="text-foreground py-2 whitespace-nowrap">€{booking.total_price?.toFixed(2) || "0.00"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hotel_name || "-"}</TableCell>
                       <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2">
