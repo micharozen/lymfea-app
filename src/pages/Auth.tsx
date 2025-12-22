@@ -59,8 +59,21 @@ const Auth = () => {
 
       if (!session?.user) return;
 
-      // Role-based redirect (handles legacy users missing user_roles via fallback inference)
-      const { redirectPath } = await getRoleRedirect(session.user.id);
+      // Role-based redirect.
+      // If we cannot determine a role, we MUST allow the user to access /auth
+      // (and reset the session to avoid getting stuck in a redirect loop).
+      const { role, redirectPath } = await getRoleRedirect(session.user.id);
+
+      if (!role) {
+        console.warn("[Auth] Session without role detected. Signing out to allow login.");
+        await supabase.auth.signOut();
+        toast({
+          title: "Session réinitialisée",
+          description: "Veuillez vous reconnecter.",
+        });
+        return;
+      }
+
       navigate(redirectPath, { replace: true });
     };
 
