@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
+const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,29 +16,39 @@ interface InviteAdminRequest {
   lastName: string;
 }
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
+}
+
 // Generate a secure random password
 function generatePassword(): string {
   const length = 12;
-  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-  const numbers = '0123456789';
-  const special = '!@#$%&*';
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const numbers = "0123456789";
+  const special = "!@#$%&*";
   const all = uppercase + lowercase + numbers + special;
-  
-  let password = '';
+
+  let password = "";
   // Ensure at least one of each type
   password += uppercase[Math.floor(Math.random() * uppercase.length)];
   password += lowercase[Math.floor(Math.random() * lowercase.length)];
   password += numbers[Math.floor(Math.random() * numbers.length)];
   password += special[Math.floor(Math.random() * special.length)];
-  
+
   // Fill the rest randomly
   for (let i = password.length; i < length; i++) {
     password += all[Math.floor(Math.random() * all.length)];
   }
-  
+
   // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+  return password
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("");
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -47,88 +58,102 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }), 
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    if (!RESEND_API_KEY) {
+      console.error("Missing RESEND_API_KEY");
+      return jsonResponse(
+        { error: "missing_resend_api_key" },
+        500,
       );
+    }
+
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return jsonResponse({ error: "unauthorized" }, 401);
     }
 
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
+      { global: { headers: { Authorization: authHeader } } },
     );
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser();
+
     if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }), 
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      console.error("Invalid authentication:", userError);
+      return jsonResponse({ error: "invalid_authentication" }, 401);
     }
 
     // Initialize Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     // Verify admin role
     const { data: roles, error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
       .maybeSingle();
 
     if (roleError || !roles) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden - Admin access required' }), 
-        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      console.error("Forbidden - Admin required:", roleError);
+      return jsonResponse({ error: "forbidden" }, 403);
     }
 
     const { email, firstName, lastName }: InviteAdminRequest = await req.json();
 
-    console.log(`Inviting admin: ${email}`);
-
-    // Build login URL preferring explicit SITE_URL (production), then origin/referer, then projectRef
-    let appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
-    if (!appUrl) {
-      appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
+    if (!email?.includes("@")) {
+      return jsonResponse({ error: "invalid_email" }, 400);
     }
+
+    console.log("Inviting admin:", email);
+
+    // Build app URL (prefer explicit SITE_URL)
+    let appUrl = SITE_URL;
+    if (!appUrl) appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
     if (!appUrl) {
       const ref = req.headers.get("referer") || "";
-      try { appUrl = new URL(ref).origin; } catch (_) { /* ignore */ }
+      try {
+        appUrl = new URL(ref).origin;
+      } catch (_) {
+        /* ignore */
+      }
     }
-    if (!appUrl) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-      const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
-      if (projectRef) appUrl = `https://${projectRef}.lovableproject.com`;
-    }
-    const loginUrl = `${appUrl}/login`;
 
+    // IMPORTANT: current login route is /auth
+    const loginUrl = `${appUrl}/auth`;
 
     // Generate a secure password
     const generatedPassword = generatePassword();
-    console.log(`Generated password for ${email}`);
 
     // Create the user with the generated password
-    const { data: userData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: generatedPassword,
-      email_confirm: true, // Auto-confirm email
-    });
+    const { data: userData, error: createError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: generatedPassword,
+        email_confirm: true,
+        user_metadata: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      });
 
     if (createError) {
       console.error("Error creating user:", createError);
-      throw createError;
+      // common case: user already exists
+      const msg = (createError as any)?.message || "create_user_failed";
+      const status = msg.toLowerCase().includes("already") ? 409 : 500;
+      return jsonResponse({ error: "create_user_failed", details: msg }, status);
     }
 
-    console.log("User created successfully:", userData.user?.id);
+    console.log("User created:", userData.user?.id);
 
     // Send email with login credentials
     const resendResponse = await fetch("https://api.resend.com/emails", {
@@ -140,43 +165,42 @@ serve(async (req: Request): Promise<Response> => {
       body: JSON.stringify({
         from: "OOM App <booking@oomworld.com>",
         to: [email],
-        subject: "Bienvenue sur OOM App - Vos identifiants de connexion",
+        subject: "Bienvenue sur OOM — Vos identifiants",
         html: `
           <!DOCTYPE html>
           <html>
             <head>
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Bienvenue sur OOM App</title>
+              <title>Bienvenue sur OOM</title>
             </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Welcome to OOM, here is your login details</h1>
-              </div>
-              
-              <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
-                <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
-                  <p style="margin: 0 0 15px 0;"><strong>URL:</strong> <a href="${loginUrl}" style="color: #0066cc;">${loginUrl}</a></p>
-                  <p style="margin: 0 0 15px 0;"><strong>Email:</strong> ${email}</p>
-                  <p style="margin: 0;"><strong>Password:</strong> ${generatedPassword}</p>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+              <div style="background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5;">
+                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 26px; text-align: center;">
+                  <img src="${appUrl}/images/oom-logo-email.png" alt="OOM" width="120" style="display:block;margin:0 auto 10px auto;" />
+                  <p style="margin:0;color:#cccccc;font-size:13px;">Invitation administrateur</p>
                 </div>
 
-                <div style="text-align: center; margin: 35px 0;">
-                  <a href="${loginUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Se connecter</a>
+                <div style="padding: 28px; background: #ffffff;">
+                  <h2 style="margin: 0 0 10px 0; font-size: 18px;">Bonjour ${firstName || ""} ${lastName || ""},</h2>
+                  <p style="margin: 0 0 18px 0; color: #444;">Voici vos identifiants pour accéder au panel OOM :</p>
+
+                  <div style="background: #f8f9fa; padding: 18px; border-radius: 10px; border: 1px solid #e9ecef;">
+                    <p style="margin: 0 0 10px 0;"><strong>URL :</strong> <a href="${loginUrl}" style="color:#0b5ed7;">${loginUrl}</a></p>
+                    <p style="margin: 0 0 10px 0;"><strong>Email :</strong> ${email}</p>
+                    <p style="margin: 0;"><strong>Mot de passe :</strong> ${generatedPassword}</p>
+                  </div>
+
+                  <div style="text-align:center;margin:22px 0 8px 0;">
+                    <a href="${loginUrl}" style="background:#1a1a1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">Se connecter</a>
+                  </div>
+
+                  <p style="margin: 14px 0 0 0; font-size: 13px; color: #777;">Par sécurité, changez votre mot de passe après la première connexion.</p>
                 </div>
 
-                <p style="font-size: 14px; color: #999; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e5e5;">
-                  Pour des raisons de sécurité, nous vous recommandons de changer votre mot de passe après votre première connexion.
-                </p>
-
-                <p style="font-size: 16px; margin-top: 40px; color: #666;">
-                  Cordialement,<br>
-                  <strong style="color: #000000;">L'équipe OOM App</strong>
-                </p>
-              </div>
-
-              <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
-                <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+                <div style="padding: 16px 22px; background:#f8f9fa; border-top: 1px solid #e5e5e5; text-align:center; color:#888; font-size: 12px;">
+                  © ${new Date().getFullYear()} OOM World
+                </div>
               </div>
             </body>
           </html>
@@ -187,21 +211,19 @@ serve(async (req: Request): Promise<Response> => {
     if (!resendResponse.ok) {
       const errorText = await resendResponse.text();
       console.error("Resend API error:", errorText);
-      throw new Error(`Resend API error: ${errorText}`);
+      return jsonResponse({ error: "resend_failed", details: errorText }, 502);
     }
 
     const emailData = await resendResponse.json();
-    console.log("Invitation email sent successfully:", emailData);
+    console.log("Invitation email sent:", emailData);
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
+    return jsonResponse({ success: true });
   } catch (error: any) {
     console.error("Error in invite-admin function:", error);
-    return new Response(
-      JSON.stringify({ error: error?.message || "unknown_error" }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    return jsonResponse(
+      { error: error?.message || "unknown_error" },
+      500,
     );
   }
 });
+
