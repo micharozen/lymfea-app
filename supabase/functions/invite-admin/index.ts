@@ -267,7 +267,7 @@ serve(async (req: Request): Promise<Response> => {
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
               <div style="background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5;">
                 <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 26px; text-align: center;">
-                  <img src="${appUrl}/images/oom-logo-email-white.png" alt="OOM" width="120" style="display:block;margin:0 auto 10px auto;" />
+                  <img src="https://oom-clone-genesis.lovable.app/images/oom-logo-email-white.png" alt="OOM" width="120" style="display:block;margin:0 auto 10px auto;" />
                   <p style="margin:0;color:#cccccc;font-size:13px;">Invitation administrateur</p>
                 </div>
 
