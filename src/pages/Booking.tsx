@@ -286,19 +286,21 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-          📅 Bookings
-        </h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          Create a booking
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      {/* Sticky Header & Filters */}
+      <div className="sticky top-0 z-20 bg-background p-4 md:p-6 pb-0">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+            📅 Bookings
+          </h1>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            Create a booking
+          </Button>
+        </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {/* Filters Row */}
+        <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -388,9 +390,11 @@ export default function Booking() {
           </Button>
         </div>
       </div>
+      </div>
 
       {/* Content */}
-      <div className="bg-card rounded-lg border border-border">
+      <div className="px-4 md:px-6 pb-4 md:pb-6">
+        <div className="bg-card rounded-lg border border-border">
         {view === "calendar" ? (
             <div className="p-2 md:p-6 overflow-x-auto">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
@@ -662,12 +666,12 @@ export default function Booking() {
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell className="py-2">
-                        <Badge variant="outline" className={`${getStatusColor(booking.status)} text-xs px-3 py-0.5`}>
+                        <Badge className={`${getStatusColor(booking.status)} text-xs px-3 py-0.5 border`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2">
-                        <Badge variant="outline" className={`${getPaymentStatusConfig(booking.payment_status || 'pending').badgeClass} text-xs px-3 py-0.5`}>
+                        <Badge className={`${getPaymentStatusConfig(booking.payment_status || 'pending').badgeClass} text-xs px-3 py-0.5 border`}>
                           {getPaymentStatusConfig(booking.payment_status || 'pending').label}
                         </Badge>
                       </TableCell>
@@ -768,6 +772,7 @@ export default function Booking() {
             </div>
           )}
         </div>
+      </div>
 
 
       <CreateBookingDialog
