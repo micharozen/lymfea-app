@@ -221,6 +221,30 @@ serve(async (req: Request): Promise<Response> => {
       console.log("User created:", userId);
     }
 
+    if (!userId) {
+      console.error("Missing userId after create/update");
+      return jsonResponse({ error: "missing_user_id" }, 500);
+    }
+
+    // Ensure role is set for redirect logic (ADM-003)
+    const { error: roleUpsertError } = await supabaseAdmin
+      .from("user_roles")
+      .upsert(
+        {
+          user_id: userId,
+          role: "admin",
+        },
+        { onConflict: "user_id,role" },
+      );
+
+    if (roleUpsertError) {
+      console.error("Error upserting admin role:", roleUpsertError);
+      return jsonResponse(
+        { error: "role_upsert_failed", details: roleUpsertError.message },
+        500,
+      );
+    }
+
     // Send email with login credentials
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
