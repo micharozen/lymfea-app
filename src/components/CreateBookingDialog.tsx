@@ -259,9 +259,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                         <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-48 p-0">
+                    <PopoverContent className="w-48 p-0 border shadow-lg">
                       <Command>
-                        <CommandInput placeholder="Rechercher..." className="h-9" />
+                        <CommandInput placeholder="Rechercher..." className="h-9 border-b" />
                         <CommandList>
                           <CommandEmpty>Non trouvé</CommandEmpty>
                           <CommandGroup>
