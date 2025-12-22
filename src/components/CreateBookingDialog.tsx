@@ -254,7 +254,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 <div className="flex gap-2 mt-1.5">
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-24 h-10 px-2 justify-between font-normal">
+                      <Button variant="outline" className="w-24 min-h-10 h-10 px-2 justify-between font-normal box-border">
                         {countries.find(c => c.code === countryCode)?.flag} {countryCode}
                         <ChevronsUpDown className="h-3.5 w-3.5 opacity-50" />
                       </Button>
