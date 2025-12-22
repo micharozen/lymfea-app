@@ -45,8 +45,8 @@ function generateEmailHtml(emailOrPhone: string): string {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px 40px; text-align: center;">
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600; letter-spacing: 2px;">OOM</h1>
-              <p style="margin: 8px 0 0 0; color: #cccccc; font-size: 14px;">Panel Administrateur</p>
+              <img src="${SITE_URL}/images/oom-logo-email.png" alt="OOM" width="120" style="display: block; margin: 0 auto 12px auto;" />
+              <p style="margin: 0; color: #cccccc; font-size: 14px;">Panel Administrateur</p>
             </td>
           </tr>
           
