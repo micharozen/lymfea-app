@@ -641,18 +641,18 @@ export default function Booking() {
               <div className="flex-1 overflow-auto">
                 <Table className="text-xs w-full table-fixed">
                   <TableHeader className="sticky top-0 bg-card z-10">
-                    <TableRow className="border-b h-8">
-                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">ID</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[70px]">Date</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[45px]">Heure</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Durée</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[80px]">Status</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[75px]">Paiement</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1">Client</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Prix</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1">Hôtel</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1">Coiffeur</TableHead>
-                      <TableHead className="font-semibold text-foreground py-1 w-[36px]"></TableHead>
+                    <TableRow className="border-b h-10">
+                      <TableHead className="font-semibold text-foreground py-2 w-[50px]">ID</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[70px]">Date</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[45px]">Heure</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[50px]">Durée</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[80px]">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[75px]">Paiement</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Client</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[50px]">Prix</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Hôtel</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2">Coiffeur</TableHead>
+                      <TableHead className="font-semibold text-foreground py-2 w-[36px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                 <TableBody>
@@ -661,20 +661,20 @@ export default function Booking() {
                     .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-12"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                      <TableCell className="font-medium py-2 whitespace-nowrap">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
                         {format(new Date(booking.booking_date), "dd/MM/yy")}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">
                         {(booking as any).totalDuration > 0 
                           ? (() => {
                               const hours = Math.floor((booking as any).totalDuration / 60);
@@ -686,35 +686,35 @@ export default function Booking() {
                           : "-"
                         }
                       </TableCell>
-                      <TableCell className="py-1">
-                        <Badge className={`${getStatusColor(booking.status)} h-5 text-[10px] px-1.5`}>
+                      <TableCell className="py-2">
+                        <Badge className={`${getStatusColor(booking.status)} h-6 text-xs px-2`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-1">
+                      <TableCell className="py-2">
                         {(() => {
                           const badge = getPaymentStatusBadge(booking.payment_status);
                           return (
-                            <Badge className={`${badge.className} h-5 text-[10px] px-1.5`}>
+                            <Badge className={`${badge.className} h-6 text-xs px-2`}>
                               {badge.label}
                             </Badge>
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">
+                      <TableCell className="font-medium py-2 whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="font-semibold py-1 truncate whitespace-nowrap">{booking.total_price}€</TableCell>
+                      <TableCell className="font-semibold py-2 whitespace-nowrap">{booking.total_price}€</TableCell>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <TableCell className="text-muted-foreground py-1 truncate max-w-[120px]">{booking.hotel_name || "-"}</TableCell>
+                            <TableCell className="text-muted-foreground py-2 whitespace-nowrap max-w-[120px] truncate">{booking.hotel_name || "-"}</TableCell>
                           </TooltipTrigger>
                           <TooltipContent>{booking.hotel_name || "-"}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <TableCell className="text-muted-foreground py-1 truncate">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-1">
+                      <TableCell className="text-muted-foreground py-2 whitespace-nowrap">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-2">
                         {booking.stripe_invoice_url ? (
                           <Button
                             variant="ghost"
