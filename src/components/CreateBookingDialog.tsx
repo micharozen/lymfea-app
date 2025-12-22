@@ -207,20 +207,20 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "p-0 gap-0 flex flex-col overflow-hidden border shadow-2xl rounded-xl h-auto",
-        view === 1 ? "max-w-[460px] max-h-[85vh]" : "max-w-[580px] max-h-[85vh]"
+        "p-0 gap-0 flex flex-col border shadow-2xl rounded-xl",
+        view === 1 ? "max-w-[460px]" : "max-w-[580px] max-h-[85vh]"
       )}>
         {/* VIEW 1: COMPACT CLIENT FORM */}
         {view === 1 && (
-          <div className="flex flex-col max-h-[85vh]">
+          <div className="flex flex-col">
             {/* Header - Compact */}
             <div className="px-5 py-3 border-b bg-muted/20">
               <h2 className="text-base font-semibold tracking-tight">Nouvelle réservation</h2>
               <p className="text-xs text-muted-foreground">Informations client</p>
             </div>
 
-            {/* Form Body - Compact with scroll */}
-            <div className="px-5 py-4 space-y-3 overflow-y-auto">
+            {/* Form Body - Compact */}
+            <div className="px-5 py-4 space-y-3">
               {/* Hotel */}
               <div className="space-y-1">
                 <Label className="text-xs font-medium">Hôtel *</Label>
