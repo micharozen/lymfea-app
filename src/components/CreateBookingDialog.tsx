@@ -309,40 +309,38 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground", !time && "text-muted-foreground")}>
-                        {time || "Sélectionner l'heure"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-3" align="start">
-                      <div className="grid grid-cols-6 gap-1">
-                        {Array.from({ length: 17 }, (_, h) => h + 7).map(hour => (
-                          <div key={hour} className="space-y-1">
-                            <div className="text-xs font-medium text-center text-muted-foreground pb-1">{hour}h</div>
-                            {[0, 10, 20, 30, 40, 50].map(min => {
-                              const timeValue = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-                              return (
-                                <button
-                                  key={timeValue}
-                                  type="button"
-                                  onClick={() => setTime(timeValue)}
-                                  className={cn(
-                                    "w-full text-xs py-1 px-1 rounded transition-colors",
-                                    time === timeValue 
-                                      ? "bg-primary text-primary-foreground" 
-                                      : "hover:bg-muted"
-                                  )}
-                                >
-                                  :{min.toString().padStart(2, '0')}
-                                </button>
-                              );
-                            })}
-                          </div>
+                  <div className="flex gap-2 mt-1.5">
+                    <Select 
+                      value={time ? time.split(':')[0] : ''} 
+                      onValueChange={(h) => setTime(`${h}:${time?.split(':')[1] || '00'}`)}
+                    >
+                      <SelectTrigger className="h-10 flex-1">
+                        <SelectValue placeholder="Heure" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 17 }, (_, i) => i + 7).map(h => (
+                          <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+                            {h}h
+                          </SelectItem>
                         ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                      </SelectContent>
+                    </Select>
+                    <Select 
+                      value={time ? time.split(':')[1] : ''} 
+                      onValueChange={(m) => setTime(`${time?.split(':')[0] || '07'}:${m}`)}
+                    >
+                      <SelectTrigger className="h-10 w-20">
+                        <SelectValue placeholder="Min" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0, 10, 20, 30, 40, 50].map(m => (
+                          <SelectItem key={m} value={m.toString().padStart(2, '0')}>
+                            {m.toString().padStart(2, '0')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
