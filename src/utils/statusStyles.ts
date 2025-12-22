@@ -12,75 +12,75 @@ interface StatusConfig {
   hexColor: string; // For emails
 }
 
-// Booking Status Configuration - Outline style for Pro Table
+// Booking Status Configuration
 export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   pending: {
     label: 'En attente',
-    badgeClass: 'bg-transparent text-amber-600 border border-amber-400 rounded-full',
+    badgeClass: 'bg-amber-500/10 text-amber-700 border-amber-500/30 hover:bg-amber-500/20',
     cardClass: 'bg-amber-500 text-white border-amber-600',
     hexColor: '#f59e0b',
   },
   assigned: {
     label: 'Assigné',
-    badgeClass: 'bg-transparent text-blue-600 border border-blue-400 rounded-full',
+    badgeClass: 'bg-blue-500/10 text-blue-700 border-blue-500/30 hover:bg-blue-500/20',
     cardClass: 'bg-blue-500 text-white border-blue-600',
     hexColor: '#3b82f6',
   },
   confirmed: {
     label: 'Confirmé',
-    badgeClass: 'bg-transparent text-blue-600 border border-blue-400 rounded-full',
+    badgeClass: 'bg-blue-500/10 text-blue-700 border-blue-500/30 hover:bg-blue-500/20',
     cardClass: 'bg-blue-500 text-white border-blue-600',
     hexColor: '#3b82f6',
   },
   completed: {
     label: 'Terminé',
-    badgeClass: 'bg-transparent text-emerald-600 border border-emerald-400 rounded-full',
+    badgeClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/20',
     cardClass: 'bg-emerald-500 text-white border-emerald-600',
     hexColor: '#10b981',
   },
   cancelled: {
     label: 'Annulé',
-    badgeClass: 'bg-transparent text-red-600 border border-red-400 rounded-full',
+    badgeClass: 'bg-red-500/10 text-red-700 border-red-500/30 hover:bg-red-500/20',
     cardClass: 'bg-red-500 text-white border-red-600',
     hexColor: '#ef4444',
   },
   awaiting_validation: {
     label: 'Validation',
-    badgeClass: 'bg-transparent text-purple-600 border border-purple-400 rounded-full',
+    badgeClass: 'bg-purple-500/10 text-purple-700 border-purple-500/30 hover:bg-purple-500/20',
     cardClass: 'bg-purple-500 text-white border-purple-600',
     hexColor: '#8b5cf6',
   },
 };
 
-// Payment Status Configuration - Outline style for Pro Table
+// Payment Status Configuration
 export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   pending: {
     label: 'En attente',
-    badgeClass: 'bg-transparent text-amber-600 border border-amber-400 rounded-full',
+    badgeClass: 'bg-amber-500/10 text-amber-700 border-amber-500/30 hover:bg-amber-500/20',
     cardClass: 'bg-amber-500 text-white border-amber-600',
     hexColor: '#f59e0b',
   },
   paid: {
     label: 'Payé',
-    badgeClass: 'bg-transparent text-emerald-600 border border-emerald-400 rounded-full',
+    badgeClass: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/20',
     cardClass: 'bg-emerald-500 text-white border-emerald-600',
     hexColor: '#10b981',
   },
   failed: {
     label: 'Échoué',
-    badgeClass: 'bg-transparent text-red-600 border border-red-400 rounded-full',
+    badgeClass: 'bg-red-500/10 text-red-700 border-red-500/30 hover:bg-red-500/20',
     cardClass: 'bg-red-500 text-white border-red-600',
     hexColor: '#ef4444',
   },
   refunded: {
     label: 'Remboursé',
-    badgeClass: 'bg-transparent text-slate-600 border border-slate-400 rounded-full',
+    badgeClass: 'bg-slate-500/10 text-slate-700 border-slate-500/30 hover:bg-slate-500/20',
     cardClass: 'bg-slate-500 text-white border-slate-600',
     hexColor: '#64748b',
   },
   charged_to_room: {
     label: 'Chambre',
-    badgeClass: 'bg-transparent text-blue-600 border border-blue-400 rounded-full',
+    badgeClass: 'bg-blue-500/10 text-blue-700 border-blue-500/30 hover:bg-blue-500/20',
     cardClass: 'bg-blue-500 text-white border-blue-600',
     hexColor: '#3b82f6',
   },

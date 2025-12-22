@@ -637,112 +637,128 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-white dark:bg-card">
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
               <div className="flex-1 overflow-auto">
-                <Table className="text-[13px] w-full table-fixed">
-                  <TableHeader className="sticky top-0 z-10">
-                    <TableRow className="border-b bg-gray-50 dark:bg-muted/30 h-10">
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[70px] whitespace-nowrap">Booking ID</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[90px] whitespace-nowrap">Date</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[70px] whitespace-nowrap">Start time</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[90px] whitespace-nowrap">Status</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 whitespace-nowrap">Client name</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[120px] whitespace-nowrap">Client phone</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[80px] whitespace-nowrap">Total price</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 whitespace-nowrap">Hotel</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 whitespace-nowrap">Hair dresser</TableHead>
-                      <TableHead className="text-[10px] uppercase font-semibold text-muted-foreground py-1 px-3 w-[100px] whitespace-nowrap">Invoice</TableHead>
+                <Table className="text-xs w-full table-fixed">
+                  <TableHeader className="sticky top-0 bg-card z-10">
+                    <TableRow className="border-b h-8">
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">ID</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[70px]">Date</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[45px]">Heure</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Durée</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[80px]">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[75px]">Paiement</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Client</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Prix</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Hôtel</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Coiffeur</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[36px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                 <TableBody>
                   {filteredBookings
                     ?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                    .map((booking) => (
+                    .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-gray-50 dark:hover:bg-muted/30 transition-colors h-11"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium py-1 px-3 whitespace-nowrap">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-foreground py-1 px-3 whitespace-nowrap">
-                        {format(new Date(booking.booking_date), "dd-MM-yyyy")}
+                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                        {format(new Date(booking.booking_date), "dd/MM/yy")}
                       </TableCell>
-                      <TableCell className="text-foreground py-1 px-3 whitespace-nowrap">
-                        {booking.booking_time.substring(0, 5).replace(':', ':')}
-                        {parseInt(booking.booking_time.substring(0, 2)) >= 12 ? 'PM' : 'AM'}
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                        {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="py-1 px-3">
-                        <Badge className={`${getStatusColor(booking.status)} h-6 text-xs px-3 font-medium`}>
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
+                        {(booking as any).totalDuration > 0 
+                          ? (() => {
+                              const hours = Math.floor((booking as any).totalDuration / 60);
+                              const minutes = (booking as any).totalDuration % 60;
+                              return hours > 0 
+                                ? (minutes > 0 ? `${hours}h${minutes}` : `${hours}h`)
+                                : `${minutes}min`;
+                            })()
+                          : "-"
+                        }
+                      </TableCell>
+                      <TableCell className="py-1">
+                        <Badge className={`${getStatusColor(booking.status)} h-5 text-[10px] px-1.5`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium py-1 px-3 whitespace-nowrap">
+                      <TableCell className="py-1">
+                        {(() => {
+                          const badge = getPaymentStatusBadge(booking.payment_status);
+                          return (
+                            <Badge className={`${badge.className} h-5 text-[10px] px-1.5`}>
+                              {badge.label}
+                            </Badge>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-foreground py-1 px-3 whitespace-nowrap">
-                        {booking.phone || "-"}
-                      </TableCell>
-                      <TableCell className="font-medium py-1 px-3 whitespace-nowrap">€{booking.total_price?.toFixed(2) || "0.00"}</TableCell>
+                      <TableCell className="font-semibold py-1 truncate whitespace-nowrap">{booking.total_price}€</TableCell>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <TableCell className="text-foreground py-1 px-3 truncate max-w-[150px]">{booking.hotel_name || "-"}</TableCell>
+                            <TableCell className="text-muted-foreground py-1 truncate max-w-[120px]">{booking.hotel_name || "-"}</TableCell>
                           </TooltipTrigger>
                           <TooltipContent>{booking.hotel_name || "-"}</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <TableCell className="text-foreground py-1 px-3 whitespace-nowrap truncate">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-1 px-3">
+                      <TableCell className="text-muted-foreground py-1 truncate">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-1">
                         {booking.stripe_invoice_url ? (
                           <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs px-3 font-normal"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(booking.stripe_invoice_url, '_blank');
                             }}
                           >
-                            <FileText className="h-3.5 w-3.5 mr-1.5" />
-                            View invoice
+                            <FileText className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
-                          (booking.payment_status === 'paid' || booking.status === 'completed') && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs px-3 font-normal"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                try {
-                                  const { data, error } = await supabase.functions.invoke('generate-invoice', {
-                                    body: { bookingId: booking.id }
-                                  });
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={booking.payment_status !== 'paid' && booking.status !== 'Terminé'}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                const { data, error } = await supabase.functions.invoke('generate-invoice', {
+                                  body: { bookingId: booking.id }
+                                });
 
-                                  if (error) throw error;
+                                if (error) throw error;
 
-                                  setInvoiceHTML(data.html);
-                                  setInvoiceBookingId(data.bookingId);
-                                  setIsInvoicePreviewOpen(true);
-                                } catch (error) {
-                                  console.error('Error generating invoice:', error);
-                                }
-                              }}
-                            >
-                              <FileText className="h-3.5 w-3.5 mr-1.5" />
-                              View invoice
-                            </Button>
-                          )
+                                setInvoiceHTML(data.html);
+                                setInvoiceBookingId(data.bookingId);
+                                setIsInvoicePreviewOpen(true);
+                              } catch (error) {
+                                console.error('Error generating invoice:', error);
+                              }
+                            }}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
                   ))}
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         Aucune réservation trouvée
                       </TableCell>
                     </TableRow>
@@ -751,44 +767,53 @@ export default function Booking() {
                 </Table>
               </div>
               {/* Pagination */}
-              <div className="flex items-center justify-between px-4 py-3 border-t flex-shrink-0 bg-white dark:bg-card">
-                <div className="text-sm text-muted-foreground">
-                  Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings?.length || 0)} on {filteredBookings?.length || 0} entries
+              {filteredBookings && filteredBookings.length > itemsPerPage && (
+                <div className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card">
+                  <div className="text-sm text-muted-foreground">
+                    Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings.length)} on {filteredBookings.length} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    {Array.from({ length: Math.ceil(filteredBookings.length / itemsPerPage) }, (_, i) => i + 1)
+                      .filter(page => {
+                        const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+                        return page === 1 || 
+                               page === totalPages ||
+                               (page >= currentPage - 1 && page <= currentPage + 1);
+                      })
+                      .map((page, idx, arr) => (
+                        <div key={page} className="flex items-center">
+                          {idx > 0 && arr[idx - 1] !== page - 1 && (
+                            <span className="px-2 text-muted-foreground">...</span>
+                          )}
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                            className="min-w-[40px]"
+                          >
+                            {page}
+                          </Button>
+                        </div>
+                      ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredBookings.length / itemsPerPage), p + 1))}
+                      disabled={currentPage === Math.ceil(filteredBookings.length / itemsPerPage)}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="text-muted-foreground h-8"
-                  >
-                    Previous
-                  </Button>
-                  {filteredBookings && Array.from({ length: Math.ceil(filteredBookings.length / itemsPerPage) }, (_, i) => i + 1)
-                    .slice(0, 5)
-                    .map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
-                        className="h-8 w-8 p-0"
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(Math.ceil((filteredBookings?.length || 0) / itemsPerPage), p + 1))}
-                    disabled={!filteredBookings || currentPage === Math.ceil(filteredBookings.length / itemsPerPage)}
-                    className="text-muted-foreground h-8"
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
