@@ -309,38 +309,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <div className="flex gap-2 mt-1.5">
-                    <Select 
-                      value={time ? time.split(':')[0] : ''} 
-                      onValueChange={(h) => setTime(`${h}:${time?.split(':')[1] || '00'}`)}
-                    >
-                      <SelectTrigger className="h-10 flex-1">
-                        <SelectValue placeholder="Heure" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 17 }, (_, i) => i + 7).map(h => (
-                          <SelectItem key={h} value={h.toString().padStart(2, '0')}>
-                            {h}h
+                  <Select value={time} onValueChange={setTime}>
+                    <SelectTrigger className="mt-1.5 h-10">
+                      <SelectValue placeholder="Sélectionner l'heure" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: (23 - 7) * 6 + 1 }, (_, i) => {
+                        const totalMinutes = 7 * 60 + i * 10;
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                        return (
+                          <SelectItem key={timeValue} value={timeValue}>
+                            {timeValue}
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select 
-                      value={time ? time.split(':')[1] : ''} 
-                      onValueChange={(m) => setTime(`${time?.split(':')[0] || '07'}:${m}`)}
-                    >
-                      <SelectTrigger className="h-10 w-20">
-                        <SelectValue placeholder="Min" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0, 10, 20, 30, 40, 50].map(m => (
-                          <SelectItem key={m} value={m.toString().padStart(2, '0')}>
-                            {m.toString().padStart(2, '0')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
