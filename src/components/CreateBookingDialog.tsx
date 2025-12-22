@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,8 @@ import { fr } from "date-fns/locale";
 import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TimePickerWheel } from "@/components/ui/time-picker-wheel";
+import { Clock } from "lucide-react";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -309,24 +311,29 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Heure *</Label>
-                  <Select value={time} onValueChange={setTime}>
-                    <SelectTrigger className="mt-1.5 h-10">
-                      <SelectValue placeholder="Sélectionner l'heure" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: (23 - 7) * 6 + 1 }, (_, i) => {
-                        const totalMinutes = 7 * 60 + i * 10;
-                        const hours = Math.floor(totalMinutes / 60);
-                        const minutes = totalMinutes % 60;
-                        const timeValue = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                        return (
-                          <SelectItem key={timeValue} value={timeValue}>
-                            {timeValue}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className={cn(
+                          "w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground",
+                          !time && "text-muted-foreground"
+                        )}
+                      >
+                        <Clock className="mr-2 h-4 w-4" />
+                        {time || "Sélectionner l'heure"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <TimePickerWheel
+                        value={time}
+                        onChange={setTime}
+                        minHour={7}
+                        maxHour={23}
+                        minuteStep={10}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
