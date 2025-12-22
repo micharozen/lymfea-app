@@ -29,11 +29,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard, Plus, MessageSquare } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard, Plus } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
-import TreatmentRequestsList from "@/components/admin/TreatmentRequestsList";
+
 import { StatusBadge } from "@/components/StatusBadge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -44,7 +44,6 @@ export default function Booking() {
   const { isAdmin } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"calendar" | "list">("calendar");
-  const [mainTab, setMainTab] = useState<"bookings" | "requests">("bookings");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -65,18 +64,6 @@ export default function Booking() {
   const [hasOpenedFromUrl, setHasOpenedFromUrl] = useState(false);
 
 
-  // Fetch pending treatment requests count
-  const { data: pendingRequestsCount = 0 } = useQuery({
-    queryKey: ["treatment-requests-count"],
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from("treatment_requests")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "pending");
-      if (error) throw error;
-      return count || 0;
-    },
-  });
 
   const { data: bookings } = useQuery({
     queryKey: ["bookings"],
@@ -331,31 +318,6 @@ export default function Booking() {
           </div>
         </div>
 
-        {/* Main Tabs: Bookings vs On Request */}
-        <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "bookings" | "requests")} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="bookings" className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4" />
-              Réservations
-            </TabsTrigger>
-            <TabsTrigger value="requests" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              Demandes On Request
-              {pendingRequestsCount > 0 && (
-                <Badge className="ml-1 bg-warning text-warning-foreground h-5 px-1.5">
-                  {pendingRequestsCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="requests" className="mt-0">
-            <div className="bg-card rounded-lg border border-border p-4">
-              <TreatmentRequestsList />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="bookings" className="mt-0">
         <div className="bg-card rounded-lg border border-border">
           <div className="p-2 md:p-4 border-b border-border">
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center justify-between">
@@ -901,8 +863,6 @@ export default function Booking() {
             </div>
           )}
         </div>
-          </TabsContent>
-        </Tabs>
       </div>
 
       <CreateBookingDialog
