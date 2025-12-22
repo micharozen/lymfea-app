@@ -297,7 +297,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <Label className="text-sm font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:border-input", !date && "text-muted-foreground")}>
+                      <Button variant="outline" className={cn("w-full mt-1.5 h-10 justify-start font-normal hover:bg-transparent hover:text-foreground", !date && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner une date"}
                       </Button>
