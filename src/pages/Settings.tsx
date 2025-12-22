@@ -228,7 +228,9 @@ export default function Settings() {
           throw new Error("Un administrateur avec cet email existe déjà");
         }
         if (existingAdmin.phone === data.phone) {
-          throw new Error("Un administrateur avec ce numéro de téléphone existe déjà");
+          throw new Error(
+            "Un administrateur avec ce numéro de téléphone existe déjà",
+          );
         }
       }
 
@@ -245,34 +247,71 @@ export default function Settings() {
 
       if (insertError) throw insertError;
 
-      // Then, call the edge function to invite the admin
-      const { error: inviteError } = await supabase.functions.invoke('invite-admin', {
-        body: {
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
-        }
-      });
+      // Then, call the backend function to invite the admin (requires an active session)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        return {
+          invited: false,
+          inviteErrorMessage: "Session invalide. Connectez-vous puis renvoyez l’invitation.",
+        };
+      }
+
+      const { error: inviteError } = await supabase.functions.invoke(
+        "invite-admin",
+        {
+          body: {
+            email: data.email,
+            firstName: data.firstName,
+            lastName: data.lastName,
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
 
       if (inviteError) {
         console.error("Error inviting admin:", inviteError);
-        // We don't throw here because the admin was already created
-        // Just log the error
+        return {
+          invited: false,
+          inviteErrorMessage:
+            inviteError.message ||
+            "Admin créé mais l’email d’invitation n’a pas pu être envoyé.",
+        };
       }
+
+      return { invited: true };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["admins"] });
-      toast({
-        title: "Succès",
-        description: "L'administrateur a été ajouté avec succès. Un email d'invitation a été envoyé.",
-      });
+
+      if (result?.invited) {
+        toast({
+          title: "Succès",
+          description:
+            "L'administrateur a été ajouté avec succès. Un email d'invitation a été envoyé.",
+        });
+      } else {
+        toast({
+          title: "Admin créé",
+          description:
+            result?.inviteErrorMessage ||
+            "Admin créé mais l’email d’invitation n’a pas pu être envoyé.",
+          variant: "destructive",
+        });
+      }
+
       form.reset();
       setIsAddAdminOpen(false);
     },
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de l'ajout de l'administrateur",
+        description:
+          error.message || "Une erreur est survenue lors de l'ajout de l'administrateur",
         variant: "destructive",
       });
     },
