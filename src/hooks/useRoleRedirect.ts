@@ -34,18 +34,19 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     const roleList = roles?.map((r) => r.role) || [];
     log("user_roles result", { roleList });
 
-    // Priority: admin > concierge > hairdresser > user
+    // Priority: admin > concierge > hairdresser
     if (roleList.includes("admin")) {
-      log("match: admin -> /admin/dashboard");
+      log("match: admin (user_roles) -> /admin/dashboard");
       return { role: "admin", redirectPath: "/admin/dashboard" };
     }
 
     if (roleList.includes("concierge")) {
-      log("match: concierge -> /admin/dashboard");
+      log("match: concierge (user_roles) -> /admin/dashboard");
       return { role: "concierge", redirectPath: "/admin/dashboard" };
     }
 
     if (roleList.includes("hairdresser")) {
+      log("match: hairdresser (user_roles) -> checking status");
       const { data: hairdresser, error: hairdresserError } = await supabase
         .from("hairdressers")
         .select("status")
@@ -63,6 +64,50 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
         return { role: "hairdresser", redirectPath: "/pwa/onboarding" };
       }
       log("match: hairdresser -> /pwa/dashboard");
+      return { role: "hairdresser", redirectPath: "/pwa/dashboard" };
+    }
+
+    // 1b) If RLS prevents reading user_roles/admins tables on the client,
+    // use the security-definer RPC as the source of truth.
+    const { data: isAdmin, error: isAdminErr } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (isAdminErr) console.warn("[getRoleRedirect] has_role(admin) error:", isAdminErr);
+    log("has_role(admin)", { isAdmin: !!isAdmin });
+    if (isAdmin) return { role: "admin", redirectPath: "/admin/dashboard" };
+
+    const { data: isConcierge, error: isConciergeErr } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "concierge",
+    });
+    if (isConciergeErr) console.warn("[getRoleRedirect] has_role(concierge) error:", isConciergeErr);
+    log("has_role(concierge)", { isConcierge: !!isConcierge });
+    if (isConcierge) return { role: "concierge", redirectPath: "/admin/dashboard" };
+
+    const { data: isHairdresser, error: isHairdresserErr } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "hairdresser",
+    });
+    if (isHairdresserErr) console.warn("[getRoleRedirect] has_role(hairdresser) error:", isHairdresserErr);
+    log("has_role(hairdresser)", { isHairdresser: !!isHairdresser });
+
+    if (isHairdresser) {
+      const { data: hairdresser, error: hairdresserError } = await supabase
+        .from("hairdressers")
+        .select("status")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (hairdresserError) {
+        console.warn("[getRoleRedirect] hairdressers status error:", hairdresserError);
+      }
+
+      log("hairdresser status (rpc confirmed)", { status: hairdresser?.status ?? null });
+
+      if (hairdresser?.status === "En attente") {
+        return { role: "hairdresser", redirectPath: "/pwa/onboarding" };
+      }
       return { role: "hairdresser", redirectPath: "/pwa/dashboard" };
     }
 
