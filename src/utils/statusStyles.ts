@@ -114,11 +114,17 @@ export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
   },
 };
 
+// Helper function to capitalize first letter
+function capitalizeFirst(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
 // Helper functions
 export function getBookingStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as BookingStatus;
   return bookingStatusConfig[normalizedStatus] || {
-    label: status,
+    label: capitalizeFirst(status),
     badgeClass: 'bg-slate-500/10 text-slate-700 border-slate-500/30',
     cardClass: 'bg-slate-500 text-white border-slate-600',
     hexColor: '#64748b',
@@ -128,7 +134,7 @@ export function getBookingStatusConfig(status: string): StatusConfig {
 export function getPaymentStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as PaymentStatus;
   return paymentStatusConfig[normalizedStatus] || {
-    label: status,
+    label: capitalizeFirst(status),
     badgeClass: 'bg-slate-500/10 text-slate-700 border-slate-500/30',
     cardClass: 'bg-slate-500 text-white border-slate-600',
     hexColor: '#64748b',
@@ -138,7 +144,7 @@ export function getPaymentStatusConfig(status: string): StatusConfig {
 export function getEntityStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as EntityStatus;
   return entityStatusConfig[normalizedStatus] || {
-    label: status,
+    label: capitalizeFirst(status),
     badgeClass: 'bg-slate-500/10 text-slate-700 border-slate-500/30',
     cardClass: 'bg-slate-500 text-white border-slate-600',
     hexColor: '#64748b',
