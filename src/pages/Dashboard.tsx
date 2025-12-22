@@ -97,21 +97,43 @@ export default function Dashboard() {
       });
     }
     
-    const dataPoints = Math.min(days + 1, 10);
-    const interval = Math.max(1, Math.floor(days / dataPoints));
+    // Grouper les ventes par date
+    const salesByDate: { [key: string]: number } = {};
     
-    return Array.from({ length: dataPoints }, (_, i) => {
-      const date = addDays(startDate, i * interval);
-      const dayBookings = filteredBookings.filter(b => {
-        const bookingDate = parseISO(b.booking_date);
-        return format(bookingDate, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
-      });
-      const sales = dayBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
-      return {
-        date: format(date, "dd MMM", { locale: fr }),
-        sales: sales,
-      };
+    // Initialiser toutes les dates de la période avec 0
+    for (let i = 0; i <= days; i++) {
+      const date = addDays(startDate, i);
+      const dateKey = format(date, 'yyyy-MM-dd');
+      salesByDate[dateKey] = 0;
+    }
+    
+    // Ajouter les ventes réelles
+    filteredBookings.forEach(b => {
+      const dateKey = b.booking_date;
+      if (salesByDate.hasOwnProperty(dateKey)) {
+        salesByDate[dateKey] += parseFloat(b.total_price) || 0;
+      }
     });
+    
+    // Convertir en tableau et limiter à 15 points max pour la lisibilité
+    const allDates = Object.entries(salesByDate).sort((a, b) => a[0].localeCompare(b[0]));
+    const maxPoints = 15;
+    
+    if (allDates.length <= maxPoints) {
+      return allDates.map(([dateStr, sales]) => ({
+        date: format(parseISO(dateStr), "dd MMM", { locale: fr }),
+        sales: sales,
+      }));
+    }
+    
+    // Si plus de 15 jours, échantillonner
+    const interval = Math.ceil(allDates.length / maxPoints);
+    return allDates
+      .filter((_, index) => index % interval === 0 || index === allDates.length - 1)
+      .map(([dateStr, sales]) => ({
+        date: format(parseISO(dateStr), "dd MMM", { locale: fr }),
+        sales: sales,
+      }));
   };
 
   // Calculer les statistiques basées sur les vraies données
