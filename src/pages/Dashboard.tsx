@@ -293,7 +293,7 @@ export default function Dashboard() {
                   {hotelData.map((hotel, index) => (
                     <TableRow 
                       key={index} 
-                      className="border-b border-border/30 last:border-0 hover:bg-accent/50 transition-colors"
+                      className="border-b border-border/30 last:border-0"
                     >
                       <TableCell className="py-4 px-6 whitespace-nowrap">
                         <div className="flex items-center gap-3">
