@@ -286,9 +286,9 @@ export default function Booking() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-3 md:p-6 overflow-x-hidden pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-7xl mx-auto w-full">
-        <div className="mb-4 md:mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="max-w-7xl mx-auto w-full flex flex-col h-full p-3 md:p-4">
+        <div className="mb-2 flex flex-col md:flex-row md:items-center justify-between gap-2 flex-shrink-0">
           <h1 className="text-xl md:text-3xl font-bold text-foreground flex items-center gap-2">
             📅 Réservations
           </h1>
@@ -318,8 +318,8 @@ export default function Booking() {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg border border-border">
-          <div className="p-2 md:p-4 border-b border-border">
+        <div className="bg-card rounded-lg border border-border flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="p-2 md:p-3 border-b border-border flex-shrink-0">
             <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center justify-between">
               <div className="flex flex-col md:flex-row gap-2 md:gap-4 items-stretch md:items-center flex-1">
                 <div className="relative flex-1 min-w-0">
@@ -637,21 +637,22 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div className="w-full">
-                <Table className="text-sm w-full table-fixed">
-                  <TableHeader>
-                    <TableRow className="border-b h-10">
-                      <TableHead className="font-semibold text-foreground py-2 w-[60px]">ID</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[80px]">Date</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[50px]">Heure</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[55px]">Durée</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[90px]">Status</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[85px]">Paiement</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Client</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[60px]">Prix</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Hôtel</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2">Coiffeur</TableHead>
-                      <TableHead className="font-semibold text-foreground py-2 w-[50px]"></TableHead>
+            <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-auto">
+                <Table className="text-xs w-full table-fixed">
+                  <TableHeader className="sticky top-0 bg-card z-10">
+                    <TableRow className="border-b h-8">
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">ID</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[70px]">Date</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[45px]">Heure</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Durée</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[80px]">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[75px]">Paiement</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Client</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[50px]">Prix</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Hôtel</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1">Coiffeur</TableHead>
+                      <TableHead className="font-semibold text-foreground py-1 w-[36px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                 <TableBody>
@@ -660,20 +661,20 @@ export default function Booking() {
                     .map((booking, index) => (
                     <TableRow 
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-12"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium py-2 truncate">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-muted-foreground py-2 truncate">
+                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
                         {format(new Date(booking.booking_date), "dd/MM/yy")}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-2 truncate">
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground py-2 truncate">
+                      <TableCell className="text-muted-foreground py-1 truncate whitespace-nowrap">
                         {(booking as any).totalDuration > 0 
                           ? (() => {
                               const hours = Math.floor((booking as any).totalDuration / 60);
@@ -685,45 +686,52 @@ export default function Booking() {
                           : "-"
                         }
                       </TableCell>
-                      <TableCell className="py-2">
-                        <Badge className={`${getStatusColor(booking.status)} h-6 text-xs px-2`}>
+                      <TableCell className="py-1">
+                        <Badge className={`${getStatusColor(booking.status)} h-5 text-[10px] px-1.5`}>
                           {getTranslatedStatus(booking.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="py-1">
                         {(() => {
                           const badge = getPaymentStatusBadge(booking.payment_status);
                           return (
-                            <Badge className={`${badge.className} h-6 text-xs px-2`}>
+                            <Badge className={`${badge.className} h-5 text-[10px] px-1.5`}>
                               {badge.label}
                             </Badge>
                           );
                         })()}
                       </TableCell>
-                      <TableCell className="font-medium py-2 truncate">
+                      <TableCell className="font-medium py-1 truncate whitespace-nowrap">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="font-semibold py-2 truncate">{booking.total_price}€</TableCell>
-                      <TableCell className="text-muted-foreground py-2 truncate">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-muted-foreground py-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="font-semibold py-1 truncate whitespace-nowrap">{booking.total_price}€</TableCell>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <TableCell className="text-muted-foreground py-1 truncate max-w-[120px]">{booking.hotel_name || "-"}</TableCell>
+                          </TooltipTrigger>
+                          <TooltipContent>{booking.hotel_name || "-"}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TableCell className="text-muted-foreground py-1 truncate">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-1">
                         {booking.stripe_invoice_url ? (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6"
                             onClick={(e) => {
                               e.stopPropagation();
                               window.open(booking.stripe_invoice_url, '_blank');
                             }}
                           >
-                            <FileText className="h-4 w-4" />
+                            <FileText className="h-3.5 w-3.5" />
                           </Button>
                         ) : (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
+                            className="h-6 w-6"
                             disabled={booking.payment_status !== 'paid' && booking.status !== 'Terminé'}
                             onClick={async (e) => {
                               e.stopPropagation();
@@ -742,7 +750,7 @@ export default function Booking() {
                               }
                             }}
                           >
-                            <FileText className="h-4 w-4" />
+                            <FileText className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </TableCell>
@@ -756,11 +764,11 @@ export default function Booking() {
                     </TableRow>
                   )}
                 </TableBody>
-              </Table>
-              
+                </Table>
+              </div>
               {/* Pagination */}
               {filteredBookings && filteredBookings.length > itemsPerPage && (
-                <div className="flex items-center justify-between px-4 py-4 border-t">
+                <div className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card">
                   <div className="text-sm text-muted-foreground">
                     Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings.length)} on {filteredBookings.length} entries
                   </div>
@@ -810,6 +818,7 @@ export default function Booking() {
           )}
         </div>
       </div>
+
 
       <CreateBookingDialog
         open={isCreateDialogOpen}
