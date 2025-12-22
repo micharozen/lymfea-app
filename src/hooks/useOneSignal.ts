@@ -58,6 +58,9 @@ export const getPendingNotificationUrl = (): string | null => {
   return url;
 };
 
+// Pages where OneSignal should NOT initialize (auth pages)
+const AUTH_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash'];
+
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);
   const initAttempted = useRef(false);
@@ -86,6 +89,13 @@ export const useOneSignal = () => {
       // Check if we're in a supported environment
       if (typeof window === 'undefined') {
         console.log('[OneSignal] Not in browser environment');
+        return;
+      }
+
+      // Skip initialization on auth pages - don't prompt for notifications before login
+      const currentPath = window.location.pathname;
+      if (AUTH_PAGES.some(page => currentPath === page || currentPath.startsWith(page + '/'))) {
+        console.log('[OneSignal] Skipping initialization on auth page:', currentPath);
         return;
       }
 
