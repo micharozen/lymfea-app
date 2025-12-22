@@ -278,12 +278,16 @@ const Auth = () => {
         return;
       }
 
-      // Update admin status to "Actif" on first login
-      if (data.user) {
-        await supabase
-          .from("admins")
-          .update({ status: "Actif" })
-          .eq("user_id", data.user.id);
+      // If this is an invited admin account (status != Actif), force password change first
+      const { data: admin } = await supabase
+        .from("admins")
+        .select("status")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+      if (admin && admin.status !== "Actif") {
+        navigate("/update-password", { replace: true });
+        return;
       }
 
       // Check if concierge needs to change password

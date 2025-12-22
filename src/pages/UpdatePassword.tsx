@@ -28,26 +28,26 @@ const UpdatePassword = () => {
         return;
       }
 
-      // Check if user must change password
-      const { data: concierge } = await supabase
-        .from("concierges")
-        .select("must_change_password")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
+      // Check if user must change password (concierge) OR needs to activate account (admin)
+      const [{ data: concierge }, { data: admin }] = await Promise.all([
+        supabase
+          .from("concierges")
+          .select("must_change_password")
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
+        supabase
+          .from("admins")
+          .select("status")
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
+      ]);
 
-      if (!concierge?.must_change_password) {
-        // No need to change password, redirect to appropriate page
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
+      const mustChangeConcierge = !!concierge?.must_change_password;
+      const mustActivateAdmin = !!admin && admin.status !== "Actif";
 
-        if (roles?.role === 'admin' || roles?.role === 'concierge') {
-          navigate("/admin", { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
+      if (!mustChangeConcierge && !mustActivateAdmin) {
+        const { role, redirectPath } = await getRoleRedirect(session.user.id);
+        navigate(role ? redirectPath : "/auth", { replace: true });
         return;
       }
 
@@ -95,7 +95,7 @@ const UpdatePassword = () => {
         throw new Error("Utilisateur non trouvé");
       }
 
-      // Clear the must_change_password flag
+      // Clear the must_change_password flag (concierge)
       const { error: updateError } = await supabase
         .from("concierges")
         .update({ must_change_password: false })
@@ -103,6 +103,17 @@ const UpdatePassword = () => {
 
       if (updateError) {
         console.error("Error clearing password flag:", updateError);
+        // Non-fatal, continue anyway
+      }
+
+      // Activate admin account if applicable
+      const { error: adminActivateError } = await supabase
+        .from("admins")
+        .update({ status: "Actif" })
+        .eq("user_id", user.id);
+
+      if (adminActivateError) {
+        console.error("Error activating admin:", adminActivateError);
         // Non-fatal, continue anyway
       }
 
