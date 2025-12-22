@@ -57,7 +57,7 @@ export default function Booking() {
   const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15;
+  const [itemsPerPage, setItemsPerPage] = useState(15);
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
@@ -136,6 +136,18 @@ export default function Booking() {
     },
   });
 
+  // Force "no scroll anywhere" on this page (fits content via pagination)
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
+
   // Update current time every minute
   useEffect(() => {
     const interval = setInterval(() => {
@@ -143,6 +155,22 @@ export default function Booking() {
     }, 60000); // Update every minute
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  useEffect(() => {
+    const compute = () => {
+      const rowHeight = 44; // h-11
+      const chrome = 260; // header + filters + paddings + pagination space
+      const available = Math.max(0, window.innerHeight - chrome);
+      const rows = Math.max(8, Math.floor(available / rowHeight));
+      setItemsPerPage(rows);
+      setCurrentPage(1);
+    };
+
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, [view]);
 
   // Update selectedBooking when bookings data changes
   useEffect(() => {
