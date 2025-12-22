@@ -189,21 +189,14 @@ const Auth = () => {
         return;
       }
 
-      // Check user role to redirect appropriately
+      // Ensure backend role mapping exists, then redirect using centralized logic
       if (signInData?.user) {
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', signInData.user.id)
-          .single();
+        await supabase.functions.invoke("ensure-user-role", {
+          body: { userId: signInData.user.id, email: emailToUse },
+        });
 
-        if (roles?.role === 'admin' || roles?.role === 'concierge') {
-          navigate("/admin", { replace: true });
-        } else if (roles?.role === 'hairdresser') {
-          navigate("/pwa/dashboard", { replace: true });
-        } else {
-          navigate("/", { replace: true });
-        }
+        const { redirectPath } = await getRoleRedirect(signInData.user.id);
+        navigate(redirectPath, { replace: true });
       } else {
         navigate("/");
       }
@@ -258,20 +251,13 @@ const Auth = () => {
                 description: "Bienvenue !",
               });
               
-              // Check user role to redirect appropriately
-              const { data: roles } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', signInData.user.id)
-                .single();
+              // Ensure backend role mapping exists, then redirect
+              await supabase.functions.invoke("ensure-user-role", {
+                body: { userId: signInData.user.id, email: emailToUse },
+              });
 
-              if (roles?.role === 'admin' || roles?.role === 'concierge') {
-                navigate("/admin", { replace: true });
-              } else if (roles?.role === 'hairdresser') {
-                navigate("/pwa/dashboard", { replace: true });
-              } else {
-                navigate("/", { replace: true });
-              }
+              const { redirectPath } = await getRoleRedirect(signInData.user.id);
+              navigate(redirectPath, { replace: true });
               return;
             }
           }
@@ -317,20 +303,13 @@ const Auth = () => {
         description: "Bienvenue !",
       });
       
-      // Check user role to redirect appropriately
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', data.user.id)
-        .single();
+      // Ensure backend role mapping exists, then redirect using centralized logic
+      await supabase.functions.invoke("ensure-user-role", {
+        body: { userId: data.user.id, email: emailToUse },
+      });
 
-      if (roles?.role === 'admin' || roles?.role === 'concierge') {
-        navigate("/admin", { replace: true });
-      } else if (roles?.role === 'hairdresser') {
-        navigate("/pwa/dashboard", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      const { redirectPath } = await getRoleRedirect(data.user.id);
+      navigate(redirectPath, { replace: true });
     } finally {
       setIsLoading(false);
     }
