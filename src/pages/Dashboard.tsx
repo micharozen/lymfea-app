@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
 import { format, differenceInDays, addDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -242,12 +242,23 @@ export default function Dashboard() {
                   stroke="#666"
                   tickFormatter={(value) => `${value} €`}
                 />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}
+                  labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
+                  formatter={(value: number) => [`${value.toFixed(2)} €`, 'Ventes']}
+                />
                 <Line
                   type="monotone"
                   dataKey="sales"
                   stroke="#000000"
                   strokeWidth={2}
-                  dot={false}
+                  dot={{ fill: '#000000', strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, fill: '#000000' }}
                 />
               </LineChart>
             </ResponsiveContainer>
