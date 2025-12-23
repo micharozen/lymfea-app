@@ -716,7 +716,7 @@ export default function Booking() {
                   {paginatedBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-9"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
@@ -729,14 +729,14 @@ export default function Booking() {
                       <TableCell className="text-foreground py-1.5 px-2 truncate">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="py-1.5 px-2">
-                        <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5" />
+                      <TableCell className="py-1.5 px-2 h-10">
+                        <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
-                      <TableCell className="py-1.5 px-2">
+                      <TableCell className="py-1.5 px-2 h-10">
                         <StatusBadge
                           status={booking.payment_status || "pending"}
                           type="payment"
-                          className="text-[10px] px-2 py-0.5"
+                          className="text-[10px] px-2 py-0.5 whitespace-nowrap"
                         />
                       </TableCell>
                       <TableCell className="text-foreground py-1.5 px-2 truncate">
@@ -789,7 +789,7 @@ export default function Booking() {
 
                   {filteredBookings?.length
                     ? Array.from({ length: emptyRowsCount }).map((_, idx) => (
-                        <TableRow key={`empty-${idx}`} className="h-9 border-b">
+                        <TableRow key={`empty-${idx}`} className="h-10 border-b">
                           <TableCell colSpan={totalListColumns} className="py-1.5">&nbsp;</TableCell>
                         </TableRow>
                       ))
