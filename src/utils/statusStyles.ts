@@ -1,5 +1,5 @@
 // Centralized Status Configuration
-// All database values are in English, UI labels can be localized
+// Database values can be in French or English, UI labels are in French
 
 export type BookingStatus = 'pending' | 'assigned' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_validation';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
@@ -13,7 +13,8 @@ interface StatusConfig {
 }
 
 // Booking Status Configuration - matching PWA styles
-export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
+export const bookingStatusConfig: Record<string, StatusConfig> = {
+  // English keys
   pending: {
     label: 'En attente',
     badgeClass: 'bg-orange-500/10 text-orange-700',
@@ -50,10 +51,47 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     cardClass: 'bg-purple-500 text-white',
     hexColor: '#8b5cf6',
   },
+  // French keys (as stored in database)
+  'en attente': {
+    label: 'En attente',
+    badgeClass: 'bg-orange-500/10 text-orange-700',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
+  },
+  'assigné': {
+    label: 'Assigné',
+    badgeClass: 'bg-blue-500/10 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
+    hexColor: '#3b82f6',
+  },
+  'confirmé': {
+    label: 'Confirmé',
+    badgeClass: 'bg-blue-500/10 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
+    hexColor: '#3b82f6',
+  },
+  'terminé': {
+    label: 'Terminé',
+    badgeClass: 'bg-green-500/10 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
+  },
+  'annulé': {
+    label: 'Annulé',
+    badgeClass: 'bg-red-500/10 text-red-700',
+    cardClass: 'bg-red-500 text-white',
+    hexColor: '#ef4444',
+  },
+  'validation': {
+    label: 'Validation',
+    badgeClass: 'bg-purple-500/10 text-purple-700',
+    cardClass: 'bg-purple-500 text-white',
+    hexColor: '#8b5cf6',
+  },
 };
 
 // Payment Status Configuration - matching PWA styles
-export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
+export const paymentStatusConfig: Record<string, StatusConfig> = {
   pending: {
     label: 'En attente',
     badgeClass: 'bg-yellow-100 text-yellow-700',
@@ -84,10 +122,41 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
     cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
   },
+  // French keys
+  'en attente': {
+    label: 'En attente',
+    badgeClass: 'bg-yellow-100 text-yellow-700',
+    cardClass: 'bg-yellow-500 text-white',
+    hexColor: '#eab308',
+  },
+  'payé': {
+    label: 'Payé',
+    badgeClass: 'bg-green-100 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
+  },
+  'échoué': {
+    label: 'Échoué',
+    badgeClass: 'bg-red-100 text-red-700',
+    cardClass: 'bg-red-500 text-white',
+    hexColor: '#ef4444',
+  },
+  'remboursé': {
+    label: 'Remboursé',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
+  },
+  'chambre': {
+    label: 'Chambre',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
+    hexColor: '#3b82f6',
+  },
 };
 
 // Entity Status Configuration (Hairdressers, Concierges, Admins, Treatments, Trunks)
-export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
+export const entityStatusConfig: Record<string, StatusConfig> = {
   active: {
     label: 'Actif',
     badgeClass: 'bg-green-500/10 text-green-700',
@@ -112,6 +181,25 @@ export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
     cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
+  // French keys
+  'actif': {
+    label: 'Actif',
+    badgeClass: 'bg-green-500/10 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
+  },
+  'en attente': {
+    label: 'En attente',
+    badgeClass: 'bg-orange-500/10 text-orange-700',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
+  },
+  'inactif': {
+    label: 'Inactif',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
+  },
 };
 
 // Helper function to capitalize first letter
@@ -122,7 +210,7 @@ function capitalizeFirst(str: string): string {
 
 // Helper functions
 export function getBookingStatusConfig(status: string): StatusConfig {
-  const normalizedStatus = status.toLowerCase() as BookingStatus;
+  const normalizedStatus = status.toLowerCase();
   return bookingStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
     badgeClass: 'bg-gray-100 text-gray-700',
@@ -132,7 +220,7 @@ export function getBookingStatusConfig(status: string): StatusConfig {
 }
 
 export function getPaymentStatusConfig(status: string): StatusConfig {
-  const normalizedStatus = status.toLowerCase() as PaymentStatus;
+  const normalizedStatus = status.toLowerCase();
   return paymentStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
     badgeClass: 'bg-gray-100 text-gray-700',
@@ -142,7 +230,7 @@ export function getPaymentStatusConfig(status: string): StatusConfig {
 }
 
 export function getEntityStatusConfig(status: string): StatusConfig {
-  const normalizedStatus = status.toLowerCase() as EntityStatus;
+  const normalizedStatus = status.toLowerCase();
   return entityStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
     badgeClass: 'bg-gray-100 text-gray-700',
