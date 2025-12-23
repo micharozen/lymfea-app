@@ -66,7 +66,7 @@ const PwaLogin = () => {
             .single();
 
           if (hairdresser) {
-            if (hairdresser.status === "En attente") {
+            if (hairdresser.status === "pending") {
               navigate("/pwa/onboarding", { replace: true });
             } else {
               navigate("/pwa/dashboard", { replace: true });
@@ -272,7 +272,7 @@ const PwaLogin = () => {
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      if (data.hairdresser.status === "En attente") {
+      if (data.hairdresser.status === "pending") {
         navigate("/pwa/onboarding", { replace: true });
       } else {
         navigate("/pwa/dashboard", { replace: true });

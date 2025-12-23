@@ -313,7 +313,7 @@ const PwaBookingDetail = () => {
         .update({ 
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
-          status: "Terminé",
+          status: "completed",
           updated_at: new Date().toISOString()
         })
         .eq("id", booking.id);
@@ -781,7 +781,7 @@ const PwaBookingDetail = () => {
           <div className="mb-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-foreground">{t('booking.treatments')}</h3>
-              {booking.status === "Assigné" && (
+              {booking.status === "assigned" && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
                   className="px-4 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
@@ -802,7 +802,7 @@ const PwaBookingDetail = () => {
                         {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0}min
                       </p>
                     </div>
-                    {(booking.status !== "Terminé" && booking.status !== "En attente") && (
+                    {(booking.status !== "completed" && booking.status !== "pending") && (
                       <button
                         onClick={() => setTreatmentToDelete(treatment.id)}
                         className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
@@ -821,7 +821,7 @@ const PwaBookingDetail = () => {
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
           <div className="flex items-center gap-2">
             {/* For Pending Requests (not assigned to anyone) */}
-            {booking.status === "En attente" && !booking.hairdresser_id ? (
+            {booking.status === "pending" && !booking.hairdresser_id ? (
               <>
                 {/* Decline Button */}
                 <button
@@ -950,7 +950,7 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {["Assigné", "Confirmé"].includes(booking.status) && !booking.client_signature && (
+                {["assigned", "confirmed"].includes(booking.status) && !booking.client_signature && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}

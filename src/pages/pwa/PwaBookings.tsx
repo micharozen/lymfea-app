@@ -115,8 +115,8 @@ const PwaBookings = () => {
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all">Toutes</TabsTrigger>
-            <TabsTrigger value="En attente">En attente</TabsTrigger>
-            <TabsTrigger value="Terminé">Terminées</TabsTrigger>
+            <TabsTrigger value="pending">En attente</TabsTrigger>
+            <TabsTrigger value="completed">Terminées</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -144,14 +144,18 @@ const PwaBookings = () => {
                   </div>
                   <span
                     className={`px-2 py-1 rounded text-xs font-medium ${
-                      booking.status === "Terminé"
+                      booking.status === "completed"
                         ? "bg-green-500/10 text-green-700"
-                        : booking.status === "Assigné"
+                        : booking.status === "assigned" || booking.status === "confirmed"
                         ? "bg-blue-500/10 text-blue-700"
                         : "bg-orange-500/10 text-orange-700"
                     }`}
                   >
-                    {booking.status}
+                    {booking.status === "pending" ? "En attente" :
+                     booking.status === "assigned" ? "Assigné" :
+                     booking.status === "confirmed" ? "Confirmé" :
+                     booking.status === "completed" ? "Terminé" :
+                     booking.status === "cancelled" ? "Annulé" : booking.status}
                   </span>
                 </div>
 
