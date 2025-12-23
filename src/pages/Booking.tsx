@@ -164,8 +164,8 @@ export default function Booking() {
   const computeRows = useCallback(() => {
     if (view !== 'list') return;
     
-    const rowHeight = 44; // h-11 = 44px
-    const tableHeaderHeight = 40; // h-10 = 40px
+    const rowHeight = 36; // h-9 = 36px
+    const tableHeaderHeight = 32; // h-8 = 32px
     const cardPadding = 0; // minimal padding
     const safetyMargin = 8; // small buffer
     
@@ -255,7 +255,7 @@ export default function Booking() {
     filteredBookings?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) ?? [];
 
   // Keep layout stable across pagination: render empty rows to fill the table height
-  const totalListColumns = 11;
+  const totalListColumns = 10;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil((filteredBookings?.length ?? 0) / itemsPerPage));
 
@@ -684,33 +684,31 @@ export default function Booking() {
             </div>
           ) : (
             <div className="h-full flex flex-col">
-              <Table className="text-sm w-full table-fixed">
+              <Table className="text-xs w-full table-fixed">
                 <colgroup>
-                  <col className="w-[8%]" />   {/* Booking ID */}
-                  <col className="w-[9%]" />   {/* Date */}
+                  <col className="w-[7%]" />   {/* Booking ID */}
+                  <col className="w-[10%]" />  {/* Date */}
                   <col className="w-[7%]" />   {/* Start time */}
-                  <col className="w-[9%]" />   {/* Status */}
-                  <col className="w-[9%]" />   {/* Payment */}
-                  <col className="w-[12%]" />  {/* Client name */}
-                  <col className="w-[10%]" />  {/* Client phone */}
-                  <col className="w-[8%]" />   {/* Total price */}
-                  <col className="w-[10%]" />  {/* Hotel */}
-                  <col className="w-[10%]" />  {/* Hair dresser */}
-                  <col className="w-[8%]" />   {/* Invoice */}
+                  <col className="w-[10%]" />  {/* Status */}
+                  <col className="w-[10%]" />  {/* Payment */}
+                  <col className="w-[14%]" />  {/* Client name */}
+                  <col className="w-[9%]" />   {/* Total price */}
+                  <col className="w-[12%]" />  {/* Hotel */}
+                  <col className="w-[12%]" />  {/* Hair dresser */}
+                  <col className="w-[9%]" />   {/* Invoice */}
                 </colgroup>
                 <TableHeader>
-                  <TableRow className="border-b h-10 bg-muted/30">
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Booking ID</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Date</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Start time</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Status</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Payment</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Client name</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Client phone</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Total price</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Hotel</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Hair dresser</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Invoice</TableHead>
+                  <TableRow className="border-b h-8 bg-muted/20">
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Booking...</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Start t...</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Status</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Payment</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client name</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total price</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hair dresser</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -718,50 +716,48 @@ export default function Booking() {
                   {paginatedBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-11"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-9"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium text-primary py-2 truncate">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-foreground py-2 truncate">
+                      <TableCell className="font-medium text-primary py-1.5 px-2 truncate">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 truncate">
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
-                      <TableCell className="py-2">
-                        <StatusBadge status={booking.status} type="booking" className="text-xs px-3 py-0.5" />
+                      <TableCell className="py-1.5 px-2">
+                        <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5" />
                       </TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="py-1.5 px-2">
                         <StatusBadge
                           status={booking.payment_status || "pending"}
                           type="payment"
-                          className="text-xs px-3 py-0.5"
+                          className="text-[10px] px-2 py-0.5"
                         />
                       </TableCell>
-                      <TableCell className="text-foreground py-2 truncate">
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 truncate">{booking.phone || "-"}</TableCell>
-                      <TableCell className="text-foreground py-2 truncate">
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">
                         €{booking.total_price?.toFixed(2) || "0.00"}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 truncate">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-foreground py-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">{booking.hotel_name || "-"}</TableCell>
+                      <TableCell className="text-foreground py-1.5 px-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-1.5 px-2">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs"
+                            className="h-6 text-[10px] px-2"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (booking.stripe_invoice_url) {
                                 window.open(booking.stripe_invoice_url, "_blank");
                               } else {
-                                // Generate invoice
                                 supabase.functions
                                   .invoke("generate-invoice", {
                                     body: { bookingId: booking.id },
@@ -786,7 +782,7 @@ export default function Booking() {
 
                   {!filteredBookings?.length && (
                     <TableRow>
-                      <TableCell colSpan={totalListColumns} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={totalListColumns} className="text-center text-muted-foreground py-6">
                         No bookings found
                       </TableCell>
                     </TableRow>
@@ -794,8 +790,8 @@ export default function Booking() {
 
                   {filteredBookings?.length
                     ? Array.from({ length: emptyRowsCount }).map((_, idx) => (
-                        <TableRow key={`empty-${idx}`} className="h-11 border-b">
-                          <TableCell colSpan={totalListColumns} className="py-2">&nbsp;</TableCell>
+                        <TableRow key={`empty-${idx}`} className="h-9 border-b">
+                          <TableCell colSpan={totalListColumns} className="py-1.5">&nbsp;</TableCell>
                         </TableRow>
                       ))
                     : null}
