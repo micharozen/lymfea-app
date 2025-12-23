@@ -33,6 +33,7 @@ import { fr } from "date-fns/locale";
 import { Check, ChevronsUpDown, Trash2, CalendarIcon, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -139,22 +140,6 @@ interface Booking {
   payment_method?: string | null;
 }
 
-const getPaymentStatusBadge = (paymentStatus?: string | null) => {
-  if (!paymentStatus) return { label: '-', className: 'bg-muted/50 text-muted-foreground' };
-  
-  switch (paymentStatus) {
-    case 'paid':
-      return { label: 'Payé', className: 'bg-success/10 text-success border-success/30' };
-    case 'charged_to_room':
-      return { label: 'Facturé chambre', className: 'bg-info/10 text-info border-info/30' };
-    case 'pending':
-      return { label: 'Paiement en attente', className: 'bg-warning/10 text-warning border-warning/30' };
-    case 'failed':
-      return { label: 'Paiement échoué', className: 'bg-destructive/10 text-destructive border-destructive/30' };
-    default:
-      return { label: paymentStatus, className: 'bg-muted/50 text-muted-foreground' };
-  }
-};
 
 interface EditBookingDialogProps {
   open: boolean;
@@ -723,26 +708,13 @@ export default function EditBookingDialog({
               </div>
               <div className="flex flex-col items-end gap-1">
                 <Badge 
-                  variant={
-                    booking?.status === "Terminé" ? "default" :
-                    booking?.status === "Annulé" ? "destructive" :
-                    booking?.status === "En attente" ? "secondary" :
-                    booking?.status === "Assigné" ? "default" :
-                    "outline"
-                  }
-                  className={
-                    booking?.status === "Terminé" ? "bg-green-500 hover:bg-green-600 text-white" :
-                    booking?.status === "Annulé" ? "bg-red-500 hover:bg-red-600 text-white" :
-                    booking?.status === "En attente" ? "bg-orange-500 hover:bg-orange-600 text-white" :
-                    booking?.status === "Assigné" ? "bg-blue-500 hover:bg-blue-600 text-white" :
-                    ""
-                  }
+                  className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}
                 >
-                  {booking?.status}
+                  {getBookingStatusConfig(booking?.status || 'pending').label}
                 </Badge>
                 {booking?.payment_status && (
-                  <Badge variant="outline" className={`text-xs ${getPaymentStatusBadge(booking.payment_status).className}`}>
-                    {getPaymentStatusBadge(booking.payment_status).label}
+                  <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
+                    {getPaymentStatusConfig(booking.payment_status).label}
                   </Badge>
                 )}
               </div>
