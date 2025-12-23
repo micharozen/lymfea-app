@@ -55,7 +55,7 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
 // Payment Status Configuration - matching PWA styles
 export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   pending: {
-    label: 'En attente',
+    label: 'À régler',
     badgeClass: 'bg-yellow-100 text-yellow-700',
     cardClass: 'bg-yellow-500 text-white',
     hexColor: '#eab308',
