@@ -12,76 +12,76 @@ interface StatusConfig {
   hexColor: string; // For emails
 }
 
-// Booking Status Configuration
+// Booking Status Configuration - matching PWA styles
 export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   pending: {
     label: 'En attente',
-    badgeClass: 'bg-warning/20 text-warning-foreground',
-    cardClass: 'bg-warning text-warning-foreground',
-    hexColor: '#f59e0b',
+    badgeClass: 'bg-orange-500/10 text-orange-700',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
   },
   assigned: {
     label: 'Assigné',
-    badgeClass: 'bg-info/20 text-info-foreground',
-    cardClass: 'bg-info text-info-foreground',
+    badgeClass: 'bg-blue-500/10 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
   },
   confirmed: {
     label: 'Confirmé',
-    badgeClass: 'bg-info/20 text-info-foreground',
-    cardClass: 'bg-info text-info-foreground',
+    badgeClass: 'bg-blue-500/10 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
   },
   completed: {
     label: 'Terminé',
-    badgeClass: 'bg-success/20 text-success-foreground',
-    cardClass: 'bg-success text-success-foreground',
-    hexColor: '#10b981',
+    badgeClass: 'bg-green-500/10 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
   },
   cancelled: {
     label: 'Annulé',
-    badgeClass: 'bg-destructive/20 text-destructive-foreground',
-    cardClass: 'bg-destructive text-destructive-foreground',
+    badgeClass: 'bg-red-500/10 text-red-700',
+    cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
   awaiting_validation: {
     label: 'Validation',
-    badgeClass: 'bg-accent/20 text-accent-foreground',
-    cardClass: 'bg-accent text-accent-foreground',
+    badgeClass: 'bg-purple-500/10 text-purple-700',
+    cardClass: 'bg-purple-500 text-white',
     hexColor: '#8b5cf6',
   },
 };
 
-// Payment Status Configuration
+// Payment Status Configuration - matching PWA styles
 export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   pending: {
     label: 'En attente',
-    badgeClass: 'bg-warning/20 text-warning-foreground',
-    cardClass: 'bg-warning text-warning-foreground',
-    hexColor: '#f59e0b',
+    badgeClass: 'bg-yellow-100 text-yellow-700',
+    cardClass: 'bg-yellow-500 text-white',
+    hexColor: '#eab308',
   },
   paid: {
     label: 'Payé',
-    badgeClass: 'bg-success/20 text-success-foreground',
-    cardClass: 'bg-success text-success-foreground',
-    hexColor: '#10b981',
+    badgeClass: 'bg-green-100 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
   },
   failed: {
     label: 'Échoué',
-    badgeClass: 'bg-destructive/20 text-destructive-foreground',
-    cardClass: 'bg-destructive text-destructive-foreground',
+    badgeClass: 'bg-red-100 text-red-700',
+    cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
   refunded: {
     label: 'Remboursé',
-    badgeClass: 'bg-muted/40 text-muted-foreground',
-    cardClass: 'bg-muted text-foreground',
-    hexColor: '#64748b',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
   },
   charged_to_room: {
     label: 'Chambre',
-    badgeClass: 'bg-info/20 text-info-foreground',
-    cardClass: 'bg-info text-info-foreground',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
   },
 };
@@ -90,26 +90,26 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
 export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
   active: {
     label: 'Actif',
-    badgeClass: 'bg-success/20 text-success-foreground',
-    cardClass: 'bg-success text-success-foreground',
-    hexColor: '#10b981',
+    badgeClass: 'bg-green-500/10 text-green-700',
+    cardClass: 'bg-green-500 text-white',
+    hexColor: '#22c55e',
   },
   pending: {
     label: 'En attente',
-    badgeClass: 'bg-warning/20 text-warning-foreground',
-    cardClass: 'bg-warning text-warning-foreground',
-    hexColor: '#f59e0b',
+    badgeClass: 'bg-orange-500/10 text-orange-700',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
   },
   inactive: {
     label: 'Inactif',
-    badgeClass: 'bg-muted/40 text-muted-foreground',
-    cardClass: 'bg-muted text-foreground',
-    hexColor: '#64748b',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
   },
   maintenance: {
     label: 'Maintenance',
-    badgeClass: 'bg-destructive/20 text-destructive-foreground',
-    cardClass: 'bg-destructive text-destructive-foreground',
+    badgeClass: 'bg-red-500/10 text-red-700',
+    cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
 };
@@ -125,9 +125,9 @@ export function getBookingStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as BookingStatus;
   return bookingStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
-    badgeClass: 'bg-muted/40 text-muted-foreground',
-    cardClass: 'bg-muted text-foreground',
-    hexColor: '#64748b',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
   };
 }
 
@@ -135,9 +135,9 @@ export function getPaymentStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as PaymentStatus;
   return paymentStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
-    badgeClass: 'bg-muted/40 text-muted-foreground',
-    cardClass: 'bg-muted text-foreground',
-    hexColor: '#64748b',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
   };
 }
 
@@ -145,9 +145,9 @@ export function getEntityStatusConfig(status: string): StatusConfig {
   const normalizedStatus = status.toLowerCase() as EntityStatus;
   return entityStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
-    badgeClass: 'bg-muted/40 text-muted-foreground',
-    cardClass: 'bg-muted text-foreground',
-    hexColor: '#64748b',
+    badgeClass: 'bg-gray-100 text-gray-700',
+    cardClass: 'bg-gray-500 text-white',
+    hexColor: '#6b7280',
   };
 }
 
@@ -161,6 +161,6 @@ export function getStatusHexColor(status: string, type: 'booking' | 'payment' | 
     case 'entity':
       return getEntityStatusConfig(status).hexColor;
     default:
-      return '#64748b';
+      return '#6b7280';
   }
 }
