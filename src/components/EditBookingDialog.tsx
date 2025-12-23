@@ -688,15 +688,15 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-lg">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader className="pb-1">
+          <DialogTitle className="text-base">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* En-tête */}
-            <div className="flex items-center justify-between pb-3 border-b">
+            <div className="flex items-center justify-between pb-2 border-b">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
                   <CalendarIcon className="w-5 h-5" />
@@ -721,56 +721,48 @@ export default function EditBookingDialog({
             </div>
 
             {/* Infos principales */}
-            <div className="p-3 bg-muted/30 rounded space-y-3">
-              <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
+            <div className="p-2 bg-muted/30 rounded space-y-2">
+              <div className="grid grid-cols-5 gap-2">
                 <div className="text-left">
-                  <p className="text-xs text-muted-foreground mb-1">Date</p>
+                  <p className="text-xs text-muted-foreground">Date</p>
                   <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-muted-foreground mb-1">Heure</p>
+                  <p className="text-xs text-muted-foreground">Heure</p>
                   <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-muted-foreground mb-1">Chambre</p>
+                  <p className="text-xs text-muted-foreground">Chambre</p>
                   <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-[1fr_1fr_1fr] gap-3">
                 <div className="text-left">
-                  <p className="text-xs text-muted-foreground mb-1">Prix total</p>
+                  <p className="text-xs text-muted-foreground">Prix</p>
                   <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
                 </div>
                 <div className="text-left">
-                  <p className="text-xs text-muted-foreground mb-1">Durée</p>
+                  <p className="text-xs text-muted-foreground">Durée</p>
                   <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
                 </div>
-                <div></div>
               </div>
             </div>
 
             {/* Prestations */}
             {bookingTreatments && bookingTreatments.length > 0 && (
-              <div className="p-3 bg-muted/30 rounded">
-                <p className="text-xs text-muted-foreground mb-2">Prestations</p>
-                <div className="space-y-1.5">
+              <div className="p-2 bg-muted/30 rounded">
+                <p className="text-xs text-muted-foreground mb-1">Prestations</p>
+                <div className="flex flex-wrap gap-1">
                   {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex items-center gap-2 p-2 bg-background border rounded">
-                      <div className="w-6 h-6 bg-muted rounded flex items-center justify-center shrink-0 text-xs">
-                        💇
-                      </div>
-                      <p className="font-medium text-sm flex-1">{treatment.name}</p>
-                      <p className="text-xs text-muted-foreground">{treatment.category}</p>
-                    </div>
+                    <Badge key={treatment.id} variant="outline" className="text-xs font-normal">
+                      {treatment.name}
+                    </Badge>
                   ))}
                 </div>
               </div>
             )}
 
             {/* Coiffeur */}
-            <div className="p-3 bg-muted/30 rounded">
-              <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
+            <div className="p-2 bg-muted/30 rounded">
+              <p className="text-xs text-muted-foreground mb-1">Coiffeur</p>
               {booking?.hairdresser_name && !showAssignHairdresser ? (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -908,20 +900,20 @@ export default function EditBookingDialog({
             </div>
 
             {/* Client */}
-            <div className="p-3 bg-muted/30 rounded">
-              <div className="grid grid-cols-2 gap-3">
+            <div className="p-2 bg-muted/30 rounded">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Client</p>
+                  <p className="text-xs text-muted-foreground">Client</p>
                   <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Téléphone</p>
+                  <p className="text-xs text-muted-foreground">Téléphone</p>
                   <p className="font-medium text-sm">{booking?.phone}</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between gap-2 pt-3 border-t">
+            <div className="flex justify-between gap-2 pt-2 border-t">
               <Button 
                 type="button" 
                 variant="outline"
