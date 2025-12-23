@@ -52,7 +52,7 @@ const PwaSplash = () => {
             if (hairdresser) {
               console.log("✅ Hairdresser found, status:", hairdresser.status);
               // Redirect based on status
-              if (hairdresser.status === "En attente") {
+              if (hairdresser.status === "pending") {
                 navigate("/pwa/onboarding", { replace: true });
               } else {
                 navigate("/pwa/dashboard", { replace: true });

@@ -151,7 +151,7 @@ const PwaDashboard = () => {
           // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
           if (newData.hairdresser_id !== null && 
               newData.hairdresser_id !== hairdresser.id &&
-              (newData.status === 'En attente' || newData.status === 'Pending' || newData.status === 'Assigné')) {
+              (newData.status === 'pending' || newData.status === 'assigned')) {
             console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
@@ -162,9 +162,7 @@ const PwaDashboard = () => {
           }
           
           // Cas 2: Réservation non assignée mais statut change (refusée, annulée, etc.) - retirer
-          if (newData.hairdresser_id === null && 
-              newData.status !== 'En attente' && 
-              newData.status !== 'Pending') {
+          if (newData.hairdresser_id === null && newData.status !== 'pending') {
             console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             return;
@@ -330,7 +328,7 @@ const PwaDashboard = () => {
       `)
       .in("hotel_id", hotelIds)
       .is("hairdresser_id", null)
-      .in("status", ["En attente", "Pending"]);
+      .in("status", ["pending"]);
 
     // Add hotel images to pending bookings
     const pendingBookingsWithImages = pendingBookings?.map(b => ({
@@ -406,19 +404,19 @@ const PwaDashboard = () => {
       const isAssignedToMe = hairdresser && booking.hairdresser_id === hairdresser.id;
       
       // Statuts actifs qui bloquent un créneau (doivent être visibles dans "upcoming")
-      const activeStatuses = ["Assigné", "En cours", "Confirmé"];
+      const activeStatuses = ["assigned", "confirmed"];
       const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {
         // Show all bookings assigned to me that are not completed or cancelled
         return isAssignedToMe && 
-               booking.status !== "Terminé" && 
-               booking.status !== "Annulé" &&
+               booking.status !== "completed" && 
+               booking.status !== "cancelled" &&
                bookingDate >= today;
       } else if (activeTab === "history") {
-        return booking.status === "Terminé" && isAssignedToMe;
+        return booking.status === "completed" && isAssignedToMe;
       } else {
-        return booking.status === "Annulé" && isAssignedToMe;
+        return booking.status === "cancelled" && isAssignedToMe;
       }
     });
   };
@@ -508,7 +506,7 @@ const PwaDashboard = () => {
 
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
-      const isStatusPending = b.status === "En attente" || b.status === "Pending";
+      const isStatusPending = b.status === "pending";
       const isUnassigned = b.hairdresser_id === null;
       
       // Exclure les réservations que ce coiffeur a déjà refusées
@@ -681,7 +679,7 @@ const PwaDashboard = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0">
                         <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
-                        {booking.hairdresser_id && booking.status === "En attente" && (
+                        {booking.hairdresser_id && booking.status === "pending" && (
                           <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
                             {t('dashboard.toConfirm')}
                           </Badge>
