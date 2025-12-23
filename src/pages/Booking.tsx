@@ -716,38 +716,44 @@ export default function Booking() {
                   {paginatedBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10 max-h-10"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium text-primary py-1.5 px-2 truncate">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">
-                        {format(new Date(booking.booking_date), "dd-MM-yyyy")}
+                      <TableCell className="font-medium text-primary py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">#{booking.booking_id}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">
-                        {booking.booking_time.substring(0, 5)}
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
                       </TableCell>
-                      <TableCell className="py-1.5 px-2 h-10">
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">{booking.booking_time.substring(0, 5)}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
-                      <TableCell className="py-1.5 px-2 h-10">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <StatusBadge
                           status={booking.payment_status || "pending"}
                           type="payment"
                           className="text-[10px] px-2 py-0.5 whitespace-nowrap"
                         />
                       </TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">
-                        {booking.client_first_name} {booking.client_last_name}
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">{booking.client_first_name} {booking.client_last_name}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">
-                        €{booking.total_price?.toFixed(2) || "0.00"}
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">€{booking.total_price?.toFixed(2) || "0.00"}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-foreground py-1.5 px-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-1.5 px-2 truncate">
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">{booking.hotel_name || "-"}</span>
+                      </TableCell>
+                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block">{booking.hairdresser_name || "-"}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
                           <Button
                             variant="outline"
