@@ -364,7 +364,7 @@ export default function Booking() {
           />
         </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setCurrentPage(1); }}>
           <SelectTrigger className="w-[130px]">
             <SelectValue placeholder="Tous les statuts" />
           </SelectTrigger>
@@ -379,7 +379,7 @@ export default function Booking() {
         </Select>
 
         {isAdmin && (
-          <Select value={hotelFilter} onValueChange={setHotelFilter}>
+          <Select value={hotelFilter} onValueChange={(value) => { setHotelFilter(value); setCurrentPage(1); }}>
             <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Tous les hôtels" />
             </SelectTrigger>
@@ -394,7 +394,7 @@ export default function Booking() {
           </Select>
         )}
 
-        <Select value={hairdresserFilter} onValueChange={setHairdresserFilter}>
+        <Select value={hairdresserFilter} onValueChange={(value) => { setHairdresserFilter(value); setCurrentPage(1); }}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Tous les coiffeurs" />
           </SelectTrigger>
