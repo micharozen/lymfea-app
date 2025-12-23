@@ -685,19 +685,32 @@ export default function Booking() {
           ) : (
             <div className="h-full flex flex-col">
               <Table className="text-sm w-full table-fixed">
+                <colgroup>
+                  <col className="w-[8%]" />   {/* Booking ID */}
+                  <col className="w-[9%]" />   {/* Date */}
+                  <col className="w-[7%]" />   {/* Start time */}
+                  <col className="w-[9%]" />   {/* Status */}
+                  <col className="w-[9%]" />   {/* Payment */}
+                  <col className="w-[12%]" />  {/* Client name */}
+                  <col className="w-[10%]" />  {/* Client phone */}
+                  <col className="w-[8%]" />   {/* Total price */}
+                  <col className="w-[10%]" />  {/* Hotel */}
+                  <col className="w-[10%]" />  {/* Hair dresser */}
+                  <col className="w-[8%]" />   {/* Invoice */}
+                </colgroup>
                 <TableHeader>
                   <TableRow className="border-b h-10 bg-muted/30">
-                    <TableHead className="font-medium text-muted-foreground py-2">Booking ID</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Date</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Start time</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Status</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Payment</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Client name</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Client phone</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Total price</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Hotel</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Hair dresser</TableHead>
-                    <TableHead className="font-medium text-muted-foreground py-2">Invoice</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Booking ID</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Date</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Start time</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Status</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Payment</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Client name</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Client phone</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Total price</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Hotel</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Hair dresser</TableHead>
+                    <TableHead className="font-medium text-muted-foreground py-2 truncate">Invoice</TableHead>
                   </TableRow>
                 </TableHeader>
 
@@ -711,11 +724,11 @@ export default function Booking() {
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium text-primary py-2 whitespace-nowrap">#{booking.booking_id}</TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">
+                      <TableCell className="font-medium text-primary py-2 truncate">#{booking.booking_id}</TableCell>
+                      <TableCell className="text-foreground py-2 truncate">
                         {format(new Date(booking.booking_date), "dd-MM-yyyy")}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">
+                      <TableCell className="text-foreground py-2 truncate">
                         {booking.booking_time.substring(0, 5)}
                       </TableCell>
                       <TableCell className="py-2">
@@ -728,15 +741,15 @@ export default function Booking() {
                           className="text-xs px-3 py-0.5"
                         />
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">
+                      <TableCell className="text-foreground py-2 truncate">
                         {booking.client_first_name} {booking.client_last_name}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.phone || "-"}</TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">
+                      <TableCell className="text-foreground py-2 truncate">{booking.phone || "-"}</TableCell>
+                      <TableCell className="text-foreground py-2 truncate">
                         €{booking.total_price?.toFixed(2) || "0.00"}
                       </TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hotel_name || "-"}</TableCell>
-                      <TableCell className="text-foreground py-2 whitespace-nowrap">{booking.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="text-foreground py-2 truncate">{booking.hotel_name || "-"}</TableCell>
+                      <TableCell className="text-foreground py-2 truncate">{booking.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
                           <Button
