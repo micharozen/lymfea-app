@@ -45,7 +45,7 @@ export function StatusBadge({
   return (
     <Badge
       className={cn(
-        "font-medium border",
+        "font-medium",
         styleClass,
         className
       )}
