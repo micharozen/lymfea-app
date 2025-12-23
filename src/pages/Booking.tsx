@@ -408,21 +408,21 @@ export default function Booking() {
           </SelectContent>
         </Select>
 
-        <div className="ml-auto flex items-center gap-1 border rounded-md bg-muted/50">
+        <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <Button
-            variant={view === "calendar" ? "default" : "ghost"}
+            variant="ghost"
             size="sm"
             onClick={() => setView("calendar")}
-            className={`rounded-r-none ${view === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-none border-0 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
           >
             <CalendarIcon className="h-4 w-4 mr-1" />
             Calendrier
           </Button>
           <Button
-            variant={view === "list" ? "default" : "ghost"}
+            variant="ghost"
             size="sm"
             onClick={() => setView("list")}
-            className={`rounded-l-none ${view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-none border-0 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
           >
             <List className="h-4 w-4 mr-1" />
             Liste
