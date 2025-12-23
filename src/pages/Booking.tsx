@@ -357,7 +357,7 @@ export default function Booking() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search"
+            placeholder="Rechercher"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 w-[140px]"
@@ -366,25 +366,25 @@ export default function Booking() {
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[130px]">
-            <SelectValue placeholder="All statuses" />
+            <SelectValue placeholder="Tous les statuts" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="assigned">Assigned</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Canceled</SelectItem>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="assigned">Assigné</SelectItem>
+            <SelectItem value="confirmed">Confirmé</SelectItem>
+            <SelectItem value="completed">Terminé</SelectItem>
+            <SelectItem value="cancelled">Annulé</SelectItem>
           </SelectContent>
         </Select>
 
         {isAdmin && (
           <Select value={hotelFilter} onValueChange={setHotelFilter}>
             <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="Filter by hotel" />
+              <SelectValue placeholder="Tous les hôtels" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All hotels</SelectItem>
+              <SelectItem value="all">Tous les hôtels</SelectItem>
               {hotels?.map((hotel) => (
                 <SelectItem key={hotel.id} value={hotel.id}>
                   {hotel.name}
@@ -396,10 +396,10 @@ export default function Booking() {
 
         <Select value={hairdresserFilter} onValueChange={setHairdresserFilter}>
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Filter by hairdre..." />
+            <SelectValue placeholder="Tous les coiffeurs" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All hairdressers</SelectItem>
+            <SelectItem value="all">Tous les coiffeurs</SelectItem>
             {hairdressers?.map((hairdresser) => (
               <SelectItem key={hairdresser.id} value={hairdresser.id}>
                 {hairdresser.first_name} {hairdresser.last_name}
@@ -416,7 +416,7 @@ export default function Booking() {
             className="rounded-r-none"
           >
             <CalendarIcon className="h-4 w-4 mr-1" />
-            Calendar
+            Calendrier
           </Button>
           <Button
             variant={view === "list" ? "secondary" : "ghost"}
@@ -425,7 +425,7 @@ export default function Booking() {
             className="rounded-l-none"
           >
             <List className="h-4 w-4 mr-1" />
-            List
+            Liste
           </Button>
         </div>
         </div>
