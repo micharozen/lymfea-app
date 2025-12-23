@@ -44,7 +44,6 @@ export function StatusBadge({
 
   return (
     <Badge
-      variant="outline"
       className={cn(
         "font-medium border",
         styleClass,
