@@ -1238,14 +1238,9 @@ export default function EditBookingDialog({
                             <button
                               type="button"
                               onClick={() => toggleTreatment(treatment.id)}
-                              className={cn(
-                                "text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full transition-colors shrink-0",
-                                selectedTreatments.includes(treatment.id)
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-foreground text-background hover:bg-foreground/80"
-                              )}
+                              className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
                             >
-                              {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                              Select
                             </button>
                           </div>
                         ))}
