@@ -1298,7 +1298,7 @@ export default function EditBookingDialog({
                                 <button
                                   type="button"
                                   onClick={() => addToCart(treatment.id)}
-                                  className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                                  className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
                                 >
                                   Select
                                 </button>
