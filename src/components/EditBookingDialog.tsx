@@ -966,20 +966,6 @@ export default function EditBookingDialog({
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">Statut *</Label>
-                  <Select value={status} onValueChange={setStatus} disabled>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="En attente">En attente</SelectItem>
-                        <SelectItem value="Assigné">Assigné</SelectItem>
-                        <SelectItem value="Terminé">Terminé</SelectItem>
-                        <SelectItem value="Annulé">Annulé</SelectItem>
-                      </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
