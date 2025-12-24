@@ -171,6 +171,7 @@ export default function EditBookingDialog({
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
+  const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   
 
   // Pre-fill form when booking changes
@@ -1164,85 +1165,95 @@ export default function EditBookingDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value="prestations" className="space-y-4 mt-4">
-              <Tabs defaultValue="Women" className="w-full">
-                <TabsList className="w-full grid grid-cols-2">
-                  <TabsTrigger value="Women">WOMEN'S MENU</TabsTrigger>
-                  <TabsTrigger value="Men">MEN'S MENU</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="Women" className="mt-4">
-                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-semibold text-base">{treatment.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                          {treatment.description && (
-                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                          )}
-                          <div className="text-sm font-medium mt-2">
-                            {treatment.price}€ • {treatment.duration} min
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                          onClick={() => toggleTreatment(treatment.id)}
-                          className="ml-4"
-                        >
-                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                        </Button>
-                      </div>
-                    ))}
-                    {!treatments?.filter(t => t.service_for === "Female" || t.service_for === "All").length && (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
+            <TabsContent value="prestations" className="space-y-0 mt-0">
+              {/* Menu Tabs (Clean Underline Style) */}
+              <div className="flex items-center gap-6 border-b border-border/50 mb-3">
+                {(["female", "male"] as const).map(f => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setTreatmentFilter(f)}
+                    className={cn(
+                      "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
+                      treatmentFilter === f 
+                        ? "text-foreground border-b-2 border-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
+                  </button>
+                ))}
+              </div>
+
+              {/* SERVICE LIST - Grouped by category */}
+              <div className="max-h-[300px] overflow-y-auto">
+                {(() => {
+                  const filtered = treatments?.filter(t => 
+                    treatmentFilter === "female" 
+                      ? (t.service_for === "Female" || t.service_for === "All")
+                      : (t.service_for === "Male" || t.service_for === "All")
+                  ) || [];
+                  
+                  // Group by category
+                  const grouped: Record<string, typeof filtered> = {};
+                  filtered.forEach(t => {
+                    const c = t.category || "Autres";
+                    if (!grouped[c]) grouped[c] = [];
+                    grouped[c].push(t);
+                  });
+
+                  if (!filtered.length) {
+                    return (
+                      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
                         Aucune prestation disponible
                       </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="Men" className="mt-4">
-                  <div className="border rounded-lg max-h-[300px] overflow-y-auto">
-                    {treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="flex items-center justify-between p-4 border-b last:border-b-0 hover:bg-muted/30 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="font-semibold text-base">{treatment.name}</div>
-                          <div className="text-sm text-muted-foreground mt-1">{treatment.category}</div>
-                          {treatment.description && (
-                            <div className="text-xs text-muted-foreground mt-1">{treatment.description}</div>
-                          )}
-                          <div className="text-sm font-medium mt-2">
-                            {treatment.price}€ • {treatment.duration} min
+                    );
+                  }
+
+                  return Object.entries(grouped).map(([category, items]) => (
+                    <div key={category} className="mb-4">
+                      {/* Category Header */}
+                      <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
+                        {category}
+                      </h3>
+                      
+                      {/* Clean Service Rows */}
+                      <div>
+                        {items.map((treatment) => (
+                          <div 
+                            key={treatment.id} 
+                            className="flex items-center justify-between py-2 border-b border-border/20 group"
+                          >
+                            {/* Left: Info */}
+                            <div className="flex flex-col gap-0.5 flex-1 pr-3">
+                              <span className="font-bold text-foreground text-sm">
+                                {treatment.name}
+                              </span>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {treatment.price}€ • {treatment.duration} min
+                              </span>
+                            </div>
+
+                            {/* Right: Compact Black Pill Button */}
+                            <button
+                              type="button"
+                              onClick={() => toggleTreatment(treatment.id)}
+                              className={cn(
+                                "text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full transition-colors shrink-0",
+                                selectedTreatments.includes(treatment.id)
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-foreground text-background hover:bg-foreground/80"
+                              )}
+                            >
+                              {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
+                            </button>
                           </div>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant={selectedTreatments.includes(treatment.id) ? "default" : "outline"}
-                          onClick={() => toggleTreatment(treatment.id)}
-                          className="ml-4"
-                        >
-                          {selectedTreatments.includes(treatment.id) ? "Sélectionné" : "Select"}
-                        </Button>
+                        ))}
                       </div>
-                    ))}
-                    {!treatments?.filter(t => t.service_for === "Male" || t.service_for === "All").length && (
-                      <div className="p-8 text-center text-sm text-muted-foreground">
-                        Aucune prestation disponible
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                    </div>
+                  ));
+                })()}
+              </div>
               
               {selectedTreatments.length > 0 && (
                 <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
@@ -1257,18 +1268,9 @@ export default function EditBookingDialog({
                   variant="outline"
                   onClick={() => setActiveTab("info")}
                 >
-                  Retour
+                  ← Retour
                 </Button>
                 <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Supprimer
-                  </Button>
                   <Button 
                     type="button" 
                     variant="outline"
