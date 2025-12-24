@@ -728,7 +728,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl overflow-hidden">
         <DialogHeader className="pb-1">
           <DialogTitle className="text-base">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
         </DialogHeader>
@@ -1225,91 +1225,93 @@ export default function EditBookingDialog({
               </div>
 
               {/* SERVICE LIST - Grouped by category */}
-              <div className="max-h-[250px] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
-                {(() => {
-                  const filtered = treatments?.filter(t => 
-                    treatmentFilter === "female" 
-                      ? (t.service_for === "Female" || t.service_for === "All")
-                      : (t.service_for === "Male" || t.service_for === "All")
-                  ) || [];
-                  
-                  // Group by category
-                  const grouped: Record<string, typeof filtered> = {};
-                  filtered.forEach(t => {
-                    const c = t.category || "Autres";
-                    if (!grouped[c]) grouped[c] = [];
-                    grouped[c].push(t);
-                  });
+              <div className="rounded-md border border-border/40 overflow-hidden">
+                <div className="max-h-[250px] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
+                  {(() => {
+                    const filtered = treatments?.filter(t => 
+                      treatmentFilter === "female" 
+                        ? (t.service_for === "Female" || t.service_for === "All")
+                        : (t.service_for === "Male" || t.service_for === "All")
+                    ) || [];
+                    
+                    // Group by category
+                    const grouped: Record<string, typeof filtered> = {};
+                    filtered.forEach(t => {
+                      const c = t.category || "Autres";
+                      if (!grouped[c]) grouped[c] = [];
+                      grouped[c].push(t);
+                    });
 
-                  if (!filtered.length) {
-                    return (
-                      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
-                        Aucune prestation disponible
-                      </div>
-                    );
-                  }
+                    if (!filtered.length) {
+                      return (
+                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+                          Aucune prestation disponible
+                        </div>
+                      );
+                    }
 
-                  return Object.entries(grouped).map(([category, items]) => (
-                    <div key={category} className="mb-4">
-                      {/* Category Header */}
-                      <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
-                        {category}
-                      </h3>
-                      
-                      {/* Clean Service Rows */}
-                      <div>
-                        {items.map((treatment) => {
-                          const qty = getCartQuantity(treatment.id);
-                          return (
-                            <div 
-                              key={treatment.id} 
-                              className="flex items-center justify-between py-2 border-b border-border/20 group"
-                            >
-                              {/* Left: Info */}
-                              <div className="flex flex-col gap-0.5 flex-1 pr-3">
-                                <span className="font-bold text-foreground text-sm">
-                                  {treatment.name}
-                                </span>
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  {treatment.price}€ • {treatment.duration} min
-                                </span>
-                              </div>
-
-                              {/* Right: Quantity Controls or Select Button */}
-                              {qty > 0 ? (
-                                <div className="flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => decrementCart(treatment.id)}
-                                    className="p-1 hover:text-destructive text-muted-foreground transition-colors"
-                                  >
-                                    <Minus className="h-3.5 w-3.5" />
-                                  </button>
-                                  <span className="text-sm font-bold w-5 text-center">{qty}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => incrementCart(treatment.id)}
-                                    className="p-1 hover:text-foreground text-muted-foreground transition-colors"
-                                  >
-                                    <Plus className="h-3.5 w-3.5" />
-                                  </button>
+                    return Object.entries(grouped).map(([category, items]) => (
+                      <div key={category} className="mb-4">
+                        {/* Category Header */}
+                        <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
+                          {category}
+                        </h3>
+                        
+                        {/* Clean Service Rows */}
+                        <div>
+                          {items.map((treatment) => {
+                            const qty = getCartQuantity(treatment.id);
+                            return (
+                              <div 
+                                key={treatment.id} 
+                                className="flex items-center justify-between py-2 border-b border-border/20 group"
+                              >
+                                {/* Left: Info */}
+                                <div className="flex flex-col gap-0.5 flex-1 pr-3">
+                                  <span className="font-bold text-foreground text-sm">
+                                    {treatment.name}
+                                  </span>
+                                  <span className="text-xs font-medium text-muted-foreground">
+                                    {treatment.price}€ • {treatment.duration} min
+                                  </span>
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => addToCart(treatment.id)}
-                                  className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
-                                >
-                                  Select
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
+
+                                {/* Right: Quantity Controls or Select Button */}
+                                {qty > 0 ? (
+                                  <div className="flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => decrementCart(treatment.id)}
+                                      className="p-1 hover:text-destructive text-muted-foreground transition-colors"
+                                    >
+                                      <Minus className="h-3.5 w-3.5" />
+                                    </button>
+                                    <span className="text-sm font-bold w-5 text-center">{qty}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => incrementCart(treatment.id)}
+                                      className="p-1 hover:text-foreground text-muted-foreground transition-colors"
+                                    >
+                                      <Plus className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => addToCart(treatment.id)}
+                                    className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                                  >
+                                    Select
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ));
-                })()}
+                    ));
+                  })()}
+                </div>
               </div>
               
               {/* Compact Sticky Footer - Same as CreateBookingDialog */}
