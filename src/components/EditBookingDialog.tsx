@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, Trash2, CalendarIcon, User } from "lucide-react";
+import { Check, ChevronsUpDown, Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -164,8 +164,9 @@ export default function EditBookingDialog({
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
   const [hairdresserId, setHairdresserId] = useState("");
-  const [selectedTreatments, setSelectedTreatments] = useState<string[]>([]);
+  const [cart, setCart] = useState<{ treatmentId: string; quantity: number }[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
@@ -260,7 +261,7 @@ export default function EditBookingDialog({
 
   // Query to get hairdresser availability for the selected date/time
   const { data: hairdresserAvailability } = useQuery({
-    queryKey: ["hairdresser-availability", booking?.hotel_id, date, time, selectedTreatments, booking?.id],
+    queryKey: ["hairdresser-availability", booking?.hotel_id, date, time, cart, booking?.id],
     enabled: !!booking?.hotel_id && !!date && !!time && viewMode === "edit",
     queryFn: async () => {
       if (!date || !time) return {};
@@ -268,15 +269,15 @@ export default function EditBookingDialog({
       const selectedDate = format(date, "yyyy-MM-dd");
       
       // Calculate total duration of selected treatments
-      const totalDuration = selectedTreatments.reduce((sum, treatmentId) => {
-        const treatment = treatments?.find(t => t.id === treatmentId);
-        return sum + (treatment?.duration || 0);
+      const calcDuration = cart.reduce((sum, item) => {
+        const treatment = treatments?.find(t => t.id === item.treatmentId);
+        return sum + (treatment?.duration || 0) * item.quantity;
       }, 0) || 60; // Default 60 min if no treatments selected
       
       // Calculate start and end time in minutes
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = hours * 60 + minutes;
-      const endTime = startTime + totalDuration;
+      const endTime = startTime + calcDuration;
       
       // Fetch all bookings for the hotel on this date (excluding current booking)
       const { data: existingBookings, error } = await supabase
@@ -391,22 +392,34 @@ export default function EditBookingDialog({
   // Charger les traitements existants quand la réservation change
   useEffect(() => {
     if (existingTreatments) {
-      setSelectedTreatments(existingTreatments.map(t => t.treatment_id));
+      // Convert existing treatments to cart format (each treatment = quantity 1)
+      const treatmentCounts: Record<string, number> = {};
+      existingTreatments.forEach(t => {
+        treatmentCounts[t.treatment_id] = (treatmentCounts[t.treatment_id] || 0) + 1;
+      });
+      setCart(Object.entries(treatmentCounts).map(([treatmentId, quantity]) => ({ treatmentId, quantity })));
     }
   }, [existingTreatments]);
 
-  // Recalculer le prix total quand les traitements changent
+  // Recalculer le prix et durée totale quand le cart change
   useEffect(() => {
-    if (treatments && selectedTreatments.length > 0) {
-      const total = selectedTreatments.reduce((sum, treatmentId) => {
-        const treatment = treatments.find(t => t.id === treatmentId);
-        return sum + (treatment?.price || 0);
-      }, 0);
-      setTotalPrice(total);
+    if (treatments && cart.length > 0) {
+      let price = 0;
+      let duration = 0;
+      cart.forEach(item => {
+        const treatment = treatments.find(t => t.id === item.treatmentId);
+        if (treatment) {
+          price += (treatment.price || 0) * item.quantity;
+          duration += (treatment.duration || 0) * item.quantity;
+        }
+      });
+      setTotalPrice(price);
+      setTotalDuration(duration);
     } else {
       setTotalPrice(0);
+      setTotalDuration(0);
     }
-  }, [selectedTreatments, treatments]);
+  }, [cart, treatments]);
 
   // Calculer le prix total depuis les traitements de la réservation pour la vue
   useEffect(() => {
@@ -599,16 +612,16 @@ export default function EditBookingDialog({
     }
 
     // Vérifier les chevauchements si un coiffeur est assigné
-    if (hairdresserId && selectedTreatments.length > 0) {
-      const totalDuration = selectedTreatments.reduce((sum, treatmentId) => {
-        const treatment = treatments?.find(t => t.id === treatmentId);
-        return sum + (treatment?.duration || 0);
+    if (hairdresserId && cart.length > 0) {
+      const calcDuration = cart.reduce((sum, item) => {
+        const treatment = treatments?.find(t => t.id === item.treatmentId);
+        return sum + (treatment?.duration || 0) * item.quantity;
       }, 0);
 
       // Calculer l'heure de fin
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = hours * 60 + minutes;
-      const endTime = startTime + totalDuration;
+      const endTime = startTime + calcDuration;
 
       // Vérifier les réservations existantes pour ce coiffeur
       const { data: existingBookings, error } = await supabase
@@ -667,7 +680,7 @@ export default function EditBookingDialog({
       booking_time: time,
       hairdresser_id: hairdresserId,
       total_price: totalPrice,
-      treatments: selectedTreatments,
+      treatments: cart.flatMap(item => Array(item.quantity).fill(item.treatmentId)),
       status: status,
     });
   };
@@ -676,13 +689,39 @@ export default function EditBookingDialog({
     onOpenChange(false);
   };
 
-  const toggleTreatment = (treatmentId: string) => {
-    setSelectedTreatments(prev => 
-      prev.includes(treatmentId) 
-        ? prev.filter(id => id !== treatmentId)
-        : [...prev, treatmentId]
-    );
+  // Cart functions
+  const addToCart = (treatmentId: string) => {
+    setCart(prev => {
+      const existing = prev.find(x => x.treatmentId === treatmentId);
+      return existing 
+        ? prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x)
+        : [...prev, { treatmentId, quantity: 1 }];
+    });
   };
+
+  const incrementCart = (treatmentId: string) => {
+    setCart(prev => prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity + 1 } : x));
+  };
+
+  const decrementCart = (treatmentId: string) => {
+    setCart(prev => {
+      const existing = prev.find(x => x.treatmentId === treatmentId);
+      return existing && existing.quantity <= 1
+        ? prev.filter(x => x.treatmentId !== treatmentId)
+        : prev.map(x => x.treatmentId === treatmentId ? { ...x, quantity: x.quantity - 1 } : x);
+    });
+  };
+
+  const getCartQuantity = (treatmentId: string) => {
+    return cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
+  };
+
+  const cartDetails = cart.map(item => ({
+    ...item,
+    treatment: treatments?.find(t => t.id === item.treatmentId)
+  })).filter(item => item.treatment);
+
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <Dialog open={open} onOpenChange={(open) => {
@@ -1186,7 +1225,7 @@ export default function EditBookingDialog({
               </div>
 
               {/* SERVICE LIST - Grouped by category */}
-              <div className="max-h-[300px] overflow-y-auto">
+              <div className="max-h-[250px] overflow-y-auto">
                 {(() => {
                   const filtered = treatments?.filter(t => 
                     treatmentFilter === "female" 
@@ -1219,41 +1258,85 @@ export default function EditBookingDialog({
                       
                       {/* Clean Service Rows */}
                       <div>
-                        {items.map((treatment) => (
-                          <div 
-                            key={treatment.id} 
-                            className="flex items-center justify-between py-2 border-b border-border/20 group"
-                          >
-                            {/* Left: Info */}
-                            <div className="flex flex-col gap-0.5 flex-1 pr-3">
-                              <span className="font-bold text-foreground text-sm">
-                                {treatment.name}
-                              </span>
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {treatment.price}€ • {treatment.duration} min
-                              </span>
-                            </div>
-
-                            {/* Right: Compact Black Pill Button */}
-                            <button
-                              type="button"
-                              onClick={() => toggleTreatment(treatment.id)}
-                              className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                        {items.map((treatment) => {
+                          const qty = getCartQuantity(treatment.id);
+                          return (
+                            <div 
+                              key={treatment.id} 
+                              className="flex items-center justify-between py-2 border-b border-border/20 group"
                             >
-                              Select
-                            </button>
-                          </div>
-                        ))}
+                              {/* Left: Info */}
+                              <div className="flex flex-col gap-0.5 flex-1 pr-3">
+                                <span className="font-bold text-foreground text-sm">
+                                  {treatment.name}
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  {treatment.price}€ • {treatment.duration} min
+                                </span>
+                              </div>
+
+                              {/* Right: Quantity Controls or Select Button */}
+                              {qty > 0 ? (
+                                <div className="flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => decrementCart(treatment.id)}
+                                    className="p-1 hover:text-destructive text-muted-foreground transition-colors"
+                                  >
+                                    <Minus className="h-3.5 w-3.5" />
+                                  </button>
+                                  <span className="text-sm font-bold w-5 text-center">{qty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => incrementCart(treatment.id)}
+                                    className="p-1 hover:text-foreground text-muted-foreground transition-colors"
+                                  >
+                                    <Plus className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(treatment.id)}
+                                  className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                                >
+                                  Select
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ));
                 })()}
               </div>
               
-              {selectedTreatments.length > 0 && (
-                <div className="flex justify-between items-center p-3 bg-muted/30 rounded-lg font-semibold mt-4">
-                  <span>Prix total</span>
-                  <span className="text-lg">{totalPrice}€</span>
+              {/* Cart Summary */}
+              {cart.length > 0 && (
+                <div className="mt-4 p-3 bg-muted/30 rounded-lg space-y-2">
+                  {/* Cart Items */}
+                  <div className="flex flex-wrap gap-2">
+                    {cartDetails.map(({ treatmentId, quantity, treatment }) => (
+                      <div key={treatmentId} className="flex items-center gap-1 bg-background rounded px-2 py-1 border">
+                        <span className="text-xs font-medium truncate max-w-[100px]">{treatment!.name}</span>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => decrementCart(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
+                            <Minus className="h-2.5 w-2.5" />
+                          </button>
+                          <span className="text-xs font-bold w-4 text-center">{quantity}</span>
+                          <button type="button" onClick={() => incrementCart(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
+                            <Plus className="h-2.5 w-2.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Total */}
+                  <div className="flex justify-between items-center pt-2 border-t font-semibold">
+                    <span>{itemCount} prestation{itemCount > 1 ? 's' : ''} • {totalDuration} min</span>
+                    <span className="text-lg">{totalPrice}€</span>
+                  </div>
                 </div>
               )}
 
