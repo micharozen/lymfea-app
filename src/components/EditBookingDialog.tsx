@@ -1312,53 +1312,58 @@ export default function EditBookingDialog({
                 })()}
               </div>
               
-              {/* Cart Summary */}
-              {cart.length > 0 && (
-                <div className="mt-4 p-3 bg-muted/30 rounded-lg space-y-2">
-                  {/* Cart Items */}
-                  <div className="flex flex-wrap gap-2">
-                    {cartDetails.map(({ treatmentId, quantity, treatment }) => (
-                      <div key={treatmentId} className="flex items-center gap-1 bg-background rounded px-2 py-1 border">
-                        <span className="text-xs font-medium truncate max-w-[100px]">{treatment!.name}</span>
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => decrementCart(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
-                            <Minus className="h-2.5 w-2.5" />
-                          </button>
-                          <span className="text-xs font-bold w-4 text-center">{quantity}</span>
-                          <button type="button" onClick={() => incrementCart(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
-                            <Plus className="h-2.5 w-2.5" />
-                          </button>
-                        </div>
+              {/* Compact Sticky Footer - Same as CreateBookingDialog */}
+              <div className="mt-4 border-t border-border bg-background">
+                <div className="py-2 flex items-center gap-3">
+                  
+                  {/* Left: Cart Items (Compact inline) */}
+                  <div className="flex-1 min-w-0">
+                    {cart.length > 0 ? (
+                      <div className="flex items-center gap-2 overflow-x-auto">
+                        {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
+                          <div key={treatmentId} className="flex items-center gap-1 bg-muted/50 rounded px-2 py-1 shrink-0">
+                            <span className="text-[10px] font-medium truncate max-w-[80px]">{treatment!.name}</span>
+                            <div className="flex items-center gap-1">
+                              <button type="button" onClick={() => decrementCart(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
+                                <Minus className="h-2.5 w-2.5" />
+                              </button>
+                              <span className="text-[10px] font-bold w-3 text-center">{quantity}</span>
+                              <button type="button" onClick={() => incrementCart(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
+                                <Plus className="h-2.5 w-2.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {cartDetails.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
+                        )}
                       </div>
-                    ))}
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Aucun service</span>
+                    )}
                   </div>
-                  {/* Total */}
-                  <div className="flex justify-between items-center pt-2 border-t font-semibold">
-                    <span>{itemCount} prestation{itemCount > 1 ? 's' : ''} • {totalDuration} min</span>
-                    <span className="text-lg">{totalPrice}€</span>
-                  </div>
-                </div>
-              )}
 
-              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setActiveTab("info")}
-                >
-                  ← Retour
-                </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setViewMode("view")}
-                  >
-                    Annuler
-                  </Button>
-                  <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? "Modification..." : "Modifier"}
-                  </Button>
+                  {/* Right: Total + Buttons */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-bold text-sm">{totalPrice}€</span>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab("info")}
+                      className="h-8"
+                    >
+                      ← Retour
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={updateMutation.isPending} 
+                      size="sm"
+                      className="bg-foreground text-background hover:bg-foreground/90 h-8 px-4"
+                    >
+                      {updateMutation.isPending ? "..." : "Modifier"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </TabsContent>
