@@ -763,25 +763,10 @@ export default function EditBookingDialog({
             {/* Coiffeur */}
             <div className="p-2 bg-muted/30 rounded">
               <p className="text-xs text-muted-foreground mb-1">Coiffeur</p>
-              {booking?.hairdresser_name && !showAssignHairdresser ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
-                  </div>
-                  {isAdmin && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setShowAssignHairdresser(true);
-                        setSelectedHairdresserId(booking.hairdresser_id || "");
-                      }}
-                      className="h-7 text-xs"
-                    >
-                      Modifier
-                    </Button>
-                  )}
+              {booking?.hairdresser_name ? (
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
                 </div>
               ) : isAdmin ? (
                 showAssignHairdresser ? (
