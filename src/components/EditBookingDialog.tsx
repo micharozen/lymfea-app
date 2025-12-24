@@ -339,7 +339,7 @@ export default function EditBookingDialog({
   });
 
   const { data: treatments } = useQuery({
-    queryKey: ["treatment_menus"],
+    queryKey: ["treatment_menus", "active"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("treatment_menus")
