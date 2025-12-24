@@ -750,11 +750,12 @@ export default function EditBookingDialog({
             {bookingTreatments && bookingTreatments.length > 0 && (
               <div className="p-2 bg-muted/30 rounded">
                 <p className="text-xs text-muted-foreground mb-1">Prestations</p>
-                <div className="flex flex-wrap gap-1">
+                <div className="space-y-1">
                   {bookingTreatments.map((treatment) => (
-                    <Badge key={treatment.id} variant="outline" className="text-xs font-normal">
-                      {treatment.name}
-                    </Badge>
+                    <div key={treatment.id} className="flex items-center justify-between text-sm">
+                      <span>{treatment.name}</span>
+                      <span className="font-medium">€{(treatment.price || 0).toFixed(2)}</span>
+                    </div>
                   ))}
                 </div>
               </div>
