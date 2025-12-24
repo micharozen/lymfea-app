@@ -759,7 +759,7 @@ export default function EditBookingDialog({
                   ))}
                   <div className="flex items-center justify-between text-sm pt-1 mt-1 border-t border-border/50">
                     <span className="font-semibold">Total</span>
-                    <span className="font-semibold">€{totalPrice.toFixed(2)}</span>
+                    <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
