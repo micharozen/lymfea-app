@@ -1105,6 +1105,16 @@ export default function EditBookingDialog({
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
                     <SelectItem value="none">Aucun coiffeur</SelectItem>
+                    {/* Show current hairdresser if not in list */}
+                    {booking?.hairdresser_id && booking?.hairdresser_name && 
+                     !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
+                      <SelectItem value={booking.hairdresser_id}>
+                        <div className="flex items-center gap-2">
+                          <span>{booking.hairdresser_name}</span>
+                          <Badge variant="outline" className="text-[10px] h-4 px-1">Actuel</Badge>
+                        </div>
+                      </SelectItem>
+                    )}
                     {hairdressers?.map((hairdresser) => {
                       const availability = hairdresserAvailability?.[hairdresser.id];
                       const isUnavailable = availability && !availability.available;
