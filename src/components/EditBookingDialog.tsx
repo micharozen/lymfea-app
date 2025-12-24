@@ -1204,7 +1204,7 @@ export default function EditBookingDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value="prestations" className="space-y-0 mt-0">
+            <TabsContent value="prestations" className="space-y-0 mt-0 overflow-hidden">
               {/* Menu Tabs (Clean Underline Style) */}
               <div className="flex items-center gap-6 border-b border-border/50 mb-3">
                 {(["female", "male"] as const).map(f => (
@@ -1225,7 +1225,7 @@ export default function EditBookingDialog({
               </div>
 
               {/* SERVICE LIST - Grouped by category */}
-              <div className="max-h-[250px] overflow-y-auto overflow-x-hidden pr-1">
+              <div className="max-h-[250px] overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                 {(() => {
                   const filtered = treatments?.filter(t => 
                     treatmentFilter === "female" 
