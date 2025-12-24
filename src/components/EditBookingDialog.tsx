@@ -1225,7 +1225,7 @@ export default function EditBookingDialog({
               </div>
 
               {/* SERVICE LIST - Grouped by category */}
-              <div className="max-h-[250px] overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+              <div className="max-h-[250px] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
                 {(() => {
                   const filtered = treatments?.filter(t => 
                     treatmentFilter === "female" 
