@@ -252,7 +252,7 @@ export default function EditBookingDialog({
       // Filtrer pour ne garder que les coiffeurs actifs
       return data
         ?.map((hh: any) => hh.hairdressers)
-        .filter((h: any) => h && h.status === "Actif")
+        .filter((h: any) => h && h.status === "active")
         .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
