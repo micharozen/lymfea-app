@@ -344,7 +344,7 @@ export default function EditBookingDialog({
       const { data, error } = await supabase
         .from("treatment_menus")
         .select("*")
-        .eq("status", "Actif")
+        .eq("status", "active")
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
       if (error) throw error;
