@@ -1275,34 +1275,14 @@ export default function EditBookingDialog({
                                 </span>
                               </div>
 
-                              {/* Right: Quantity Controls or Select Button */}
-                              {qty > 0 ? (
-                                <div className="flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => decrementCart(treatment.id)}
-                                    className="p-1 hover:text-destructive text-muted-foreground transition-colors"
-                                  >
-                                    <Minus className="h-3.5 w-3.5" />
-                                  </button>
-                                  <span className="text-sm font-bold w-5 text-center">{qty}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => incrementCart(treatment.id)}
-                                    className="p-1 hover:text-foreground text-muted-foreground transition-colors"
-                                  >
-                                    <Plus className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => addToCart(treatment.id)}
-                                  className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
-                                >
-                                  Select
-                                </button>
-                              )}
+                              {/* Right: Compact Black Pill Button - Always same style */}
+                              <button
+                                type="button"
+                                onClick={() => addToCart(treatment.id)}
+                                className="bg-foreground text-background text-[10px] font-bold uppercase tracking-wide h-6 px-3 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                              >
+                                Select
+                              </button>
                             </div>
                           );
                         })}
