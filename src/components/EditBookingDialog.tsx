@@ -948,12 +948,12 @@ export default function EditBookingDialog({
         ) : (
         <form onSubmit={handleSubmit}>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="info" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-hotel">Hôtel *</Label>
+            <TabsContent value="info" className="space-y-3 mt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
                   <Select value={hotelId} onValueChange={setHotelId}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9">
                       <SelectValue placeholder="Sélectionner un hôtel" />
                     </SelectTrigger>
                     <SelectContent>
@@ -965,18 +965,17 @@ export default function EditBookingDialog({
                     </SelectContent>
                   </Select>
                 </div>
-
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-date">Date *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-date" className="text-xs">Date *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal",
+                          "w-full h-9 justify-start text-left font-normal",
                           !date && "text-muted-foreground"
                         )}
                       >
@@ -997,41 +996,44 @@ export default function EditBookingDialog({
                   </Popover>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-time">Heure *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-time" className="text-xs">Heure *</Label>
                   <Input
                     id="edit-time"
                     type="time"
                     step="600"
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-firstName">Prénom *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-firstName" className="text-xs">Prénom *</Label>
                   <Input
                     id="edit-firstName"
                     value={clientFirstName}
                     onChange={(e) => setClientFirstName(e.target.value)}
+                    className="h-9"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-lastName">Nom *</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-lastName" className="text-xs">Nom *</Label>
                   <Input
                     id="edit-lastName"
                     value={clientLastName}
                     onChange={(e) => setClientLastName(e.target.value)}
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-phone">Téléphone *</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="edit-phone" className="text-xs">Téléphone *</Label>
                   <div className="flex gap-2">
                     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                       <PopoverTrigger asChild>
@@ -1039,11 +1041,11 @@ export default function EditBookingDialog({
                           variant="outline"
                           role="combobox"
                           aria-expanded={countryOpen}
-                          className="w-[140px] justify-between"
+                          className="w-[120px] h-9 justify-between text-xs"
                         >
                           {countries.find((country) => country.code === countryCode)?.flag}{" "}
                           {countryCode}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
@@ -1083,23 +1085,24 @@ export default function EditBookingDialog({
                         const formatted = formatPhoneNumber(e.target.value, countryCode);
                         setPhone(formatted);
                       }}
-                      className="flex-1"
+                      className="flex-1 h-9"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-room">Numéro de chambre</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="edit-room" className="text-xs">Numéro de chambre</Label>
                   <Input
                     id="edit-room"
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-hairdresser">Coiffeur / Prestataire</Label>
+              <div className="space-y-1">
+                <Label htmlFor="edit-hairdresser" className="text-xs">Coiffeur / Prestataire</Label>
                 <Select 
                   value={hairdresserId || "none"} 
                   onValueChange={(value) => {
@@ -1107,7 +1110,7 @@ export default function EditBookingDialog({
                     setHairdresserId(newValue);
                   }}
                 >
-                  <SelectTrigger id="edit-hairdresser">
+                  <SelectTrigger id="edit-hairdresser" className="h-9">
                     <SelectValue placeholder="Sélectionner un coiffeur" />
                   </SelectTrigger>
                   <SelectContent className="bg-popover">
@@ -1143,12 +1146,12 @@ export default function EditBookingDialog({
                     })}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground">
                   Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
                 </p>
               </div>
 
-              <div className="flex justify-between gap-2 pt-4 mt-4 border-t">
+              <div className="flex justify-between gap-2 pt-2 mt-2 border-t">
                 <div className="flex gap-2">
                   <Button 
                     type="button" 
