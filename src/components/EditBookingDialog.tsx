@@ -1103,16 +1103,13 @@ export default function EditBookingDialog({
                   <SelectTrigger id="edit-hairdresser" className="h-9">
                     <SelectValue placeholder="Sélectionner un coiffeur" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover">
+                  <SelectContent className="bg-background border shadow-lg">
                     <SelectItem value="none">Aucun coiffeur</SelectItem>
                     {/* Show current hairdresser if not in list */}
                     {booking?.hairdresser_id && booking?.hairdresser_name && 
                      !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
                       <SelectItem value={booking.hairdresser_id}>
-                        <div className="flex items-center gap-2">
-                          <span>{booking.hairdresser_name}</span>
-                          <Badge variant="outline" className="text-[10px] h-4 px-1">Actuel</Badge>
-                        </div>
+                        {booking.hairdresser_name} (Actuel)
                       </SelectItem>
                     )}
                     {hairdressers?.map((hairdresser) => {
@@ -1125,22 +1122,10 @@ export default function EditBookingDialog({
                           key={hairdresser.id} 
                           value={hairdresser.id}
                           disabled={isUnavailable && !isCurrentHairdresser}
-                          className={isUnavailable && !isCurrentHairdresser ? "opacity-50" : ""}
                         >
-                          <div className="flex items-center gap-2">
-                            <span>{hairdresser.first_name} {hairdresser.last_name}</span>
-                            {isCurrentHairdresser && (
-                              <Badge variant="outline" className="text-[10px] h-4 px-1">Actuel</Badge>
-                            )}
-                            {isUnavailable && !isCurrentHairdresser && (
-                              <span className="text-xs text-destructive">
-                                (Occupé {availability.conflict})
-                              </span>
-                            )}
-                            {!isUnavailable && !isCurrentHairdresser && (
-                              <span className="text-xs text-success">✓ Disponible</span>
-                            )}
-                          </div>
+                          {hairdresser.first_name} {hairdresser.last_name}
+                          {isCurrentHairdresser && " (Actuel)"}
+                          {isUnavailable && !isCurrentHairdresser && " - Occupé"}
                         </SelectItem>
                       );
                     })}
