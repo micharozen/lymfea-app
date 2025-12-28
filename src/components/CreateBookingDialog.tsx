@@ -246,25 +246,25 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "p-0 gap-0 flex flex-col border shadow-2xl rounded-xl",
-        view === 1 ? "max-w-[460px]" : "max-w-[580px] max-h-[85vh]"
+        "p-0 gap-0 flex flex-col border shadow-2xl rounded-xl overflow-hidden",
+        view === 1 ? "max-w-[480px]" : "max-w-[600px] max-h-[85vh]"
       )}>
-        {/* VIEW 1: COMPACT CLIENT FORM */}
+        {/* VIEW 1: CLIENT FORM */}
         {view === 1 && (
           <div className="flex flex-col">
-            {/* Header - Compact */}
-            <div className="px-5 py-3 border-b bg-muted/20">
-              <h2 className="text-base font-semibold tracking-tight">Nouvelle réservation</h2>
-              <p className="text-xs text-muted-foreground">Informations client</p>
+            {/* Header */}
+            <div className="px-6 py-4 border-b bg-muted/20">
+              <h2 className="text-lg font-semibold">Nouvelle réservation</h2>
+              <p className="text-sm text-muted-foreground">Informations client</p>
             </div>
 
-            {/* Form Body - Compact */}
-            <div className="px-5 py-4 space-y-3">
+            {/* Form Body */}
+            <div className="px-6 py-5 space-y-4">
               {/* Hotel */}
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Hôtel *</Label>
                 <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="h-9 min-h-9 py-0 text-sm">
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Sélectionner un hôtel" />
                   </SelectTrigger>
                   <SelectContent>
@@ -273,38 +273,38 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </Select>
               </div>
 
-              {/* Prénom / Nom - Same row */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
+              {/* Prénom / Nom */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Prénom *</Label>
-                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-9 py-0 text-sm" placeholder="Prénom" />
+                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-10" placeholder="Prénom" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Nom *</Label>
-                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-9 py-0 text-sm" placeholder="Nom" />
+                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-10" placeholder="Nom" />
                 </div>
               </div>
 
-              {/* Phone + Room - Same row */}
-              <div className="grid grid-cols-[1fr_100px] gap-2">
-                <div className="space-y-1">
+              {/* Phone + Room */}
+              <div className="grid grid-cols-[1fr_100px] gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Téléphone *</Label>
-                  <div className="flex gap-1.5 items-stretch">
+                  <div className="flex gap-2 items-stretch">
                     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="w-[80px] h-9 min-h-9 py-0 px-2 justify-between font-normal text-sm shrink-0 hover:bg-transparent hover:text-foreground">
+                        <Button variant="outline" className="w-[85px] h-10 px-2 justify-between font-normal shrink-0">
                           {countries.find(c => c.code === countryCode)?.flag} {countryCode}
                           <ChevronsUpDown className="h-3 w-3 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
                         <Command>
-                          <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
+                          <CommandInput placeholder="Rechercher un pays..." className="h-9" />
                           <CommandList className="max-h-[200px]">
                             <CommandEmpty>Pays non trouvé</CommandEmpty>
                             <CommandGroup>
                               {countries.map(c => (
-                                <CommandItem key={c.code} value={`${c.label} ${c.code}`} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="text-sm cursor-pointer">
+                                <CommandItem key={c.code} value={`${c.label} ${c.code}`} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="cursor-pointer">
                                   <Check className={cn("mr-2 h-3.5 w-3.5", countryCode === c.code ? "opacity-100" : "opacity-0")} />
                                   {c.flag} {c.label} ({c.code})
                                 </CommandItem>
@@ -317,26 +317,26 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     <Input 
                       value={phone} 
                       onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
-                      className="flex-1 h-9 min-h-9 py-0 text-sm" 
+                      className="flex-1 h-10" 
                       placeholder="Numéro" 
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Chambre</Label>
-                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-9 py-0 text-sm" placeholder="N°" />
+                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-10" placeholder="N°" />
                 </div>
               </div>
 
-              {/* Date / Time - Same row */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
+              {/* Date / Time */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Date *</Label>
                   <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className={cn("w-full h-9 min-h-9 py-0 justify-start font-normal text-sm hover:bg-transparent hover:text-foreground transition-none", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                        {date ? format(date, "dd/MM/yy", { locale: fr }) : "Date"}
+                      <Button variant="outline" className={cn("w-full h-10 justify-start font-normal", !date && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0 z-50" align="start">
@@ -344,11 +344,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Heure *</Label>
                   <Select value={time || ''} onValueChange={setTime}>
-                    <SelectTrigger className="h-9 min-h-9 py-0 text-sm">
-                      <SelectValue placeholder="Heure" />
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Sélectionner" />
                     </SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 17 }, (_, i) => i + 7).flatMap(h => 
@@ -364,10 +364,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
               {/* Hairdresser (Admin only) */}
               {isAdmin && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Coiffeur / Staff</Label>
                   <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
-                    <SelectTrigger className="h-9 min-h-9 py-0 text-sm">
+                    <SelectTrigger className="h-10">
                       <SelectValue placeholder="Non assigné" />
                     </SelectTrigger>
                     <SelectContent>
@@ -379,74 +379,55 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               )}
             </div>
 
-            {/* Footer - Compact */}
-            <div className="px-5 py-3 border-t flex items-center justify-between bg-muted/20">
-              <Button type="button" variant="ghost" size="sm" onClick={close}>Annuler</Button>
-              <Button type="button" size="sm" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
-                Continuer <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            {/* Footer */}
+            <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/20">
+              <Button type="button" variant="ghost" onClick={close}>Annuler</Button>
+              <Button type="button" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
+                Continuer <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* VIEW 2: MINIMALIST SPA MENU */}
+        {/* VIEW 2: TREATMENTS SELECTION */}
         {view === 2 && (
-          <form onSubmit={submit} className="flex flex-col h-full min-h-[500px] max-h-[80vh] bg-background">
+          <form onSubmit={submit} className="flex flex-col flex-1 min-h-0 max-h-[80vh]">
             
-            {/* 1. SCROLLABLE SERVICE LIST */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Header with tabs */}
+            <div className="shrink-0 px-6 pt-4 pb-0 border-b border-border/50">
+              <button type="button" onClick={back} className="text-xs text-muted-foreground hover:text-foreground mb-3">
+                ← Retour
+              </button>
               
-              {/* HEADER: Tabs + Back */}
-              <div className="sticky top-0 bg-background z-10 border-b border-border/50">
-                {/* Back Button Row */}
-                <div className="px-4 py-2 flex items-center">
-                  <button 
-                    type="button" 
-                    onClick={back}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              <div className="flex items-center gap-6">
+                {(["female", "male"] as const).map(f => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFilter(f)}
+                    className={cn(
+                      "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
+                      filter === f ? "text-foreground border-b-2 border-foreground" : "text-muted-foreground hover:text-foreground"
+                    )}
                   >
-                    ← Retour
+                    {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
                   </button>
-                </div>
-                
-                {/* Menu Tabs (Clean Underline Style) */}
-                <div className="px-4 flex items-center gap-6">
-                  {(["female", "male"] as const).map(f => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFilter(f)}
-                      className={cn(
-                        "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
-                        filter === f 
-                          ? "text-foreground border-b-2 border-foreground" 
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
-                    </button>
-                  ))}
-                  <div className="flex-1" />
-                  <div className="relative w-32 pb-2">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                    <Input 
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="Search..."
-                      className="h-6 pl-7 text-xs border-border/50"
-                    />
-                  </div>
+                ))}
+                <div className="flex-1" />
+                <div className="relative w-32 pb-2">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="h-7 pl-7 text-xs" />
                 </div>
               </div>
+            </div>
 
-              {/* SERVICE LIST */}
-              <div className="px-4 py-2">
-                {Object.entries(grouped).map(([category, items]) => (
-                  <div key={category} className="mb-4">
-                    {/* Category Header */}
-                    <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
-                      {category}
-                    </h3>
+            {/* Scrollable service list */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-3">
+              {Object.entries(grouped).map(([category, items]) => (
+                <div key={category} className="mb-4">
+                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
+                    {category}
+                  </h3>
                     
                     {/* Clean Service Rows - HIGH DENSITY */}
                     <div>
