@@ -114,9 +114,12 @@ const Auth = () => {
         // Store the email for authentication (even if user entered phone)
         setFoundEmail(checkResult.email);
         
-        // Security: Always proceed to password step to prevent user enumeration
-        // The actual authentication attempt will reveal if account needs setup
-        setStep("password");
+        // If user has auth account, go to login. Otherwise, go to signup.
+        if (checkResult.hasAccount) {
+          setStep("password");
+        } else {
+          setStep("signup");
+        }
       } else {
         // User doesn't exist in admins table, show contact admin message
         setStep("not-found");
