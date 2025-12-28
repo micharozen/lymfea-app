@@ -651,7 +651,7 @@ export default function EditBookingDialog({
           
           const existingDuration = (existingBooking.booking_treatments as any[]).reduce((sum, bt) => {
             return sum + (bt.treatment_menus?.duration || 0);
-          }, 0);
+          }, 0) || 60; // Durée par défaut de 60 min si pas de traitements
           const existingEndTime = existingStartTime + existingDuration;
 
           // Vérifier le chevauchement
