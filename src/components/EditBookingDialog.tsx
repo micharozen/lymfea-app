@@ -728,7 +728,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
@@ -946,7 +946,7 @@ export default function EditBookingDialog({
         ) : (
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="info" className="flex-1 overflow-y-auto px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
+            <TabsContent value="info" className="flex-1 px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
