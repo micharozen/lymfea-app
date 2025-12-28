@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useState, useEffect, useMemo } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
@@ -29,9 +30,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus, ArrowRight, Search } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -117,7 +117,7 @@ interface CreateBookingDialogProps {
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
-  const [view, setView] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<"info" | "prestations">("info");
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
@@ -128,10 +128,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [date, setDate] = useState<Date | undefined>(selectedDate);
   const [time, setTime] = useState(selectedTime || "");
   const [hairdresserId, setHairdresserId] = useState("");
-  const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [filter, setFilter] = useState<"all" | "female" | "male">("all");
-  const [search, setSearch] = useState("");
+  const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
 
   useEffect(() => {
     if (selectedDate) setDate(selectedDate);
@@ -149,7 +147,14 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   });
 
   const isAdmin = userRole === "admin";
-  const { data: hotels } = useQuery({ queryKey: ["hotels"], queryFn: async () => { const { data } = await supabase.from("hotels").select("id, name").order("name"); return data || []; }});
+  
+  const { data: hotels } = useQuery({ 
+    queryKey: ["hotels"], 
+    queryFn: async () => { 
+      const { data } = await supabase.from("hotels").select("id, name").order("name"); 
+      return data || []; 
+    }
+  });
   
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers-for-hotel", hotelId],
@@ -173,140 +178,271 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     },
   });
 
-  const filtered = useMemo(() => {
-    if (!treatments) return [];
-    let list = treatments.filter(t => filter === "all" || (filter === "female" ? (t.service_for === "Female" || t.service_for === "All") : (t.service_for === "Male" || t.service_for === "All")));
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(t => t.name.toLowerCase().includes(s));
-    }
-    return list;
-  }, [treatments, filter, search]);
-
-  const grouped = useMemo(() => {
-    const g: Record<string, typeof filtered> = {};
-    filtered.forEach(t => { const c = t.category || "Autres"; if (!g[c]) g[c] = []; g[c].push(t); });
-    return g;
-  }, [filtered]);
-
   const { totalPrice, totalDuration } = useMemo(() => {
     if (!treatments || !cart.length) return { totalPrice: 0, totalDuration: 0 };
     let p = 0, d = 0;
-    cart.forEach(i => { const t = treatments.find(x => x.id === i.treatmentId); if (t) { p += (t.price || 0) * i.quantity; d += (t.duration || 0) * i.quantity; }});
+    cart.forEach(i => { 
+      const t = treatments.find(x => x.id === i.treatmentId); 
+      if (t) { 
+        p += (t.price || 0) * i.quantity; 
+        d += (t.duration || 0) * i.quantity; 
+      }
+    });
     return { totalPrice: p, totalDuration: d };
   }, [cart, treatments]);
 
-  const cartDetails = useMemo(() => cart.map(i => ({ ...i, t: treatments?.find(x => x.id === i.treatmentId) })).filter(i => i.t), [cart, treatments]);
+  const cartDetails = useMemo(() => 
+    cart.map(i => ({ ...i, treatment: treatments?.find(x => x.id === i.treatmentId) })).filter(i => i.treatment), 
+    [cart, treatments]
+  );
   
-  const add = (id: string) => setCart(p => { const e = p.find(x => x.treatmentId === id); return e ? p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x) : [...p, { treatmentId: id, quantity: 1 }]; });
-  const inc = (id: string) => setCart(p => p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x));
-  const dec = (id: string) => setCart(p => { const e = p.find(x => x.treatmentId === id); return e && e.quantity <= 1 ? p.filter(x => x.treatmentId !== id) : p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity - 1 } : x); });
+  const addToCart = (id: string) => setCart(p => { 
+    const e = p.find(x => x.treatmentId === id); 
+    return e ? p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x) : [...p, { treatmentId: id, quantity: 1 }]; 
+  });
+  
+  const incrementCart = (id: string) => setCart(p => p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity + 1 } : x));
+  
+  const decrementCart = (id: string) => setCart(p => { 
+    const e = p.find(x => x.treatmentId === id); 
+    return e && e.quantity <= 1 ? p.filter(x => x.treatmentId !== id) : p.map(x => x.treatmentId === id ? { ...x, quantity: x.quantity - 1 } : x); 
+  });
 
-  const flatIds = useMemo(() => { const ids: string[] = []; cart.forEach(i => { for (let j = 0; j < i.quantity; j++) ids.push(i.treatmentId); }); return ids; }, [cart]);
+  const getCartQuantity = (treatmentId: string) => {
+    return cart.find(x => x.treatmentId === treatmentId)?.quantity || 0;
+  };
+
+  const flatIds = useMemo(() => { 
+    const ids: string[] = []; 
+    cart.forEach(i => { 
+      for (let j = 0; j < i.quantity; j++) ids.push(i.treatmentId); 
+    }); 
+    return ids; 
+  }, [cart]);
 
   const mutation = useMutation({
     mutationFn: async (d: any) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
       const hd = hairdressers?.find(h => h.id === d.hairdresserId);
       const { data: booking, error } = await supabase.from("bookings").insert({
-        hotel_id: d.hotelId, hotel_name: hotel?.name || "", client_first_name: d.clientFirstName, client_last_name: d.clientLastName,
-        phone: `${d.countryCode} ${d.phone}`, room_number: d.roomNumber, booking_date: d.date, booking_time: d.time,
-        hairdresser_id: d.hairdresserId || null, hairdresser_name: hd ? `${hd.first_name} ${hd.last_name}` : null,
-        status: d.hairdresserId ? "assigned" : "pending", assigned_at: d.hairdresserId ? new Date().toISOString() : null, total_price: d.totalPrice,
+        hotel_id: d.hotelId, 
+        hotel_name: hotel?.name || "", 
+        client_first_name: d.clientFirstName, 
+        client_last_name: d.clientLastName,
+        phone: `${d.countryCode} ${d.phone}`, 
+        room_number: d.roomNumber, 
+        booking_date: d.date, 
+        booking_time: d.time,
+        hairdresser_id: d.hairdresserId || null, 
+        hairdresser_name: hd ? `${hd.first_name} ${hd.last_name}` : null,
+        status: d.hairdresserId ? "Assigné" : "En attente", 
+        assigned_at: d.hairdresserId ? new Date().toISOString() : null, 
+        total_price: d.totalPrice,
       }).select().single();
+      
       if (error) throw error;
+      
       if (d.treatmentIds.length) {
-        const { error: te } = await supabase.from("booking_treatments").insert(d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid })));
+        const { error: te } = await supabase.from("booking_treatments").insert(
+          d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid }))
+        );
         if (te) throw te;
       }
-      try { if (!d.isAdmin) await supabase.functions.invoke('notify-admin-new-booking', { body: { bookingId: booking.id } }); await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking.id } }); } catch {}
+      
+      try { 
+        if (!d.isAdmin) await supabase.functions.invoke('notify-admin-new-booking', { body: { bookingId: booking.id } }); 
+        await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking.id } }); 
+      } catch {}
+      
       return booking;
     },
-    onSuccess: () => { toast({ title: "Réservation créée" }); queryClient.invalidateQueries({ queryKey: ["bookings"] }); close(); },
-    onError: () => { toast({ title: "Erreur", variant: "destructive" }); },
+    onSuccess: () => { 
+      toast({ title: "Réservation créée" }); 
+      queryClient.invalidateQueries({ queryKey: ["bookings"] }); 
+      handleClose(); 
+    },
+    onError: () => { 
+      toast({ title: "Erreur", variant: "destructive" }); 
+    },
   });
 
-  const validate = () => {
-    if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) { toast({ title: "Champs requis", variant: "destructive" }); return false; }
+  const validateInfo = () => {
+    if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) { 
+      toast({ title: "Champs requis", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" }); 
+      return false; 
+    }
     return true;
   };
 
-  const next = () => { if (validate()) setView(2); };
-  const back = () => setView(1);
-  const submit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cart.length) { toast({ title: "Sélectionnez une prestation", variant: "destructive" }); return; }
-    mutation.mutate({ hotelId, clientFirstName, clientLastName, phone, countryCode, roomNumber, date: date ? format(date, "yyyy-MM-dd") : "", time, hairdresserId, treatmentIds: flatIds, totalPrice, isAdmin });
+    if (!cart.length) { 
+      toast({ title: "Sélectionnez une prestation", variant: "destructive" }); 
+      return; 
+    }
+    mutation.mutate({ 
+      hotelId, 
+      clientFirstName, 
+      clientLastName, 
+      phone, 
+      countryCode, 
+      roomNumber, 
+      date: date ? format(date, "yyyy-MM-dd") : "", 
+      time, 
+      hairdresserId, 
+      treatmentIds: flatIds, 
+      totalPrice, 
+      isAdmin 
+    });
   };
-  const close = () => { setView(1); setHotelId(""); setClientFirstName(""); setClientLastName(""); setPhone(""); setCountryCode("+33"); setRoomNumber(""); setDate(selectedDate); setTime(selectedTime || ""); setHairdresserId(""); setCart([]); setFilter("all"); setSearch(""); onOpenChange(false); };
-
-  const hotel = hotels?.find(h => h.id === hotelId);
-  const itemCount = cart.reduce((s, c) => s + c.quantity, 0);
+  
+  const handleClose = () => { 
+    setActiveTab("info"); 
+    setHotelId(""); 
+    setClientFirstName(""); 
+    setClientLastName(""); 
+    setPhone(""); 
+    setCountryCode("+33"); 
+    setRoomNumber(""); 
+    setDate(selectedDate); 
+    setTime(selectedTime || ""); 
+    setHairdresserId(""); 
+    setCart([]); 
+    setTreatmentFilter("female"); 
+    onOpenChange(false); 
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(
-        "p-0 gap-0 flex flex-col border shadow-2xl rounded-xl overflow-hidden",
-        view === 1 ? "max-w-[480px]" : "max-w-[600px] max-h-[85vh]"
-      )}>
-        {/* VIEW 1: CLIENT FORM */}
-        {view === 1 && (
-          <div className="flex flex-col">
-            {/* Header */}
-            <div className="px-6 py-4 border-b bg-muted/20">
-              <h2 className="text-lg font-semibold">Nouvelle réservation</h2>
-              <p className="text-sm text-muted-foreground">Informations client</p>
-            </div>
+      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle className="text-lg font-semibold">
+            Nouvelle réservation
+          </DialogTitle>
+        </DialogHeader>
 
-            {/* Form Body */}
-            <div className="px-6 py-5 space-y-4">
-              {/* Hotel */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Hôtel *</Label>
-                <Select value={hotelId} onValueChange={setHotelId}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Sélectionner un hôtel" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hotels?.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Prénom / Nom */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations")} className="flex-1 flex flex-col min-h-0">
+            <TabsContent value="info" className="flex-1 px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Prénom *</Label>
-                  <Input value={clientFirstName} onChange={e => setClientFirstName(e.target.value)} className="h-10" placeholder="Prénom" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Nom *</Label>
-                  <Input value={clientLastName} onChange={e => setClientLastName(e.target.value)} className="h-10" placeholder="Nom" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Hôtel *</Label>
+                  <Select value={hotelId} onValueChange={setHotelId}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Sélectionner un hôtel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hotels?.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              {/* Phone + Room */}
-              <div className="grid grid-cols-[1fr_100px] gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Téléphone *</Label>
-                  <div className="flex gap-2 items-stretch">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Date *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full h-9 justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                        locale={fr}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Heure *</Label>
+                  <Input
+                    type="time"
+                    step="600"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Prénom *</Label>
+                  <Input
+                    value={clientFirstName}
+                    onChange={(e) => setClientFirstName(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Nom *</Label>
+                  <Input
+                    value={clientLastName}
+                    onChange={(e) => setClientLastName(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Téléphone *</Label>
+                  <div className="flex gap-2">
                     <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-[85px] h-10 px-2 justify-between font-normal shrink-0">
-                          {countries.find(c => c.code === countryCode)?.flag} {countryCode}
-                          <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={countryOpen}
+                          className="w-[120px] h-9 justify-between text-xs"
+                        >
+                          {countries.find((country) => country.code === countryCode)?.flag}{" "}
+                          {countryCode}
+                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
                         <Command>
-                          <CommandInput placeholder="Rechercher un pays..." className="h-9" />
+                          <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
                           <CommandList className="max-h-[200px]">
                             <CommandEmpty>Pays non trouvé</CommandEmpty>
                             <CommandGroup>
-                              {countries.map(c => (
-                                <CommandItem key={c.code} value={`${c.label} ${c.code}`} onSelect={() => { setCountryCode(c.code); setCountryOpen(false); }} className="cursor-pointer">
-                                  <Check className={cn("mr-2 h-3.5 w-3.5", countryCode === c.code ? "opacity-100" : "opacity-0")} />
-                                  {c.flag} {c.label} ({c.code})
+                              {countries.map((country) => (
+                                <CommandItem
+                                  key={country.code}
+                                  value={`${country.label} ${country.code}`}
+                                  onSelect={() => {
+                                    setCountryCode(country.code);
+                                    setCountryOpen(false);
+                                  }}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-3.5 w-3.5",
+                                      countryCode === country.code ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {country.flag} {country.label} ({country.code})
                                 </CommandItem>
                               ))}
                             </CommandGroup>
@@ -314,196 +450,211 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    <Input 
-                      value={phone} 
-                      onChange={e => setPhone(formatPhoneNumber(e.target.value, countryCode))} 
-                      className="flex-1 h-10" 
-                      placeholder="Numéro" 
+                    <Input
+                      value={phone}
+                      onChange={(e) => {
+                        const formatted = formatPhoneNumber(e.target.value, countryCode);
+                        setPhone(formatted);
+                      }}
+                      className="flex-1 h-9"
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Chambre</Label>
-                  <Input value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="h-10" placeholder="N°" />
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Numéro de chambre</Label>
+                  <Input
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    className="h-9"
+                  />
                 </div>
               </div>
 
-              {/* Date / Time */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Date *</Label>
-                  <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full h-10 justify-start font-normal", !date && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : "Sélectionner"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-50" align="start">
-                      <Calendar mode="single" selected={date} onSelect={d => { setDate(d); setDatePopoverOpen(false); }} initialFocus locale={fr} className="pointer-events-auto" />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Heure *</Label>
-                  <Select value={time || ''} onValueChange={setTime}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Sélectionner" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 17 }, (_, i) => i + 7).flatMap(h => 
-                        [0, 30].map(m => {
-                          const timeValue = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                          return <SelectItem key={timeValue} value={timeValue}>{timeValue}</SelectItem>;
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Hairdresser (Admin only) */}
               {isAdmin && (
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Coiffeur / Staff</Label>
-                  <Select value={hairdresserId || "none"} onValueChange={v => setHairdresserId(v === "none" ? "" : v)}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Non assigné" />
+                <div className="space-y-1">
+                  <Label className="text-xs">Coiffeur / Prestataire</Label>
+                  <Select 
+                    value={hairdresserId || "none"} 
+                    onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Sélectionner un coiffeur" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Non assigné</SelectItem>
-                      {hairdressers?.map(h => <SelectItem key={h.id} value={h.id}>{h.first_name} {h.last_name}</SelectItem>)}
+                    <SelectContent className="bg-background border shadow-lg">
+                      <SelectItem value="none">Aucun coiffeur</SelectItem>
+                      {hairdressers?.map((hairdresser) => (
+                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                          {hairdresser.first_name} {hairdresser.last_name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               )}
-            </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t flex items-center justify-between bg-muted/20">
-              <Button type="button" variant="ghost" onClick={close}>Annuler</Button>
-              <Button type="button" onClick={next} className="bg-foreground text-background hover:bg-foreground/90">
-                Continuer <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        )}
+              {/* Footer */}
+              <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Annuler
+                </Button>
+                <Button type="button" onClick={() => { if (validateInfo()) setActiveTab("prestations"); }}>
+                  Suivant
+                </Button>
+              </div>
+            </TabsContent>
 
-        {/* VIEW 2: TREATMENTS SELECTION */}
-        {view === 2 && (
-          <form onSubmit={submit} className="flex flex-col flex-1 min-h-0 max-h-[80vh]">
-            
-            {/* Header with tabs */}
-            <div className="shrink-0 px-6 pt-4 pb-0 border-b border-border/50">
-              <button type="button" onClick={back} className="text-xs text-muted-foreground hover:text-foreground mb-3">
-                ← Retour
-              </button>
-              
-              <div className="flex items-center gap-6">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
+              {/* Menu Tabs */}
+              <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
                 {(["female", "male"] as const).map(f => (
                   <button
                     key={f}
                     type="button"
-                    onClick={() => setFilter(f)}
+                    onClick={() => setTreatmentFilter(f)}
                     className={cn(
-                      "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
-                      filter === f ? "text-foreground border-b-2 border-foreground" : "text-muted-foreground hover:text-foreground"
+                      "pb-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors",
+                      treatmentFilter === f 
+                        ? "text-foreground border-b-2 border-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                   >
                     {f === "female" ? "WOMEN'S MENU" : "MEN'S MENU"}
                   </button>
                 ))}
-                <div className="flex-1" />
-                <div className="relative w-32 pb-2">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="h-7 pl-7 text-xs" />
-                </div>
               </div>
-            </div>
 
-            {/* Scrollable service list */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-3">
-              {Object.entries(grouped).map(([category, items]) => (
-                <div key={category} className="mb-4">
-                  <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
-                    {category}
-                  </h3>
-                  <div>
-                    {items.map((treatment) => (
-                      <div 
-                        key={treatment.id} 
-                        className="flex items-center justify-between py-2 border-b border-border/20 group"
-                      >
-                        <div className="flex flex-col gap-0.5 flex-1 pr-3">
-                          <span className="font-bold text-foreground text-sm">{treatment.name}</span>
-                          <span className="text-xs font-medium text-muted-foreground">{treatment.price}€ • {treatment.duration} min</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => add(treatment.id)}
-                          className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
-                        >
-                          Select
-                        </button>
+              {/* SERVICE LIST - Scrollable with max height */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                {(() => {
+                  const filtered = treatments?.filter(t => 
+                    treatmentFilter === "female" 
+                      ? (t.service_for === "Female" || t.service_for === "All")
+                      : (t.service_for === "Male" || t.service_for === "All")
+                  ) || [];
+                  
+                  const grouped: Record<string, typeof filtered> = {};
+                  filtered.forEach(t => {
+                    const c = t.category || "Autres";
+                    if (!grouped[c]) grouped[c] = [];
+                    grouped[c].push(t);
+                  });
+
+                  if (!filtered.length) {
+                    return (
+                      <div className="h-16 flex items-center justify-center text-xs text-muted-foreground">
+                        Aucune prestation disponible
                       </div>
-                    ))}
+                    );
+                  }
+
+                  return Object.entries(grouped).map(([category, items]) => (
+                    <div key={category} className="mb-2">
+                      <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 pb-0.5 border-b border-border/30">
+                        {category}
+                      </h3>
+                      
+                      <div>
+                        {items.map((treatment) => {
+                          const qty = getCartQuantity(treatment.id);
+                          return (
+                            <div 
+                              key={treatment.id} 
+                              className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
+                            >
+                              <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                <span className="font-medium text-foreground text-xs truncate">
+                                  {treatment.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {treatment.price}€ • {treatment.duration} min
+                                </span>
+                              </div>
+
+                              {qty > 0 ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => decrementCart(treatment.id)}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                  >
+                                    <Minus className="h-2.5 w-2.5" />
+                                  </button>
+                                  <span className="text-xs font-bold w-4 text-center">{qty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => incrementCart(treatment.id)}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                  >
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(treatment.id)}
+                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
+                                >
+                                  Ajouter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+              
+              {/* Compact Footer */}
+              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Cart Summary */}
+                  <div className="flex-1 min-w-0">
+                    {cart.length > 0 ? (
+                      <div className="flex items-center gap-1.5 overflow-x-auto">
+                        {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
+                          <div key={treatmentId} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
+                            <span className="text-[9px] font-medium truncate max-w-[60px]">{treatment!.name}</span>
+                            <span className="text-[9px] font-bold">×{quantity}</span>
+                          </div>
+                        ))}
+                        {cartDetails.length > 3 && (
+                          <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">Aucun service</span>
+                    )}
+                  </div>
+
+                  {/* Total + Actions */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-sm">{totalPrice}€</span>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab("info")}
+                      className="h-7 text-xs px-2"
+                    >
+                      ← Retour
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={mutation.isPending || cart.length === 0} 
+                      size="sm"
+                      className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
+                    >
+                      {mutation.isPending ? "..." : "Créer"}
+                    </Button>
                   </div>
                 </div>
-              ))}
-
-              {!filtered.length && (
-                <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
-                  No treatments found
-                </div>
-              )}
-            </div>
-
-            {/* COMPACT STICKY FOOTER */}
-            <div className="shrink-0 border-t border-border bg-background z-20">
-              <div className="px-4 py-2 flex items-center gap-3">
-                {/* Left: Cart Items (Compact inline) */}
-                <div className="flex-1 min-w-0">
-                  {cart.length > 0 ? (
-                    <div className="flex items-center gap-2 overflow-x-auto">
-                      {cartDetails.slice(0, 3).map(({ treatmentId, quantity, t }) => (
-                        <div key={treatmentId} className="flex items-center gap-1 bg-muted/50 rounded px-2 py-1 shrink-0">
-                          <span className="text-[10px] font-medium truncate max-w-[80px]">{t!.name}</span>
-                          <div className="flex items-center gap-1">
-                            <button type="button" onClick={() => dec(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
-                              <Minus className="h-2.5 w-2.5" />
-                            </button>
-                            <span className="text-[10px] font-bold w-3 text-center">{quantity}</span>
-                            <button type="button" onClick={() => add(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
-                              <Plus className="h-2.5 w-2.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {cartDetails.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Aucun service</span>
-                  )}
-                </div>
-
-                {/* Right: Total + Submit */}
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-bold text-sm">{totalPrice}€</span>
-                  <Button 
-                    type="submit" 
-                    disabled={mutation.isPending || cart.length === 0} 
-                    size="sm"
-                    className="bg-foreground text-background hover:bg-foreground/90 h-8 px-4"
-                  >
-                    {mutation.isPending ? "..." : "Créer"}
-                  </Button>
-                </div>
               </div>
-            </div>
-          </form>
-        )}
+            </TabsContent>
+          </Tabs>
+        </form>
       </DialogContent>
     </Dialog>
   );
