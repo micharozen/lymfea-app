@@ -428,52 +428,39 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
                     {category}
                   </h3>
-                    
-                    {/* Clean Service Rows - HIGH DENSITY */}
-                    <div>
-                      {items.map((treatment) => (
-                        <div 
-                          key={treatment.id} 
-                          className="flex items-center justify-between py-2 border-b border-border/20 group"
-                        >
-                          {/* Left: Info */}
-                          <div className="flex flex-col gap-0.5 flex-1 pr-3">
-                            <span className="font-bold text-foreground text-sm">
-                              {treatment.name}
-                            </span>
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {treatment.price}€ • {treatment.duration} min
-                            </span>
-                          </div>
-
-                          {/* Right: Compact Black Pill Button */}
-                          <button
-                            type="button"
-                            onClick={() => add(treatment.id)}
-                            className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
-                          >
-                            Select
-                          </button>
+                  <div>
+                    {items.map((treatment) => (
+                      <div 
+                        key={treatment.id} 
+                        className="flex items-center justify-between py-2 border-b border-border/20 group"
+                      >
+                        <div className="flex flex-col gap-0.5 flex-1 pr-3">
+                          <span className="font-bold text-foreground text-sm">{treatment.name}</span>
+                          <span className="text-xs font-medium text-muted-foreground">{treatment.price}€ • {treatment.duration} min</span>
                         </div>
-                      ))}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => add(treatment.id)}
+                          className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                        >
+                          Select
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+              ))}
 
-                {!filtered.length && (
-                  <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
-                    No treatments found
-                  </div>
-                )}
-              </div>
+              {!filtered.length && (
+                <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+                  No treatments found
+                </div>
+              )}
             </div>
 
-            {/* 2. COMPACT STICKY FOOTER */}
+            {/* COMPACT STICKY FOOTER */}
             <div className="shrink-0 border-t border-border bg-background z-20">
-              
-              {/* Single Row: Cart Summary + Total + Button */}
               <div className="px-4 py-2 flex items-center gap-3">
-                
                 {/* Left: Cart Items (Compact inline) */}
                 <div className="flex-1 min-w-0">
                   {cart.length > 0 ? (
