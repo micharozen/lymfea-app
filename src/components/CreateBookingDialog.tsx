@@ -350,12 +350,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full h-9 justify-start text-left font-normal",
+                          "w-full h-9 justify-start text-left font-normal hover:bg-background",
                           !date && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
