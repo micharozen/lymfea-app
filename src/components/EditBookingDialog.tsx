@@ -612,8 +612,12 @@ export default function EditBookingDialog({
       return;
     }
 
-    // Vérifier les chevauchements si un coiffeur est assigné
-    if (hairdresserId && cart.length > 0) {
+    // Vérifier les chevauchements SEULEMENT si on change le coiffeur ou l'heure
+    const hairdresserChanged = hairdresserId !== booking?.hairdresser_id;
+    const timeChanged = time !== booking?.booking_time;
+    const dateChanged = date && format(date, "yyyy-MM-dd") !== booking?.booking_date;
+    
+    if (hairdresserId && cart.length > 0 && (hairdresserChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
