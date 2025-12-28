@@ -1166,16 +1166,16 @@ export default function EditBookingDialog({
               </div>
             </TabsContent>
 
-            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 data-[state=inactive]:hidden">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
               {/* Menu Tabs */}
-              <div className="flex items-center gap-6 border-b border-border/50 px-1 shrink-0">
+              <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
                 {(["female", "male"] as const).map(f => (
                   <button
                     key={f}
                     type="button"
                     onClick={() => setTreatmentFilter(f)}
                     className={cn(
-                      "pb-2 text-[10px] font-bold uppercase tracking-widest transition-colors",
+                      "pb-1.5 text-[9px] font-bold uppercase tracking-widest transition-colors",
                       treatmentFilter === f 
                         ? "text-foreground border-b-2 border-foreground" 
                         : "text-muted-foreground hover:text-foreground"
@@ -1186,8 +1186,8 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
-              {/* SERVICE LIST - Scrollable */}
-              <div className="flex-1 min-h-0 overflow-y-auto py-2">
+              {/* SERVICE LIST - Scrollable with max height */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 {(() => {
                   const filtered = treatments?.filter(t => 
                     treatmentFilter === "female" 
@@ -1204,58 +1204,58 @@ export default function EditBookingDialog({
 
                   if (!filtered.length) {
                     return (
-                      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+                      <div className="h-16 flex items-center justify-center text-xs text-muted-foreground">
                         Aucune prestation disponible
                       </div>
                     );
                   }
 
                   return Object.entries(grouped).map(([category, items]) => (
-                    <div key={category} className="mb-4">
-                      <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
+                    <div key={category} className="mb-2">
+                      <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1 pb-0.5 border-b border-border/30">
                         {category}
                       </h3>
                       
-                      <div className="space-y-0">
+                      <div>
                         {items.map((treatment) => {
                           const qty = getCartQuantity(treatment.id);
                           return (
                             <div 
                               key={treatment.id} 
-                              className="flex items-center justify-between py-2.5 border-b border-border/20 last:border-0"
+                              className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
                             >
-                              <div className="flex flex-col gap-0.5 flex-1 pr-3 min-w-0">
-                                <span className="font-semibold text-foreground text-sm truncate">
+                              <div className="flex flex-col flex-1 pr-2 min-w-0">
+                                <span className="font-medium text-foreground text-xs truncate">
                                   {treatment.name}
                                 </span>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-[10px] text-muted-foreground">
                                   {treatment.price}€ • {treatment.duration} min
                                 </span>
                               </div>
 
                               {qty > 0 ? (
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1.5 shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => decrementCart(treatment.id)}
-                                    className="w-7 h-7 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
                                   >
-                                    <Minus className="h-3 w-3" />
+                                    <Minus className="h-2.5 w-2.5" />
                                   </button>
-                                  <span className="text-sm font-bold w-5 text-center">{qty}</span>
+                                  <span className="text-xs font-bold w-4 text-center">{qty}</span>
                                   <button
                                     type="button"
                                     onClick={() => incrementCart(treatment.id)}
-                                    className="w-7 h-7 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
                                   >
-                                    <Plus className="h-3 w-3" />
+                                    <Plus className="h-2.5 w-2.5" />
                                   </button>
                                 </div>
                               ) : (
                                 <button
                                   type="button"
                                   onClick={() => addToCart(treatment.id)}
-                                  className="shrink-0 bg-foreground text-background text-[10px] font-medium uppercase tracking-wide h-7 px-3 rounded-full hover:bg-foreground/80 transition-colors"
+                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
                                 >
                                   Ajouter
                                 </button>
@@ -1269,37 +1269,37 @@ export default function EditBookingDialog({
                 })()}
               </div>
               
-              {/* Fixed Footer */}
-              <div className="shrink-0 border-t border-border bg-background pt-3">
-                <div className="flex items-center justify-between gap-4">
+              {/* Compact Footer */}
+              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
+                <div className="flex items-center justify-between gap-3">
                   {/* Cart Summary */}
                   <div className="flex-1 min-w-0">
                     {cart.length > 0 ? (
-                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      <div className="flex items-center gap-1.5 overflow-x-auto">
                         {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
-                          <div key={treatmentId} className="flex items-center gap-1.5 bg-muted rounded-full px-2.5 py-1 shrink-0">
-                            <span className="text-[10px] font-medium truncate max-w-[70px]">{treatment!.name}</span>
-                            <span className="text-[10px] font-bold">×{quantity}</span>
+                          <div key={treatmentId} className="flex items-center gap-1 bg-muted rounded-full px-2 py-0.5 shrink-0">
+                            <span className="text-[9px] font-medium truncate max-w-[60px]">{treatment!.name}</span>
+                            <span className="text-[9px] font-bold">×{quantity}</span>
                           </div>
                         ))}
                         {cartDetails.length > 3 && (
-                          <span className="text-[10px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
+                          <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Aucun service sélectionné</span>
+                      <span className="text-[10px] text-muted-foreground">Aucun service</span>
                     )}
                   </div>
 
                   {/* Total + Actions */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-bold text-base">{totalPrice}€</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-sm">{totalPrice}€</span>
                     <Button 
                       type="button" 
                       variant="outline"
                       size="sm"
                       onClick={() => setActiveTab("info")}
-                      className="h-9"
+                      className="h-7 text-xs px-2"
                     >
                       ← Retour
                     </Button>
@@ -1307,7 +1307,7 @@ export default function EditBookingDialog({
                       type="submit" 
                       disabled={updateMutation.isPending} 
                       size="sm"
-                      className="bg-foreground text-background hover:bg-foreground/90 h-9 px-5"
+                      className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
                     >
                       {updateMutation.isPending ? "..." : "Modifier"}
                     </Button>
