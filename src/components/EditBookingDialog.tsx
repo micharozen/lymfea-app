@@ -550,7 +550,8 @@ export default function EditBookingDialog({
         title: "Succès",
         description,
       });
-      onOpenChange(false);
+      // Revenir en mode vue au lieu de fermer le dialog
+      setViewMode("view");
     },
     onError: (error) => {
       toast({
