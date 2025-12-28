@@ -728,17 +728,19 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-2xl overflow-hidden">
-        <DialogHeader className="pb-1">
-          <DialogTitle className="text-base">{viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}</DialogTitle>
+      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col overflow-hidden max-h-[85vh]">
+        <DialogHeader className="px-6 py-4 border-b shrink-0">
+          <DialogTitle className="text-lg font-semibold">
+            {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
+          </DialogTitle>
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
             {/* En-tête */}
-            <div className="flex items-center justify-between pb-2 border-b">
+            <div className="flex items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
                   <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -747,9 +749,7 @@ export default function EditBookingDialog({
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <Badge 
-                  className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}
-                >
+                <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
                   {getBookingStatusConfig(booking?.status || 'pending').label}
                 </Badge>
                 {booking?.payment_status && (
@@ -761,26 +761,26 @@ export default function EditBookingDialog({
             </div>
 
             {/* Infos principales */}
-            <div className="p-2 bg-muted/30 rounded space-y-2">
-              <div className="grid grid-cols-5 gap-2">
-                <div className="text-left">
-                  <p className="text-xs text-muted-foreground">Date</p>
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <div className="grid grid-cols-5 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Date</p>
                   <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs text-muted-foreground">Heure</p>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Heure</p>
                   <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs text-muted-foreground">Chambre</p>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Chambre</p>
                   <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs text-muted-foreground">Prix</p>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
                   <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
                 </div>
-                <div className="text-left">
-                  <p className="text-xs text-muted-foreground">Durée</p>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
                   <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
                 </div>
               </div>
@@ -788,16 +788,16 @@ export default function EditBookingDialog({
 
             {/* Prestations */}
             {bookingTreatments && bookingTreatments.length > 0 && (
-              <div className="p-2 bg-muted/30 rounded">
-                <p className="text-xs text-muted-foreground mb-1">Prestations</p>
-                <div className="space-y-1">
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                <div className="space-y-1.5">
                   {bookingTreatments.map((treatment) => (
                     <div key={treatment.id} className="flex items-center justify-between text-sm">
                       <span>{treatment.name}</span>
                       <span className="font-medium">€{(treatment.price || 0).toFixed(2)}</span>
                     </div>
                   ))}
-                  <div className="flex items-center justify-between text-sm pt-1 mt-1 border-t border-border/50">
+                  <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                     <span className="font-semibold">Total</span>
                     <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
                   </div>
@@ -806,8 +806,8 @@ export default function EditBookingDialog({
             )}
 
             {/* Coiffeur */}
-            <div className="p-2 bg-muted/30 rounded">
-              <p className="text-xs text-muted-foreground mb-1">Coiffeur</p>
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
               {booking?.hairdresser_name ? (
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -816,10 +816,7 @@ export default function EditBookingDialog({
               ) : isAdmin ? (
                 showAssignHairdresser ? (
                   <div className="space-y-2">
-                    <Select 
-                      value={selectedHairdresserId || "none"} 
-                      onValueChange={setSelectedHairdresserId}
-                    >
+                    <Select value={selectedHairdresserId || "none"} onValueChange={setSelectedHairdresserId}>
                       <SelectTrigger className="h-9">
                         <SelectValue placeholder="Sélectionner un coiffeur" />
                       </SelectTrigger>
@@ -839,7 +836,6 @@ export default function EditBookingDialog({
                           const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
                           const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
                           
-                          // Déterminer le nouveau statut
                           let newStatus = booking!.status;
                           let assignedAt = booking!.assigned_at;
                           
@@ -862,34 +858,18 @@ export default function EditBookingDialog({
                             .eq("id", booking!.id);
                             
                           if (error) {
-                            toast({
-                              title: "Erreur",
-                              description: "Impossible d'assigner le coiffeur",
-                              variant: "destructive",
-                            });
+                            toast({ title: "Erreur", description: "Impossible d'assigner le coiffeur", variant: "destructive" });
                           } else {
-                            // Track if hairdresser was newly assigned or changed
                             const wasAssigned = hairdresserId && !booking!.hairdresser_id;
-                            const hairdresserChanged = hairdresserId && booking!.hairdresser_id && 
-                                                        hairdresserId !== booking!.hairdresser_id;
+                            const hairdresserChanged = hairdresserId && booking!.hairdresser_id && hairdresserId !== booking!.hairdresser_id;
                             
-                            // Send push notification if hairdresser was newly assigned OR changed
                             if (wasAssigned || hairdresserChanged) {
-                              console.log("Triggering push notification for booking:", booking!.id);
                               try {
-                                const { data, error: notifError } = await supabase.functions.invoke('trigger-new-booking-notifications', {
-                                  body: { bookingId: booking!.id }
-                                });
-                                console.log("Push notification result:", data, notifError);
-                              } catch (notifError) {
-                                console.error("Error sending push notification:", notifError);
-                              }
+                                await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
+                              } catch (e) { console.error(e); }
                             }
                             
-                            toast({
-                              title: "Succès",
-                              description: hairdresserId ? "Coiffeur assigné avec succès" : "Coiffeur retiré avec succès",
-                            });
+                            toast({ title: "Succès", description: hairdresserId ? "Coiffeur assigné" : "Coiffeur retiré" });
                             await queryClient.invalidateQueries({ queryKey: ["bookings"] });
                             setShowAssignHairdresser(false);
                           }
@@ -901,10 +881,7 @@ export default function EditBookingDialog({
                       <Button 
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          setShowAssignHairdresser(false);
-                          setSelectedHairdresserId(booking?.hairdresser_id || "");
-                        }}
+                        onClick={() => { setShowAssignHairdresser(false); setSelectedHairdresserId(booking?.hairdresser_id || ""); }}
                         className="flex-1"
                       >
                         Annuler
@@ -915,10 +892,7 @@ export default function EditBookingDialog({
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      setShowAssignHairdresser(true);
-                      setSelectedHairdresserId("");
-                    }}
+                    onClick={() => { setShowAssignHairdresser(true); setSelectedHairdresserId(""); }}
                     className="h-8 text-xs"
                   >
                     Assigner un coiffeur
@@ -930,25 +904,22 @@ export default function EditBookingDialog({
             </div>
 
             {/* Client */}
-            <div className="p-2 bg-muted/30 rounded">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">Client</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">Client</p>
                   <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Téléphone</p>
+                  <p className="text-xs text-muted-foreground mb-0.5">Téléphone</p>
                   <p className="font-medium text-sm">{booking?.phone}</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between gap-2 pt-2 border-t">
-              <Button 
-                type="button" 
-                variant="outline"
-                onClick={handleClose}
-              >
+            {/* Actions Footer */}
+            <div className="flex justify-between gap-3 pt-3 border-t">
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Fermer
               </Button>
               {!showAssignHairdresser && (
@@ -964,10 +935,7 @@ export default function EditBookingDialog({
                   </Button>
                   <Button 
                     type="button" 
-                    onClick={() => {
-                      setViewMode("edit");
-                      setActiveTab("info");
-                    }}
+                    onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
                   >
                     Modifier
                   </Button>
@@ -976,9 +944,9 @@ export default function EditBookingDialog({
             </div>
           </div>
         ) : (
-        <form onSubmit={handleSubmit}>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsContent value="info" className="space-y-3 mt-2">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <TabsContent value="info" className="flex-1 overflow-y-auto px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
@@ -1176,13 +1144,10 @@ export default function EditBookingDialog({
                 </p>
               </div>
 
-              <div className="flex justify-between gap-2 pt-2 mt-2 border-t">
+              {/* Footer fixé en bas de l'onglet info */}
+              <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
                 <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    onClick={() => setViewMode("view")}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
                     Annuler
                   </Button>
                   <Button 
@@ -1195,18 +1160,15 @@ export default function EditBookingDialog({
                     Supprimer
                   </Button>
                 </div>
-                <Button 
-                  type="button" 
-                  onClick={() => setActiveTab("prestations")}
-                >
+                <Button type="button" onClick={() => setActiveTab("prestations")}>
                   Suivant
                 </Button>
               </div>
             </TabsContent>
 
-            <TabsContent value="prestations" className="space-y-0 mt-0 overflow-hidden">
-              {/* Menu Tabs (Clean Underline Style) */}
-              <div className="flex items-center gap-6 border-b border-border/50 mb-3">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 data-[state=inactive]:hidden">
+              {/* Menu Tabs */}
+              <div className="flex items-center gap-6 border-b border-border/50 px-1 shrink-0">
                 {(["female", "male"] as const).map(f => (
                   <button
                     key={f}
@@ -1224,116 +1186,100 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
-              {/* SERVICE LIST - Grouped by category */}
-              <div className="rounded-md border border-border/40 overflow-hidden">
-                <div className="max-h-[250px] overflow-y-auto overflow-x-hidden pr-2 [scrollbar-gutter:stable]">
-                  {(() => {
-                    const filtered = treatments?.filter(t => 
-                      treatmentFilter === "female" 
-                        ? (t.service_for === "Female" || t.service_for === "All")
-                        : (t.service_for === "Male" || t.service_for === "All")
-                    ) || [];
-                    
-                    // Group by category
-                    const grouped: Record<string, typeof filtered> = {};
-                    filtered.forEach(t => {
-                      const c = t.category || "Autres";
-                      if (!grouped[c]) grouped[c] = [];
-                      grouped[c].push(t);
-                    });
+              {/* SERVICE LIST - Scrollable */}
+              <div className="flex-1 min-h-0 overflow-y-auto py-2">
+                {(() => {
+                  const filtered = treatments?.filter(t => 
+                    treatmentFilter === "female" 
+                      ? (t.service_for === "Female" || t.service_for === "All")
+                      : (t.service_for === "Male" || t.service_for === "All")
+                  ) || [];
+                  
+                  const grouped: Record<string, typeof filtered> = {};
+                  filtered.forEach(t => {
+                    const c = t.category || "Autres";
+                    if (!grouped[c]) grouped[c] = [];
+                    grouped[c].push(t);
+                  });
 
-                    if (!filtered.length) {
-                      return (
-                        <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
-                          Aucune prestation disponible
-                        </div>
-                      );
-                    }
+                  if (!filtered.length) {
+                    return (
+                      <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+                        Aucune prestation disponible
+                      </div>
+                    );
+                  }
 
-                    return Object.entries(grouped).map(([category, items]) => (
-                      <div key={category} className="mb-4">
-                        {/* Category Header */}
-                        <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
-                          {category}
-                        </h3>
-                        
-                        {/* Clean Service Rows */}
-                        <div>
-                          {items.map((treatment) => {
-                            const qty = getCartQuantity(treatment.id);
-                            return (
-                              <div 
-                                key={treatment.id} 
-                                className="flex items-center justify-between py-2 border-b border-border/20 group"
-                              >
-                                {/* Left: Info */}
-                                <div className="flex flex-col gap-0.5 flex-1 pr-3">
-                                  <span className="font-bold text-foreground text-sm">
-                                    {treatment.name}
-                                  </span>
-                                  <span className="text-xs font-medium text-muted-foreground">
-                                    {treatment.price}€ • {treatment.duration} min
-                                  </span>
-                                </div>
+                  return Object.entries(grouped).map(([category, items]) => (
+                    <div key={category} className="mb-4">
+                      <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b border-border/30">
+                        {category}
+                      </h3>
+                      
+                      <div className="space-y-0">
+                        {items.map((treatment) => {
+                          const qty = getCartQuantity(treatment.id);
+                          return (
+                            <div 
+                              key={treatment.id} 
+                              className="flex items-center justify-between py-2.5 border-b border-border/20 last:border-0"
+                            >
+                              <div className="flex flex-col gap-0.5 flex-1 pr-3 min-w-0">
+                                <span className="font-semibold text-foreground text-sm truncate">
+                                  {treatment.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {treatment.price}€ • {treatment.duration} min
+                                </span>
+                              </div>
 
-                                {/* Right: Quantity Controls or Select Button */}
-                                {qty > 0 ? (
-                                  <div className="flex items-center gap-2 bg-muted/50 rounded-full px-2 py-1">
-                                    <button
-                                      type="button"
-                                      onClick={() => decrementCart(treatment.id)}
-                                      className="p-1 hover:text-destructive text-muted-foreground transition-colors"
-                                    >
-                                      <Minus className="h-3.5 w-3.5" />
-                                    </button>
-                                    <span className="text-sm font-bold w-5 text-center">{qty}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => incrementCart(treatment.id)}
-                                      className="p-1 hover:text-foreground text-muted-foreground transition-colors"
-                                    >
-                                      <Plus className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                ) : (
+                              {qty > 0 ? (
+                                <div className="flex items-center gap-2 shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => addToCart(treatment.id)}
-                                    className="bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors shrink-0"
+                                    onClick={() => decrementCart(treatment.id)}
+                                    className="w-7 h-7 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
                                   >
-                                    Select
+                                    <Minus className="h-3 w-3" />
                                   </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                                  <span className="text-sm font-bold w-5 text-center">{qty}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => incrementCart(treatment.id)}
+                                    className="w-7 h-7 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => addToCart(treatment.id)}
+                                  className="shrink-0 bg-foreground text-background text-[10px] font-medium uppercase tracking-wide h-7 px-3 rounded-full hover:bg-foreground/80 transition-colors"
+                                >
+                                  Ajouter
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    ));
-                  })()}
-                </div>
+                    </div>
+                  ));
+                })()}
               </div>
               
-              {/* Compact Sticky Footer - Same as CreateBookingDialog */}
-              <div className="mt-4 border-t border-border bg-background">
-                <div className="py-2 flex items-center gap-3">
-                  
-                  {/* Left: Cart Items (Compact inline) */}
+              {/* Fixed Footer */}
+              <div className="shrink-0 border-t border-border bg-background pt-3">
+                <div className="flex items-center justify-between gap-4">
+                  {/* Cart Summary */}
                   <div className="flex-1 min-w-0">
                     {cart.length > 0 ? (
-                      <div className="flex items-center gap-2 overflow-x-auto">
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
                         {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
-                          <div key={treatmentId} className="flex items-center gap-1 bg-muted/50 rounded px-2 py-1 shrink-0">
-                            <span className="text-[10px] font-medium truncate max-w-[80px]">{treatment!.name}</span>
-                            <div className="flex items-center gap-1">
-                              <button type="button" onClick={() => decrementCart(treatmentId)} className="p-0.5 hover:text-destructive text-muted-foreground">
-                                <Minus className="h-2.5 w-2.5" />
-                              </button>
-                              <span className="text-[10px] font-bold w-3 text-center">{quantity}</span>
-                              <button type="button" onClick={() => incrementCart(treatmentId)} className="p-0.5 hover:text-foreground text-muted-foreground">
-                                <Plus className="h-2.5 w-2.5" />
-                              </button>
-                            </div>
+                          <div key={treatmentId} className="flex items-center gap-1.5 bg-muted rounded-full px-2.5 py-1 shrink-0">
+                            <span className="text-[10px] font-medium truncate max-w-[70px]">{treatment!.name}</span>
+                            <span className="text-[10px] font-bold">×{quantity}</span>
                           </div>
                         ))}
                         {cartDetails.length > 3 && (
@@ -1341,19 +1287,19 @@ export default function EditBookingDialog({
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Aucun service</span>
+                      <span className="text-xs text-muted-foreground">Aucun service sélectionné</span>
                     )}
                   </div>
 
-                  {/* Right: Total + Buttons */}
+                  {/* Total + Actions */}
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-bold text-sm">{totalPrice}€</span>
+                    <span className="font-bold text-base">{totalPrice}€</span>
                     <Button 
                       type="button" 
                       variant="outline"
                       size="sm"
                       onClick={() => setActiveTab("info")}
-                      className="h-8"
+                      className="h-9"
                     >
                       ← Retour
                     </Button>
@@ -1361,7 +1307,7 @@ export default function EditBookingDialog({
                       type="submit" 
                       disabled={updateMutation.isPending} 
                       size="sm"
-                      className="bg-foreground text-background hover:bg-foreground/90 h-8 px-4"
+                      className="bg-foreground text-background hover:bg-foreground/90 h-9 px-5"
                     >
                       {updateMutation.isPending ? "..." : "Modifier"}
                     </Button>
