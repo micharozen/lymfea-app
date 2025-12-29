@@ -130,6 +130,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [hairdresserId, setHairdresserId] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (selectedDate) setDate(selectedDate);
@@ -345,7 +346,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Date *</Label>
-                  <Popover>
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -362,7 +363,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={(selectedDate) => {
+                          setDate(selectedDate);
+                          setCalendarOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                         locale={fr}
