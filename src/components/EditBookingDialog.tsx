@@ -17,20 +17,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
+import { Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -158,7 +150,6 @@ export default function EditBookingDialog({
   const [clientLastName, setClientLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
-  const [countryOpen, setCountryOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
@@ -1054,56 +1045,25 @@ export default function EditBookingDialog({
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-1">
                   <Label className="text-xs">Indicatif *</Label>
-                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={countryOpen}
-                        className="w-full h-9 min-w-0 justify-between px-3 text-xs hover:bg-background hover:text-foreground"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className="shrink-0">{countries.find((country) => country.code === countryCode)?.flag}</span>
-                          <span className="truncate">{countryCode}</span>
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
-                      <Command>
-                        <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
-                        <CommandList className="max-h-[200px]">
-                          <CommandEmpty>Pays non trouvé</CommandEmpty>
-                          <CommandGroup>
-                            {countries.map((country) => (
-                              <CommandItem
-                                key={country.code}
-                                value={`${country.label} ${country.code}`}
-                                onSelect={() => {
-                                  setCountryCode(country.code);
-                                  setCountryOpen(false);
-                                }}
-                                className="text-sm cursor-pointer"
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-3.5 w-3.5",
-                                    countryCode === country.code ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                                {country.flag} {country.label} ({country.code})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue>
+                        {countries.find((c) => c.code === countryCode)?.flag} {countryCode}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg max-h-[200px]">
+                      {countries.map((country) => (
+                        <SelectItem key={country.code} value={country.code}>
+                          {country.flag} {country.label} ({country.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-1">
                   <Label className="text-xs">Téléphone *</Label>
                   <Input
                     value={phone}
@@ -1115,7 +1075,7 @@ export default function EditBookingDialog({
                   />
                 </div>
 
-                <div className="space-y-1 min-w-0">
+                <div className="space-y-1">
                   <Label className="text-xs">Chambre</Label>
                   <Input
                     value={roomNumber}
