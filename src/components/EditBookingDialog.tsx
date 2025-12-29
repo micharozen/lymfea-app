@@ -17,21 +17,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
+import { Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -159,7 +151,6 @@ export default function EditBookingDialog({
   const [clientLastName, setClientLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
-  const [countryOpen, setCountryOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
@@ -1054,79 +1045,28 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Indicatif *</Label>
-                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        role="combobox"
-                        aria-expanded={countryOpen}
-                        className="h-9 w-full justify-between font-normal hover:bg-background hover:text-foreground"
-                      >
-                        <span className="truncate">
-                          {countries.find((c) => c.code === countryCode)?.flag} {countryCode}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="start"
-                      className="w-[--radix-popover-trigger-width] p-0 border shadow-lg z-50 bg-popover"
-                    >
-                      <Command>
-                        <CommandInput placeholder="Rechercher un pays..." />
-                        <CommandList className="max-h-[220px]">
-                          <CommandEmpty>Pays non trouvé</CommandEmpty>
-                          <CommandGroup>
-                            {countries.map((country) => (
-                              <CommandItem
-                                key={country.code}
-                                value={`${country.label} ${country.code}`}
-                                onSelect={() => {
-                                  setCountryCode(country.code);
-                                  setCountryOpen(false);
-                                }}
-                              >
-                                <Check
-                                  className={cn(
-                                    "mr-2 h-4 w-4",
-                                    countryCode === country.code ? "opacity-100" : "opacity-0",
-                                  )}
-                                />
-                                {country.flag} {country.label} ({country.code})
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Phone number *</Label>
+                <PhoneNumberField
+                  value={phone}
+                  onChange={(val) => {
+                    const formatted = formatPhoneNumber(val, countryCode);
+                    setPhone(formatted);
+                  }}
+                  countryCode={countryCode}
+                  setCountryCode={setCountryCode}
+                  countries={countries}
+                />
+              </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Téléphone *</Label>
-                  <Input
-                    value={phone}
-                    onChange={(e) => {
-                      const formatted = formatPhoneNumber(e.target.value, countryCode);
-                      setPhone(formatted);
-                    }}
-                    className="h-9"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs">Chambre</Label>
-                  <Input
-                    value={roomNumber}
-                    onChange={(e) => setRoomNumber(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Room number</Label>
+                <Input
+                  value={roomNumber}
+                  onChange={(e) => setRoomNumber(e.target.value)}
+                  className="h-9"
+                  placeholder="1002"
+                />
               </div>
 
               <div className="space-y-1">
