@@ -181,11 +181,11 @@ export default function TreatmentRequestsList() {
               {requests.map((request) => (
                 <TableRow
                   key={request.id}
-                  className="cursor-pointer hover:bg-muted/50"
+                  className="cursor-pointer hover:bg-muted/50 h-12"
                   onClick={() => handleOpenDetail(request)}
                 >
-                  <TableCell>
-                    <div className="flex flex-col">
+                  <TableCell className="py-2">
+                    <div className="flex flex-col whitespace-nowrap">
                       <span className="font-medium">
                         {request.client_first_name} {request.client_last_name || ""}
                       </span>
@@ -194,16 +194,16 @@ export default function TreatmentRequestsList() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <Building2 className="h-3 w-3 text-muted-foreground" />
                       <span className="text-sm">{getHotelName(request.hotel_id)}</span>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2 whitespace-nowrap">
                     <span className="text-sm">{getTreatmentName(request.treatment_id)}</span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2 whitespace-nowrap">
                     {request.preferred_date ? (
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
@@ -219,17 +219,18 @@ export default function TreatmentRequestsList() {
                       <span className="text-muted-foreground text-sm">Non spécifié</span>
                     )}
                   </TableCell>
-                  <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell>
+                  <TableCell className="py-2 whitespace-nowrap">{getStatusBadge(request.status)}</TableCell>
+                  <TableCell className="py-2 whitespace-nowrap">
                     <span className="text-sm text-muted-foreground">
                       {format(new Date(request.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
                     </span>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="py-2 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           window.open(`tel:${request.client_phone}`, "_blank");
@@ -240,6 +241,7 @@ export default function TreatmentRequestsList() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="h-8 w-8"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleOpenDetail(request);

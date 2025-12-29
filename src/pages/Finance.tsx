@@ -431,28 +431,27 @@ const Finance = () => {
                     </thead>
                     <tbody>
                       {ledgerEntries.map((entry) => (
-                        <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30">
-                          <td className="py-3 px-2">
+                        <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30 h-12">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <span className="text-sm">
                               {format(new Date(entry.created_at), "dd MMM yyyy", { locale: fr })}
                             </span>
-                            <br />
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground ml-2">
                               {format(new Date(entry.created_at), "HH:mm")}
                             </span>
                           </td>
-                          <td className="py-3 px-2">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <span className="text-sm font-medium">{entry.hotels?.name || 'N/A'}</span>
                           </td>
-                          <td className="py-3 px-2">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <span className="text-sm text-muted-foreground">{entry.description || '-'}</span>
                           </td>
-                          <td className="py-3 px-2 text-right">
+                          <td className="py-2 px-2 text-right whitespace-nowrap">
                             <span className={`font-medium ${entry.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                               {entry.amount >= 0 ? '+' : ''}{entry.amount.toFixed(2)}€
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-2 px-2 text-center whitespace-nowrap">
                             {getStatusBadge(entry.status)}
                           </td>
                         </tr>
@@ -494,19 +493,18 @@ const Finance = () => {
                     </thead>
                     <tbody>
                       {payoutEntries.map((entry) => (
-                        <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30">
-                          <td className="py-3 px-2">
+                        <tr key={entry.id} className="border-b border-border/50 hover:bg-muted/30 h-12">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <span className="text-sm">
                               {format(new Date(entry.created_at), "dd MMM yyyy", { locale: fr })}
                             </span>
-                            <br />
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground ml-2">
                               {format(new Date(entry.created_at), "HH:mm")}
                             </span>
                           </td>
-                          <td className="py-3 px-2">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                                 {entry.hairdressers?.profile_image ? (
                                   <img src={entry.hairdressers.profile_image} alt="" className="w-full h-full object-cover" />
                                 ) : (
@@ -520,17 +518,16 @@ const Finance = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="py-3 px-2">
+                          <td className="py-2 px-2 whitespace-nowrap">
                             <span className="text-sm">#{entry.bookings?.booking_id}</span>
-                            <br />
-                            <span className="text-xs text-muted-foreground">{entry.bookings?.hotel_name}</span>
+                            <span className="text-xs text-muted-foreground ml-2">{entry.bookings?.hotel_name}</span>
                           </td>
-                          <td className="py-3 px-2 text-right">
+                          <td className="py-2 px-2 text-right whitespace-nowrap">
                             <span className="font-medium text-green-600">
                               {entry.amount.toFixed(2)}€
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-2 px-2 text-center whitespace-nowrap">
                             {getStatusBadge(entry.status)}
                           </td>
                         </tr>

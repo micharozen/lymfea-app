@@ -285,29 +285,29 @@ export default function Hotels() {
                 </TableRow>
               ) : (
                 filteredHotels.map((hotel) => (
-                  <TableRow key={hotel.id}>
-                    <TableCell className="align-middle">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-10 w-10 rounded-md">
+                  <TableRow key={hotel.id} className="h-12">
+                    <TableCell className="py-2 align-middle">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
+                        <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
                           <AvatarImage src={hotel.image || ""} />
-                          <AvatarFallback className="bg-muted rounded-md">
+                          <AvatarFallback className="bg-muted rounded-md text-xs">
                             {hotel.name.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="font-medium">{hotel.name}</div>
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <div className="text-sm">
                         {hotel.address} {hotel.postal_code || ''} {hotel.city} {hotel.country}
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle">
                       {hotel.concierges && hotel.concierges.length > 0 ? (
                         <div className="flex items-center gap-2 flex-wrap">
                           {hotel.concierges.map((concierge) => (
                             <div key={concierge.id} className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
+                              <Avatar className="h-6 w-6">
                                 <AvatarImage src={concierge.profile_image || ""} />
                                 <AvatarFallback className="bg-muted text-xs">
                                   {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
@@ -323,10 +323,10 @@ export default function Hotels() {
                         <span className="text-sm text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <span className="text-sm text-muted-foreground">-</span>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <Badge 
                         variant={(hotel.status === "Actif" || hotel.status === "Active") ? "default" : "secondary"}
                         className={cn(
@@ -338,17 +338,17 @@ export default function Hotels() {
                         {(hotel.status === "Active" || hotel.status === "Actif") ? "Actif" : hotel.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <span className="font-medium">€0.00</span>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <span className="text-muted-foreground">0</span>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="align-middle">
+                      <TableCell className="py-2 align-middle">
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"

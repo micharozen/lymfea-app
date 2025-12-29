@@ -216,41 +216,42 @@ export default function Trunks() {
                   </TableRow>
                 ) : filteredTrunks && filteredTrunks.length > 0 ? (
                   filteredTrunks.map((trunk) => (
-                    <TableRow key={trunk.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
+                    <TableRow key={trunk.id} className="h-12">
+                      <TableCell className="py-2">
+                        <div className="flex items-center gap-3 whitespace-nowrap">
                           {trunk.image ? (
                             <img
                               src={trunk.image}
                               alt={trunk.name}
-                              className="h-10 w-10 rounded-md object-cover"
+                              className="h-8 w-8 rounded-md object-cover flex-shrink-0"
                             />
                           ) : (
-                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
                               🧳
                             </div>
                           )}
                           <span className="font-medium">{trunk.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell>{trunk.trunk_model}</TableCell>
-                      <TableCell>{trunk.trunk_id}</TableCell>
-                      <TableCell>{trunk.hotel_name || "-"}</TableCell>
-                      <TableCell>{trunk.hairdresser_name || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_model}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_id}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{trunk.hotel_name || "-"}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{trunk.hairdresser_name || "-"}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">
                         {trunk.next_booking
                           ? new Date(trunk.next_booking).toLocaleString("fr-FR")
                           : "-"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">
                         <StatusBadge status={trunk.status} type="entity" />
                       </TableCell>
                       {isAdmin && (
-                        <TableCell className="text-right">
+                        <TableCell className="py-2 text-right">
                           <div className="flex justify-end gap-2">
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8"
                               onClick={() => handleEdit(trunk)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -258,6 +259,7 @@ export default function Trunks() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8"
                               onClick={() => handleDelete(trunk)}
                             >
                               <Trash2 className="h-4 w-4" />

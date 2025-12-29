@@ -298,10 +298,10 @@ export default function HairDresser() {
                 </TableRow>
               ) : (
                 filteredHairdressers.map((hairdresser) => (
-                  <TableRow key={hairdresser.id}>
-                    <TableCell className="align-middle">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                  <TableRow key={hairdresser.id} className="h-12">
+                    <TableCell className="py-2 align-middle">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                           {hairdresser.profile_image ? (
                             <img
                               src={hairdresser.profile_image}
@@ -319,32 +319,33 @@ export default function HairDresser() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <span className="text-sm">{hairdresser.email}</span>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <span className="text-sm">
                         {hairdresser.country_code} {hairdresser.phone}
                       </span>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <span className="text-sm">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <span className="text-sm">{hairdresser.trunks || "-"}</span>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <span className="text-lg">{getSkillsDisplay(hairdresser.skills)}</span>
                     </TableCell>
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle whitespace-nowrap">
                       <StatusBadge status={hairdresser.status} type="entity" />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="align-middle">
+                      <TableCell className="py-2 align-middle">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setSelectedHairDresser(hairdresser);
                               setIsEditDialogOpen(true);
@@ -355,6 +356,7 @@ export default function HairDresser() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setDeleteHairDresserId(hairdresser.id);
                               setIsDeleteDialogOpen(true);

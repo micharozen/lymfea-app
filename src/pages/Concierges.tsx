@@ -272,10 +272,10 @@ export default function Concierges() {
                 </TableRow>
               ) : (
                 paginatedConcierges.map((concierge) => (
-                <TableRow key={concierge.id}>
-                  <TableCell className="align-middle">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                <TableRow key={concierge.id} className="h-12">
+                  <TableCell className="py-2 align-middle">
+                    <div className="flex items-center gap-3 whitespace-nowrap">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                         {concierge.profile_image ? (
                           <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
@@ -289,22 +289,22 @@ export default function Concierges() {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="align-middle">
+                  <TableCell className="py-2 align-middle whitespace-nowrap">
                     <span className="text-sm">{concierge.email}</span>
                   </TableCell>
-                  <TableCell className="align-middle">
+                  <TableCell className="py-2 align-middle whitespace-nowrap">
                     <span className="text-sm">
                       {concierge.country_code} {concierge.phone}
                     </span>
                   </TableCell>
-                  <TableCell className="align-middle">
+                  <TableCell className="py-2 align-middle whitespace-nowrap">
                     <span className="text-sm">{getHotelNames(concierge.hotels)}</span>
                   </TableCell>
-                  <TableCell className="align-middle">
+                  <TableCell className="py-2 align-middle whitespace-nowrap">
                     <StatusBadge status={concierge.status} type="entity" />
                   </TableCell>
                   {userRole === "admin" && (
-                    <TableCell className="align-middle">
+                    <TableCell className="py-2 align-middle">
                       <div className="flex items-center justify-end gap-2">
                         <Button
                           variant="ghost"
