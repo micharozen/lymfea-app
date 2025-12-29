@@ -173,6 +173,7 @@ export default function EditBookingDialog({
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const [calendarOpen, setCalendarOpen] = useState(false);
   
 
   // Pre-fill form when booking changes
@@ -973,24 +974,27 @@ export default function EditBookingDialog({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="edit-date" className="text-xs">Date *</Label>
-                  <Popover>
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full h-9 justify-start text-left font-normal",
+                          "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
                           !date && "text-muted-foreground"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner une date</span>}
+                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
                         selected={date}
-                        onSelect={setDate}
+                        onSelect={(selectedDate) => {
+                          setDate(selectedDate);
+                          setCalendarOpen(false);
+                        }}
                         initialFocus
                         className="pointer-events-auto"
                         locale={fr}
