@@ -1062,11 +1062,13 @@ export default function EditBookingDialog({
                         variant="outline"
                         role="combobox"
                         aria-expanded={countryOpen}
-                        className="w-full h-9 justify-between text-xs hover:bg-background hover:text-foreground"
+                        className="w-full h-9 min-w-0 justify-between px-3 text-xs hover:bg-background hover:text-foreground"
                       >
-                        {countries.find((country) => country.code === countryCode)?.flag}{" "}
-                        {countryCode}
-                        <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="shrink-0">{countries.find((country) => country.code === countryCode)?.flag}</span>
+                          <span className="truncate">{countryCode}</span>
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
