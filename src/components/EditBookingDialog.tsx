@@ -729,7 +729,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
@@ -947,8 +947,8 @@ export default function EditBookingDialog({
         ) : (
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="info" className="flex-1 px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
-              <div className="grid grid-cols-2 gap-3">
+            <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
                   <Select value={hotelId} onValueChange={setHotelId}>
@@ -963,6 +963,51 @@ export default function EditBookingDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-hairdresser" className="text-xs">Coiffeur / Prestataire</Label>
+                  <Select
+                    value={hairdresserId || "none"}
+                    onValueChange={(value) => {
+                      const newValue = value === "none" ? "" : value;
+                      setHairdresserId(newValue);
+                    }}
+                  >
+                    <SelectTrigger id="edit-hairdresser" className="h-9">
+                      <SelectValue placeholder="Sélectionner un coiffeur" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg">
+                      <SelectItem value="none">Aucun coiffeur</SelectItem>
+                      {/* Show current hairdresser if not in list */}
+                      {booking?.hairdresser_id && booking?.hairdresser_name &&
+                       !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
+                        <SelectItem value={booking.hairdresser_id}>
+                          {booking.hairdresser_name} (Actuel)
+                        </SelectItem>
+                      )}
+                      {hairdressers?.map((hairdresser) => {
+                        const availability = hairdresserAvailability?.[hairdresser.id];
+                        const isUnavailable = availability && !availability.available;
+                        const isCurrentHairdresser = hairdresser.id === booking?.hairdresser_id;
+
+                        return (
+                          <SelectItem
+                            key={hairdresser.id}
+                            value={hairdresser.id}
+                            disabled={isUnavailable && !isCurrentHairdresser}
+                          >
+                            {hairdresser.first_name} {hairdresser.last_name}
+                            {isCurrentHairdresser && " (Actuel)"}
+                            {isUnavailable && !isCurrentHairdresser && " - Occupé"}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
+                    Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
+                  </p>
                 </div>
               </div>
 
@@ -1088,28 +1133,30 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Phone number *</Label>
-                <PhoneNumberField
-                  value={phone}
-                  onChange={(val) => {
-                    const formatted = formatPhoneNumber(val, countryCode);
-                    setPhone(formatted);
-                  }}
-                  countryCode={countryCode}
-                  setCountryCode={setCountryCode}
-                  countries={countries}
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Phone number *</Label>
+                  <PhoneNumberField
+                    value={phone}
+                    onChange={(val) => {
+                      const formatted = formatPhoneNumber(val, countryCode);
+                      setPhone(formatted);
+                    }}
+                    countryCode={countryCode}
+                    setCountryCode={setCountryCode}
+                    countries={countries}
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Room number</Label>
-                <Input
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                  className="h-9"
-                  placeholder="1002"
-                />
+                <div className="space-y-1">
+                  <Label className="text-xs">Room number</Label>
+                  <Input
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    className="h-9"
+                    placeholder="1002"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">

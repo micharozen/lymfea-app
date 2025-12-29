@@ -310,7 +310,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             Nouvelle réservation
@@ -318,202 +318,204 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations")} className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Hôtel *</Label>
-                  <Select value={hotelId} onValueChange={setHotelId}>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un hôtel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hotels?.map((hotel) => (
-                        <SelectItem key={hotel.id} value={hotel.id}>
-                          {hotel.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations")} className="flex-1 flex flex-col min-h-0">
+              <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+                <div className={cn("grid gap-2", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Hôtel *</Label>
+                    <Select value={hotelId} onValueChange={setHotelId}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Sélectionner un hôtel" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hotels?.map((hotel) => (
+                          <SelectItem key={hotel.id} value={hotel.id}>
+                            {hotel.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Date *</Label>
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
-                          !date && "text-muted-foreground"
-                        )}
+                  {isAdmin && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Coiffeur / Prestataire</Label>
+                      <Select
+                        value={hairdresserId || "none"}
+                        onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={(selectedDate) => {
-                          setDate(selectedDate);
-                          setCalendarOpen(false);
-                        }}
-                        initialFocus
-                        className="pointer-events-auto"
-                        locale={fr}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Sélectionner un coiffeur" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border shadow-lg">
+                          <SelectItem value="none">Aucun coiffeur</SelectItem>
+                          {hairdressers?.map((hairdresser) => (
+                            <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                              {hairdresser.first_name} {hairdresser.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Heure *</Label>
-                  <div className="flex gap-1">
-                    <Popover open={hourOpen} onOpenChange={setHourOpen}>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Date *</Label>
+                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
-                          {time.split(':')[0] || "HH"}
-                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
+                            !date && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                        <ScrollArea className="h-40 touch-pan-y">
-                          <div>
-                            {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                              <button
-                                key={h}
-                                type="button"
-                                onClick={() => {
-                                  setTime(`${h}:${time.split(':')[1] || '00'}`);
-                                  setHourOpen(false);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 text-sm text-center",
-                                  time.split(':')[0] === h && "bg-muted"
-                                )}
-                              >
-                                {h}
-                              </button>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </PopoverContent>
-                    </Popover>
-                    <span className="flex items-center text-muted-foreground">:</span>
-                    <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
-                          {time.split(':')[1] || "MM"}
-                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                        <ScrollArea className="h-40 touch-pan-y">
-                          <div>
-                            {['00', '10', '20', '30', '40', '50'].map(m => (
-                              <button
-                                key={m}
-                                type="button"
-                                onClick={() => {
-                                  setTime(`${time.split(':')[0] || '09'}:${m}`);
-                                  setMinuteOpen(false);
-                                }}
-                                className={cn(
-                                  "w-full px-3 py-1.5 text-sm text-center",
-                                  time.split(':')[1] === m && "bg-muted"
-                                )}
-                              >
-                                {m}
-                              </button>
-                            ))}
-                          </div>
-                        </ScrollArea>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={(selectedDate) => {
+                            setDate(selectedDate);
+                            setCalendarOpen(false);
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                          locale={fr}
+                        />
                       </PopoverContent>
                     </Popover>
                   </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Heure *</Label>
+                    <div className="flex gap-1">
+                      <Popover open={hourOpen} onOpenChange={setHourOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
+                            {time.split(':')[0] || "HH"}
+                            <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                          <ScrollArea className="h-40 touch-pan-y">
+                            <div>
+                              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                                <button
+                                  key={h}
+                                  type="button"
+                                  onClick={() => {
+                                    setTime(`${h}:${time.split(':')[1] || '00'}`);
+                                    setHourOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full px-3 py-1.5 text-sm text-center",
+                                    time.split(':')[0] === h && "bg-muted"
+                                  )}
+                                >
+                                  {h}
+                                </button>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </PopoverContent>
+                      </Popover>
+                      <span className="flex items-center text-muted-foreground">:</span>
+                      <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
+                            {time.split(':')[1] || "MM"}
+                            <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                          <ScrollArea className="h-40 touch-pan-y">
+                            <div>
+                              {['00', '10', '20', '30', '40', '50'].map(m => (
+                                <button
+                                  key={m}
+                                  type="button"
+                                  onClick={() => {
+                                    setTime(`${time.split(':')[0] || '09'}:${m}`);
+                                    setMinuteOpen(false);
+                                  }}
+                                  className={cn(
+                                    "w-full px-3 py-1.5 text-sm text-center",
+                                    time.split(':')[1] === m && "bg-muted"
+                                  )}
+                                >
+                                  {m}
+                                </button>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Prénom *</Label>
-                  <Input
-                    value={clientFirstName}
-                    onChange={(e) => setClientFirstName(e.target.value)}
-                    className="h-9"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Prénom *</Label>
+                    <Input
+                      value={clientFirstName}
+                      onChange={(e) => setClientFirstName(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Nom *</Label>
+                    <Input
+                      value={clientLastName}
+                      onChange={(e) => setClientLastName(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-xs">Nom *</Label>
-                  <Input
-                    value={clientLastName}
-                    onChange={(e) => setClientLastName(e.target.value)}
-                    className="h-9"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Phone number *</Label>
+                    <PhoneNumberField
+                      value={phone}
+                      onChange={(val) => {
+                        const formatted = formatPhoneNumber(val, countryCode);
+                        setPhone(formatted);
+                      }}
+                      countryCode={countryCode}
+                      setCountryCode={setCountryCode}
+                      countries={countries}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-xs">Room number</Label>
+                    <Input
+                      value={roomNumber}
+                      onChange={(e) => setRoomNumber(e.target.value)}
+                      className="h-9"
+                      placeholder="1002"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Phone number *</Label>
-                <PhoneNumberField
-                  value={phone}
-                  onChange={(val) => {
-                    const formatted = formatPhoneNumber(val, countryCode);
-                    setPhone(formatted);
-                  }}
-                  countryCode={countryCode}
-                  setCountryCode={setCountryCode}
-                  countries={countries}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Room number</Label>
-                <Input
-                  value={roomNumber}
-                  onChange={(e) => setRoomNumber(e.target.value)}
-                  className="h-9"
-                  placeholder="1002"
-                />
-              </div>
-
-              {isAdmin && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Coiffeur / Prestataire</Label>
-                  <Select 
-                    value={hairdresserId || "none"} 
-                    onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un coiffeur" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="none">Aucun coiffeur</SelectItem>
-                      {hairdressers?.map((hairdresser) => (
-                        <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                          {hairdresser.first_name} {hairdresser.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Footer */}
+                <div className="flex justify-between gap-3 pt-3 mt-3 border-t shrink-0">
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    Annuler
+                  </Button>
+                  <Button type="button" onClick={() => { if (validateInfo()) setActiveTab("prestations"); }}>
+                    Suivant
+                  </Button>
                 </div>
-              )}
-
-              {/* Footer */}
-              <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
-                <Button type="button" variant="outline" onClick={handleClose}>
-                  Annuler
-                </Button>
-                <Button type="button" onClick={() => { if (validateInfo()) setActiveTab("prestations"); }}>
-                  Suivant
-                </Button>
-              </div>
-            </TabsContent>
+              </TabsContent>
 
             <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
               {/* Menu Tabs */}
