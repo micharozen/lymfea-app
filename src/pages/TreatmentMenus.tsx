@@ -237,38 +237,38 @@ export default function TreatmentMenus() {
               {filteredMenus?.map((menu) => {
                 const hotel = getHotelInfo(menu.hotel_id);
                 return (
-                  <TableRow key={menu.id}>
-                    <TableCell className="align-middle">
-                      <div className="flex items-center gap-3">
+                  <TableRow key={menu.id} className="h-12">
+                    <TableCell className="py-2 align-middle">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
                         {menu.image ? (
                           <img
                             src={menu.image}
                             alt={menu.name}
-                            className="w-10 h-10 rounded object-cover"
+                            className="w-8 h-8 rounded object-cover flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0">
                             💆
                           </div>
                         )}
                         <span className="font-medium">{menu.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="align-middle max-w-[300px]">
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+                    <TableCell className="py-2 align-middle max-w-[300px]">
+                      <p className="text-sm text-muted-foreground line-clamp-1">
                         {menu.description || "-"}
                       </p>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       {formatDuration(menu.duration)}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       {menu.price ? `${menu.price}€` : "0"}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       {formatLeadTime(menu.lead_time)}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <span className="text-lg">
                         {menu.service_for === "Male"
                           ? "👨"
@@ -278,17 +278,17 @@ export default function TreatmentMenus() {
                       </span>
                       <span className="ml-2 text-sm">{menu.service_for}</span>
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       {menu.category}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       {hotel ? (
                         <div className="flex items-center justify-center gap-2">
                           {hotel.image && (
                             <img
                               src={hotel.image}
                               alt={hotel.name}
-                              className="w-6 h-6 rounded object-cover"
+                              className="w-5 h-5 rounded object-cover"
                             />
                           )}
                           <span className="text-sm">{hotel.name}</span>
@@ -297,7 +297,7 @@ export default function TreatmentMenus() {
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="align-middle text-center">
+                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
                       <Badge
                         variant={menu.status === "Actif" ? "default" : "secondary"}
                         className={cn(
@@ -312,11 +312,12 @@ export default function TreatmentMenus() {
                       </Badge>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="align-middle text-center">
+                      <TableCell className="py-2 align-middle text-center">
                         <div className="flex items-center justify-center gap-2">
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setMenuToEdit(menu);
                               setEditDialogOpen(true);
@@ -327,6 +328,7 @@ export default function TreatmentMenus() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8"
                             onClick={() => {
                               setMenuToDelete(menu.id);
                               setDeleteDialogOpen(true);
