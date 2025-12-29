@@ -351,7 +351,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full h-9 justify-start text-left font-normal hover:bg-background",
+                          "w-full h-9 justify-start text-left font-normal hover:bg-transparent hover:border-input",
                           !date && "text-muted-foreground"
                         )}
                       >
