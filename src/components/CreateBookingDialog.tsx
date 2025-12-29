@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Plus, Minus } from "lucide-react";
+import { CalendarIcon, ChevronDown, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const countries = [
@@ -370,27 +370,57 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
                   <div className="flex gap-1">
-                    <Select value={time.split(':')[0] || ""} onValueChange={(h) => setTime(`${h}:${time.split(':')[1] || '00'}`)}>
-                      <SelectTrigger className="h-9 w-[70px]">
-                        <SelectValue placeholder="HH" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 w-[70px] justify-between font-normal">
+                          {time.split(':')[0] || "HH"}
+                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[70px] p-0 pointer-events-auto" align="start">
+                        <div className="max-h-[200px] overflow-y-auto overscroll-contain">
+                          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => setTime(`${h}:${time.split(':')[1] || '00'}`)}
+                              className={cn(
+                                "w-full px-3 py-2 text-sm text-center hover:bg-accent",
+                                time.split(':')[0] === h && "bg-accent"
+                              )}
+                            >
+                              {h}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <span className="flex items-center text-muted-foreground">:</span>
-                    <Select value={time.split(':')[1] || ""} onValueChange={(m) => setTime(`${time.split(':')[0] || '09'}:${m}`)}>
-                      <SelectTrigger className="h-9 w-[70px]">
-                        <SelectValue placeholder="MM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {['00', '10', '20', '30', '40', '50'].map(m => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 w-[70px] justify-between font-normal">
+                          {time.split(':')[1] || "MM"}
+                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[70px] p-0 pointer-events-auto" align="start">
+                        <div className="max-h-[200px] overflow-y-auto overscroll-contain">
+                          {['00', '10', '20', '30', '40', '50'].map(m => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setTime(`${time.split(':')[0] || '09'}:${m}`)}
+                              className={cn(
+                                "w-full px-3 py-2 text-sm text-center hover:bg-accent",
+                                time.split(':')[1] === m && "bg-accent"
+                              )}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
               </div>
