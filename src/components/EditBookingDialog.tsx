@@ -1159,51 +1159,6 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="edit-hairdresser" className="text-xs">Coiffeur / Prestataire</Label>
-                <Select 
-                  value={hairdresserId || "none"} 
-                  onValueChange={(value) => {
-                    const newValue = value === "none" ? "" : value;
-                    setHairdresserId(newValue);
-                  }}
-                >
-                  <SelectTrigger id="edit-hairdresser" className="h-9">
-                    <SelectValue placeholder="Sélectionner un coiffeur" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border shadow-lg">
-                    <SelectItem value="none">Aucun coiffeur</SelectItem>
-                    {/* Show current hairdresser if not in list */}
-                    {booking?.hairdresser_id && booking?.hairdresser_name && 
-                     !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
-                      <SelectItem value={booking.hairdresser_id}>
-                        {booking.hairdresser_name} (Actuel)
-                      </SelectItem>
-                    )}
-                    {hairdressers?.map((hairdresser) => {
-                      const availability = hairdresserAvailability?.[hairdresser.id];
-                      const isUnavailable = availability && !availability.available;
-                      const isCurrentHairdresser = hairdresser.id === booking?.hairdresser_id;
-                      
-                      return (
-                        <SelectItem 
-                          key={hairdresser.id} 
-                          value={hairdresser.id}
-                          disabled={isUnavailable && !isCurrentHairdresser}
-                        >
-                          {hairdresser.first_name} {hairdresser.last_name}
-                          {isCurrentHairdresser && " (Actuel)"}
-                          {isUnavailable && !isCurrentHairdresser && " - Occupé"}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-muted-foreground">
-                  Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
-                </p>
-              </div>
-
               {/* Footer fixé en bas de l'onglet info */}
               <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
                 <div className="flex gap-2">
