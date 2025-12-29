@@ -50,7 +50,7 @@ export function PhoneNumberField({
             size="sm"
             className={cn(
               "h-full rounded-none border-r border-input px-2 font-normal text-sm",
-              "hover:bg-accent hover:text-accent-foreground",
+              "hover:bg-muted hover:text-foreground",
             )}
             aria-expanded={open}
           >
@@ -60,17 +60,17 @@ export function PhoneNumberField({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-64 p-0 border shadow-lg z-50 bg-popover pointer-events-auto"
+          className="w-56 p-0 border shadow-lg z-50 bg-popover pointer-events-auto"
         >
           <div className="p-2 border-b">
             <Input
-              placeholder="Search"
+              placeholder="Rechercher"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-8 text-sm"
             />
           </div>
-          <div className="max-h-[200px] overflow-y-auto overscroll-contain pointer-events-auto">
+          <div className="max-h-[160px] overflow-y-auto overscroll-contain pointer-events-auto touch-pan-y">
             {filteredCountries.map((country) => (
               <button
                 key={country.code}
@@ -81,8 +81,8 @@ export function PhoneNumberField({
                   setSearch("");
                 }}
                 className={cn(
-                  "flex w-full items-center px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
-                  countryCode === country.code && "bg-accent"
+                  "flex w-full items-center px-3 py-2 text-sm hover:bg-muted",
+                  countryCode === country.code && "bg-muted"
                 )}
               >
                 <span className="w-6 shrink-0 text-xs text-muted-foreground uppercase">
