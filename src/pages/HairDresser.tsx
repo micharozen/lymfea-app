@@ -276,7 +276,7 @@ export default function HairDresser() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
+          <Table className="text-xs">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Nom</TableHead>
@@ -320,21 +320,21 @@ export default function HairDresser() {
                       </div>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-sm">{hairdresser.email}</span>
+                      <span className="text-xs">{hairdresser.email}</span>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-sm">
+                      <span className="text-xs">
                         {hairdresser.country_code} {hairdresser.phone}
                       </span>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-sm">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
+                      <span className="text-xs">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-sm">{hairdresser.trunks || "-"}</span>
+                      <span className="text-xs">{hairdresser.trunks || "-"}</span>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-lg">{getSkillsDisplay(hairdresser.skills)}</span>
+                      <span className="text-xs leading-tight">{getSkillsDisplay(hairdresser.skills)}</span>
                     </TableCell>
                     <TableCell className="py-2 align-middle whitespace-nowrap">
                       <StatusBadge status={hairdresser.status} type="entity" />
