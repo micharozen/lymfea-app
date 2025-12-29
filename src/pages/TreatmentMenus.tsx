@@ -218,90 +218,89 @@ export default function TreatmentMenus() {
             </Select>
           </div>
 
-          <Table>
+          <Table className="text-xs w-full table-fixed">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[300px]">Prestation</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-center">Durée</TableHead>
-                <TableHead className="text-center">Tarif</TableHead>
-                <TableHead className="text-center">Délai min</TableHead>
-                <TableHead className="text-center">Public</TableHead>
-                <TableHead className="text-center">Catégorie</TableHead>
-                <TableHead className="text-center">Établissement</TableHead>
-                <TableHead className="text-center">Statut</TableHead>
-                {isAdmin && <TableHead className="text-center">Actions</TableHead>}
+              <TableRow className="bg-muted/20 h-8">
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[180px]">Prestation</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Description</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Durée</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[60px]">Tarif</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Délai</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Catégorie</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[100px]">Établissement</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Statut</TableHead>
+                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredMenus?.map((menu) => {
                 const hotel = getHotelInfo(menu.hotel_id);
                 return (
-                  <TableRow key={menu.id} className="h-12">
-                    <TableCell className="py-2 align-middle">
-                      <div className="flex items-center gap-3 whitespace-nowrap">
+                  <TableRow key={menu.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
                         {menu.image ? (
                           <img
                             src={menu.image}
                             alt={menu.name}
-                            className="w-8 h-8 rounded object-cover flex-shrink-0"
+                            className="w-6 h-6 rounded object-cover flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0">
+                          <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
                             💆
                           </div>
                         )}
-                        <span className="font-medium">{menu.name}</span>
+                        <span className="truncate font-medium text-foreground">{menu.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 align-middle max-w-[300px]">
-                      <p className="text-sm text-muted-foreground line-clamp-1">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-muted-foreground">
                         {menu.description || "-"}
-                      </p>
+                      </span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      {formatDuration(menu.duration)}
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <span className="truncate block text-foreground">{formatDuration(menu.duration)}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      {menu.price ? `${menu.price}€` : "0"}
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <span className="truncate block text-foreground">{menu.price ? `${menu.price}€` : "0"}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      {formatLeadTime(menu.lead_time)}
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      <span className="text-lg">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <span className="text-xs">
                         {menu.service_for === "Male"
                           ? "👨"
                           : menu.service_for === "Female"
                           ? "👩"
                           : "👥"}
                       </span>
-                      <span className="ml-2 text-sm">{menu.service_for}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      {menu.category}
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <span className="truncate block text-foreground">{menu.category}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       {hotel ? (
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1">
                           {hotel.image && (
                             <img
                               src={hotel.image}
                               alt={hotel.name}
-                              className="w-5 h-5 rounded object-cover"
+                              className="w-4 h-4 rounded object-cover"
                             />
                           )}
-                          <span className="text-sm">{hotel.name}</span>
+                          <span className="truncate text-foreground">{hotel.name}</span>
                         </div>
                       ) : (
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <Badge
                         variant={menu.status === "Actif" ? "default" : "secondary"}
                         className={cn(
-                          "font-medium",
+                          "text-[10px] px-2 py-0.5",
                           menu.status === "Actif" &&
                             "bg-green-500/10 text-green-700 hover:bg-green-500/20",
                           menu.status === "En attente" &&
@@ -312,29 +311,29 @@ export default function TreatmentMenus() {
                       </Badge>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-2 align-middle text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                        <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-6 w-6"
                             onClick={() => {
                               setMenuToEdit(menu);
                               setEditDialogOpen(true);
                             }}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-6 w-6"
                             onClick={() => {
                               setMenuToDelete(menu.id);
                               setDeleteDialogOpen(true);
                             }}
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
