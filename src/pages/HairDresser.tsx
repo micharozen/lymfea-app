@@ -292,7 +292,7 @@ export default function HairDresser() {
             <TableBody>
               {filteredHairdressers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-12 py-2 text-center text-muted-foreground">
                     Aucun coiffeur trouvé
                   </TableCell>
                 </TableRow>
