@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Plus, Minus } from "lucide-react";
+import { Check, ChevronsUpDown, CalendarIcon, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const countries = [
