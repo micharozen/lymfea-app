@@ -423,8 +423,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <div className="flex-1 space-y-1">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1 min-w-0">
                   <Label className="text-xs">Indicatif *</Label>
                   <Popover open={countryOpen} onOpenChange={setCountryOpen}>
                     <PopoverTrigger asChild>
@@ -471,7 +471,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   </Popover>
                 </div>
 
-                <div className="flex-1 space-y-1">
+                <div className="space-y-1 min-w-0">
                   <Label className="text-xs">Téléphone *</Label>
                   <Input
                     value={phone}
@@ -483,7 +483,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   />
                 </div>
 
-                <div className="flex-1 space-y-1">
+                <div className="space-y-1 min-w-0">
                   <Label className="text-xs">Chambre</Label>
                   <Input
                     value={roomNumber}
