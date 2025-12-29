@@ -248,84 +248,82 @@ export default function Concierges() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
+          <Table className="text-xs w-full table-fixed">
             <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">
-                  Nom
-                </TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Numéro de téléphone</TableHead>
-                <TableHead className="font-semibold">Hôtel</TableHead>
-                <TableHead className="font-semibold">Statut</TableHead>
+              <TableRow className="bg-muted/20 h-8">
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
                 {userRole === "admin" && (
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedConcierges.length === 0 ? (
-                <TableRow>
+                <TableRow className="h-10">
                   <TableCell
                     colSpan={userRole === "admin" ? 6 : 5}
-                    className="h-12 py-2 text-center text-muted-foreground"
+                    className="py-0 px-2 h-10 text-center text-muted-foreground"
                   >
                     Aucun concierge trouvé
                   </TableCell>
                 </TableRow>
               ) : (
                 paginatedConcierges.map((concierge) => (
-                <TableRow key={concierge.id} className="h-12">
-                  <TableCell className="py-2 align-middle">
-                    <div className="flex items-center gap-3 whitespace-nowrap">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                <TableRow key={concierge.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                         {concierge.profile_image ? (
                           <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-xs font-medium text-muted-foreground">
+                          <span className="text-[10px] font-medium text-muted-foreground">
                             {getInitials(concierge.first_name, concierge.last_name)}
                           </span>
                         )}
                       </div>
-                      <span className="font-medium">
+                      <span className="truncate font-medium text-foreground">
                         {concierge.first_name} {concierge.last_name}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="py-2 align-middle whitespace-nowrap">
-                    <span className="text-sm">{concierge.email}</span>
+                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                    <span className="truncate block text-foreground">{concierge.email}</span>
                   </TableCell>
-                  <TableCell className="py-2 align-middle whitespace-nowrap">
-                    <span className="text-sm">
+                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                    <span className="truncate block text-foreground">
                       {concierge.country_code} {concierge.phone}
                     </span>
                   </TableCell>
-                  <TableCell className="py-2 align-middle whitespace-nowrap">
-                    <span className="text-sm">{getHotelNames(concierge.hotels)}</span>
+                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                    <span className="truncate block text-foreground">{getHotelNames(concierge.hotels)}</span>
                   </TableCell>
-                  <TableCell className="py-2 align-middle whitespace-nowrap">
-                    <StatusBadge status={concierge.status} type="entity" />
+                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                    <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                   </TableCell>
                   {userRole === "admin" && (
-                    <TableCell className="py-2 align-middle">
-                      <div className="flex items-center justify-end gap-2">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                          className="h-6 w-6"
                           onClick={() => setEditConciergeId(concierge.id)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                            onClick={() => setDeleteConciergeId(concierge.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => setDeleteConciergeId(concierge.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
