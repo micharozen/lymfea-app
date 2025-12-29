@@ -124,6 +124,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [hourOpen, setHourOpen] = useState(false);
+  const [minuteOpen, setMinuteOpen] = useState(false);
 
   useEffect(() => {
     if (selectedDate) setDate(selectedDate);
@@ -309,7 +311,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+        <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             Nouvelle réservation
           </DialogTitle>
@@ -317,8 +319,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations")} className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="info" className="flex-1 px-6 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
-              <div className="grid grid-cols-2 gap-3">
+            <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Hôtel *</Label>
                   <Select value={hotelId} onValueChange={setHotelId}>
@@ -336,7 +338,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Date *</Label>
                   <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -371,7 +373,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
                   <div className="flex gap-1">
-                    <Popover>
+                    <Popover open={hourOpen} onOpenChange={setHourOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
                           {time.split(':')[0] || "HH"}
@@ -385,9 +387,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                               <button
                                 key={h}
                                 type="button"
-                                onClick={() => setTime(`${h}:${time.split(':')[1] || '00'}`)}
+                                onClick={() => {
+                                  setTime(`${h}:${time.split(':')[1] || '00'}`);
+                                  setHourOpen(false);
+                                }}
                                 className={cn(
-                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  "w-full px-3 py-1.5 text-sm text-center",
                                   time.split(':')[0] === h && "bg-muted"
                                 )}
                               >
@@ -399,7 +404,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       </PopoverContent>
                     </Popover>
                     <span className="flex items-center text-muted-foreground">:</span>
-                    <Popover>
+                    <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
                           {time.split(':')[1] || "MM"}
@@ -413,9 +418,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                               <button
                                 key={m}
                                 type="button"
-                                onClick={() => setTime(`${time.split(':')[0] || '09'}:${m}`)}
+                                onClick={() => {
+                                  setTime(`${time.split(':')[0] || '09'}:${m}`);
+                                  setMinuteOpen(false);
+                                }}
                                 className={cn(
-                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  "w-full px-3 py-1.5 text-sm text-center",
                                   time.split(':')[1] === m && "bg-muted"
                                 )}
                               >
@@ -430,7 +438,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Prénom *</Label>
                   <Input
