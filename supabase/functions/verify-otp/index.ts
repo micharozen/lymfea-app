@@ -189,32 +189,47 @@ serve(async (req) => {
       
       authUser = user;
     } else {
-      // Create new auth user
-      const { data: { user }, error: createError } = await supabase.auth.admin.createUser({
-        email: hairdresser.email,
-        email_confirm: true,
-        user_metadata: {
-          phone: fullPhoneNumber,
-          first_name: hairdresser.first_name,
-          last_name: hairdresser.last_name,
+      // First, check if a user with this email already exists
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existingUser = existingUsers?.users?.find(u => u.email === hairdresser.email);
+      
+      if (existingUser) {
+        console.log('Found existing user with email:', hairdresser.email);
+        // Link the existing user to the hairdresser
+        await supabase
+          .from('hairdressers')
+          .update({ user_id: existingUser.id })
+          .eq('id', hairdresser.id);
+        
+        authUser = existingUser;
+      } else {
+        // Create new auth user
+        const { data: { user }, error: createError } = await supabase.auth.admin.createUser({
+          email: hairdresser.email,
+          email_confirm: true,
+          user_metadata: {
+            phone: fullPhoneNumber,
+            first_name: hairdresser.first_name,
+            last_name: hairdresser.last_name,
+          }
+        });
+
+        if (createError || !user) {
+          console.error('Error creating user:', createError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to create user account' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-      });
 
-      if (createError || !user) {
-        console.error('Error creating user:', createError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to create user account' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        // Update hairdresser with user_id
+        await supabase
+          .from('hairdressers')
+          .update({ user_id: user.id })
+          .eq('id', hairdresser.id);
+
+        authUser = user;
       }
-
-      // Update hairdresser with user_id
-      await supabase
-        .from('hairdressers')
-        .update({ user_id: user.id })
-        .eq('id', hairdresser.id);
-
-      authUser = user;
     }
 
     // Generate session using user_id directly to avoid email conflicts
