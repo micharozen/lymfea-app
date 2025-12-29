@@ -85,7 +85,7 @@ export function PhoneNumberField({
                     setSearch("");
                   }}
                   className={cn(
-                    "flex w-full items-center px-3 py-2 text-sm hover:bg-muted",
+                    "flex w-full items-center px-3 py-1.5 text-sm",
                     countryCode === country.code && "bg-muted"
                   )}
                 >

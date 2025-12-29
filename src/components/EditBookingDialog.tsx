@@ -167,6 +167,8 @@ export default function EditBookingDialog({
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [hourOpen, setHourOpen] = useState(false);
+  const [minuteOpen, setMinuteOpen] = useState(false);
   
 
   // Pre-fill form when booking changes
@@ -728,14 +730,14 @@ export default function EditBookingDialog({
       if (!open) setViewMode("view");
     }}>
       <DialogContent className="max-w-xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+        <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
           </DialogTitle>
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-3">
@@ -964,7 +966,7 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="edit-date" className="text-xs">Date *</Label>
                   <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
@@ -999,7 +1001,7 @@ export default function EditBookingDialog({
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
                   <div className="flex gap-1">
-                    <Popover>
+                    <Popover open={hourOpen} onOpenChange={setHourOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
                           {time.split(':')[0] || "HH"}
@@ -1013,9 +1015,12 @@ export default function EditBookingDialog({
                               <button
                                 key={h}
                                 type="button"
-                                onClick={() => setTime(`${h}:${time.split(':')[1] || '00'}`)}
+                                onClick={() => {
+                                  setTime(`${h}:${time.split(':')[1] || '00'}`);
+                                  setHourOpen(false);
+                                }}
                                 className={cn(
-                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  "w-full px-3 py-1.5 text-sm text-center",
                                   time.split(':')[0] === h && "bg-muted"
                                 )}
                               >
@@ -1027,7 +1032,7 @@ export default function EditBookingDialog({
                       </PopoverContent>
                     </Popover>
                     <span className="flex items-center text-muted-foreground">:</span>
-                    <Popover>
+                    <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
                           {time.split(':')[1] || "MM"}
@@ -1041,9 +1046,12 @@ export default function EditBookingDialog({
                               <button
                                 key={m}
                                 type="button"
-                                onClick={() => setTime(`${time.split(':')[0] || '09'}:${m}`)}
+                                onClick={() => {
+                                  setTime(`${time.split(':')[0] || '09'}:${m}`);
+                                  setMinuteOpen(false);
+                                }}
                                 className={cn(
-                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  "w-full px-3 py-1.5 text-sm text-center",
                                   time.split(':')[1] === m && "bg-muted"
                                 )}
                               >
@@ -1058,7 +1066,7 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="edit-firstName" className="text-xs">Prénom *</Label>
                   <Input
