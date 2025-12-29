@@ -266,7 +266,10 @@ export default function Concierges() {
             <TableBody>
               {paginatedConcierges.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={userRole === "admin" ? 6 : 5} className="h-24 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={userRole === "admin" ? 6 : 5}
+                    className="h-12 py-2 text-center text-muted-foreground"
+                  >
                     Aucun concierge trouvé
                   </TableCell>
                 </TableRow>
