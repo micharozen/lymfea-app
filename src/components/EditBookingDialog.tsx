@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -726,7 +727,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-2xl p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-xl max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
@@ -1005,22 +1006,24 @@ export default function EditBookingDialog({
                           <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                        <div className="max-h-[160px] overflow-y-auto overscroll-contain touch-pan-y">
-                          {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
-                            <button
-                              key={h}
-                              type="button"
-                              onClick={() => setTime(`${h}:${time.split(':')[1] || '00'}`)}
-                              className={cn(
-                                "w-full px-3 py-2 text-sm text-center hover:bg-muted",
-                                time.split(':')[0] === h && "bg-muted"
-                              )}
-                            >
-                              {h}
-                            </button>
-                          ))}
-                        </div>
+                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                        <ScrollArea className="h-40 touch-pan-y">
+                          <div>
+                            {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                              <button
+                                key={h}
+                                type="button"
+                                onClick={() => setTime(`${h}:${time.split(':')[1] || '00'}`)}
+                                className={cn(
+                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  time.split(':')[0] === h && "bg-muted"
+                                )}
+                              >
+                                {h}
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
                       </PopoverContent>
                     </Popover>
                     <span className="flex items-center text-muted-foreground">:</span>
@@ -1031,22 +1034,24 @@ export default function EditBookingDialog({
                           <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
-                        <div className="max-h-[160px] overflow-y-auto overscroll-contain touch-pan-y">
-                          {['00', '10', '20', '30', '40', '50'].map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => setTime(`${time.split(':')[0] || '09'}:${m}`)}
-                              className={cn(
-                                "w-full px-3 py-2 text-sm text-center hover:bg-muted",
-                                time.split(':')[1] === m && "bg-muted"
-                              )}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
+                      <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                        <ScrollArea className="h-40 touch-pan-y">
+                          <div>
+                            {['00', '10', '20', '30', '40', '50'].map(m => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setTime(`${time.split(':')[0] || '09'}:${m}`)}
+                                className={cn(
+                                  "w-full px-3 py-2 text-sm text-center hover:bg-muted",
+                                  time.split(':')[1] === m && "bg-muted"
+                                )}
+                              >
+                                {m}
+                              </button>
+                            ))}
+                          </div>
+                        </ScrollArea>
                       </PopoverContent>
                     </Popover>
                   </div>

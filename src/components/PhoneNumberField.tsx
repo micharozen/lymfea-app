@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
@@ -61,6 +62,8 @@ export function PhoneNumberField({
         <PopoverContent
           align="start"
           className="w-56 p-0 border shadow-lg z-50 bg-popover pointer-events-auto"
+          onWheelCapture={(e) => e.stopPropagation()}
+          onTouchMoveCapture={(e) => e.stopPropagation()}
         >
           <div className="p-2 border-b">
             <Input
@@ -70,36 +73,38 @@ export function PhoneNumberField({
               className="h-8 text-sm"
             />
           </div>
-          <div className="max-h-[160px] overflow-y-auto overscroll-contain pointer-events-auto touch-pan-y">
-            {filteredCountries.map((country) => (
-              <button
-                key={country.code}
-                type="button"
-                onClick={() => {
-                  setCountryCode(country.code);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className={cn(
-                  "flex w-full items-center px-3 py-2 text-sm hover:bg-muted",
-                  countryCode === country.code && "bg-muted"
-                )}
-              >
-                <span className="w-6 shrink-0 text-xs text-muted-foreground uppercase">
-                  {country.flag}
-                </span>
-                <span className="flex-1 text-left">{country.label}</span>
-                <span className="ml-2 shrink-0 tabular-nums text-muted-foreground">
-                  {country.code}
-                </span>
-              </button>
-            ))}
-            {filteredCountries.length === 0 && (
-              <div className="px-3 py-2 text-sm text-muted-foreground">
-                Aucun résultat
-              </div>
-            )}
-          </div>
+          <ScrollArea className="h-40 touch-pan-y">
+            <div className="pointer-events-auto">
+              {filteredCountries.map((country) => (
+                <button
+                  key={country.code}
+                  type="button"
+                  onClick={() => {
+                    setCountryCode(country.code);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className={cn(
+                    "flex w-full items-center px-3 py-2 text-sm hover:bg-muted",
+                    countryCode === country.code && "bg-muted"
+                  )}
+                >
+                  <span className="w-6 shrink-0 text-xs text-muted-foreground uppercase">
+                    {country.flag}
+                  </span>
+                  <span className="flex-1 text-left">{country.label}</span>
+                  <span className="ml-2 shrink-0 tabular-nums text-muted-foreground">
+                    {country.code}
+                  </span>
+                </button>
+              ))}
+              {filteredCountries.length === 0 && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  Aucun résultat
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </PopoverContent>
       </Popover>
 
