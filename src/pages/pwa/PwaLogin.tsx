@@ -122,8 +122,8 @@ const PwaLogin = () => {
         const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
         
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
-          toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
-            duration: 6000,
+          toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+            duration: 8000,
           });
         } else {
           toast.error(errorMessage);
@@ -141,8 +141,8 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
-          duration: 6000,
+        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+          duration: 8000,
         });
       } else {
         toast.error(errorMsg);
@@ -168,8 +168,8 @@ const PwaLogin = () => {
         const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
         
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
-          toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
-            duration: 6000,
+          toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+            duration: 8000,
           });
         } else {
           toast.error(errorMessage);
@@ -188,8 +188,8 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Numéro de téléphone non enregistré. Veuillez contacter l'administrateur à booking@oomworld.com", {
-          duration: 6000,
+        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+          duration: 8000,
         });
       } else {
         toast.error(errorMsg);
