@@ -25,12 +25,13 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, ChevronsUpDown, Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
+import { Trash2, CalendarIcon, User, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
