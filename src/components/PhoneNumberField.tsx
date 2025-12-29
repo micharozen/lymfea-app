@@ -60,7 +60,7 @@ export function PhoneNumberField({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-64 p-0 border shadow-lg z-50 bg-popover"
+          className="w-64 p-0 border shadow-lg z-50 bg-popover pointer-events-auto"
         >
           <div className="p-2 border-b">
             <Input
@@ -70,7 +70,7 @@ export function PhoneNumberField({
               className="h-8 text-sm"
             />
           </div>
-          <div className="max-h-[200px] overflow-y-auto">
+          <div className="max-h-[200px] overflow-y-auto overscroll-contain pointer-events-auto">
             {filteredCountries.map((country) => (
               <button
                 key={country.code}
