@@ -377,13 +377,29 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
-                  <Input
-                    type="time"
-                    step="600"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="h-9"
-                  />
+                  <div className="flex gap-1">
+                    <Select value={time.split(':')[0] || ""} onValueChange={(h) => setTime(`${h}:${time.split(':')[1] || '00'}`)}>
+                      <SelectTrigger className="h-9 w-[70px]">
+                        <SelectValue placeholder="HH" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="flex items-center text-muted-foreground">:</span>
+                    <Select value={time.split(':')[1] || ""} onValueChange={(m) => setTime(`${time.split(':')[0] || '09'}:${m}`)}>
+                      <SelectTrigger className="h-9 w-[70px]">
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['00', '10', '20', '30', '40', '50'].map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -407,66 +423,68 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Téléphone *</Label>
-                  <div className="flex gap-2">
-                    <Popover open={countryOpen} onOpenChange={setCountryOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={countryOpen}
-                          className="w-[120px] h-9 justify-between text-xs"
-                        >
-                          {countries.find((country) => country.code === countryCode)?.flag}{" "}
-                          {countryCode}
-                          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
-                        <Command>
-                          <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
-                          <CommandList className="max-h-[200px]">
-                            <CommandEmpty>Pays non trouvé</CommandEmpty>
-                            <CommandGroup>
-                              {countries.map((country) => (
-                                <CommandItem
-                                  key={country.code}
-                                  value={`${country.label} ${country.code}`}
-                                  onSelect={() => {
-                                    setCountryCode(country.code);
-                                    setCountryOpen(false);
-                                  }}
-                                  className="text-sm cursor-pointer"
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-3.5 w-3.5",
-                                      countryCode === country.code ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {country.flag} {country.label} ({country.code})
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                    <Input
-                      value={phone}
-                      onChange={(e) => {
-                        const formatted = formatPhoneNumber(e.target.value, countryCode);
-                        setPhone(formatted);
-                      }}
-                      className="flex-1 h-9"
-                    />
-                  </div>
+                  <Label className="text-xs">Indicatif *</Label>
+                  <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={countryOpen}
+                        className="w-full h-9 justify-between text-xs hover:bg-background hover:text-foreground"
+                      >
+                        {countries.find((country) => country.code === countryCode)?.flag}{" "}
+                        {countryCode}
+                        <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0 border shadow-lg z-50 bg-popover" align="start" side="bottom" sideOffset={4}>
+                      <Command>
+                        <CommandInput placeholder="Rechercher un pays..." className="h-9 text-sm" />
+                        <CommandList className="max-h-[200px]">
+                          <CommandEmpty>Pays non trouvé</CommandEmpty>
+                          <CommandGroup>
+                            {countries.map((country) => (
+                              <CommandItem
+                                key={country.code}
+                                value={`${country.label} ${country.code}`}
+                                onSelect={() => {
+                                  setCountryCode(country.code);
+                                  setCountryOpen(false);
+                                }}
+                                className="text-sm cursor-pointer"
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-3.5 w-3.5",
+                                    countryCode === country.code ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {country.flag} {country.label} ({country.code})
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs">Numéro de chambre</Label>
+                  <Label className="text-xs">Téléphone *</Label>
+                  <Input
+                    value={phone}
+                    onChange={(e) => {
+                      const formatted = formatPhoneNumber(e.target.value, countryCode);
+                      setPhone(formatted);
+                    }}
+                    className="h-9"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Chambre</Label>
                   <Input
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
