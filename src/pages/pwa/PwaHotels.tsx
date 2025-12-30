@@ -90,7 +90,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
   }
 
   return (
-    <div className="h-full overflow-hidden flex flex-col bg-background">
+    <div className="min-h-full flex flex-col bg-background">
       {/* Header */}
       <div className="bg-background border-b p-4">
         <div className="flex items-center gap-3">

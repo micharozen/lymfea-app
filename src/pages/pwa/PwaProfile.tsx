@@ -210,7 +210,7 @@ const PwaProfile = () => {
   ];
 
   return (
-    <div className="h-full overflow-hidden flex flex-col bg-background">
+    <div className="min-h-full flex flex-col bg-background">
       <PwaHeader
         title={t('profile.title')}
         showBack
