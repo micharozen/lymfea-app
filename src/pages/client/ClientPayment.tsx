@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, CreditCard, Hotel, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -13,7 +13,7 @@ export default function ClientPayment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
-  const [selectedMethod, setSelectedMethod] = useState<'card' | 'room'>('room');
+  const [selectedMethod] = useState<'room'>('room');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t, i18n } = useTranslation('client');
 
@@ -36,48 +36,7 @@ export default function ClientPayment() {
     setIsProcessing(true);
 
     try {
-      // If cart has price_on_request items, don't allow card payment
-      if (hasPriceOnRequest && selectedMethod === 'card') {
-        toast.error("Le paiement par carte n'est pas disponible pour les réservations avec devis");
-        setIsProcessing(false);
-        return;
-      }
-
-      if (selectedMethod === 'card' && !hasPriceOnRequest) {
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-            },
-            bookingData: {
-              date: dateTime.date,
-              time: dateTime.time,
-            },
-            // SECURITY: Only send treatment IDs - price is calculated server-side
-            treatmentIds: items.map(item => item.id),
-          },
-        });
-
-        if (error) {
-          console.error('Stripe checkout error:', error);
-          throw error;
-        }
-
-        if (data?.url) {
-          window.location.replace(data.url);
-          return;
-        } else {
-          throw new Error('No checkout URL received');
-        }
-      }
-
-      // Create booking (works for both regular and quote_pending bookings)
+      // Create booking directly (room payment only)
       const { data, error } = await supabase.functions.invoke('create-client-booking', {
         body: {
           hotelId,
@@ -139,14 +98,14 @@ export default function ClientPayment() {
       <div className="p-4 space-y-6">
         {/* Quote Warning Banner */}
         {hasPriceOnRequest && (
-          <div className="p-4 bg-amber-50 border-2 border-amber-400 rounded-2xl">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-semibold text-amber-800 mb-1">Réservation avec devis</h3>
+                <h3 className="font-semibold text-amber-800 mb-1">Quote Required</h3>
                 <p className="text-sm text-amber-700">
-                  Votre panier contient des soins nécessitant un devis personnalisé. 
-                  Un conseiller vous contactera pour valider le prix final avant confirmation.
+                  Your cart contains services requiring a custom quote. 
+                  An advisor will contact you to confirm the final price.
                 </p>
               </div>
             </div>
@@ -175,19 +134,16 @@ export default function ClientPayment() {
           
           {/* Variable Price Items (Quote Required) */}
           {variableItems.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-dashed border-amber-300">
-              <p className="text-xs text-amber-600 font-medium">Soins sur devis :</p>
+            <div className="space-y-2 pt-3 border-t border-border">
+              <p className="text-xs text-amber-600 font-medium mb-2">On Quote:</p>
               {variableItems.map(item => (
                 <div key={item.id} className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground flex items-center gap-2">
+                  <span className="text-muted-foreground">
                     {item.name} x{item.quantity}
-                    <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0">
-                      Sur devis
-                    </Badge>
                   </span>
-                  <span className="text-amber-600 font-medium text-xs">
-                    À définir
-                  </span>
+                  <Badge className="text-[10px] px-2 py-0.5 bg-amber-500 text-white border-0">
+                    TBD
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -198,86 +154,12 @@ export default function ClientPayment() {
             {hasPriceOnRequest ? (
               <div className="text-right">
                 <span className="text-base">€{fixedTotal.toFixed(2)}</span>
-                <span className="text-amber-600 text-sm ml-1">+ devis</span>
+                <span className="text-amber-600 text-sm ml-1">+ quote</span>
               </div>
             ) : (
               <span>€{total.toFixed(2)}</span>
             )}
           </div>
-        </div>
-
-        {/* Payment Methods */}
-        <div className="space-y-3">
-          <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
-          
-          {/* Add to Room */}
-          <button
-            onClick={() => setSelectedMethod('room')}
-            disabled={isProcessing}
-            className={`w-full p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.98] ${
-              selectedMethod === 'room'
-                ? 'border-primary bg-primary/5'
-                : 'border-border'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                selectedMethod === 'room' ? 'bg-primary text-primary-foreground' : 'bg-muted'
-              }`}>
-                <Hotel className="h-5 w-5" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm mb-0.5">{t('payment.addToRoom')}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {t('payment.addToRoomDesc')}
-                </p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                selectedMethod === 'room' ? 'border-primary' : 'border-border'
-              }`}>
-                {selectedMethod === 'room' && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                )}
-              </div>
-            </div>
-          </button>
-
-          {/* Pay with Card - disabled if quote required */}
-          <button
-            onClick={() => !hasPriceOnRequest && setSelectedMethod('card')}
-            disabled={isProcessing || hasPriceOnRequest}
-            className={`w-full p-4 rounded-2xl border-2 transition-all text-left active:scale-[0.98] ${
-              hasPriceOnRequest 
-                ? 'opacity-50 cursor-not-allowed border-border'
-                : selectedMethod === 'card'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                selectedMethod === 'card' && !hasPriceOnRequest ? 'bg-primary text-primary-foreground' : 'bg-muted'
-              }`}>
-                <CreditCard className="h-5 w-5" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm mb-0.5">{t('payment.payNow')}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {hasPriceOnRequest 
-                    ? "Non disponible pour les réservations avec devis"
-                    : t('payment.payNowDesc')
-                  }
-                </p>
-              </div>
-              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                selectedMethod === 'card' && !hasPriceOnRequest ? 'border-primary' : 'border-border'
-              }`}>
-                {selectedMethod === 'card' && !hasPriceOnRequest && (
-                  <div className="w-2.5 h-2.5 rounded-full bg-primary" />
-                )}
-              </div>
-            </div>
-          </button>
         </div>
       </div>
 
@@ -294,11 +176,9 @@ export default function ClientPayment() {
               {t('payment.processing')}
             </>
           ) : hasPriceOnRequest ? (
-            "Demander le devis final"
+            "Request Final Quote"
           ) : (
-            <>
-              {selectedMethod === 'room' ? t('payment.confirmBook') : `${t('payment.payNow')} €${total.toFixed(2)}`}
-            </>
+            t('payment.confirmBook')
           )}
         </Button>
       </div>
