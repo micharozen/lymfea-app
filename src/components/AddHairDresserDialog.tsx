@@ -341,7 +341,7 @@ export default function AddHairDresserDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hôtels</Label>
               <Popover>
@@ -392,27 +392,6 @@ export default function AddHairDresserDialog({
               </Popover>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs">Statut *</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, status: value })
-                }
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="inactive">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Trunk</Label>
               <Popover>
