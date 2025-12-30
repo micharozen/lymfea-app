@@ -344,41 +344,47 @@ export default function AddHairDresserDialog({
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hôtels</Label>
-              <Select
-                value={selectedHotels[0] || ""}
-                onValueChange={(value) => {
-                  if (value && !selectedHotels.includes(value)) {
-                    setSelectedHotels([...selectedHotels, value]);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder={selectedHotels.length > 0 ? `${selectedHotels.length} hôtel(s)` : "Sélectionner"} />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg">
-                  {hotels.map((hotel) => (
-                    <div
-                      key={hotel.id}
-                      className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (selectedHotels.includes(hotel.id)) {
-                          setSelectedHotels(selectedHotels.filter((id) => id !== hotel.id));
-                        } else {
-                          setSelectedHotels([...selectedHotels, hotel.id]);
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        className="h-3.5 w-3.5"
-                        checked={selectedHotels.includes(hotel.id)}
-                        onCheckedChange={() => {}}
-                      />
-                      <span className="text-sm">{hotel.name}</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal h-9 text-xs"
+                  >
+                    <span>
+                      {selectedHotels.length === 0
+                        ? "Sélectionner"
+                        : `${selectedHotels.length}`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-40">
+                    <div className="p-1">
+                      {hotels.map((hotel) => (
+                        <div
+                          key={hotel.id}
+                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
+                          onClick={() => {
+                            if (selectedHotels.includes(hotel.id)) {
+                              setSelectedHotels(selectedHotels.filter((id) => id !== hotel.id));
+                            } else {
+                              setSelectedHotels([...selectedHotels, hotel.id]);
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            className="h-3.5 w-3.5"
+                            checked={selectedHotels.includes(hotel.id)}
+                            onCheckedChange={() => {}}
+                          />
+                          <span className="text-sm">{hotel.name}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </SelectContent>
-              </Select>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-1">
