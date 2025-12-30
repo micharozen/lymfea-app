@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -82,10 +82,12 @@ export function MultiSelectPopover({
                 >
                   <span className="min-w-0 flex-1 truncate text-left">{opt.label}</span>
                   {isSelected ? (
-                    <Check
-                      className="h-4 w-4 shrink-0 text-popover-foreground opacity-100"
-                      strokeWidth={2.5}
-                    />
+                    <span
+                      aria-hidden
+                      className="h-4 w-4 shrink-0 grid place-items-center text-popover-foreground font-semibold"
+                    >
+                      ✓
+                    </span>
                   ) : (
                     <span className="h-4 w-4 shrink-0" />
                   )}
