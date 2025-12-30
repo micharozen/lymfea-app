@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -970,204 +970,209 @@ export default function EditBookingDialog({
             </div>
           </div>
         ) : viewMode === "view" ? (
-          <div className="flex-1 px-4 py-3 space-y-2">
-            {/* En-tête */}
-            <div className="flex items-center justify-between pb-3 border-b">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
-                  <CalendarIcon className="w-5 h-5" />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* BODY - Scrollable */}
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+              {/* En-tête */}
+              <div className="flex items-center justify-between pb-3 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
+                    <CalendarIcon className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">#{booking?.booking_id}</p>
+                    <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">#{booking?.booking_id}</p>
-                  <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
-                  {getBookingStatusConfig(booking?.status || 'pending').label}
-                </Badge>
-                {/* Hide payment status when quote is pending or waiting approval */}
-                {booking?.payment_status && 
-                 booking?.status !== 'quote_pending' && 
-                 booking?.status !== 'waiting_approval' && (
-                  <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
-                    {getPaymentStatusConfig(booking.payment_status).label}
+                <div className="flex items-center gap-2">
+                  <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
+                    {getBookingStatusConfig(booking?.status || 'pending').label}
                   </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Quote Banner - Only shown for quote_pending status and admin */}
-            {booking?.status === "quote_pending" && isAdmin && (
-              <Button
-                variant="outline"
-                onClick={() => setViewMode("quote")}
-                className="w-full border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100"
-              >
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Valider le devis
-              </Button>
-            )}
-
-            {/* Infos principales */}
-            <div className="p-3 bg-muted/30 rounded-lg">
-              <div className="grid grid-cols-5 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Date</p>
-                  <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Heure</p>
-                  <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Chambre</p>
-                  <p className="font-medium text-sm">{decodeHtmlEntities(booking?.room_number) || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
-                  <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
-                  <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+                  {/* Hide payment status when quote is pending or waiting approval */}
+                  {booking?.payment_status && 
+                   booking?.status !== 'quote_pending' && 
+                   booking?.status !== 'waiting_approval' && (
+                    <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
+                      {getPaymentStatusConfig(booking.payment_status).label}
+                    </Badge>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Prestations */}
-            {bookingTreatments && bookingTreatments.length > 0 && (
+              {/* Infos principales */}
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Prestations</p>
-                <div className="space-y-1.5">
-                  {bookingTreatments.map((treatment) => (
-                    <div key={treatment.id} className="flex items-center justify-between text-sm">
-                      <span>{treatment.name}</span>
-                      <span className="font-medium">€{(treatment.price || 0).toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
-                    <span className="font-semibold">Total</span>
-                    <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
+                <div className="grid grid-cols-5 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Date</p>
+                    <p className="font-medium text-sm">{booking?.booking_date && format(new Date(booking.booking_date), "dd-MM-yyyy")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Heure</p>
+                    <p className="font-medium text-sm">{booking?.booking_time && booking.booking_time.substring(0, 5)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Chambre</p>
+                    <p className="font-medium text-sm">{decodeHtmlEntities(booking?.room_number) || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
+                    <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
+                    <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Coiffeur */}
-            <div className="p-3 bg-muted/30 rounded-lg">
-              <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
-              {booking?.hairdresser_name ? (
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+              {/* Prestations */}
+              {bookingTreatments && bookingTreatments.length > 0 && (
+                <div className="p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                  <div className="space-y-1.5">
+                    {bookingTreatments.map((treatment) => (
+                      <div key={treatment.id} className="flex items-center justify-between text-sm">
+                        <span>{treatment.name}</span>
+                        <span className="font-medium">€{(treatment.price || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
+                      <span className="font-semibold">Total</span>
+                      <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
+                    </div>
+                  </div>
                 </div>
-              ) : isAdmin ? (
-                showAssignHairdresser ? (
-                  <div className="space-y-2">
-                    <Select value={selectedHairdresserId || "none"} onValueChange={setSelectedHairdresserId}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Sélectionner un coiffeur" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Aucun coiffeur</SelectItem>
-                        {hairdressers?.map((hairdresser) => (
-                          <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                            {hairdresser.first_name} {hairdresser.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm"
-                        onClick={async () => {
-                          const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
-                          const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
-                          
-                          let assignedAt = booking!.assigned_at;
-                          
-                          if (hairdresserId) {
-                            assignedAt = new Date().toISOString();
-                          } else {
-                            assignedAt = null;
-                          }
-                          
-                          const { error } = await supabase
-                            .from("bookings")
-                            .update({
-                              hairdresser_id: hairdresserId,
-                              hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
-                              assigned_at: assignedAt,
-                            })
-                            .eq("id", booking!.id);
+              )}
+
+              {/* Coiffeur */}
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
+                {booking?.hairdresser_name ? (
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+                  </div>
+                ) : isAdmin ? (
+                  showAssignHairdresser ? (
+                    <div className="space-y-2">
+                      <Select value={selectedHairdresserId || "none"} onValueChange={setSelectedHairdresserId}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Sélectionner un coiffeur" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Aucun coiffeur</SelectItem>
+                          {hairdressers?.map((hairdresser) => (
+                            <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                              {hairdresser.first_name} {hairdresser.last_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm"
+                          onClick={async () => {
+                            const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
+                            const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
                             
-                          if (error) {
-                            toast({ title: "Erreur", description: "Impossible d'assigner le coiffeur", variant: "destructive" });
-                          } else {
-                            const wasAssigned = hairdresserId && !booking!.hairdresser_id;
-                            const hairdresserChanged = hairdresserId && booking!.hairdresser_id && hairdresserId !== booking!.hairdresser_id;
+                            let assignedAt = booking!.assigned_at;
                             
-                            if (wasAssigned || hairdresserChanged) {
-                              try {
-                                await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
-                              } catch (e) { console.error(e); }
+                            if (hairdresserId) {
+                              assignedAt = new Date().toISOString();
+                            } else {
+                              assignedAt = null;
                             }
                             
-                            toast({ title: "Succès", description: hairdresserId ? "Coiffeur assigné" : "Coiffeur retiré" });
-                            await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-                            setShowAssignHairdresser(false);
-                          }
-                        }}
-                        className="flex-1"
-                      >
-                        Confirmer
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => { setShowAssignHairdresser(false); setSelectedHairdresserId(booking?.hairdresser_id || ""); }}
-                        className="flex-1"
-                      >
-                        Annuler
-                      </Button>
+                            const { error } = await supabase
+                              .from("bookings")
+                              .update({
+                                hairdresser_id: hairdresserId,
+                                hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+                                assigned_at: assignedAt,
+                              })
+                              .eq("id", booking!.id);
+                              
+                            if (error) {
+                              toast({ title: "Erreur", description: "Impossible d'assigner le coiffeur", variant: "destructive" });
+                            } else {
+                              const wasAssigned = hairdresserId && !booking!.hairdresser_id;
+                              const hairdresserChanged = hairdresserId && booking!.hairdresser_id && hairdresserId !== booking!.hairdresser_id;
+                              
+                              if (wasAssigned || hairdresserChanged) {
+                                try {
+                                  await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
+                                } catch (e) { console.error(e); }
+                              }
+                              
+                              toast({ title: "Succès", description: hairdresserId ? "Coiffeur assigné" : "Coiffeur retiré" });
+                              await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+                              setShowAssignHairdresser(false);
+                            }
+                          }}
+                          className="flex-1"
+                        >
+                          Confirmer
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setShowAssignHairdresser(false); setSelectedHairdresserId(booking?.hairdresser_id || ""); }}
+                          className="flex-1"
+                        >
+                          Annuler
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => { setShowAssignHairdresser(true); setSelectedHairdresserId(""); }}
+                      className="h-8 text-xs"
+                    >
+                      Assigner un coiffeur
+                    </Button>
+                  )
                 ) : (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => { setShowAssignHairdresser(true); setSelectedHairdresserId(""); }}
-                    className="h-8 text-xs"
-                  >
-                    Assigner un coiffeur
-                  </Button>
-                )
-              ) : (
-                <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
-              )}
-            </div>
+                  <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
+                )}
+              </div>
 
-            {/* Client */}
-            <div className="p-3 bg-muted/30 rounded-lg">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Client</p>
-                  <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-0.5">Téléphone</p>
-                  <p className="font-medium text-sm">{booking?.phone}</p>
+              {/* Client */}
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Client</p>
+                    <p className="font-medium text-sm">{booking?.client_first_name} {booking?.client_last_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Téléphone</p>
+                    <p className="font-medium text-sm">{booking?.phone}</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-
-            {/* Actions Footer */}
-            <div className="flex justify-between gap-3 pt-3 border-t">
-              <Button type="button" variant="outline" onClick={handleClose}>
-                Fermer
-              </Button>
+            {/* FOOTER - Fixed at bottom */}
+            <DialogFooter className="shrink-0 px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
+              {/* Quote button - Left side */}
+              {booking?.status === "quote_pending" && isAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewMode("quote")}
+                  className="border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Valider le devis
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Fermer
+                </Button>
+              )}
+              
+              {/* Action buttons - Right side */}
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
                   {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
@@ -1189,7 +1194,7 @@ export default function EditBookingDialog({
                   </Button>
                 </div>
               )}
-            </div>
+            </DialogFooter>
           </div>
         ) : (
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
