@@ -90,7 +90,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full overflow-hidden flex flex-col bg-background">
       {/* Header */}
       <div className="bg-background border-b p-4">
         <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
       </div>
 
       {/* Hotels List */}
-      <div className="divide-y">
+      <div className="flex-1 min-h-0 divide-y">
         {hotels.length === 0 ? (
           <div className="text-center py-12 px-4">
             <p className="text-muted-foreground">{t('hotels.noHotels')}</p>

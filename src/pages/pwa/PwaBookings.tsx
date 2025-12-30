@@ -94,7 +94,7 @@ const PwaBookings = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full overflow-hidden flex flex-col bg-background">
       {/* Header */}
       <div className="bg-black text-white p-6">
         <div className="flex items-center gap-4 mb-4">
@@ -110,8 +110,8 @@ const PwaBookings = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="p-6 space-y-4">
+      {/* Filters - flex-1 to fill remaining space */}
+      <div className="flex-1 min-h-0 p-6 space-y-4">
         <Tabs value={statusFilter} onValueChange={setStatusFilter}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="all">Toutes</TabsTrigger>

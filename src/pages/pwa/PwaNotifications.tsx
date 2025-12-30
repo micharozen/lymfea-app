@@ -294,7 +294,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   }
 
   return (
-    <div className="min-h-full bg-muted/30">
+    <div className="h-full overflow-hidden flex flex-col bg-muted/30">
       <PwaHeader
         title={t('notifications.title')}
         showBack={standalone}
@@ -334,8 +334,8 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
         </div>
       </div>
 
-      {/* Notifications List */}
-      <div className="pb-4">
+      {/* Notifications List - no own scroll */}
+      <div className="flex-1 min-h-0 pb-4">
         {notificationsList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-6xl mb-4">🔕</div>

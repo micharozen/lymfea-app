@@ -339,7 +339,7 @@ const PwaLogin = () => {
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="h-full overflow-hidden flex flex-col bg-white">
       <div className="p-4 flex justify-between items-center">
         <button onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}>
           <ArrowLeft className="h-6 w-6" />
