@@ -284,6 +284,17 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
         </tbody>
       </table>
 
+      ${booking.client_signature ? `
+      <div style="margin-top: 40px; padding: 24px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+        <div class="section-title">${isRoomPayment ? 'Signature Client' : 'Client Signature'}</div>
+        <div style="margin-top: 12px; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
+          <img src="${booking.client_signature}" alt="Signature client" style="max-width: 300px; max-height: 100px;" />
+        </div>
+        <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
+          ${isRoomPayment ? 'Signé le' : 'Signed on'} ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+        </p>
+      </div>
+      ` : ''}
 
       <div class="footer">
         <p class="thank-you">${thankYouMessage}</p>
