@@ -8,6 +8,7 @@ const corsHeaders = {
 
 // Compact email template - no scrolling needed
 function generateBookingConfirmationHtml({
+  bookingId,
   bookingNumber,
   clientName,
   hotelName,
@@ -16,8 +17,10 @@ function generateBookingConfirmationHtml({
   bookingTime,
   treatments,
   totalPrice,
-  currency
+  currency,
+  siteUrl
 }: {
+  bookingId: string;
   bookingNumber: string;
   clientName: string;
   hotelName: string;
@@ -27,10 +30,12 @@ function generateBookingConfirmationHtml({
   treatments: string[];
   totalPrice: number;
   currency: string;
+  siteUrl: string;
 }) {
   const treatmentsList = treatments.map(t => `<span style="display:inline-block;background:#f3f4f6;padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t}</span>`).join('');
   
   const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   
   return `
 <!DOCTYPE html>
@@ -97,6 +102,22 @@ function generateBookingConfirmationHtml({
                   <td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency}</td>
                 </tr>
               </table>
+              
+              <!-- Manage Booking Link -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
+                <tr>
+                  <td align="center">
+                    <a href="${manageBookingUrl}" style="display:inline-block;background:#f3f4f6;color:#374151;padding:10px 20px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:500;">
+                      Gérer ma réservation
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top:8px;">
+                    <p style="margin:0;font-size:11px;color:#9ca3af;">Annulation gratuite jusqu'à 2h avant le RDV</p>
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
           
@@ -125,6 +146,7 @@ serve(async (req) => {
     
     const {
       email,
+      bookingId,
       bookingNumber,
       clientName,
       hotelName,
@@ -138,6 +160,9 @@ serve(async (req) => {
 
     console.log('Sending booking confirmation email to:', email);
 
+    // Get site URL from environment or use default
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://oomworld.com';
+
     // Format date for display
     const formattedDate = new Date(bookingDate).toLocaleDateString('en-US', {
       weekday: 'short',
@@ -146,6 +171,7 @@ serve(async (req) => {
     });
 
     const html = generateBookingConfirmationHtml({
+      bookingId,
       bookingNumber,
       clientName,
       hotelName,
@@ -155,6 +181,7 @@ serve(async (req) => {
       treatments: treatments || [],
       totalPrice,
       currency,
+      siteUrl,
     });
 
     // Send email to client

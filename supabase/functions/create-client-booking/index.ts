@@ -248,6 +248,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               email: sanitizedClientData.email,
+              bookingId: booking.id,
               bookingNumber: booking.booking_id.toString(),
               clientName: `${sanitizedClientData.firstName} ${sanitizedClientData.lastName}`,
               hotelName: hotel.name,
