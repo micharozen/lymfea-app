@@ -26,6 +26,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
+const countries = [
+  { code: "+33", label: "France" },
+  { code: "+971", label: "EAU" },
+  { code: "+1", label: "États-Unis" },
+  { code: "+44", label: "Royaume-Uni" },
+  { code: "+49", label: "Allemagne" },
+  { code: "+39", label: "Italie" },
+  { code: "+34", label: "Espagne" },
+  { code: "+41", label: "Suisse" },
+  { code: "+32", label: "Belgique" },
+  { code: "+377", label: "Monaco" },
+];
+
 interface EditHairDresserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -302,19 +315,24 @@ export default function EditHairDresserDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="country_code">Code pays</Label>
-              <Input
-                id="country_code"
+          <div className="space-y-2">
+            <Label htmlFor="phone">Téléphone *</Label>
+            <div className="flex">
+              <Select
                 value={formData.country_code}
-                onChange={(e) =>
-                  setFormData({ ...formData, country_code: e.target.value })
-                }
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="phone">Téléphone *</Label>
+                onValueChange={(value) => setFormData({ ...formData, country_code: value })}
+              >
+                <SelectTrigger className="w-[80px] rounded-r-none border-r-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg">
+                  {countries.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {country.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -322,6 +340,7 @@ export default function EditHairDresserDialog({
                   setFormData({ ...formData, phone: e.target.value })
                 }
                 required
+                className="flex-1 rounded-l-none"
               />
             </div>
           </div>

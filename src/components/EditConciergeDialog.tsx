@@ -62,8 +62,15 @@ interface EditConciergeDialogProps {
 
 const countryCodes = [
   { code: "+33", country: "FR" },
-  { code: "+44", country: "UK" },
+  { code: "+971", country: "AE" },
   { code: "+1", country: "US" },
+  { code: "+44", country: "UK" },
+  { code: "+49", country: "DE" },
+  { code: "+39", country: "IT" },
+  { code: "+34", country: "ES" },
+  { code: "+41", country: "CH" },
+  { code: "+32", country: "BE" },
+  { code: "+377", country: "MC" },
 ];
 
 export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId }: EditConciergeDialogProps) {
@@ -343,16 +350,16 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Numéro de téléphone</FormLabel>
-                  <div className="flex gap-2">
+                  <div className="flex">
                     <FormField
                       control={form.control}
                       name="country_code"
                       render={({ field: codeField }) => (
                         <Select value={codeField.value} onValueChange={codeField.onChange}>
-                          <SelectTrigger className="w-[100px]">
+                          <SelectTrigger className="w-[80px] rounded-r-none border-r-0">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background border shadow-lg">
                             {countryCodes.map((cc) => (
                               <SelectItem key={cc.code} value={cc.code}>
                                 {cc.code}
@@ -363,7 +370,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                       )}
                     />
                     <FormControl>
-                      <Input type="tel" placeholder="" {...field} className="flex-1" />
+                      <Input type="tel" placeholder="" {...field} className="flex-1 rounded-l-none" />
                     </FormControl>
                   </div>
                   <FormMessage />

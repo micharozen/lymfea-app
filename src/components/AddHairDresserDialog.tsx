@@ -376,7 +376,7 @@ export default function AddHairDresserDialog({
                   {hotels.map((hotel) => (
                     <div
                       key={hotel.id}
-                      className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent"
+                      className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
                       onClick={(e) => {
                         e.preventDefault();
                         if (selectedHotels.includes(hotel.id)) {
