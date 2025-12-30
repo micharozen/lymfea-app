@@ -26,6 +26,18 @@ interface InvoiceData {
 const generateInvoiceHTML = (data: InvoiceData): string => {
   const { booking, treatments, hotel } = data;
   
+  // Determine document type based on payment method
+  const isRoomPayment = booking.payment_method === 'room';
+  const documentTitle = isRoomPayment ? 'BON DE PRESTATION' : 'INVOICE';
+  const documentTitleShort = isRoomPayment ? 'Bon de Prestation' : 'Invoice';
+  const billToLabel = isRoomPayment ? 'Client' : 'Bill To';
+  const thankYouMessage = isRoomPayment 
+    ? 'Merci d\'avoir choisi OOM' 
+    : 'Thank you for choosing OOM';
+  const footerNote = isRoomPayment
+    ? 'Ce document constitue un justificatif de prestation pour facturation à la chambre.'
+    : 'For any inquiries, please contact booking@oomworld.com';
+  
   const treatmentRows = treatments.map(t => `
     <tr>
       <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${escapeHtml(t.name)}</td>
@@ -44,7 +56,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Invoice #${booking.booking_id}</title>
+      <title>${documentTitleShort} #${booking.booking_id}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -215,15 +227,15 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
           <div class="company-name">OOM</div>
         </div>
         <div class="invoice-info">
-          <div class="invoice-title">INVOICE</div>
+          <div class="invoice-title">${documentTitle}</div>
           <p class="invoice-meta">#${booking.booking_id}</p>
-          <p class="invoice-meta">${new Date(booking.booking_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+          <p class="invoice-meta">${new Date(booking.booking_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
         </div>
       </div>
 
       <div class="info-grid">
         <div class="info-card">
-          <div class="section-title">Bill To</div>
+          <div class="section-title">${billToLabel}</div>
           <p class="name">${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</p>
           <p style="color: #6b7280;">${escapeHtml(booking.phone)}</p>
           ${booking.room_number ? `<p style="color: #6b7280;">Room ${escapeHtml(booking.room_number)}</p>` : ''}
@@ -238,32 +250,32 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       </div>
 
       <div class="booking-details">
-        <div class="section-title">Service Details</div>
+        <div class="section-title">${isRoomPayment ? 'Détails de la Prestation' : 'Service Details'}</div>
         <p>
-          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
         <p>
-          <strong>Time:</strong> ${booking.booking_time.substring(0, 5)}
+          <strong>${isRoomPayment ? 'Heure' : 'Time'}:</strong> ${booking.booking_time.substring(0, 5)}
         </p>
-        ${booking.hairdresser_name ? `<p><strong>Stylist:</strong> ${escapeHtml(booking.hairdresser_name)}</p>` : ''}
+        ${booking.hairdresser_name ? `<p><strong>${isRoomPayment ? 'Coiffeur(se)' : 'Stylist'}:</strong> ${escapeHtml(booking.hairdresser_name)}</p>` : ''}
       </div>
 
       <table>
         <thead>
           <tr>
-            <th>Treatment</th>
-            <th style="text-align: center;">Duration</th>
-            <th style="text-align: right;">Price</th>
+            <th>${isRoomPayment ? 'Prestation' : 'Treatment'}</th>
+            <th style="text-align: center;">${isRoomPayment ? 'Durée' : 'Duration'}</th>
+            <th style="text-align: right;">${isRoomPayment ? 'Prix' : 'Price'}</th>
           </tr>
         </thead>
         <tbody>
           ${treatmentRows}
           <tr class="summary-row">
-            <td colspan="2" style="text-align: right; font-weight: 600;">Subtotal</td>
+            <td colspan="2" style="text-align: right; font-weight: 600;">${isRoomPayment ? 'Sous-total' : 'Subtotal'}</td>
             <td style="text-align: right; font-weight: 600;">${subtotal.toFixed(2)}€</td>
           </tr>
           <tr class="summary-row">
-            <td colspan="2" style="text-align: right;">VAT (${vat}%)</td>
+            <td colspan="2" style="text-align: right;">TVA (${vat}%)</td>
             <td style="text-align: right;">${vatAmount.toFixed(2)}€</td>
           </tr>
           <tr class="total-row">
@@ -275,20 +287,20 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
 
       ${booking.client_signature ? `
       <div style="margin-top: 40px; padding: 24px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-        <div class="section-title">Client Signature</div>
+        <div class="section-title">${isRoomPayment ? 'Signature Client' : 'Client Signature'}</div>
         <div style="margin-top: 12px; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
-          <img src="${booking.client_signature}" alt="Client signature" style="max-width: 300px; max-height: 100px;" />
+          <img src="${booking.client_signature}" alt="Signature client" style="max-width: 300px; max-height: 100px;" />
         </div>
         <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-          Signed on ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+          ${isRoomPayment ? 'Signé le' : 'Signed on'} ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
         </p>
       </div>
       ` : ''}
 
       <div class="footer">
-        <p class="thank-you">Thank you for choosing OOM</p>
-        <p>For any inquiries, please contact booking@oomworld.com</p>
-        <p>Generated on ${new Date().toLocaleDateString('en-GB')}</p>
+        <p class="thank-you">${thankYouMessage}</p>
+        <p>${footerNote}</p>
+        <p>${isRoomPayment ? 'Généré le' : 'Generated on'} ${new Date().toLocaleDateString('fr-FR')}</p>
       </div>
     </body>
     </html>

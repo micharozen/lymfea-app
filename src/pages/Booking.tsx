@@ -61,6 +61,7 @@ export default function Booking() {
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
+  const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
   const [hasOpenedFromUrl, setHasOpenedFromUrl] = useState(false);
 
 
@@ -768,6 +769,7 @@ export default function Booking() {
                                               if (!error && data) {
                                                 setInvoiceHTML(data.html);
                                                 setInvoiceBookingId(data.bookingId);
+                                                setInvoiceIsRoomPayment(isRoomPayment);
                                                 setIsInvoicePreviewOpen(true);
                                               }
                                             });
@@ -805,6 +807,7 @@ export default function Booking() {
                                             if (!error && data) {
                                               setInvoiceHTML(data.html);
                                               setInvoiceBookingId(data.bookingId);
+                                              setInvoiceIsRoomPayment(true);
                                               setIsInvoicePreviewOpen(true);
                                             }
                                           });
@@ -922,7 +925,9 @@ export default function Booking() {
       <Dialog open={isInvoicePreviewOpen} onOpenChange={setIsInvoicePreviewOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Aperçu de la facture #{invoiceBookingId}</DialogTitle>
+            <DialogTitle>
+              {invoiceIsRoomPayment ? `Bon de Prestation #${invoiceBookingId}` : `Aperçu de la facture #${invoiceBookingId}`}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto border rounded-lg bg-white">
             <div dangerouslySetInnerHTML={{ __html: invoiceHTML }} />
@@ -943,10 +948,10 @@ export default function Booking() {
                   element.innerHTML = invoiceHTML;
                   document.body.appendChild(element);
 
-                  html2pdf()
-                    .set({
-                      margin: 0,
-                      filename: `invoice-${invoiceBookingId}.pdf`,
+                    html2pdf()
+                      .set({
+                        margin: 0,
+                        filename: invoiceIsRoomPayment ? `bon-prestation-${invoiceBookingId}.pdf` : `invoice-${invoiceBookingId}.pdf`,
                       image: { type: 'jpeg', quality: 0.98 },
                       html2canvas: { scale: 2, letterRendering: true },
                       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
