@@ -187,35 +187,29 @@ export default function ClientMenu() {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-foreground text-sm">
-                            {treatment.name}
-                          </h3>
-                          {treatment.price_on_request && (
-                            <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium">
-                              Sur devis
-                            </Badge>
-                          )}
-                        </div>
+                        <h3 className="font-semibold text-foreground text-sm">
+                          {treatment.name}
+                        </h3>
+                        {treatment.price_on_request && (
+                          <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium mt-1">
+                            On quote
+                          </Badge>
+                        )}
                         {treatment.description && (
-                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-1 mb-2 line-clamp-2">
                             {treatment.description}
                           </p>
                         )}
-                        <div className="flex items-center gap-2 text-sm">
-                          {treatment.price_on_request ? (
-                            <span className="text-amber-600 font-medium text-xs">
-                              Prix personnalisé
-                            </span>
-                          ) : (
+                        {!treatment.price_on_request && (
+                          <div className="flex items-center gap-2 text-sm">
                             <span className="font-semibold text-foreground">
                               €{Number(treatment.price).toFixed(0)}
                             </span>
-                          )}
-                          {treatment.duration && !treatment.price_on_request && (
-                            <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>
-                          )}
-                        </div>
+                            {treatment.duration && (
+                              <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
