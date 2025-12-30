@@ -82,9 +82,14 @@ serve(async (req) => {
 
     if (!hairdresserExists) {
       console.log('Phone number not found in hairdressers table');
+      // Return 200 to avoid surfacing as a runtime/network error in the client.
       return new Response(
-        JSON.stringify({ error: 'Numéro de téléphone non trouvé. Veuillez contacter l\'administrateur.' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          code: 'HAIRDRESSER_NOT_FOUND',
+          error: "Numéro de téléphone non trouvé. Veuillez contacter l'administrateur.",
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
