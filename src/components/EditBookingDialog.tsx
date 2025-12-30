@@ -906,55 +906,57 @@ export default function EditBookingDialog({
 
         {/* QUOTE VIEW */}
         {viewMode === "quote" ? (
-          <div className="flex-1 px-4 py-4 space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b">
-              <div className="w-10 h-10 bg-orange-100 rounded flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Réservation #{booking?.booking_id}</p>
-                <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
-              </div>
-            </div>
-
-            {/* Prestations sur devis */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Prestations sur devis</p>
-              {variableTreatments.map((treatment: any) => (
-                <div key={treatment.id} className="p-2 bg-orange-50 border border-orange-200 rounded text-sm">
-                  {treatment.name}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b">
+                <div className="w-10 h-10 bg-orange-100 rounded flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
                 </div>
-              ))}
+                <div>
+                  <p className="text-sm font-semibold">Réservation #{booking?.booking_id}</p>
+                  <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
+                </div>
+              </div>
+
+              {/* Prestations sur devis */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Prestations sur devis</p>
+                {variableTreatments.map((treatment: any) => (
+                  <div key={treatment.id} className="p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                    {treatment.name}
+                  </div>
+                ))}
+              </div>
+
+              {/* Form */}
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="quote-price-form" className="text-sm">Prix (€)</Label>
+                  <Input
+                    id="quote-price-form"
+                    type="number"
+                    min="0"
+                    value={quotePrice}
+                    onChange={(e) => setQuotePrice(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="quote-duration-form" className="text-sm">Durée (min)</Label>
+                  <Input
+                    id="quote-duration-form"
+                    type="number"
+                    min="0"
+                    value={quoteDuration}
+                    onChange={(e) => setQuoteDuration(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Form */}
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="quote-price-form" className="text-sm">Prix (€)</Label>
-                <Input
-                  id="quote-price-form"
-                  type="number"
-                  min="0"
-                  value={quotePrice}
-                  onChange={(e) => setQuotePrice(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="quote-duration-form" className="text-sm">Durée (min)</Label>
-                <Input
-                  id="quote-duration-form"
-                  type="number"
-                  min="0"
-                  value={quoteDuration}
-                  onChange={(e) => setQuoteDuration(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between gap-3 pt-3 border-t">
+            {/* Actions - Fixed at bottom */}
+            <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
               <Button variant="outline" onClick={() => setViewMode("view")}>
                 Retour
               </Button>
