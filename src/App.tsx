@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useCallback, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -80,10 +80,50 @@ const App = () => {
   // Initialize OneSignal for push notifications
   useOneSignal();
 
+  const updateSafeAreaInsets = useCallback(() => {
+    // iOS can report a gigantic safe-area-inset-bottom after certain navigations.
+    // Measure it from computed styles, then clamp it to a sane value.
+    const el = document.createElement("div");
+    el.style.position = "absolute";
+    el.style.visibility = "hidden";
+    el.style.pointerEvents = "none";
+    el.style.paddingBottom = "env(safe-area-inset-bottom)";
+    document.body.appendChild(el);
+
+    const pb = parseFloat(window.getComputedStyle(el).paddingBottom || "0") || 0;
+    document.body.removeChild(el);
+
+    const clamped = Math.min(Math.max(pb, 0), 40);
+    document.documentElement.style.setProperty("--oom-safe-bottom", `${clamped}px`);
+  }, []);
+
+  // Global safe-area refresh (applies to PWA + admin + client flows)
+  useEffect(() => {
+    updateSafeAreaInsets();
+    const raf = requestAnimationFrame(updateSafeAreaInsets);
+    const t = window.setTimeout(updateSafeAreaInsets, 250);
+
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", updateSafeAreaInsets);
+    vv?.addEventListener("scroll", updateSafeAreaInsets);
+    window.addEventListener("resize", updateSafeAreaInsets);
+    window.addEventListener("orientationchange", updateSafeAreaInsets);
+    window.addEventListener("pageshow", updateSafeAreaInsets);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+      vv?.removeEventListener("resize", updateSafeAreaInsets);
+      vv?.removeEventListener("scroll", updateSafeAreaInsets);
+      window.removeEventListener("resize", updateSafeAreaInsets);
+      window.removeEventListener("orientationchange", updateSafeAreaInsets);
+      window.removeEventListener("pageshow", updateSafeAreaInsets);
+    };
+  }, [updateSafeAreaInsets]);
+
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
       <Sonner />
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
