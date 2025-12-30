@@ -20,9 +20,8 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
   };
 
   return (
-    <div
-      className="flex-shrink-0 bg-background border-t border-border"
-      style={{ paddingBottom: "var(--oom-safe-bottom, 0px)" }}
+    <nav
+      className="flex-shrink-0 bg-background border-t border-border pb-safe"
     >
       <div className="flex items-center justify-around h-14">
         <button 
@@ -69,7 +68,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           </span>
         </button>
       </div>
-    </div>
+    </nav>
   );
 };
 
