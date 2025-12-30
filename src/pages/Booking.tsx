@@ -749,12 +749,11 @@ export default function Booking() {
                                   className="p-1 hover:bg-muted rounded transition-colors"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    // Smart document logic based on payment_method
-                                    if (booking.payment_method === 'card' && booking.stripe_invoice_url) {
-                                      // Card payment: Open Stripe invoice
+                                    // If Stripe invoice URL exists, always open it
+                                    if (booking.stripe_invoice_url) {
                                       window.open(booking.stripe_invoice_url, "_blank");
                                     } else {
-                                      // Room payment or no stripe URL: Generate internal PDF (Bon de Prestation)
+                                      // No Stripe URL: Generate internal PDF (Bon de Prestation)
                                       supabase.functions
                                         .invoke("generate-invoice", {
                                           body: { bookingId: booking.id },
@@ -773,8 +772,8 @@ export default function Booking() {
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {booking.payment_method === 'card' && booking.stripe_invoice_url 
-                                  ? "📄 Voir la Facture" 
+                                {booking.stripe_invoice_url 
+                                  ? "📄 Voir la Facture Stripe" 
                                   : "📝 Télécharger le Bon de Prestation"}
                               </TooltipContent>
                             </Tooltip>
