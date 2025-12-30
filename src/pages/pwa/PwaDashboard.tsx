@@ -151,7 +151,7 @@ const PwaDashboard = () => {
           // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
           if (newData.hairdresser_id !== null && 
               newData.hairdresser_id !== hairdresser.id &&
-              (newData.status === 'pending' || newData.status === 'assigned')) {
+              (newData.status === 'pending' || newData.status === 'confirmed')) {
             console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
@@ -404,7 +404,7 @@ const PwaDashboard = () => {
       const isAssignedToMe = hairdresser && booking.hairdresser_id === hairdresser.id;
       
       // Statuts actifs qui bloquent un créneau (doivent être visibles dans "upcoming")
-      const activeStatuses = ["assigned", "confirmed"];
+      const activeStatuses = ["confirmed", "ongoing"];
       const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {

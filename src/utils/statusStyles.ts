@@ -1,7 +1,7 @@
 // Centralized Status Configuration
 // All database values are now in English
 
-export type BookingStatus = 'pending' | 'assigned' | 'confirmed' | 'completed' | 'cancelled' | 'awaiting_validation';
+export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
@@ -10,9 +10,10 @@ interface StatusConfig {
   badgeClass: string;
   cardClass: string;
   hexColor: string; // For emails
+  pulse?: boolean; // For animated badges
 }
 
-// Booking Status Configuration - matching PWA styles
+// Booking Status Configuration - matching real-world service lifecycle
 export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   pending: {
     label: 'En attente',
@@ -20,17 +21,18 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     cardClass: 'bg-orange-500 text-white',
     hexColor: '#f97316',
   },
-  assigned: {
-    label: 'Assigné',
-    badgeClass: 'bg-blue-500/10 text-blue-700',
-    cardClass: 'bg-blue-500 text-white',
-    hexColor: '#3b82f6',
-  },
   confirmed: {
     label: 'Confirmé',
     badgeClass: 'bg-blue-500/10 text-blue-700',
     cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
+  },
+  ongoing: {
+    label: 'En cours',
+    badgeClass: 'bg-blue-600/10 text-blue-600 animate-pulse',
+    cardClass: 'bg-blue-600 text-white animate-pulse',
+    hexColor: '#2563eb',
+    pulse: true,
   },
   completed: {
     label: 'Terminé',
@@ -44,11 +46,11 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
-  awaiting_validation: {
-    label: 'Validation',
-    badgeClass: 'bg-purple-500/10 text-purple-700',
-    cardClass: 'bg-purple-500 text-white',
-    hexColor: '#8b5cf6',
+  noshow: {
+    label: 'No-show',
+    badgeClass: 'bg-purple-700/10 text-purple-800',
+    cardClass: 'bg-purple-800 text-white',
+    hexColor: '#6b21a8',
   },
 };
 

@@ -146,16 +146,23 @@ const PwaBookings = () => {
                     className={`px-2 py-1 rounded text-xs font-medium ${
                       booking.status === "completed"
                         ? "bg-green-500/10 text-green-700"
-                        : booking.status === "assigned" || booking.status === "confirmed"
+                        : booking.status === "confirmed"
                         ? "bg-blue-500/10 text-blue-700"
+                        : booking.status === "ongoing"
+                        ? "bg-blue-600/10 text-blue-600 animate-pulse"
+                        : booking.status === "noshow"
+                        ? "bg-purple-700/10 text-purple-800"
+                        : booking.status === "cancelled"
+                        ? "bg-red-500/10 text-red-700"
                         : "bg-orange-500/10 text-orange-700"
                     }`}
                   >
                     {booking.status === "pending" ? "En attente" :
-                     booking.status === "assigned" ? "Assigné" :
                      booking.status === "confirmed" ? "Confirmé" :
+                     booking.status === "ongoing" ? "En cours" :
                      booking.status === "completed" ? "Terminé" :
-                     booking.status === "cancelled" ? "Annulé" : booking.status}
+                     booking.status === "cancelled" ? "Annulé" :
+                     booking.status === "noshow" ? "No-show" : booking.status}
                   </span>
                 </div>
 

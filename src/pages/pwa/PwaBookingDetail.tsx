@@ -781,7 +781,7 @@ const PwaBookingDetail = () => {
           <div className="mb-3">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-semibold text-foreground">{t('booking.treatments')}</h3>
-              {booking.status === "assigned" && (
+              {booking.status === "confirmed" && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
                   className="px-4 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
@@ -950,7 +950,7 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {["assigned", "confirmed"].includes(booking.status) && !booking.client_signature && (
+                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
