@@ -114,6 +114,7 @@ export type Database = {
           payment_method: string | null
           payment_status: string | null
           phone: string
+          quote_token: string | null
           room_number: string | null
           signed_at: string | null
           status: string
@@ -142,6 +143,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           phone: string
+          quote_token?: string | null
           room_number?: string | null
           signed_at?: string | null
           status?: string
@@ -170,6 +172,7 @@ export type Database = {
           payment_method?: string | null
           payment_status?: string | null
           phone?: string
+          quote_token?: string | null
           room_number?: string | null
           signed_at?: string | null
           status?: string
