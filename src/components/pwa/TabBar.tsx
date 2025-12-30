@@ -21,7 +21,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/80 dark:bg-background/80 backdrop-blur-xl border-t border-gray-200/50 dark:border-border/50 pb-[env(safe-area-inset-bottom,0px)]"
+      className="fixed bottom-0 left-0 right-0 w-full z-50 bg-background border-t border-border pb-[env(safe-area-inset-bottom,0px)]"
     >
       <div className="flex items-center justify-around h-16">
         <button 
