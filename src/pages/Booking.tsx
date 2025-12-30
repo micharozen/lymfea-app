@@ -725,7 +725,7 @@ export default function Booking() {
                         <StatusBadge
                           status={booking.payment_status || "pending"}
                           type="payment"
-                          className="text-[10px] px-2 py-0.5 whitespace-nowrap"
+                          className="text-base px-2 py-0.5 whitespace-nowrap"
                         />
                       </TableCell>
                       <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
