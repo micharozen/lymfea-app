@@ -934,94 +934,66 @@ export default function EditBookingDialog({
 
             {/* Quote Card - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
-              <div className="p-3 bg-orange-50 border border-orange-300 rounded-lg space-y-3">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-orange-600" />
-                  <h3 className="font-medium text-sm text-orange-800">Devis à valider</h3>
+              <div className="p-2 bg-orange-50 border border-orange-300 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+                    <span className="font-medium text-xs text-orange-800">Devis à valider</span>
+                  </div>
+                  {fixedTreatments.length > 0 && (
+                    <span className="text-[10px] text-green-700">Fixes: €{fixedTreatmentsTotal.toFixed(0)}</span>
+                  )}
                 </div>
                 
-                {/* Fixed Price Items (read-only) */}
-                {fixedTreatments.length > 0 && (
-                  <div className="bg-white/50 rounded p-2 space-y-1">
-                    <p className="text-[10px] font-medium text-green-700">✓ Prix fixe</p>
-                    {fixedTreatments.map((treatment: any) => (
-                      <div key={treatment.id} className="flex justify-between text-xs">
-                        <span className="text-gray-700">{treatment.name}</span>
-                        <span className="font-medium text-green-700">€{(treatment.price || 0).toFixed(0)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-xs pt-1 border-t border-green-200">
-                      <span className="font-medium text-green-700">Sous-total</span>
-                      <span className="font-semibold text-green-700">€{fixedTreatmentsTotal.toFixed(0)}</span>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Variable Price Items (need quote input) */}
+                {/* Variable treatments list */}
                 {variableTreatments.length > 0 && (
-                  <div className="bg-orange-100/50 rounded p-2 space-y-1">
-                    <p className="text-[10px] font-medium text-orange-700">⏳ Sur devis</p>
-                    {variableTreatments.map((treatment: any) => (
-                      <div key={treatment.id} className="flex items-center justify-between text-xs">
-                        <span className="text-orange-800">{treatment.name}</span>
-                      </div>
-                    ))}
+                  <div className="text-xs text-orange-700">
+                    {variableTreatments.map((t: any) => t.name).join(", ")}
                   </div>
                 )}
                 
-                <p className="text-xs text-orange-700">
-                  Définissez le prix et la durée :</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="quote-price" className="text-xs text-orange-800">Prix (€)</Label>
+                {/* Input row */}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="quote-price" className="text-[10px] text-orange-800">Prix (€)</Label>
                     <Input
                       id="quote-price"
                       type="number"
                       min="0"
-                      step="0.01"
                       placeholder="100"
                       value={quotePrice}
                       onChange={(e) => setQuotePrice(e.target.value)}
-                      className="h-8 text-sm border-orange-300"
+                      className="h-7 text-xs border-orange-300"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="quote-duration" className="text-xs text-orange-800">Durée (min)</Label>
+                  <div className="flex-1">
+                    <Label htmlFor="quote-duration" className="text-[10px] text-orange-800">Durée (min)</Label>
                     <Input
                       id="quote-duration"
                       type="number"
                       min="0"
-                      step="5"
                       placeholder="60"
                       value={quoteDuration}
                       onChange={(e) => setQuoteDuration(e.target.value)}
-                      className="h-8 text-sm border-orange-300"
+                      className="h-7 text-xs border-orange-300"
                     />
                   </div>
+                  <Button
+                    onClick={handleValidateQuote}
+                    disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
+                    size="sm"
+                    className="h-7 px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    {validateQuoteMutation.isPending ? "..." : "Envoyer"}
+                  </Button>
                 </div>
                 
-                {/* Grand Total Preview */}
+                {/* Total preview */}
                 {quotePrice && (
-                  <div className="bg-white rounded p-2 border border-orange-300 text-xs">
-                    <div className="flex justify-between mb-1">
-                      <span className="text-gray-600">Fixes: €{fixedTreatmentsTotal.toFixed(0)}</span>
-                      <span className="text-gray-600">Devis: €{parseFloat(quotePrice || "0").toFixed(0)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold pt-1 border-t border-orange-200">
-                      <span className="text-orange-800">TOTAL</span>
-                      <span className="text-orange-800">€{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(0)}</span>
-                    </div>
+                  <div className="text-[10px] text-orange-800 text-right">
+                    Total: €{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(0)}
                   </div>
                 )}
-                
-                <Button
-                  onClick={handleValidateQuote}
-                  disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
-                  size="sm"
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-                >
-                  {validateQuoteMutation.isPending ? "Envoi..." : "Envoyer le devis"}
-                </Button>
               </div>
             )}
 
