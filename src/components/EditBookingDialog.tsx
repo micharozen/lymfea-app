@@ -935,14 +935,9 @@ export default function EditBookingDialog({
             {/* Quote Card - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
               <div className="p-2 bg-orange-50 border border-orange-300 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
-                    <span className="font-medium text-xs text-orange-800">Devis à valider</span>
-                  </div>
-                  {fixedTreatments.length > 0 && (
-                    <span className="text-[10px] text-green-700">Fixes: €{fixedTreatmentsTotal.toFixed(0)}</span>
-                  )}
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+                  <span className="font-medium text-xs text-orange-800">Devis à valider</span>
                 </div>
                 
                 {/* Variable treatments list */}
