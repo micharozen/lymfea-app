@@ -47,12 +47,12 @@ export default function ClientConfirmation() {
         {/* Success Message */}
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-foreground">
-            {isQuotePending ? 'Quote Requested' : t('confirmation.title')}
+            {isQuotePending ? t('confirmation.quotePendingTitle', 'Demande de devis envoyée') : t('confirmation.title')}
           </h1>
           
           <p className="text-muted-foreground leading-relaxed px-4">
             {isQuotePending 
-              ? "We'll send you a quote very soon. You will receive an email with all the details."
+              ? t('confirmation.quotePendingMessage', 'Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails.')
               : t('confirmation.message')
             }
           </p>

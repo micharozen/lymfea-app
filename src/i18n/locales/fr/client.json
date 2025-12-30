@@ -88,7 +88,9 @@
   "confirmation": {
     "title": "Réservation confirmée",
     "message": "Vous recevrez un email de confirmation avec tous les détails de votre réservation",
-    "backHome": "Retour à l'accueil"
+    "backHome": "Retour à l'accueil",
+    "quotePendingTitle": "Demande de devis envoyée",
+    "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails."
   },
   "hotelNotFound": "Hôtel non trouvé",
   "checkQrCode": "Veuillez vérifier votre code QR"
