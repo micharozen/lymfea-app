@@ -139,91 +139,168 @@ const handler = async (req: Request): Promise<Response> => {
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
-          <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <div style="text-align: center; margin-bottom: 24px;">
-              <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
-            </div>
-            
-            <h1 style="color: #1f2937; font-size: 24px; margin: 0 0 16px 0; text-align: center;">
-              Votre devis est prêt
-            </h1>
-            
-            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0; text-align: center;">
-              Bonjour ${booking.client_first_name},<br>
-              L'équipe OOM a estimé votre soin.
-            </p>
-            
-            <div style="background-color: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-              <div style="text-align: center; margin-bottom: 16px;">
-                <p style="color: #6b7280; font-size: 14px; margin: 0 0 8px 0;">Réservation #${booking.booking_id}</p>
-              </div>
-              
-              ${fixedItems && fixedItems.length > 0 ? `
-              <div style="margin-bottom: 16px;">
-                <p style="color: #059669; font-size: 12px; font-weight: 600; margin: 0 0 8px 0;">✓ Prestations à prix fixe</p>
-                ${fixedItems.map((item: QuoteItem) => `
-                  <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
-                    <span style="color: #374151;">${item.name}</span>
-                    <span style="color: #059669; font-weight: 500;">${item.price.toFixed(2)} €</span>
-                  </div>
-                `).join('')}
-              </div>
-              ` : ''}
-              
-              ${variableItems && variableItems.length > 0 ? `
-              <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed #f59e0b;">
-                <p style="color: #d97706; font-size: 12px; font-weight: 600; margin: 0 0 8px 0;">📋 Prestations sur devis</p>
-                ${variableItems.map((item: QuoteItem) => `
-                  <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
-                    <span style="color: #374151;">${item.name}</span>
-                    <span style="color: #d97706; font-weight: 500;">${item.price.toFixed(2)} €</span>
-                  </div>
-                `).join('')}
-              </div>
-              ` : ''}
-              
-              <div style="display: flex; justify-content: center; gap: 32px; margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
-                <div style="text-align: center;">
-                  <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Prix Total</p>
-                  <p style="color: #1f2937; font-size: 28px; font-weight: 700; margin: 0;">${quotedPrice.toFixed(2)} €</p>
-                </div>
-                <div style="text-align: center;">
-                  <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Durée</p>
-                  <p style="color: #1f2937; font-size: 28px; font-weight: 700; margin: 0;">${quotedDuration} min</p>
-                </div>
-              </div>
-              
-              <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
-                <p style="color: #6b7280; font-size: 14px; margin: 0; text-align: center;">
-                  📅 ${booking.booking_date} à ${booking.booking_time?.substring(0, 5)}<br>
-                  🏨 ${hotelName}${booking.room_number ? ` - Chambre ${booking.room_number}` : ''}
-                </p>
-              </div>
-            </div>
-            
-            <p style="color: #4b5563; font-size: 14px; text-align: center; margin: 0 0 24px 0;">
-              Souhaitez-vous confirmer cette réservation ?
-            </p>
-            
-            <div style="text-align: center; margin-bottom: 16px;">
-              <a href="${approveUrl}" 
-                 style="display: inline-block; background-color: #10b981; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 8px;">
-                ✅ Accepter et réserver
-              </a>
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 24px;">
-              <a href="${refuseUrl}" 
-                 style="display: inline-block; background-color: #6b7280; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 500; font-size: 14px;">
-                ❌ Refuser
-              </a>
-            </div>
-            
-            <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 24px 0 0 0;">
-              Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.<br>
-              OOM World - Luxury Hair Services
-            </p>
-          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
+            <tr>
+              <td style="background-color: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                
+                <!-- Logo -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                  <tr>
+                    <td align="center">
+                      <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Title -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                  <tr>
+                    <td align="center">
+                      <h1 style="color: #1f2937; font-size: 24px; margin: 0 0 16px 0;">Votre devis est prêt</h1>
+                      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0;">
+                        Bonjour ${booking.client_first_name},<br>
+                        L'équipe OOM a estimé votre soin.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Booking Details Card -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin-bottom: 24px;">
+                  <tr>
+                    <td style="padding: 24px;">
+                      
+                      <!-- Booking ID -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                        <tr>
+                          <td align="center">
+                            <p style="color: #6b7280; font-size: 14px; margin: 0;">Réservation #${booking.booking_id}</p>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      ${fixedItems && fixedItems.length > 0 ? `
+                      <!-- Fixed Price Items -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                        <tr>
+                          <td>
+                            <p style="color: #059669; font-size: 12px; font-weight: 600; margin: 0 0 8px 0;">✓ Prestations à prix fixe</p>
+                          </td>
+                        </tr>
+                        ${fixedItems.map((item: QuoteItem) => `
+                        <tr>
+                          <td style="padding: 4px 0;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="color: #374151; font-size: 14px;">${item.name}</td>
+                                <td align="right" style="color: #059669; font-weight: 500; font-size: 14px;">${item.price.toFixed(2)} €</td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        `).join('')}
+                      </table>
+                      ` : ''}
+                      
+                      ${variableItems && variableItems.length > 0 ? `
+                      <!-- Variable Price Items -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed #f59e0b;">
+                        <tr>
+                          <td>
+                            <p style="color: #d97706; font-size: 12px; font-weight: 600; margin: 8px 0;">📋 Prestations sur devis</p>
+                          </td>
+                        </tr>
+                        ${variableItems.map((item: QuoteItem) => `
+                        <tr>
+                          <td style="padding: 4px 0;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="color: #374151; font-size: 14px;">${item.name}</td>
+                                <td align="right" style="color: #d97706; font-weight: 500; font-size: 14px;">${item.price.toFixed(2)} €</td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        `).join('')}
+                      </table>
+                      ` : ''}
+                      
+                      <!-- Total -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
+                        <tr>
+                          <td width="50%" align="center" style="padding: 8px;">
+                            <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Prix Total</p>
+                            <p style="color: #1f2937; font-size: 28px; font-weight: 700; margin: 0;">${quotedPrice.toFixed(2)} €</p>
+                          </td>
+                          <td width="50%" align="center" style="padding: 8px;">
+                            <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Durée</p>
+                            <p style="color: #1f2937; font-size: 28px; font-weight: 700; margin: 0;">${quotedDuration} min</p>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <!-- Date & Location -->
+                      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                        <tr>
+                          <td align="center">
+                            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+                              📅 ${booking.booking_date} à ${booking.booking_time?.substring(0, 5)}<br>
+                              🏨 ${hotelName}${booking.room_number ? ` - Chambre ${booking.room_number}` : ''}
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- CTA Question -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                  <tr>
+                    <td align="center">
+                      <p style="color: #4b5563; font-size: 14px; margin: 0;">Souhaitez-vous confirmer cette réservation ?</p>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Accept Button -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 16px;">
+                  <tr>
+                    <td align="center">
+                      <a href="${approveUrl}" style="display: inline-block; background-color: #10b981; color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        ✅ Accepter et réserver
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Refuse Button -->
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                  <tr>
+                    <td align="center">
+                      <a href="${refuseUrl}" style="display: inline-block; background-color: #6b7280; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 500; font-size: 14px;">
+                        ❌ Refuser
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                
+                <!-- Footer -->
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td align="center">
+                      <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+                        Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.<br>
+                        OOM World - Luxury Hair Services
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+                
+              </td>
+            </tr>
+          </table>
         </body>
         </html>
       `,
