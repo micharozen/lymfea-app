@@ -197,6 +197,7 @@ All colors MUST be HSL.
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Ensure the canvas behind iOS safe-areas matches app background */
+    background-color: #ffffff;
     background: hsl(var(--background));
     height: 100%;
   }
