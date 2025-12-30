@@ -130,7 +130,7 @@ export default function CreateBookingFromRequestDialog({
       }
 
       const hairdresser = hairdressers?.find((h) => h.id === hairdresserId);
-      const initialStatus = hairdresserId ? "Assigné" : "En attente";
+      const initialStatus = hairdresserId ? "confirmed" : "pending";
       const assignedAt = hairdresserId ? new Date().toISOString() : null;
 
       // Create booking

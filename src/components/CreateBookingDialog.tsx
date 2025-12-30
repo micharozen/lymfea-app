@@ -231,7 +231,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         booking_time: d.time,
         hairdresser_id: d.hairdresserId || null, 
         hairdresser_name: hd ? `${hd.first_name} ${hd.last_name}` : null,
-        status: d.hairdresserId ? "Assigné" : "En attente", 
+        status: d.hairdresserId ? "confirmed" : "pending", 
         assigned_at: d.hairdresserId ? new Date().toISOString() : null, 
         total_price: d.totalPrice,
       }).select().single();
