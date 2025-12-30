@@ -142,135 +142,95 @@ const ClientManageBooking = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-6">
-        <div className="max-w-md mx-auto">
-          <img src={oomLogo} alt="OOM" className="h-8 mb-4 brightness-0 invert" />
-          <h1 className="text-2xl font-bold">Gérer ma réservation</h1>
-          <p className="text-primary-foreground/80">Réservation #{booking.booking_id}</p>
+      {/* Compact Header */}
+      <div className="bg-primary text-primary-foreground p-4">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <img src={oomLogo} alt="OOM" className="h-6 brightness-0 invert" />
+          <span className="text-sm opacity-80">#{booking.booking_id}</span>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-6 space-y-6">
+      <div className="max-w-md mx-auto p-4 space-y-4">
         {/* Status Badge */}
         {isCancelled && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
-            <div>
-              <p className="font-medium text-destructive">Réservation annulée</p>
-              {booking.cancellation_reason && (
-                <p className="text-sm text-muted-foreground">{booking.cancellation_reason}</p>
-              )}
-            </div>
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium text-destructive">Annulée</span>
           </div>
         )}
 
         {isCompleted && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-center gap-3">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <p className="font-medium text-green-600">Réservation terminée</p>
+          <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span className="text-sm font-medium text-green-600">Terminée</span>
           </div>
         )}
 
-        {/* Booking Details */}
+        {/* Main Info Card */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Détails de la réservation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Date & Time */}
-            <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">
-                  {format(parseISO(booking.booking_date), "EEEE d MMMM yyyy", { locale: fr })}
-                </p>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-4 w-4" />
-                  <span>{booking.booking_time.slice(0, 5)}</span>
+          <CardContent className="p-4 space-y-3">
+            {/* Date & Time + Hotel */}
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium text-sm">
+                    {format(parseISO(booking.booking_date), "EEE d MMM", { locale: fr })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{booking.booking_time.slice(0, 5)}</p>
                 </div>
               </div>
-            </div>
-
-            {/* Hotel */}
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">{booking.hotel_name || "Hôtel"}</p>
+              <div className="text-right">
+                <p className="font-medium text-sm">{booking.hotel_name || "Hôtel"}</p>
                 {booking.room_number && (
-                  <p className="text-muted-foreground">Chambre {booking.room_number}</p>
+                  <p className="text-xs text-muted-foreground">Ch. {booking.room_number}</p>
                 )}
               </div>
             </div>
 
-            {/* Treatments */}
-            <div className="flex items-start gap-3">
-              <Scissors className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium mb-2">Prestations</p>
-                <ul className="space-y-1">
-                  {booking.booking_treatments?.map((bt: any) => (
-                    <li key={bt.id} className="text-muted-foreground flex justify-between">
-                      <span>{bt.treatment?.name}</span>
-                      {bt.treatment?.price && (
-                        <span className="font-medium text-foreground">
-                          {bt.treatment.price}€
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {/* Treatments - Compact */}
+            <div className="border-t pt-3">
+              {booking.booking_treatments?.map((bt: any) => (
+                <div key={bt.id} className="flex justify-between text-sm py-1">
+                  <span>{bt.treatment?.name}</span>
+                  {bt.treatment?.price && <span className="font-medium">{bt.treatment.price}€</span>}
+                </div>
+              ))}
             </div>
 
             {/* Total */}
             {booking.total_price && (
-              <div className="border-t pt-4 flex justify-between items-center">
+              <div className="border-t pt-3 flex justify-between items-center">
                 <span className="font-medium">Total</span>
-                <span className="text-xl font-bold">{booking.total_price}€</span>
+                <span className="text-lg font-bold">{booking.total_price}€</span>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Client Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Vos informations</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p>
-              <span className="text-muted-foreground">Nom :</span>{" "}
-              {booking.client_first_name} {booking.client_last_name}
-            </p>
-            {booking.client_email && (
-              <p>
-                <span className="text-muted-foreground">Email :</span> {booking.client_email}
-              </p>
-            )}
-            <p>
-              <span className="text-muted-foreground">Téléphone :</span> {booking.phone}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Client Info - Inline */}
+        <div className="text-sm text-muted-foreground">
+          <span>{booking.client_first_name} {booking.client_last_name}</span>
+          <span className="mx-2">•</span>
+          <span>{booking.phone}</span>
+        </div>
 
         {/* Cancel Button */}
         {!isCancelled && !isCompleted && timeInfo && !timeInfo.isPast && (
           <Button
             variant={timeInfo.canCancelFreely ? "destructive" : "outline"}
+            size="sm"
             className="w-full"
             onClick={handleCancelClick}
           >
-            {timeInfo.canCancelFreely ? "Annuler la réservation" : "Annulation tardive"}
+            {timeInfo.canCancelFreely ? "Annuler" : "Annulation tardive"}
           </Button>
         )}
 
         {timeInfo?.isPast && !isCancelled && !isCompleted && (
-          <div className="bg-muted rounded-lg p-4 text-center">
-            <p className="text-muted-foreground">
-              Le rendez-vous est passé, l'annulation n'est plus possible.
-            </p>
-          </div>
+          <p className="text-xs text-center text-muted-foreground">
+            Rendez-vous passé, annulation impossible.
+          </p>
         )}
       </div>
 
