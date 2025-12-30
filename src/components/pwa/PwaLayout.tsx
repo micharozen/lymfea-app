@@ -172,19 +172,29 @@ const PwaLayout = () => {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
-      <DebugViewportOverlay />
-      {/* Single scroll container; pad bottom so fixed TabBar never covers content */}
-      <main
-        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
-        style={{
-          paddingBottom: shouldShowTabBar
-            ? "calc(56px + env(safe-area-inset-bottom, 0px))"
-            : undefined,
+      <main 
+        className="flex-1 overflow-y-auto overscroll-y-contain"
+        style={{ 
+          paddingBottom: shouldShowTabBar 
+            ? "calc(56px + env(safe-area-inset-bottom, 0px))" 
+            : undefined 
         }}
       >
         <Outlet />
       </main>
+      
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
+      
+      {/* Safe area bottom cover - fills the iOS home indicator area with TabBar background */}
+      {shouldShowTabBar && (
+        <div 
+          className="fixed bottom-0 left-0 right-0 bg-white pointer-events-none"
+          style={{ height: "env(safe-area-inset-bottom, 0px)" }}
+          aria-hidden="true"
+        />
+      )}
+      
+      <DebugViewportOverlay />
     </div>
   );
 };
