@@ -176,6 +176,10 @@ export default function EditBookingDialog({
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
   
+  // Quote pending states
+  const [quotePrice, setQuotePrice] = useState<string>("");
+  const [quoteDuration, setQuoteDuration] = useState<string>("");
+  
 
   // Pre-fill form when booking changes
   useEffect(() => {
@@ -652,6 +656,78 @@ export default function EditBookingDialog({
     },
   });
 
+  // Quote validation mutation
+  const validateQuoteMutation = useMutation({
+    mutationFn: async ({ price, duration }: { price: number; duration: number }) => {
+      if (!booking?.id) throw new Error("No booking ID");
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          total_price: price,
+          status: "pending",
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      
+      // Trigger notifications to hairdressers
+      if (booking?.id) {
+        try {
+          await supabase.functions.invoke('trigger-new-booking-notifications', {
+            body: { bookingId: booking.id }
+          });
+        } catch (e) {
+          console.error("Error triggering notifications:", e);
+        }
+      }
+      
+      toast({
+        title: "Mission publiée !",
+        description: "Mission publiée pour les coiffeurs !",
+      });
+      setQuotePrice("");
+      setQuoteDuration("");
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la validation du devis",
+        variant: "destructive",
+      });
+      console.error("Error validating quote:", error);
+    },
+  });
+
+  const handleValidateQuote = () => {
+    const price = parseFloat(quotePrice);
+    const duration = parseInt(quoteDuration);
+    
+    if (isNaN(price) || price <= 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer un prix valide",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isNaN(duration) || duration <= 0) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer une durée valide",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    validateQuoteMutation.mutate({ price, duration });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -816,6 +892,58 @@ export default function EditBookingDialog({
                 )}
               </div>
             </div>
+
+            {/* Quote Card - Only shown for quote_pending status and admin */}
+            {booking?.status === "quote_pending" && isAdmin && (
+              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  <h3 className="font-semibold text-orange-800">Devis à valider</h3>
+                </div>
+                <p className="text-sm text-orange-700">
+                  Cette réservation "Sur Mesure" nécessite que vous définissiez le prix et la durée.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="quote-price" className="text-sm font-medium text-orange-800">
+                      Prix à proposer (€)
+                    </Label>
+                    <Input
+                      id="quote-price"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Ex: 150.00"
+                      value={quotePrice}
+                      onChange={(e) => setQuotePrice(e.target.value)}
+                      className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="quote-duration" className="text-sm font-medium text-orange-800">
+                      Durée estimée (min)
+                    </Label>
+                    <Input
+                      id="quote-duration"
+                      type="number"
+                      min="0"
+                      step="5"
+                      placeholder="Ex: 90"
+                      value={quoteDuration}
+                      onChange={(e) => setQuoteDuration(e.target.value)}
+                      className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
+                    />
+                  </div>
+                </div>
+                <Button
+                  onClick={handleValidateQuote}
+                  disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  {validateQuoteMutation.isPending ? "Validation..." : "Valider et Publier la mission"}
+                </Button>
+              </div>
+            )}
 
             {/* Infos principales */}
             <div className="p-3 bg-muted/30 rounded-lg">
