@@ -59,7 +59,7 @@ serve(async (req) => {
 
     // SECURITY: Validate all treatments belong to the specified hotel and are active
     const invalidTreatments = treatments.filter(t => 
-      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'Actif'
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
     );
 
     if (invalidTreatments.length > 0) {
