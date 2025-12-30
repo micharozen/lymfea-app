@@ -51,15 +51,19 @@ serve(async (req) => {
           status
         )
       `)
-      .eq('hotel_id', hotelId)
-      .eq('hairdressers.status', 'Actif');
+      .eq('hotel_id', hotelId);
+
+    // Filter active hairdressers (case-insensitive)
+    const activeHairdressers = hairdressers?.filter((h: any) => 
+      h.hairdressers?.status?.toLowerCase() === 'active'
+    ) || [];
 
     if (hairdressersError) {
       console.error('Error fetching hairdressers:', hairdressersError);
       throw hairdressersError;
     }
 
-    if (!hairdressers || hairdressers.length === 0) {
+    if (!activeHairdressers || activeHairdressers.length === 0) {
       console.log('No active hairdressers found for hotel');
       return new Response(
         JSON.stringify({ availableSlots: [] }),
@@ -67,7 +71,7 @@ serve(async (req) => {
       );
     }
 
-    const hairdresserIds = hairdressers.map(h => h.hairdresser_id);
+    const hairdresserIds = activeHairdressers.map((h: any) => h.hairdresser_id);
     console.log(`Found ${hairdresserIds.length} active hairdressers`);
 
     // Get all bookings that block slots (assigned to hairdressers, not cancelled/terminated)
