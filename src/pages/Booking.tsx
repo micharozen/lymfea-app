@@ -742,29 +742,43 @@ export default function Booking() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
-                          <button
-                            className="p-1 hover:bg-muted rounded transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (booking.stripe_invoice_url) {
-                                window.open(booking.stripe_invoice_url, "_blank");
-                              } else {
-                                supabase.functions
-                                  .invoke("generate-invoice", {
-                                    body: { bookingId: booking.id },
-                                  })
-                                  .then(({ data, error }) => {
-                                    if (!error && data) {
-                                      setInvoiceHTML(data.html);
-                                      setInvoiceBookingId(data.bookingId);
-                                      setIsInvoicePreviewOpen(true);
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  className="p-1 hover:bg-muted rounded transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Smart document logic based on payment_method
+                                    if (booking.payment_method === 'card' && booking.stripe_invoice_url) {
+                                      // Card payment: Open Stripe invoice
+                                      window.open(booking.stripe_invoice_url, "_blank");
+                                    } else {
+                                      // Room payment or no stripe URL: Generate internal PDF (Bon de Prestation)
+                                      supabase.functions
+                                        .invoke("generate-invoice", {
+                                          body: { bookingId: booking.id },
+                                        })
+                                        .then(({ data, error }) => {
+                                          if (!error && data) {
+                                            setInvoiceHTML(data.html);
+                                            setInvoiceBookingId(data.bookingId);
+                                            setIsInvoicePreviewOpen(true);
+                                          }
+                                        });
                                     }
-                                  });
-                              }
-                            }}
-                          >
-                            <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                          </button>
+                                  }}
+                                >
+                                  <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {booking.payment_method === 'card' && booking.stripe_invoice_url 
+                                  ? "📄 Voir la Facture" 
+                                  : "📝 Télécharger le Bon de Prestation"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </TableCell>
                     </TableRow>
