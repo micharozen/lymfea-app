@@ -59,7 +59,7 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     hexColor: '#f97316',
   },
   waiting_approval: {
-    label: 'En attente client',
+    label: 'Attente',
     badgeClass: 'bg-purple-100 text-purple-800 border border-purple-400',
     cardClass: 'bg-purple-500 text-white',
     hexColor: '#a855f7',

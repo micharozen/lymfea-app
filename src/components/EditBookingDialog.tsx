@@ -897,7 +897,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-md p-0 gap-0 flex flex-col max-h-[85vh]">
+      <DialogContent className="max-w-md p-0 gap-0 flex flex-col max-h-[90vh] overflow-hidden">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
