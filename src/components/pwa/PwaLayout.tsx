@@ -170,19 +170,22 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/');
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
-      <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden"
-        style={{ 
-          paddingTop: 'env(safe-area-inset-top)',
-          paddingLeft: 'env(safe-area-inset-left)',
-          paddingRight: 'env(safe-area-inset-right)',
-        }}
-      >
+    <div 
+      className="flex flex-col h-[100dvh] bg-white overflow-hidden"
+      style={{ 
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
         <Outlet />
       </div>
       {shouldShowTabBar && (
-        <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div 
+          className="flex-shrink-0"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           <TabBar unreadCount={unreadCount} />
         </div>
       )}
