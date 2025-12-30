@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +23,13 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -216,6 +217,20 @@ export default function EditBookingDialog({
   });
 
   const isAdmin = userRole === "admin";
+  const isConcierge = userRole === "concierge";
+  const canCancelBooking = isAdmin || isConcierge;
+
+  // Calculate if booking is within 2 hours (late cancellation)
+  const isLateCancellation = useMemo(() => {
+    if (!booking?.booking_date || !booking?.booking_time) return false;
+    
+    const now = new Date();
+    const bookingDateTime = parseISO(`${booking.booking_date}T${booking.booking_time}`);
+    const minutesUntilAppointment = differenceInMinutes(bookingDateTime, now);
+    const hoursUntilAppointment = minutesUntilAppointment / 60;
+    
+    return hoursUntilAppointment <= 2 && hoursUntilAppointment > 0;
+  }, [booking?.booking_date, booking?.booking_time]);
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -590,7 +605,20 @@ export default function EditBookingDialog({
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Send push notification to hairdresser if one was assigned
+      if (booking?.hairdresser_id) {
+        try {
+          console.log("Triggering cancellation push notification for booking:", booking.id);
+          const { data, error } = await supabase.functions.invoke('trigger-booking-cancelled-notification', {
+            body: { bookingId: booking.id, cancellationReason: cancellationReason }
+          });
+          console.log("Cancellation push notification result:", data, error);
+        } catch (notifError) {
+          console.error("Error sending cancellation push notification:", notifError);
+        }
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: "Succès",
@@ -939,7 +967,7 @@ export default function EditBookingDialog({
               </Button>
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
-                  {booking?.status !== "cancelled" && (
+                  {booking?.status !== "cancelled" && canCancelBooking && (
                     <Button 
                       type="button" 
                       variant="destructive"
@@ -1181,7 +1209,7 @@ export default function EditBookingDialog({
                   <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
                     Annuler
                   </Button>
-                  {booking?.status !== "cancelled" && (
+                  {booking?.status !== "cancelled" && canCancelBooking && (
                     <Button 
                       type="button" 
                       variant="destructive"
@@ -1364,18 +1392,33 @@ export default function EditBookingDialog({
               Veuillez indiquer la raison de l'annulation. Cette action ne supprimera pas la réservation mais changera son statut en "Annulé".
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Label htmlFor="cancellation-reason" className="text-sm font-medium">
-              Raison de l'annulation <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="cancellation-reason"
-              value={cancellationReason}
-              onChange={(e) => setCancellationReason(e.target.value)}
-              placeholder="Saisissez la raison de l'annulation..."
-              className="mt-2"
-              rows={3}
-            />
+          <div className="py-4 space-y-4">
+            {/* Late cancellation warning for concierges */}
+            {isConcierge && isLateCancellation && (
+              <Alert variant="destructive" className="bg-amber-50 border-amber-200">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Attention :</strong> Cette réservation a lieu dans moins de 2h. 
+                  Politique = Facturation 100%.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <div>
+              <Label htmlFor="cancellation-reason" className="text-sm font-medium">
+                Raison de l'annulation <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="cancellation-reason"
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder={isConcierge && isLateCancellation 
+                  ? "Ex: Geste commercial VIP, Client malade, Urgence familiale..."
+                  : "Saisissez la raison de l'annulation..."}
+                className="mt-2"
+                rows={3}
+              />
+            </div>
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Retour</AlertDialogCancel>
