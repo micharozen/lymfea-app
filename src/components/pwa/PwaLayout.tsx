@@ -173,8 +173,15 @@ const PwaLayout = () => {
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
       <DebugViewportOverlay />
-      {/* Main content - fills all available space */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain -webkit-overflow-scrolling-touch">
+      {/* Single scroll container; pad bottom so fixed TabBar never covers content */}
+      <main
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+        style={{
+          paddingBottom: shouldShowTabBar
+            ? "calc(56px + env(safe-area-inset-bottom, 0px))"
+            : undefined,
+        }}
+      >
         <Outlet />
       </main>
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
