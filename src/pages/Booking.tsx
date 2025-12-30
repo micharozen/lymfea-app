@@ -690,7 +690,7 @@ export default function Booking() {
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Start t...</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Status</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Payment</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center">Payment</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client name</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total price</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
@@ -721,7 +721,7 @@ export default function Booking() {
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                         <StatusBadge
                           status={booking.payment_status || "pending"}
                           type="payment"
