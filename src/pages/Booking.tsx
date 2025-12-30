@@ -740,7 +740,7 @@ export default function Booking() {
                       <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
                           <button
                             className="p-1 hover:bg-muted rounded transition-colors"
