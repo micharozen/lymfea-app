@@ -400,7 +400,8 @@ export default function EditBookingDialog({
             name,
             category,
             price,
-            duration
+            duration,
+            price_on_request
           )
         `)
         .eq("booking_id", booking!.id);
@@ -408,6 +409,12 @@ export default function EditBookingDialog({
       return data?.map((bt: any) => bt.treatment_menus).filter(Boolean) || [];
     },
   });
+
+  // Separate fixed and variable treatments for mixed cart logic
+  const fixedTreatments = bookingTreatments?.filter((t: any) => !t.price_on_request) || [];
+  const variableTreatments = bookingTreatments?.filter((t: any) => t.price_on_request) || [];
+  const fixedTreatmentsTotal = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.price || 0), 0);
+  const hasVariableTreatments = variableTreatments.length > 0;
 
   // Charger les traitements existants quand la réservation change
   useEffect(() => {
@@ -658,26 +665,48 @@ export default function EditBookingDialog({
 
   // Quote validation mutation - sends to client for approval
   const validateQuoteMutation = useMutation({
-    mutationFn: async ({ price, duration }: { price: number; duration: number }) => {
+    mutationFn: async ({ quotedVariablePrice, quotedVariableDuration }: { quotedVariablePrice: number; quotedVariableDuration: number }) => {
       if (!booking?.id) throw new Error("No booking ID");
 
-      // Update booking with price and set to waiting_approval
+      // Calculate totals: fixed items + quoted variable items
+      const totalPrice = fixedTreatmentsTotal + quotedVariablePrice;
+      const fixedDuration = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.duration || 0), 0);
+      const totalDuration = fixedDuration + quotedVariableDuration;
+
+      // Update booking with total price and set to waiting_approval
       const { error } = await supabase
         .from("bookings")
         .update({
-          total_price: price,
+          total_price: totalPrice,
           status: "waiting_approval",
         })
         .eq("id", booking.id);
 
       if (error) throw error;
 
-      // Send quote email to client
+      // Prepare breakdown for email
+      const fixedItemsBreakdown = fixedTreatments.map((t: any) => ({
+        name: t.name,
+        price: t.price || 0,
+        isFixed: true,
+      }));
+      
+      const variableItemsBreakdown = variableTreatments.map((t: any) => ({
+        name: t.name,
+        price: quotedVariablePrice / variableTreatments.length, // Split evenly for display
+        isFixed: false,
+      }));
+
+      // Send quote email to client with breakdown
       const { error: emailError } = await supabase.functions.invoke('send-quote-email', {
         body: { 
           bookingId: booking.id,
-          quotedPrice: price,
-          quotedDuration: duration
+          quotedPrice: totalPrice,
+          quotedDuration: totalDuration,
+          fixedTotal: fixedTreatmentsTotal,
+          variableTotal: quotedVariablePrice,
+          fixedItems: fixedItemsBreakdown,
+          variableItems: variableItemsBreakdown,
         }
       });
 
@@ -708,28 +737,31 @@ export default function EditBookingDialog({
   });
 
   const handleValidateQuote = () => {
-    const price = parseFloat(quotePrice);
-    const duration = parseInt(quoteDuration);
+    const variablePrice = parseFloat(quotePrice);
+    const variableDuration = parseInt(quoteDuration);
     
-    if (isNaN(price) || price <= 0) {
+    if (isNaN(variablePrice) || variablePrice <= 0) {
       toast({
         title: "Erreur",
-        description: "Veuillez entrer un prix valide",
+        description: "Veuillez entrer un prix valide pour les soins sur devis",
         variant: "destructive",
       });
       return;
     }
     
-    if (isNaN(duration) || duration <= 0) {
+    if (isNaN(variableDuration) || variableDuration <= 0) {
       toast({
         title: "Erreur",
-        description: "Veuillez entrer une durée valide",
+        description: "Veuillez entrer une durée valide pour les soins sur devis",
         variant: "destructive",
       });
       return;
     }
     
-    validateQuoteMutation.mutate({ price, duration });
+    validateQuoteMutation.mutate({ 
+      quotedVariablePrice: variablePrice, 
+      quotedVariableDuration: variableDuration 
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -899,25 +931,56 @@ export default function EditBookingDialog({
 
             {/* Quote Card - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
-              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg space-y-3">
+              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg space-y-4">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-orange-600" />
                   <h3 className="font-semibold text-orange-800">Devis à valider</h3>
                 </div>
+                
+                {/* Fixed Price Items (read-only) */}
+                {fixedTreatments.length > 0 && (
+                  <div className="bg-white/50 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-medium text-green-700 mb-2">✓ Prestations à prix fixe</p>
+                    {fixedTreatments.map((treatment: any) => (
+                      <div key={treatment.id} className="flex justify-between text-sm">
+                        <span className="text-gray-700">{treatment.name}</span>
+                        <span className="font-medium text-green-700">€{(treatment.price || 0).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm pt-2 border-t border-green-200">
+                      <span className="font-medium text-green-700">Sous-total fixe</span>
+                      <span className="font-semibold text-green-700">€{fixedTreatmentsTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Variable Price Items (need quote input) */}
+                {variableTreatments.length > 0 && (
+                  <div className="bg-orange-100/50 rounded-lg p-3 space-y-3">
+                    <p className="text-xs font-medium text-orange-700 mb-2">⏳ Prestations sur devis</p>
+                    {variableTreatments.map((treatment: any) => (
+                      <div key={treatment.id} className="flex items-center justify-between text-sm">
+                        <span className="text-orange-800">{treatment.name}</span>
+                        <Badge className="bg-orange-500 text-white text-[10px]">Sur devis</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 <p className="text-sm text-orange-700">
-                  Cette réservation "Sur Mesure" nécessite que vous définissiez le prix et la durée.
+                  Définissez le prix et la durée pour les soins sur devis :
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="quote-price" className="text-sm font-medium text-orange-800">
-                      Prix à proposer (€)
+                      Prix des soins sur devis (€)
                     </Label>
                     <Input
                       id="quote-price"
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="Ex: 150.00"
+                      placeholder="Ex: 100.00"
                       value={quotePrice}
                       onChange={(e) => setQuotePrice(e.target.value)}
                       className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
@@ -925,20 +988,39 @@ export default function EditBookingDialog({
                   </div>
                   <div>
                     <Label htmlFor="quote-duration" className="text-sm font-medium text-orange-800">
-                      Durée estimée (min)
+                      Durée des soins sur devis (min)
                     </Label>
                     <Input
                       id="quote-duration"
                       type="number"
                       min="0"
                       step="5"
-                      placeholder="Ex: 90"
+                      placeholder="Ex: 60"
                       value={quoteDuration}
                       onChange={(e) => setQuoteDuration(e.target.value)}
                       className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
                     />
                   </div>
                 </div>
+                
+                {/* Grand Total Preview */}
+                {quotePrice && (
+                  <div className="bg-white rounded-lg p-3 border border-orange-300">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="text-gray-600">Prestations fixes</span>
+                      <span>€{fixedTreatmentsTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-gray-600">Prestations sur devis</span>
+                      <span>€{parseFloat(quotePrice || "0").toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-base pt-2 border-t border-orange-200">
+                      <span className="text-orange-800">TOTAL À FACTURER</span>
+                      <span className="text-orange-800">€{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+                
                 <Button
                   onClick={handleValidateQuote}
                   disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}

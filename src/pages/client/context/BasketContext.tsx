@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
 export interface BasketItem {
   id: string;
@@ -9,6 +9,7 @@ export interface BasketItem {
   note?: string;
   image?: string;
   category: string;
+  isPriceOnRequest?: boolean; // New field to track variable price items
 }
 
 interface BasketContextType {
@@ -20,6 +21,8 @@ interface BasketContextType {
   clearBasket: () => void;
   total: number;
   itemCount: number;
+  fixedTotal: number; // Sum of fixed price items only
+  hasPriceOnRequest: boolean; // True if any item requires a quote
 }
 
 const BasketContext = createContext<BasketContextType | undefined>(undefined);
@@ -76,7 +79,21 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
     localStorage.removeItem(storageKey);
   };
 
+  // Total of all items (fixed price items only for display)
   const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  
+  // Fixed total - only items that are NOT price_on_request
+  const fixedTotal = useMemo(() => {
+    return items
+      .filter(item => !item.isPriceOnRequest)
+      .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [items]);
+  
+  // Check if any item requires a quote
+  const hasPriceOnRequest = useMemo(() => {
+    return items.some(item => item.isPriceOnRequest);
+  }, [items]);
+  
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -87,7 +104,9 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
       updateQuantity,
       updateNote,
       clearBasket, 
-      total, 
+      total,
+      fixedTotal,
+      hasPriceOnRequest,
       itemCount 
     }}>
       {children}

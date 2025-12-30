@@ -72,20 +72,15 @@ export default function ClientMenu() {
   const categories = [...new Set(treatments.map(t => t.category))];
 
   const handleAddToBasket = (treatment: Treatment) => {
-    // Don't add to basket if it's on request
-    if (treatment.price_on_request) {
-      setSelectedOnRequestTreatment(treatment);
-      setIsOnRequestOpen(true);
-      return;
-    }
-    
+    // Add to basket - including price_on_request items for mixed cart logic
     addItem({
       id: treatment.id,
       name: treatment.name,
-      price: Number(treatment.price),
+      price: Number(treatment.price) || 0,
       duration: treatment.duration || 0,
       image: treatment.image || undefined,
       category: treatment.category,
+      isPriceOnRequest: treatment.price_on_request || false,
     });
     
     if (navigator.vibrate) {
@@ -226,17 +221,7 @@ export default function ClientMenu() {
                     
                     {/* Controls Row */}
                     <div className="flex items-center justify-end mt-3 gap-2">
-                      {treatment.price_on_request ? (
-                        <Button
-                          onClick={() => handleOnRequestClick(treatment)}
-                          size="sm"
-                          variant="outline"
-                          className="rounded-full px-6"
-                        >
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Demander un devis
-                        </Button>
-                      ) : getItemQuantity(treatment.id) > 0 ? (
+                      {getItemQuantity(treatment.id) > 0 ? (
                         <div className="flex items-center gap-1 bg-muted rounded-full p-1">
                           <Button
                             variant="ghost"
@@ -269,9 +254,9 @@ export default function ClientMenu() {
                         <Button
                           onClick={() => handleAddToBasket(treatment)}
                           size="sm"
-                          className="rounded-full px-6"
+                          className={`rounded-full px-6 ${treatment.price_on_request ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
                         >
-                          {t('menu.add')}
+                          {treatment.price_on_request ? 'Ajouter au panier' : t('menu.add')}
                         </Button>
                       )}
                     </div>
