@@ -28,21 +28,17 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   
   // Determine document type based on payment method
   const isRoomPayment = booking.payment_method === 'room';
-  const documentTitle = isRoomPayment ? 'BON DE PRESTATION' : 'INVOICE';
-  const documentTitleShort = isRoomPayment ? 'Bon de Prestation' : 'Invoice';
-  const billToLabel = isRoomPayment ? 'Client' : 'Bill To';
-  const thankYouMessage = isRoomPayment 
-    ? 'Merci d\'avoir choisi OOM' 
-    : 'Thank you for choosing OOM';
-  const footerNote = isRoomPayment
-    ? 'Ce document constitue un justificatif de prestation pour facturation à la chambre.'
-    : 'For any inquiries, please contact booking@oomworld.com';
+  const documentNumber = `#${booking.booking_id}`;
+  const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', { 
+    day: '2-digit', 
+    month: 'long', 
+    year: 'numeric' 
+  });
   
   const treatmentRows = treatments.map(t => `
     <tr>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px;">${escapeHtml(t.name)}</td>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 14px;">${escapeHtml(t.duration)} min</td>
-      <td style="padding: 14px; border-bottom: 1px solid #f3f4f6; text-align: right; font-weight: 500; font-size: 14px;">${escapeHtml(t.price)}€</td>
+      <td style="padding: 16px 0; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333;">${escapeHtml(t.name)}</td>
+      <td style="padding: 16px 0; border-bottom: 1px solid #eaeaea; text-align: right; font-size: 14px; color: #333;">${Number(t.price || 0).toFixed(2)} €</td>
     </tr>
   `).join('');
 
@@ -56,250 +52,222 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>${documentTitleShort} #${booking.booking_id}</title>
+      <title>Bon de Prestation ${documentNumber}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-          margin: 0;
-          padding: 48px;
-          color: #111827;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          padding: 60px;
+          color: #333;
           background: white;
-          line-height: 1.6;
+          line-height: 1.5;
+          font-size: 14px;
         }
-        .header { 
+        .container {
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 50px;
-          padding-bottom: 30px;
-          border-bottom: 2px solid #000;
-        }
-        .logo-section {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+          margin-bottom: 60px;
         }
         .logo {
-          width: 48px;
-          height: 48px;
-          background: #000;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 700;
           font-size: 24px;
-        }
-        .company-name {
-          font-size: 28px;
           font-weight: 700;
-          color: #000;
           letter-spacing: -0.5px;
         }
-        .invoice-info { text-align: right; }
-        .invoice-title {
-          font-size: 32px;
-          font-weight: 700;
-          color: #000;
-          margin-bottom: 8px;
-          letter-spacing: -0.5px;
+        .doc-info {
+          text-align: right;
         }
-        .invoice-meta {
-          color: #6b7280;
-          font-size: 14px;
-          margin: 4px 0;
-        }
-        .info-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 24px;
-          margin-bottom: 40px;
-        }
-        .info-card {
-          background: #f9fafb;
-          padding: 24px;
-          border-radius: 12px;
-          border: 1px solid #e5e7eb;
-        }
-        .section-title {
+        .doc-title {
           font-size: 11px;
-          font-weight: 700;
-          color: #6b7280;
+          font-weight: 600;
+          color: #666;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+        .doc-number {
+          font-size: 24px;
+          font-weight: 600;
+          color: #000;
+        }
+        .meta-section {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 50px;
+          padding-bottom: 30px;
+          border-bottom: 1px solid #eaeaea;
+        }
+        .meta-block {
+          flex: 1;
+        }
+        .meta-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #666;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          margin-bottom: 12px;
-        }
-        .info-card p {
-          margin: 6px 0;
-          font-size: 14px;
-        }
-        .info-card .name {
-          font-weight: 600;
-          font-size: 16px;
-          color: #000;
           margin-bottom: 8px;
         }
-        .booking-details {
-          background: #000;
-          color: white;
-          padding: 24px;
-          border-radius: 12px;
-          margin-bottom: 32px;
+        .meta-value {
+          font-size: 14px;
+          color: #333;
+          line-height: 1.6;
         }
-        .booking-details .section-title {
-          color: #9ca3af;
-        }
-        .booking-details p {
-          margin: 10px 0;
-          font-size: 15px;
-        }
-        .booking-details strong {
-          color: #d1d5db;
-          font-weight: 500;
-          margin-right: 8px;
+        .meta-value strong {
+          display: block;
+          font-weight: 600;
+          margin-bottom: 2px;
         }
         table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 24px;
-          background: white;
-          border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid #e5e7eb;
         }
-        thead {
-          background: #f9fafb;
-        }
-        th {
-          padding: 16px 14px;
-          text-align: left;
+        thead th {
+          font-size: 11px;
           font-weight: 600;
-          font-size: 12px;
-          color: #6b7280;
+          color: #666;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          padding: 0 0 12px 0;
+          border-bottom: 1px solid #eaeaea;
+          text-align: left;
         }
-        tbody tr:last-child td {
-          border-bottom: none;
+        thead th:last-child {
+          text-align: right;
         }
-        .summary-row {
-          background: #fafafa;
-        }
-        .summary-row td {
-          padding: 14px;
-          font-size: 14px;
-          color: #6b7280;
+        .totals {
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 1px solid #eaeaea;
         }
         .total-row {
-          background: #000;
-          color: white;
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          font-size: 14px;
         }
-        .total-row td {
-          padding: 20px 14px;
+        .total-row.final {
           font-size: 18px;
-          font-weight: 700;
+          font-weight: 600;
+          padding-top: 16px;
+          margin-top: 8px;
+          border-top: 2px solid #000;
+        }
+        .signature-section {
+          margin-top: 50px;
+          padding: 24px;
+          background: #fafafa;
+          border-radius: 8px;
+        }
+        .signature-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #666;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 12px;
+        }
+        .signature-img {
+          background: white;
+          padding: 12px;
+          border-radius: 4px;
+          display: inline-block;
+        }
+        .signature-date {
+          font-size: 12px;
+          color: #999;
+          margin-top: 8px;
         }
         .footer {
           margin-top: 60px;
-          padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          padding-top: 20px;
+          border-top: 1px solid #eaeaea;
           text-align: center;
-        }
-        .footer p {
-          color: #9ca3af;
-          font-size: 13px;
-          margin: 6px 0;
-        }
-        .thank-you {
-          font-weight: 600;
-          color: #000;
-          font-size: 14px;
-          margin-bottom: 12px;
+          font-size: 12px;
+          color: #999;
         }
       </style>
     </head>
     <body>
-      <div class="header">
-        <div class="logo-section">
-          <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-secondary-black.svg" alt="OOM" style="height: 40px; width: auto;" />
+      <div class="container">
+        <div class="header">
+          <div class="logo">OOM</div>
+          <div class="doc-info">
+            <div class="doc-title">Bon de Prestation</div>
+            <div class="doc-number">${documentNumber}</div>
+          </div>
         </div>
-        <div class="invoice-info">
-          <div class="invoice-title">${documentTitle}</div>
-          <p class="invoice-meta">#${booking.booking_id}</p>
-          <p class="invoice-meta">${new Date(booking.booking_date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+
+        <div class="meta-section">
+          <div class="meta-block">
+            <div class="meta-label">Client</div>
+            <div class="meta-value">
+              <strong>${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</strong>
+              ${booking.room_number ? `Chambre ${escapeHtml(booking.room_number)}` : ''}
+            </div>
+          </div>
+          <div class="meta-block">
+            <div class="meta-label">Hôtel</div>
+            <div class="meta-value">
+              <strong>${escapeHtml(hotel?.name || booking.hotel_name || '')}</strong>
+              ${hotel?.city || ''}
+            </div>
+          </div>
+          <div class="meta-block">
+            <div class="meta-label">Date</div>
+            <div class="meta-value">
+              <strong>${formattedDate}</strong>
+              ${booking.booking_time?.substring(0, 5) || ''}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div class="info-grid">
-        <div class="info-card">
-          <div class="section-title">${billToLabel}</div>
-          <p class="name">${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</p>
-          <p style="color: #6b7280;">${escapeHtml(booking.phone)}</p>
-          ${booking.room_number ? `<p style="color: #6b7280;">Room ${escapeHtml(booking.room_number)}</p>` : ''}
+        <table>
+          <thead>
+            <tr>
+              <th>Prestation</th>
+              <th>Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${treatmentRows}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div class="total-row">
+            <span>Sous-total</span>
+            <span>${subtotal.toFixed(2)} €</span>
+          </div>
+          <div class="total-row">
+            <span>TVA (${vat}%)</span>
+            <span>${vatAmount.toFixed(2)} €</span>
+          </div>
+          <div class="total-row final">
+            <span>Total</span>
+            <span>${total.toFixed(2)} €</span>
+          </div>
         </div>
-        
-        <div class="info-card">
-          <div class="section-title">Hotel</div>
-          <p class="name">${escapeHtml(hotel?.name || booking.hotel_name || 'N/A')}</p>
-          ${hotel?.address ? `<p style="color: #6b7280;">${escapeHtml(hotel.address)}</p>` : ''}
-          ${hotel?.city ? `<p style="color: #6b7280;">${escapeHtml(hotel.postal_code || '')} ${escapeHtml(hotel.city)}</p>` : ''}
+
+        ${booking.client_signature ? `
+        <div class="signature-section">
+          <div class="signature-label">Signature client</div>
+          <div class="signature-img">
+            <img src="${booking.client_signature}" alt="Signature" style="max-width: 200px; max-height: 80px;" />
+          </div>
+          <div class="signature-date">
+            Signé le ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+          </div>
         </div>
-      </div>
+        ` : ''}
 
-      <div class="booking-details">
-        <div class="section-title">${isRoomPayment ? 'Détails de la Prestation' : 'Service Details'}</div>
-        <p>
-          <strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </p>
-        <p>
-          <strong>${isRoomPayment ? 'Heure' : 'Time'}:</strong> ${booking.booking_time.substring(0, 5)}
-        </p>
-        ${booking.hairdresser_name ? `<p><strong>${isRoomPayment ? 'Coiffeur(se)' : 'Stylist'}:</strong> ${escapeHtml(booking.hairdresser_name)}</p>` : ''}
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>${isRoomPayment ? 'Prestation' : 'Treatment'}</th>
-            <th style="text-align: center;">${isRoomPayment ? 'Durée' : 'Duration'}</th>
-            <th style="text-align: right;">${isRoomPayment ? 'Prix' : 'Price'}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${treatmentRows}
-          <tr class="summary-row">
-            <td colspan="2" style="text-align: right; font-weight: 600;">${isRoomPayment ? 'Sous-total' : 'Subtotal'}</td>
-            <td style="text-align: right; font-weight: 600;">${subtotal.toFixed(2)}€</td>
-          </tr>
-          <tr class="summary-row">
-            <td colspan="2" style="text-align: right;">TVA (${vat}%)</td>
-            <td style="text-align: right;">${vatAmount.toFixed(2)}€</td>
-          </tr>
-          <tr class="total-row">
-            <td colspan="2" style="text-align: right;">TOTAL</td>
-            <td style="text-align: right;">${total.toFixed(2)}€</td>
-          </tr>
-        </tbody>
-      </table>
-
-      ${booking.client_signature ? `
-      <div style="margin-top: 40px; padding: 24px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-        <div class="section-title">${isRoomPayment ? 'Signature Client' : 'Client Signature'}</div>
-        <div style="margin-top: 12px; background: white; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
-          <img src="${booking.client_signature}" alt="Signature client" style="max-width: 300px; max-height: 100px;" />
+        <div class="footer">
+          Merci d'avoir choisi OOM · Ce document constitue un justificatif de prestation
         </div>
-        <p style="margin-top: 8px; font-size: 12px; color: #6b7280;">
-          ${isRoomPayment ? 'Signé le' : 'Signed on'} ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
-        </p>
-      </div>
-      ` : ''}
-
-      <div class="footer">
-        <p class="thank-you">${thankYouMessage}</p>
-        <p>${footerNote}</p>
-        <p>${isRoomPayment ? 'Généré le' : 'Generated on'} ${new Date().toLocaleDateString('fr-FR')}</p>
       </div>
     </body>
     </html>
