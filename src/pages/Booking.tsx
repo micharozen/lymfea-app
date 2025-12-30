@@ -41,7 +41,7 @@ import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Booking() {
-  const { isAdmin } = useUserContext();
+  const { isAdmin, isConcierge } = useUserContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
@@ -741,44 +741,91 @@ export default function Booking() {
                         <span className="truncate block">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  className="p-1 hover:bg-muted rounded transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // If Stripe invoice URL exists, always open it
-                                    if (booking.stripe_invoice_url) {
-                                      window.open(booking.stripe_invoice_url, "_blank");
-                                    } else {
-                                      // No Stripe URL: Generate internal PDF (Bon de Prestation)
-                                      supabase.functions
-                                        .invoke("generate-invoice", {
-                                          body: { bookingId: booking.id },
-                                        })
-                                        .then(({ data, error }) => {
-                                          if (!error && data) {
-                                            setInvoiceHTML(data.html);
-                                            setInvoiceBookingId(data.bookingId);
-                                            setIsInvoicePreviewOpen(true);
-                                          }
-                                        });
-                                    }
-                                  }}
-                                >
-                                  <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {booking.stripe_invoice_url 
-                                  ? "📄 Voir la Facture Stripe" 
-                                  : "📝 Télécharger le Bon de Prestation"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
+                        {/* Document visibility logic by role */}
+                        {(() => {
+                          const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
+                          const isRoomPayment = booking.payment_method === "room";
+                          const hasStripeInvoice = !!booking.stripe_invoice_url;
+                          
+                          // Admin: Always show relevant document
+                          if (isAdmin && isCompleted) {
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className="p-1 hover:bg-muted rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (hasStripeInvoice) {
+                                          window.open(booking.stripe_invoice_url, "_blank");
+                                        } else {
+                                          supabase.functions
+                                            .invoke("generate-invoice", {
+                                              body: { bookingId: booking.id },
+                                            })
+                                            .then(({ data, error }) => {
+                                              if (!error && data) {
+                                                setInvoiceHTML(data.html);
+                                                setInvoiceBookingId(data.bookingId);
+                                                setIsInvoicePreviewOpen(true);
+                                              }
+                                            });
+                                        }
+                                      }}
+                                    >
+                                      <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {hasStripeInvoice 
+                                      ? "📄 Voir la Facture Stripe" 
+                                      : "📝 Télécharger le Bon de Prestation"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          }
+                          
+                          // Concierge: Only show "Bon de Prestation" for room payments
+                          if (isConcierge && isCompleted && isRoomPayment) {
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className="p-1 hover:bg-muted rounded transition-colors"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        supabase.functions
+                                          .invoke("generate-invoice", {
+                                            body: { bookingId: booking.id },
+                                          })
+                                          .then(({ data, error }) => {
+                                            if (!error && data) {
+                                              setInvoiceHTML(data.html);
+                                              setInvoiceBookingId(data.bookingId);
+                                              setIsInvoicePreviewOpen(true);
+                                            }
+                                          });
+                                      }}
+                                    >
+                                      <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    📄 Télécharger Bon de Prestation
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          }
+                          
+                          // Concierge: Hide invoice button for card payments (they don't handle external payments)
+                          // Return null for this case
+                          
+                          return null;
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))}
