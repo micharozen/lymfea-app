@@ -231,14 +231,18 @@ serve(async (req) => {
 
     console.log('Booking treatments created');
 
-    // Get treatment names and prices for email
+    // Get treatment names, prices and price_on_request status for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
-      .select('name, price')
+      .select('id, name, price, price_on_request')
       .in('id', treatmentIds);
 
-    // Format treatments with name and price separated properly
-    const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
+    // Format treatments with proper structure for email
+    const treatmentsForEmail = treatmentDetails?.map(t => ({
+      name: t.name,
+      price: t.price,
+      isPriceOnRequest: t.price_on_request || false,
+    })) || [];
 
     // Send confirmation email
     if (sanitizedClientData.email) {
@@ -260,9 +264,10 @@ serve(async (req) => {
               roomNumber: sanitizedClientData.roomNumber,
               bookingDate: bookingData.date,
               bookingTime: bookingData.time,
-              treatments: treatmentNames,
-              totalPrice: totalPrice,
+              treatments: treatmentsForEmail,
+              totalPrice: hasPriceOnRequest ? totalPrice : totalPrice,
               currency: 'EUR',
+              isQuotePending: hasPriceOnRequest,
             }),
           }
         );
