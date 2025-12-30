@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// OOM Logo as inline SVG (simplified version)
+const OOM_LOGO_SVG = `<svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="6" fill="#000"/>
+  <circle cx="16" cy="16" r="8" stroke="#fff" stroke-width="2" fill="none"/>
+  <circle cx="16" cy="16" r="3" fill="#fff"/>
+  <text x="44" y="24" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="700" fill="#000">OOM</text>
+</svg>`;
+
+const OOM_LOGO_BASE64 = `data:image/svg+xml;base64,${btoa(OOM_LOGO_SVG)}`;
+
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {
   if (unsafe === null || unsafe === undefined) return '';
@@ -26,8 +36,6 @@ interface InvoiceData {
 const generateInvoiceHTML = (data: InvoiceData): string => {
   const { booking, treatments, hotel } = data;
   
-  // Determine document type based on payment method
-  const isRoomPayment = booking.payment_method === 'room';
   const documentNumber = `#${booking.booking_id}`;
   const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', { 
     day: '2-digit', 
@@ -37,8 +45,8 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   
   const treatmentRows = treatments.map(t => `
     <tr>
-      <td style="padding: 16px 0; border-bottom: 1px solid #eaeaea; font-size: 14px; color: #333;">${escapeHtml(t.name)}</td>
-      <td style="padding: 16px 0; border-bottom: 1px solid #eaeaea; text-align: right; font-size: 14px; color: #333;">${Number(t.price || 0).toFixed(2)} €</td>
+      <td class="item-name">${escapeHtml(t.name)}</td>
+      <td class="item-price">${Number(t.price || 0).toFixed(2)} €</td>
     </tr>
   `).join('');
 
@@ -47,231 +55,324 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   const vatAmount = (subtotal * vat) / 100;
   const total = subtotal + vatAmount;
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Bon de Prestation ${documentNumber}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          padding: 60px;
-          color: #333;
-          background: white;
-          line-height: 1.5;
-          font-size: 14px;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 60px;
-        }
-        .logo {
-          font-size: 24px;
-          font-weight: 700;
-          letter-spacing: -0.5px;
-        }
-        .doc-info {
-          text-align: right;
-        }
-        .doc-title {
-          font-size: 11px;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 4px;
-        }
-        .doc-number {
-          font-size: 24px;
-          font-weight: 600;
-          color: #000;
-        }
-        .meta-section {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 50px;
-          padding-bottom: 30px;
-          border-bottom: 1px solid #eaeaea;
-        }
-        .meta-block {
-          flex: 1;
-        }
-        .meta-label {
-          font-size: 11px;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 8px;
-        }
-        .meta-value {
-          font-size: 14px;
-          color: #333;
-          line-height: 1.6;
-        }
-        .meta-value strong {
-          display: block;
-          font-weight: 600;
-          margin-bottom: 2px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
-        thead th {
-          font-size: 11px;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          padding: 0 0 12px 0;
-          border-bottom: 1px solid #eaeaea;
-          text-align: left;
-        }
-        thead th:last-child {
-          text-align: right;
-        }
-        .totals {
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 1px solid #eaeaea;
-        }
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 8px 0;
-          font-size: 14px;
-        }
-        .total-row.final {
-          font-size: 18px;
-          font-weight: 600;
-          padding-top: 16px;
-          margin-top: 8px;
-          border-top: 2px solid #000;
-        }
-        .signature-section {
-          margin-top: 50px;
-          padding: 24px;
-          background: #fafafa;
-          border-radius: 8px;
-        }
-        .signature-label {
-          font-size: 11px;
-          font-weight: 600;
-          color: #666;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          margin-bottom: 12px;
-        }
-        .signature-img {
-          background: white;
-          padding: 12px;
-          border-radius: 4px;
-          display: inline-block;
-        }
-        .signature-date {
-          font-size: 12px;
-          color: #999;
-          margin-top: 8px;
-        }
-        .footer {
-          margin-top: 60px;
-          padding-top: 20px;
-          border-top: 1px solid #eaeaea;
-          text-align: center;
-          font-size: 12px;
-          color: #999;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <div class="logo">OOM</div>
-          <div class="doc-info">
-            <div class="doc-title">Bon de Prestation</div>
-            <div class="doc-number">${documentNumber}</div>
-          </div>
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Bon de Prestation ${documentNumber}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 48px;
+      color: #1a1a1a;
+      background: #fff;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .document {
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: #000;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .logo-icon svg {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .logo-text {
+      font-size: 22px;
+      font-weight: 700;
+      color: #000;
+      letter-spacing: -0.5px;
+    }
+    
+    .doc-meta {
+      text-align: right;
+    }
+    
+    .doc-type {
+      font-size: 10px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+    
+    .doc-number {
+      font-size: 20px;
+      font-weight: 600;
+      color: #000;
+    }
+    
+    /* Info Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    
+    .info-block {}
+    
+    .info-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+    
+    .info-value {
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+    
+    .info-value strong {
+      font-weight: 600;
+      display: block;
+    }
+    
+    .info-value span {
+      color: #666;
+      font-size: 13px;
+    }
+    
+    /* Table */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    
+    .items-table thead th {
+      font-size: 10px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 0 0 12px 0;
+      border-bottom: 1px solid #e5e5e5;
+      text-align: left;
+    }
+    
+    .items-table thead th:last-child {
+      text-align: right;
+    }
+    
+    .items-table tbody td {
+      padding: 14px 0;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    
+    .items-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .item-name {
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+    
+    .item-price {
+      text-align: right;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a1a;
+    }
+    
+    /* Totals */
+    .totals {
+      border-top: 1px solid #e5e5e5;
+      padding-top: 16px;
+    }
+    
+    .total-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .total-line.grand {
+      padding-top: 12px;
+      margin-top: 8px;
+      border-top: 2px solid #1a1a1a;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    /* Signature */
+    .signature-box {
+      margin-top: 40px;
+      padding: 20px;
+      background: #fafafa;
+      border-radius: 8px;
+    }
+    
+    .signature-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+    
+    .signature-image {
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      display: inline-block;
+      border: 1px solid #e5e5e5;
+    }
+    
+    .signature-image img {
+      max-width: 180px;
+      max-height: 60px;
+      display: block;
+    }
+    
+    .signature-date {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #999;
+    }
+    
+    /* Footer */
+    .footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e5e5;
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="document">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="2"/>
+            <circle cx="12" cy="12" r="3" fill="#fff"/>
+          </svg>
         </div>
+        <div class="logo-text">OOM</div>
+      </div>
+      <div class="doc-meta">
+        <div class="doc-type">Bon de Prestation</div>
+        <div class="doc-number">${documentNumber}</div>
+      </div>
+    </div>
 
-        <div class="meta-section">
-          <div class="meta-block">
-            <div class="meta-label">Client</div>
-            <div class="meta-value">
-              <strong>${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</strong>
-              ${booking.room_number ? `Chambre ${escapeHtml(booking.room_number)}` : ''}
-            </div>
-          </div>
-          <div class="meta-block">
-            <div class="meta-label">Hôtel</div>
-            <div class="meta-value">
-              <strong>${escapeHtml(hotel?.name || booking.hotel_name || '')}</strong>
-              ${hotel?.city || ''}
-            </div>
-          </div>
-          <div class="meta-block">
-            <div class="meta-label">Date</div>
-            <div class="meta-value">
-              <strong>${formattedDate}</strong>
-              ${booking.booking_time?.substring(0, 5) || ''}
-            </div>
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Prestation</th>
-              <th>Montant</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${treatmentRows}
-          </tbody>
-        </table>
-
-        <div class="totals">
-          <div class="total-row">
-            <span>Sous-total</span>
-            <span>${subtotal.toFixed(2)} €</span>
-          </div>
-          <div class="total-row">
-            <span>TVA (${vat}%)</span>
-            <span>${vatAmount.toFixed(2)} €</span>
-          </div>
-          <div class="total-row final">
-            <span>Total</span>
-            <span>${total.toFixed(2)} €</span>
-          </div>
-        </div>
-
-        ${booking.client_signature ? `
-        <div class="signature-section">
-          <div class="signature-label">Signature client</div>
-          <div class="signature-img">
-            <img src="${booking.client_signature}" alt="Signature" style="max-width: 200px; max-height: 80px;" />
-          </div>
-          <div class="signature-date">
-            Signé le ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
-          </div>
-        </div>
-        ` : ''}
-
-        <div class="footer">
-          Merci d'avoir choisi OOM · Ce document constitue un justificatif de prestation
+    <div class="info-grid">
+      <div class="info-block">
+        <div class="info-label">Client</div>
+        <div class="info-value">
+          <strong>${escapeHtml(booking.client_first_name)} ${escapeHtml(booking.client_last_name)}</strong>
+          ${booking.room_number ? `<span>Chambre ${escapeHtml(booking.room_number)}</span>` : ''}
         </div>
       </div>
-    </body>
-    </html>
-  `;
+      <div class="info-block">
+        <div class="info-label">Hôtel</div>
+        <div class="info-value">
+          <strong>${escapeHtml(hotel?.name || booking.hotel_name || '')}</strong>
+          <span>${escapeHtml(hotel?.city || '')}</span>
+        </div>
+      </div>
+      <div class="info-block">
+        <div class="info-label">Date</div>
+        <div class="info-value">
+          <strong>${formattedDate}</strong>
+          <span>${booking.booking_time?.substring(0, 5) || ''}</span>
+        </div>
+      </div>
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Prestation</th>
+          <th>Montant</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${treatmentRows}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div class="total-line">
+        <span>Sous-total</span>
+        <span>${subtotal.toFixed(2)} €</span>
+      </div>
+      <div class="total-line">
+        <span>TVA (${vat}%)</span>
+        <span>${vatAmount.toFixed(2)} €</span>
+      </div>
+      <div class="total-line grand">
+        <span>Total</span>
+        <span>${total.toFixed(2)} €</span>
+      </div>
+    </div>
+
+    ${booking.client_signature ? `
+    <div class="signature-box">
+      <div class="signature-label">Signature client</div>
+      <div class="signature-image">
+        <img src="${booking.client_signature}" alt="Signature" />
+      </div>
+      <div class="signature-date">
+        Signé le ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+      Merci d'avoir choisi OOM · Ce document constitue un justificatif de prestation
+    </div>
+  </div>
+</body>
+</html>`;
 };
 
 serve(async (req: Request) => {
