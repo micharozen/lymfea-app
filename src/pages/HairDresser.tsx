@@ -278,30 +278,30 @@ export default function HairDresser() {
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <Table className="text-xs">
             <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Nom</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Numéro de téléphone</TableHead>
-                <TableHead className="font-semibold">Hôtels</TableHead>
-                <TableHead className="font-semibold">Box</TableHead>
-                <TableHead className="font-semibold">Compétences</TableHead>
-                <TableHead className="font-semibold">Statut</TableHead>
-                {isAdmin && <TableHead className="font-semibold text-right">Actions</TableHead>}
+              <TableRow className="h-8 bg-muted/50">
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Nom</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Email</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Téléphone</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtels</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Box</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Compétences</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Statut</TableHead>
+                {isAdmin && <TableHead className="py-1.5 px-2 text-xs font-semibold text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHairdressers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-12 py-2 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-10 py-0 px-2 text-center text-muted-foreground text-xs">
                     Aucun coiffeur trouvé
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredHairdressers.map((hairdresser) => (
-                  <TableRow key={hairdresser.id} className="h-12">
-                    <TableCell className="py-2 align-middle">
-                      <div className="flex items-center gap-3 whitespace-nowrap">
-                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <TableRow key={hairdresser.id} className="h-10">
+                    <TableCell className="py-0 px-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                           {hairdresser.profile_image ? (
                             <img
                               src={hairdresser.profile_image}
@@ -309,60 +309,60 @@ export default function HairDresser() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <span className="text-xs font-medium text-muted-foreground">
+                            <span className="text-[10px] font-medium text-muted-foreground">
                               {getInitials(hairdresser.first_name, hairdresser.last_name)}
                             </span>
                           )}
                         </div>
-                        <span className="font-medium">
+                        <span className="font-medium text-xs truncate max-w-[100px]">
                           {hairdresser.first_name} {hairdresser.last_name}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-xs">{hairdresser.email}</span>
+                    <TableCell className="py-0 px-2">
+                      <span className="text-xs truncate max-w-[120px] block">{hairdresser.email}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-xs">
+                    <TableCell className="py-0 px-2">
+                      <span className="text-xs truncate max-w-[100px] block">
                         {hairdresser.country_code} {hairdresser.phone}
                       </span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-xs">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
+                    <TableCell className="py-0 px-2">
+                      <span className="text-xs truncate max-w-[100px] block">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
+                    <TableCell className="py-0 px-2">
                       <span className="text-xs">{hairdresser.trunks || "-"}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <span className="text-xs leading-tight">{getSkillsDisplay(hairdresser.skills)}</span>
+                    <TableCell className="py-0 px-2">
+                      <span className="text-xs truncate max-w-[80px] block">{getSkillsDisplay(hairdresser.skills)}</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
+                    <TableCell className="py-0 px-2">
                       <StatusBadge status={hairdresser.status} type="entity" />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-2 align-middle">
-                        <div className="flex justify-end gap-2">
+                      <TableCell className="py-0 px-2">
+                        <div className="flex justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-6 w-6"
                             onClick={() => {
                               setSelectedHairDresser(hairdresser);
                               setIsEditDialogOpen(true);
                             }}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-6 w-6"
                             onClick={() => {
                               setDeleteHairDresserId(hairdresser.id);
                               setIsDeleteDialogOpen(true);
                             }}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
