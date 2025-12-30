@@ -785,7 +785,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-xl p-0 gap-0 flex flex-col">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
@@ -793,7 +793,7 @@ export default function EditBookingDialog({
         </DialogHeader>
 
         {viewMode === "view" ? (
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          <div className="flex-1 px-4 py-3 space-y-2">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
               <div className="flex items-center gap-3">
