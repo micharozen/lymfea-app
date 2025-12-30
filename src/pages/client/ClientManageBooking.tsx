@@ -84,6 +84,8 @@ const ClientManageBooking = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Note: The database trigger automatically calls handle-booking-cancellation
+      // which sends notifications to hairdresser, concierge, and client
       queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
       toast({
         title: "Réservation annulée",

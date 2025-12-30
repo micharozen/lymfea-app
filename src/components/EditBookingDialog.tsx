@@ -606,18 +606,9 @@ export default function EditBookingDialog({
       if (error) throw error;
     },
     onSuccess: async () => {
-      // Send push notification to hairdresser if one was assigned
-      if (booking?.hairdresser_id) {
-        try {
-          console.log("Triggering cancellation push notification for booking:", booking.id);
-          const { data, error } = await supabase.functions.invoke('trigger-booking-cancelled-notification', {
-            body: { bookingId: booking.id, cancellationReason: cancellationReason }
-          });
-          console.log("Cancellation push notification result:", data, error);
-        } catch (notifError) {
-          console.error("Error sending cancellation push notification:", notifError);
-        }
-      }
+      // Note: The database trigger automatically calls handle-booking-cancellation
+      // which sends notifications to hairdresser, concierge, and client
+      console.log("Booking cancelled successfully - notifications will be sent via database trigger");
       
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
