@@ -349,7 +349,7 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                   >
                     <span className="truncate">
                       {selectedHotels.length === 0
@@ -397,7 +397,7 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                   >
                     <span className="truncate">
                       {selectedTrunks.length === 0
@@ -445,7 +445,7 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                   >
                     <span className="truncate">
                       {selectedSkills.length === 0
