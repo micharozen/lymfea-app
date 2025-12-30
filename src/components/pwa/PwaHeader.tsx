@@ -34,7 +34,10 @@ const PwaHeader = ({
   };
 
   return (
-    <header className="h-14 bg-background border-b border-border px-4 flex items-center justify-between flex-shrink-0 sticky top-0 z-50">
+    <header
+      className="min-h-14 bg-background border-b border-border px-4 flex items-center justify-between flex-shrink-0 sticky top-0 z-50"
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
+    >
       {/* Left Slot */}
       <div className="w-10 flex items-center justify-start">
         {leftSlot ? (
