@@ -254,9 +254,9 @@ export default function ClientMenu() {
                         <Button
                           onClick={() => handleAddToBasket(treatment)}
                           size="sm"
-                          className={`rounded-full px-6 ${treatment.price_on_request ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
+                          className="rounded-full px-4 h-8 text-xs"
                         >
-                          {treatment.price_on_request ? 'Ajouter au panier' : t('menu.add')}
+                          {t('menu.add')}
                         </Button>
                       )}
                     </div>
