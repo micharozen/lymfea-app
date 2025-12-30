@@ -238,7 +238,19 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       max-height: 60px;
       display: block;
     }
-    
+
+    .signature-placeholder {
+      width: 180px;
+      height: 60px;
+      border: 1px dashed #cfcfcf;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 12px;
+    }
+
     .signature-date {
       margin-top: 8px;
       font-size: 12px;
@@ -319,17 +331,15 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       </div>
     </div>
 
-    ${booking.client_signature ? `
     <div class="signature-box">
       <div class="signature-label">Signature client</div>
       <div class="signature-image">
-        <img src="${booking.client_signature}" alt="Signature" />
+        ${booking.client_signature ? `<img src="${booking.client_signature}" alt="Signature client" />` : `<div class="signature-placeholder">Non signée</div>`}
       </div>
       <div class="signature-date">
-        Signé le ${booking.signed_at ? new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+        ${booking.signed_at ? `Signé le ${new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'Non signé'}
       </div>
     </div>
-    ` : ''}
 
     <div class="footer">
       Merci d'avoir choisi OOM · Ce document constitue un justificatif de prestation
