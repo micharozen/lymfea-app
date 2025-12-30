@@ -79,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailPromises = admins.map(async (admin: { email: string; first_name: string }) => {
       try {
         await resend.emails.send({
-          from: "OOM World <notifications@oom-world.com>",
+          from: "OOM World <booking@oomworld.com>",
           to: [admin.email],
           subject: `Action requise : Devis à valider (Hôtel ${hotelName})`,
           html: `
