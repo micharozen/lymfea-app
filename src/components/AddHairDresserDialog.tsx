@@ -14,12 +14,32 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
+
+const countries = [
+  { code: "+33", label: "France", flag: "🇫🇷" },
+  { code: "+971", label: "EAU", flag: "🇦🇪" },
+  { code: "+1", label: "États-Unis", flag: "🇺🇸" },
+  { code: "+44", label: "Royaume-Uni", flag: "🇬🇧" },
+  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+  { code: "+39", label: "Italie", flag: "🇮🇹" },
+  { code: "+34", label: "Espagne", flag: "🇪🇸" },
+  { code: "+41", label: "Suisse", flag: "🇨🇭" },
+  { code: "+32", label: "Belgique", flag: "🇧🇪" },
+  { code: "+377", label: "Monaco", flag: "🇲🇨" },
+];
 
 interface AddHairDresserDialogProps {
   open: boolean;
@@ -309,20 +329,24 @@ export default function AddHairDresserDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="country_code" className="text-xs">Code</Label>
-              <Input
-                id="country_code"
+          <div className="space-y-1">
+            <Label htmlFor="phone" className="text-xs">Téléphone *</Label>
+            <div className="flex">
+              <Select
                 value={formData.country_code}
-                onChange={(e) =>
-                  setFormData({ ...formData, country_code: e.target.value })
-                }
-                className="h-9"
-              />
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label htmlFor="phone" className="text-xs">Téléphone *</Label>
+                onValueChange={(value) => setFormData({ ...formData, country_code: value })}
+              >
+                <SelectTrigger className="w-[80px] rounded-r-none border-r-0 h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg">
+                  {countries.map((country) => (
+                    <SelectItem key={country.code} value={country.code}>
+                      {country.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -330,59 +354,48 @@ export default function AddHairDresserDialog({
                   setFormData({ ...formData, phone: e.target.value })
                 }
                 required
-                className="h-9"
+                className="h-9 rounded-l-none flex-1"
               />
             </div>
           </div>
-
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hôtels</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs"
-                  >
-                    <span>
-                      {selectedHotels.length === 0
-                        ? "Sélectionner"
-                        : `${selectedHotels.length}`}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-32">
-                    <div className="p-1">
-                      {hotels.map((hotel) => (
-                        <div
-                          key={hotel.id}
-                          className="flex items-center gap-2 px-2 py-1"
-                        >
-                          <Checkbox
-                            id={`hotel-${hotel.id}`}
-                            className="h-3.5 w-3.5"
-                            checked={selectedHotels.includes(hotel.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedHotels([...selectedHotels, hotel.id]);
-                              } else {
-                                setSelectedHotels(
-                                  selectedHotels.filter((id) => id !== hotel.id)
-                                );
-                              }
-                            }}
-                          />
-                          <Label htmlFor={`hotel-${hotel.id}`} className="cursor-pointer font-normal text-xs">
-                            {hotel.name}
-                          </Label>
-                        </div>
-                      ))}
+              <Select
+                value={selectedHotels[0] || ""}
+                onValueChange={(value) => {
+                  if (value && !selectedHotels.includes(value)) {
+                    setSelectedHotels([...selectedHotels, value]);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder={selectedHotels.length > 0 ? `${selectedHotels.length} hôtel(s)` : "Sélectionner"} />
+                </SelectTrigger>
+                <SelectContent className="bg-background border shadow-lg">
+                  {hotels.map((hotel) => (
+                    <div
+                      key={hotel.id}
+                      className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (selectedHotels.includes(hotel.id)) {
+                          setSelectedHotels(selectedHotels.filter((id) => id !== hotel.id));
+                        } else {
+                          setSelectedHotels([...selectedHotels, hotel.id]);
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        className="h-3.5 w-3.5"
+                        checked={selectedHotels.includes(hotel.id)}
+                        onCheckedChange={() => {}}
+                      />
+                      <span className="text-sm">{hotel.name}</span>
                     </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1">
