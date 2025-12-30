@@ -934,61 +934,46 @@ export default function EditBookingDialog({
 
             {/* Quote Card - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
-              <div className="p-2 bg-orange-50 border border-orange-300 rounded-lg space-y-2">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+              <div className="p-2 bg-orange-50 border border-orange-300 rounded-lg">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <AlertTriangle className="w-3 h-3 text-orange-600" />
                   <span className="font-medium text-xs text-orange-800">Devis à valider</span>
+                  {variableTreatments.length > 0 && (
+                    <span className="text-[10px] text-orange-600 ml-1">
+                      ({variableTreatments.map((t: any) => t.name).join(", ")})
+                    </span>
+                  )}
                 </div>
                 
-                {/* Variable treatments list */}
-                {variableTreatments.length > 0 && (
-                  <div className="text-xs text-orange-700">
-                    {variableTreatments.map((t: any) => t.name).join(", ")}
-                  </div>
-                )}
-                
-                {/* Input row */}
-                <div className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <Label htmlFor="quote-price" className="text-[10px] text-orange-800">Prix (€)</Label>
-                    <Input
-                      id="quote-price"
-                      type="number"
-                      min="0"
-                      placeholder="100"
-                      value={quotePrice}
-                      onChange={(e) => setQuotePrice(e.target.value)}
-                      className="h-7 text-xs border-orange-300"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Label htmlFor="quote-duration" className="text-[10px] text-orange-800">Durée (min)</Label>
-                    <Input
-                      id="quote-duration"
-                      type="number"
-                      min="0"
-                      placeholder="60"
-                      value={quoteDuration}
-                      onChange={(e) => setQuoteDuration(e.target.value)}
-                      className="h-7 text-xs border-orange-300"
-                    />
-                  </div>
+                {/* Compact input row */}
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    id="quote-price"
+                    type="number"
+                    min="0"
+                    value={quotePrice}
+                    onChange={(e) => setQuotePrice(e.target.value)}
+                    className="h-6 w-16 text-xs border-orange-300 px-1.5"
+                  />
+                  <span className="text-[10px] text-orange-700">€</span>
+                  <Input
+                    id="quote-duration"
+                    type="number"
+                    min="0"
+                    value={quoteDuration}
+                    onChange={(e) => setQuoteDuration(e.target.value)}
+                    className="h-6 w-14 text-xs border-orange-300 px-1.5"
+                  />
+                  <span className="text-[10px] text-orange-700">min</span>
                   <Button
                     onClick={handleValidateQuote}
                     disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
                     size="sm"
-                    className="h-7 px-3 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                    className="h-6 px-2 text-[10px] bg-orange-600 hover:bg-orange-700 text-white ml-auto"
                   >
                     {validateQuoteMutation.isPending ? "..." : "Envoyer"}
                   </Button>
                 </div>
-                
-                {/* Total preview */}
-                {quotePrice && (
-                  <div className="text-[10px] text-orange-800 text-right">
-                    Total: €{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(0)}
-                  </div>
-                )}
               </div>
             )}
 
