@@ -26,7 +26,7 @@ import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
 import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -1035,7 +1035,7 @@ export default function EditBookingDialog({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Chambre</p>
-                  <p className="font-medium text-sm">{booking?.room_number || "-"}</p>
+                  <p className="font-medium text-sm">{decodeHtmlEntities(booking?.room_number) || "-"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Prix</p>

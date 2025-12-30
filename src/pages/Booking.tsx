@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { decodeHtmlEntities } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -591,7 +592,7 @@ export default function Booking() {
                                       
                                       {booking.room_number && (
                                         <div className="text-xs">
-                                          Chambre: {booking.room_number}
+                                          Chambre: {decodeHtmlEntities(booking.room_number)}
                                         </div>
                                       )}
                                       
