@@ -53,7 +53,7 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     hexColor: '#e11d48',
   },
   quote_pending: {
-    label: 'Devis en attente',
+    label: 'Devis',
     badgeClass: 'bg-orange-100 text-orange-800 border border-orange-400',
     cardClass: 'bg-orange-500 text-white',
     hexColor: '#f97316',
