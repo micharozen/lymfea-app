@@ -128,7 +128,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "OOM World <notifications@oom-world.com>",
+      from: "OOM World <notifications@oomworld.com>",
       to: [booking.client_email],
       subject: `Votre devis pour ${treatmentNames} est prêt`,
       html: `
