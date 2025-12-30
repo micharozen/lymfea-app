@@ -54,34 +54,34 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   },
 };
 
-// Payment Status Configuration - with emojis
+// Payment Status Configuration - emoji only
 export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   pending: {
-    label: '💳 À régler',
+    label: '💳',
     badgeClass: 'bg-yellow-100 text-yellow-700',
     cardClass: 'bg-yellow-500 text-white',
     hexColor: '#eab308',
   },
   paid: {
-    label: '✅ Payé',
+    label: '✅',
     badgeClass: 'bg-green-100 text-green-700',
     cardClass: 'bg-green-500 text-white',
     hexColor: '#22c55e',
   },
   failed: {
-    label: '❌ Échoué',
+    label: '❌',
     badgeClass: 'bg-red-100 text-red-700',
     cardClass: 'bg-red-500 text-white',
     hexColor: '#ef4444',
   },
   refunded: {
-    label: '↩️ Remboursé',
+    label: '↩️',
     badgeClass: 'bg-gray-100 text-gray-700',
     cardClass: 'bg-gray-500 text-white',
     hexColor: '#6b7280',
   },
   charged_to_room: {
-    label: '🏨 Chambre',
+    label: '🏨',
     badgeClass: 'bg-blue-100 text-blue-700',
     cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
