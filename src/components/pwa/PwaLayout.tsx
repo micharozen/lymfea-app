@@ -3,6 +3,7 @@ import { useEffect, useState, useLayoutEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
+import DebugViewportOverlay from "./DebugViewportOverlay";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 
 const PwaLayout = () => {
@@ -171,6 +172,7 @@ const PwaLayout = () => {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
+      <DebugViewportOverlay />
       {/* Main content - fills all available space */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain -webkit-overflow-scrolling-touch">
         <Outlet />
