@@ -1,8 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+// Global tap counter for secret debug activation
+let tapCount = 0;
+let tapTimer: NodeJS.Timeout | null = null;
 
 /**
  * Debug overlay to display viewport and safe-area values in real-time.
- * Only visible in development mode.
+ * Activate by: ?debug=true in URL, or tap 5 times quickly anywhere on screen
  */
 const DebugViewportOverlay = () => {
   const [values, setValues] = useState({
@@ -19,8 +23,45 @@ const DebugViewportOverlay = () => {
     vh: "N/A",
   });
   const [isVisible, setIsVisible] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(() => {
+    // Check localStorage or URL param
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      return localStorage.getItem("oom-debug") === "true" || urlParams.get("debug") === "true";
+    }
+    return false;
+  });
+
+  // Secret tap gesture to enable debug mode
+  useEffect(() => {
+    const handleTap = () => {
+      tapCount++;
+      if (tapTimer) clearTimeout(tapTimer);
+      
+      if (tapCount >= 5) {
+        tapCount = 0;
+        const newState = !debugEnabled;
+        setDebugEnabled(newState);
+        localStorage.setItem("oom-debug", newState.toString());
+        if (newState) {
+          alert("🛠️ Debug mode activé!");
+        } else {
+          alert("Debug mode désactivé");
+        }
+      }
+      
+      tapTimer = setTimeout(() => {
+        tapCount = 0;
+      }, 1000);
+    };
+
+    document.addEventListener("click", handleTap);
+    return () => document.removeEventListener("click", handleTap);
+  }, [debugEnabled]);
 
   useEffect(() => {
+    if (!debugEnabled) return;
+
     const update = () => {
       // Create temp element to measure safe-area values
       const el = document.createElement("div");
@@ -82,18 +123,17 @@ const DebugViewportOverlay = () => {
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
-  }, []);
+  }, [debugEnabled]);
 
-  // Show in dev mode OR when ?debug=true is in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const debugEnabled = !import.meta.env.PROD || urlParams.get("debug") === "true";
-  
   if (!debugEnabled) return null;
 
   if (!isVisible) {
     return (
       <button
-        onClick={() => setIsVisible(true)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsVisible(true);
+        }}
         className="fixed top-2 left-2 z-[9999] bg-black/80 text-white text-[10px] px-2 py-1 rounded font-mono"
       >
         📐 Debug
@@ -102,7 +142,10 @@ const DebugViewportOverlay = () => {
   }
 
   return (
-    <div className="fixed top-2 left-2 z-[9999] bg-black/90 text-white text-[10px] p-3 rounded-lg font-mono leading-relaxed max-w-[200px] shadow-lg">
+    <div 
+      className="fixed top-2 left-2 z-[9999] bg-black/90 text-white text-[10px] p-3 rounded-lg font-mono leading-relaxed max-w-[200px] shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
         onClick={() => setIsVisible(false)}
         className="absolute top-1 right-1 text-white/60 hover:text-white"
@@ -132,6 +175,15 @@ const DebugViewportOverlay = () => {
         <div className="text-pink-400 mt-2">OOM Clamped</div>
         <div>--oom-safe-bottom: {values.oomSafeBottom}</div>
       </div>
+      <button
+        onClick={() => {
+          setDebugEnabled(false);
+          localStorage.setItem("oom-debug", "false");
+        }}
+        className="mt-3 w-full bg-red-600 text-white text-[10px] py-1 rounded"
+      >
+        Désactiver Debug
+      </button>
     </div>
   );
 };
