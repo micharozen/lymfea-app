@@ -6,15 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// OOM Logo as inline SVG (simplified version)
-const OOM_LOGO_SVG = `<svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="#000"/>
-  <circle cx="16" cy="16" r="8" stroke="#fff" stroke-width="2" fill="none"/>
-  <circle cx="16" cy="16" r="3" fill="#fff"/>
-  <text x="44" y="24" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" font-weight="700" fill="#000">OOM</text>
-</svg>`;
-
-const OOM_LOGO_BASE64 = `data:image/svg+xml;base64,${btoa(OOM_LOGO_SVG)}`;
+// OOM Logo URL (hosted publicly)
+const OOM_LOGO_URL = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-secondary.png';
 
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {
@@ -90,32 +83,9 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
       border-bottom: 1px solid #e5e5e5;
     }
     
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-      background: #000;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .logo-icon svg {
-      width: 20px;
-      height: 20px;
-    }
-    
-    .logo-text {
-      font-size: 22px;
-      font-weight: 700;
-      color: #000;
-      letter-spacing: -0.5px;
+    .logo img {
+      height: 48px;
+      width: auto;
     }
     
     .doc-meta {
@@ -290,13 +260,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   <div class="document">
     <div class="header">
       <div class="logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="9" stroke="#fff" stroke-width="2"/>
-            <circle cx="12" cy="12" r="3" fill="#fff"/>
-          </svg>
-        </div>
-        <div class="logo-text">OOM</div>
+        <img src="${OOM_LOGO_URL}" alt="Object of Metamorphosis" />
       </div>
       <div class="doc-meta">
         <div class="doc-type">Bon de Prestation</div>
