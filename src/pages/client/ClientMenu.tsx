@@ -192,9 +192,16 @@ export default function ClientMenu() {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground mb-1 text-sm">
-                          {treatment.name}
-                        </h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-foreground text-sm">
+                            {treatment.name}
+                          </h3>
+                          {treatment.price_on_request && (
+                            <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium">
+                              Sur devis
+                            </Badge>
+                          )}
+                        </div>
                         {treatment.description && (
                           <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
                             {treatment.description}
@@ -202,9 +209,9 @@ export default function ClientMenu() {
                         )}
                         <div className="flex items-center gap-2 text-sm">
                           {treatment.price_on_request ? (
-                            <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30">
-                              Sur demande
-                            </Badge>
+                            <span className="text-amber-600 font-medium text-xs">
+                              Prix personnalisé
+                            </span>
                           ) : (
                             <span className="font-semibold text-foreground">
                               €{Number(treatment.price).toFixed(0)}
