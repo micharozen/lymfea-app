@@ -88,7 +88,9 @@
   "confirmation": {
     "title": "Booking Complete",
     "message": "You will receive a confirmation email with all the details of your booking",
-    "backHome": "Back to Home"
+    "backHome": "Back to Home",
+    "quotePendingTitle": "Quote Request Sent",
+    "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details."
   },
   "hotelNotFound": "Hotel not found",
   "checkQrCode": "Please check your QR code"
