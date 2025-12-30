@@ -441,6 +441,8 @@ export default function EditBookingDialog({
       const wasAssigned = bookingData.hairdresser_id && !booking.hairdresser_id;
       const hairdresserChanged = bookingData.hairdresser_id && booking.hairdresser_id && 
                                   bookingData.hairdresser_id !== booking.hairdresser_id;
+      // Track if booking was cancelled
+      const wasCancelled = bookingData.status === "cancelled" && booking.status !== "cancelled";
       
       // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
       if (bookingData.hairdresser_id && booking.status === "En attente") {
@@ -502,10 +504,10 @@ export default function EditBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
       
-      return { wasAssigned, hairdresserChanged };
+      return { wasAssigned, hairdresserChanged, wasCancelled };
     },
     onSuccess: async (result) => {
-      console.log("Update success - wasAssigned:", result?.wasAssigned, "hairdresserChanged:", result?.hairdresserChanged, "bookingId:", booking?.id);
+      console.log("Update success - wasAssigned:", result?.wasAssigned, "hairdresserChanged:", result?.hairdresserChanged, "wasCancelled:", result?.wasCancelled, "bookingId:", booking?.id);
       
       // Send push notification if hairdresser was newly assigned OR changed
       if ((result?.wasAssigned || result?.hairdresserChanged) && booking?.id) {
@@ -517,6 +519,19 @@ export default function EditBookingDialog({
           console.log("Push notification result:", data, error);
         } catch (notifError) {
           console.error("Error sending push notification:", notifError);
+        }
+      }
+      
+      // Send push notification if booking was cancelled
+      if (result?.wasCancelled && booking?.id) {
+        console.log("Triggering cancellation push notification for booking:", booking.id);
+        try {
+          const { data, error } = await supabase.functions.invoke('trigger-booking-cancelled-notification', {
+            body: { bookingId: booking.id }
+          });
+          console.log("Cancellation push notification result:", data, error);
+        } catch (notifError) {
+          console.error("Error sending cancellation push notification:", notifError);
         }
       }
       
