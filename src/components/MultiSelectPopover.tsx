@@ -80,11 +80,14 @@ export function MultiSelectPopover({
                     isSelected && "font-medium",
                   )}
                 >
-                  <span className="truncate">{opt.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-left">{opt.label}</span>
                   {isSelected ? (
-                    <Check className="h-4 w-4 text-foreground" strokeWidth={2.5} />
+                    <Check
+                      className="h-4 w-4 shrink-0 text-foreground"
+                      strokeWidth={2.5}
+                    />
                   ) : (
-                    <span className="h-4 w-4" />
+                    <span className="h-4 w-4 shrink-0" />
                   )}
                 </button>
               );
