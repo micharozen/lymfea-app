@@ -75,7 +75,7 @@ export function MultiSelectPopover({
                   }}
                   className={cn(
                     "w-full flex items-center justify-between gap-2 rounded-sm",
-                    "px-3 py-1.5 text-sm transition-colors",
+                    "px-3 py-1.5 text-sm text-popover-foreground transition-colors",
                     "hover:bg-foreground/5",
                     isSelected && "font-medium",
                   )}
@@ -83,7 +83,7 @@ export function MultiSelectPopover({
                   <span className="min-w-0 flex-1 truncate text-left">{opt.label}</span>
                   {isSelected ? (
                     <Check
-                      className="h-4 w-4 shrink-0 text-foreground"
+                      className="h-4 w-4 shrink-0 text-popover-foreground opacity-100"
                       strokeWidth={2.5}
                     />
                   ) : (
