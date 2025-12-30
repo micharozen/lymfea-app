@@ -6,7 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Compact email template - no scrolling needed
+interface Treatment {
+  name: string;
+  price: number | null;
+  isPriceOnRequest: boolean;
+}
+
+// Compact email template - handles both confirmed and quote_pending bookings
 function generateBookingConfirmationHtml({
   bookingId,
   bookingNumber,
@@ -18,7 +24,8 @@ function generateBookingConfirmationHtml({
   treatments,
   totalPrice,
   currency,
-  siteUrl
+  siteUrl,
+  isQuotePending
 }: {
   bookingId: string;
   bookingNumber: string;
@@ -27,15 +34,38 @@ function generateBookingConfirmationHtml({
   roomNumber: string;
   bookingDate: string;
   bookingTime: string;
-  treatments: string[];
+  treatments: Treatment[];
   totalPrice: number;
   currency: string;
   siteUrl: string;
+  isQuotePending: boolean;
 }) {
-  const treatmentsList = treatments.map(t => `<span style="display:inline-block;background:#f3f4f6;padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t}</span>`).join('');
+  // Build treatments list with proper handling for on-quote items
+  const treatmentsList = treatments.map(t => {
+    const priceDisplay = t.isPriceOnRequest ? 'On quote' : `${t.price || 0}€`;
+    const bgColor = t.isPriceOnRequest ? '#fef3c7' : '#f3f4f6';
+    const textColor = t.isPriceOnRequest ? '#92400e' : '#374151';
+    return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t.name} - ${priceDisplay}</span>`;
+  }).join('');
   
   const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
+  
+  // Status badge styling
+  const statusBadge = isQuotePending 
+    ? '<span style="display:inline-block;background:#f59e0b;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">⏳ Quote Requested</span>'
+    : '<span style="display:inline-block;background:#22c55e;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">✓ Booking Confirmed</span>';
+  
+  // Message based on status
+  const statusMessage = isQuotePending 
+    ? "We've received your booking request. We'll send you a quote very soon with the final price for your custom services."
+    : "Your booking has been successfully confirmed. A hairdresser will be assigned to your appointment shortly.";
+
+  // Total display
+  const hasOnQuoteItems = treatments.some(t => t.isPriceOnRequest);
+  const totalDisplay = hasOnQuoteItems 
+    ? `<td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency} <span style="font-size:12px;font-weight:normal;">+ quote</span></td>`
+    : `<td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency}</td>`;
   
   return `
 <!DOCTYPE html>
@@ -53,15 +83,15 @@ function generateBookingConfirmationHtml({
           <tr>
             <td style="background:#fff;padding:20px 16px 12px;text-align:center;border-bottom:1px solid #f0f0f0;">
               <img src="${logoUrl}" alt="OOM" style="height:60px;display:block;margin:0 auto 12px;" />
-              <span style="display:inline-block;background:#22c55e;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">✓ RDV Confirmé</span>
+              ${statusBadge}
             </td>
           </tr>
           
           <!-- Content -->
           <tr>
             <td style="padding:20px;">
-              <p style="margin:0 0 8px;font-size:15px;color:#333;">Bonjour ${clientName},</p>
-              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Votre réservation est confirmée. Un coiffeur va vous être assigné sous peu.</p>
+              <p style="margin:0 0 8px;font-size:15px;color:#333;">Hello ${clientName},</p>
+              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">${statusMessage}</p>
               
               <!-- Key Info Grid -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">
@@ -99,7 +129,7 @@ function generateBookingConfirmationHtml({
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#000;border-radius:8px;">
                 <tr>
                   <td style="padding:12px;color:#fff;font-size:13px;">Total</td>
-                  <td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency}</td>
+                  ${totalDisplay}
                 </tr>
               </table>
               
@@ -108,13 +138,13 @@ function generateBookingConfirmationHtml({
                 <tr>
                   <td align="center">
                     <a href="${manageBookingUrl}" style="display:inline-block;background:#f3f4f6;color:#374151;padding:10px 20px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:500;">
-                      Gérer ma réservation
+                      Manage my booking
                     </a>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding-top:8px;">
-                    <p style="margin:0;font-size:11px;color:#9ca3af;">Annulation gratuite jusqu'à 2h avant le RDV</p>
+                    <p style="margin:0;font-size:11px;color:#9ca3af;">Free cancellation up to 2h before the appointment</p>
                   </td>
                 </tr>
               </table>
@@ -155,10 +185,11 @@ serve(async (req) => {
       bookingTime,
       treatments,
       totalPrice,
-      currency
+      currency,
+      isQuotePending = false
     } = await req.json();
 
-    console.log('Sending booking confirmation email to:', email);
+    console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending);
 
     // Get site URL from environment or use default
     const siteUrl = Deno.env.get('SITE_URL') || 'https://oomworld.com';
@@ -182,13 +213,16 @@ serve(async (req) => {
       totalPrice,
       currency,
       siteUrl,
+      isQuotePending,
     });
+
+    const subjectPrefix = isQuotePending ? 'Quote Request' : 'Booking Confirmed';
 
     // Send email to client
     const { data: clientData, error: clientError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: [email],
-      subject: `[TEST CLIENT] RDV #${bookingNumber} confirmé - ${hotelName}`,
+      subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });
 
@@ -203,7 +237,7 @@ serve(async (req) => {
     const { data: adminData, error: adminError } = await resend.emails.send({
       from: 'OOM World <bookings@oomworld.com>',
       to: ['booking@oomworld.com'],
-      subject: `[TEST ADMIN] Nouvelle résa #${bookingNumber} - ${hotelName}`,
+      subject: `[ADMIN] ${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });
 
