@@ -372,10 +372,10 @@ export default function AddHairDresserDialog({
                             key={hotel.id}
                             type="button"
                             onClick={() => {
-                              setSelectedHotels(
-                                selected
-                                  ? selectedHotels.filter((id) => id !== hotel.id)
-                                  : [...selectedHotels, hotel.id],
+                              setSelectedHotels((prev) =>
+                                prev.includes(hotel.id)
+                                  ? prev.filter((id) => id !== hotel.id)
+                                  : [...prev, hotel.id],
                               );
                             }}
                             className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
