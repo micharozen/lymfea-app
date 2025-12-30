@@ -1101,14 +1101,11 @@ export default function EditBookingDialog({
                           const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
                           const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
                           
-                          let newStatus = booking!.status;
                           let assignedAt = booking!.assigned_at;
                           
-                          if (hairdresserId && booking!.status === "En attente") {
-                            newStatus = "Assigné";
+                          if (hairdresserId) {
                             assignedAt = new Date().toISOString();
-                          } else if (!hairdresserId && booking!.status === "Assigné") {
-                            newStatus = "En attente";
+                          } else {
                             assignedAt = null;
                           }
                           
@@ -1117,7 +1114,6 @@ export default function EditBookingDialog({
                             .update({
                               hairdresser_id: hairdresserId,
                               hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
-                              status: newStatus,
                               assigned_at: assignedAt,
                             })
                             .eq("id", booking!.id);
