@@ -48,11 +48,23 @@ export default function ClientDateTime() {
     return dates;
   }, [locale, t]);
 
-  // Generate time slots (6AM to 11PM every 10 minutes)
+  // Generate time slots (6AM to 11PM every 10 minutes), filtering out past times for today
   const timeSlots = useMemo(() => {
     const slots = [];
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
     for (let hour = 6; hour < 23; hour++) {
       for (let minute = 0; minute < 60; minute += 10) {
+        // Skip past times if selected date is today
+        if (selectedDate === todayStr) {
+          if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+            continue;
+          }
+        }
+        
         const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
         const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -65,7 +77,7 @@ export default function ClientDateTime() {
       }
     }
     return slots;
-  }, []);
+  }, [selectedDate]);
 
   // Fetch available slots when date changes
   useEffect(() => {
