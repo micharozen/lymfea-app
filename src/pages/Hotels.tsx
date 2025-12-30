@@ -231,140 +231,109 @@ export default function Hotels() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
+          <Table className="text-xs">
             <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold w-[250px] whitespace-nowrap">
-                  Nom de l&apos;hôtel
-                </TableHead>
-                <TableHead className="font-semibold w-[300px] whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Localisation
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold w-[250px] whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Concierges
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
-                  <div className="flex items-center justify-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Liste de boxes
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold w-[100px] text-center whitespace-nowrap">Statut</TableHead>
-                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
-                  <div className="flex items-center justify-center gap-2">
-                    <DollarSign className="h-4 w-4" />
-                    Ventes totales
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
-                  <div className="flex items-center justify-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Réservations
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold w-[120px] text-center whitespace-nowrap">
-                  QR Code
-                </TableHead>
+              <TableRow className="h-8 bg-muted/50">
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtel</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Localisation</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Concierges</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Boxes</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Statut</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Ventes</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Rés.</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">QR</TableHead>
                 {isAdmin && (
-                  <TableHead className="font-semibold w-[100px] text-right whitespace-nowrap">Actions</TableHead>
+                  <TableHead className="py-1.5 px-2 text-xs font-semibold text-right">Actions</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHotels.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-4 text-muted-foreground text-xs">
                     Aucun hôtel trouvé
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredHotels.map((hotel) => (
-                  <TableRow key={hotel.id} className="h-12">
-                    <TableCell className="py-2 align-middle">
-                      <div className="flex items-center gap-3 whitespace-nowrap">
-                        <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
+                  <TableRow key={hotel.id} className="h-10">
+                    <TableCell className="py-0 px-2">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 rounded-md flex-shrink-0">
                           <AvatarImage src={hotel.image || ""} />
-                          <AvatarFallback className="bg-muted rounded-md text-xs">
+                          <AvatarFallback className="bg-muted rounded-md text-[10px]">
                             {hotel.name.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="font-medium">{hotel.name}</div>
+                        <span className="font-medium text-xs truncate max-w-[120px]">{hotel.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2 align-middle whitespace-nowrap">
-                      <div className="text-sm">
-                        {hotel.address} {hotel.postal_code || ''} {hotel.city} {hotel.country}
-                      </div>
+                    <TableCell className="py-0 px-2">
+                      <span className="text-xs truncate max-w-[150px] block">
+                        {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
+                      </span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle">
+                    <TableCell className="py-0 px-2">
                       {hotel.concierges && hotel.concierges.length > 0 ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {hotel.concierges.map((concierge) => (
-                            <div key={concierge.id} className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarImage src={concierge.profile_image || ""} />
-                                <AvatarFallback className="bg-muted text-xs">
-                                  {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm whitespace-nowrap">
-                                {concierge.first_name} {concierge.last_name}
-                              </span>
-                            </div>
+                        <div className="flex items-center gap-1">
+                          {hotel.concierges.slice(0, 2).map((concierge) => (
+                            <Avatar key={concierge.id} className="h-5 w-5">
+                              <AvatarImage src={concierge.profile_image || ""} />
+                              <AvatarFallback className="bg-muted text-[8px]">
+                                {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
                           ))}
+                          {hotel.concierges.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">+{hotel.concierges.length - 2}</span>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
+                        <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      <span className="text-sm text-muted-foreground">-</span>
+                    <TableCell className="py-0 px-2 text-center">
+                      <span className="text-xs text-muted-foreground">-</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
+                    <TableCell className="py-0 px-2 text-center">
                       <Badge 
                         variant={(hotel.status === "Actif" || hotel.status === "Active") ? "default" : "secondary"}
                         className={cn(
-                          "font-medium",
-                          (hotel.status === "Actif" || hotel.status === "Active") && "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                          hotel.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
+                          "text-[10px] px-1.5 py-0",
+                          (hotel.status === "Actif" || hotel.status === "Active") && "bg-green-500/10 text-green-700",
+                          hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
                         )}
                       >
                         {(hotel.status === "Active" || hotel.status === "Actif") ? "Actif" : hotel.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      <span className="font-medium">€0.00</span>
+                    <TableCell className="py-0 px-2 text-center">
+                      <span className="text-xs font-medium">€0</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
-                      <span className="text-muted-foreground">0</span>
+                    <TableCell className="py-0 px-2 text-center">
+                      <span className="text-xs text-muted-foreground">0</span>
                     </TableCell>
-                    <TableCell className="py-2 align-middle text-center whitespace-nowrap">
+                    <TableCell className="py-0 px-2 text-center">
                       <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-2 align-middle">
-                        <div className="flex items-center justify-end gap-2">
+                      <TableCell className="py-0 px-2">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors"
+                            className="h-6 w-6"
                             onClick={() => setEditHotelId(hotel.id)}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                            className="h-6 w-6"
                             onClick={() => setDeleteHotelId(hotel.id)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
