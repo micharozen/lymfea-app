@@ -171,20 +171,18 @@ const PwaLayout = () => {
 
   return (
     <div
-      className="flex flex-col bg-white"
+      className="flex flex-col bg-background"
       style={{
         height: "100dvh",
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
-        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      {/* Pages already manage their own scrolling; avoid nested scroll containers on iOS */}
+      <div className="flex-1 min-h-0 overflow-hidden">
         <Outlet />
       </div>
-      {shouldShowTabBar && (
-        <TabBar unreadCount={unreadCount} />
-      )}
+      {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
     </div>
   );
 };

@@ -20,7 +20,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
   };
 
   return (
-    <div className="flex-shrink-0 bg-background border-t border-border">
+    <div
+      className="flex-shrink-0 bg-background border-t border-border"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="flex items-center justify-around h-14">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
