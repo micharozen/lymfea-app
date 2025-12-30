@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState, useLayoutEffect, useCallback } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
@@ -11,47 +11,10 @@ const PwaLayout = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
 
-  const updateSafeAreaInsets = useCallback(() => {
-    // iOS sometimes reports a gigantic safe-area-inset-bottom after navigation/dialogs.
-    // Measure it once from computed styles, then clamp to a sane value.
-    const el = document.createElement("div");
-    el.style.position = "absolute";
-    el.style.visibility = "hidden";
-    el.style.pointerEvents = "none";
-    el.style.paddingBottom = "env(safe-area-inset-bottom)";
-    document.body.appendChild(el);
-
-    const pb = parseFloat(window.getComputedStyle(el).paddingBottom || "0") || 0;
-    document.body.removeChild(el);
-
-    const clamped = Math.min(Math.max(pb, 0), 40);
-    document.documentElement.style.setProperty("--oom-safe-bottom", `${clamped}px`);
-  }, []);
-
   // Scroll to top on every route change - use useLayoutEffect for immediate execution
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
-
-  // Recompute safe-area after navigation and viewport changes (iOS)
-  useEffect(() => {
-    updateSafeAreaInsets();
-    const raf = requestAnimationFrame(updateSafeAreaInsets);
-    const t = window.setTimeout(updateSafeAreaInsets, 250);
-
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", updateSafeAreaInsets);
-    vv?.addEventListener("scroll", updateSafeAreaInsets);
-    window.addEventListener("orientationchange", updateSafeAreaInsets);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(t);
-      vv?.removeEventListener("resize", updateSafeAreaInsets);
-      vv?.removeEventListener("scroll", updateSafeAreaInsets);
-      window.removeEventListener("orientationchange", updateSafeAreaInsets);
-    };
-  }, [location.pathname, updateSafeAreaInsets]);
 
   // Set up notification click handler for push notifications
   useEffect(() => {
@@ -207,17 +170,11 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/');
 
   return (
-    <div
-      className="fixed inset-0 flex flex-col bg-background"
-      style={{
-        paddingLeft: "env(safe-area-inset-left)",
-        paddingRight: "env(safe-area-inset-right)",
-      }}
-    >
-      {/* Single scroll container to avoid iOS viewport gaps after navigation */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain">
+    <div className="fixed inset-0 flex flex-col bg-background">
+      {/* Main content - fills all available space */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain -webkit-overflow-scrolling-touch">
         <Outlet />
-      </div>
+      </main>
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
     </div>
   );
