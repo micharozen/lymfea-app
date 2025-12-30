@@ -1,0 +1,92 @@
+import * as React from "react";
+import { Check, ChevronDown } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+export type MultiSelectOption = {
+  value: string;
+  label: string;
+};
+
+type Props = {
+  placeholder?: string;
+  selected: string[];
+  onChange: (next: string[]) => void;
+  options: MultiSelectOption[];
+  popoverWidthClassName?: string;
+  popoverMaxHeightClassName?: string;
+  triggerClassName?: string;
+};
+
+export function MultiSelectPopover({
+  placeholder = "Sélectionner",
+  selected,
+  onChange,
+  options,
+  popoverWidthClassName = "w-48",
+  popoverMaxHeightClassName = "h-40",
+  triggerClassName,
+}: Props) {
+  const selectedLabel = React.useMemo(() => {
+    if (!selected.length) return placeholder;
+    const map = new Map(options.map((o) => [o.value, o.label] as const));
+    return selected.map((v) => map.get(v)).filter(Boolean).join(", ");
+  }, [options, placeholder, selected]);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground",
+            triggerClassName,
+          )}
+        >
+          <span className="truncate">{selectedLabel}</span>
+          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+
+      <PopoverContent
+        className={cn(popoverWidthClassName, "p-0")}
+        align="start"
+        onWheelCapture={(e) => e.stopPropagation()}
+        onTouchMoveCapture={(e) => e.stopPropagation()}
+      >
+        <ScrollArea className={cn(popoverMaxHeightClassName, "touch-pan-y")}
+        >
+          <div className="p-1">
+            {options.map((opt) => {
+              const isSelected = selected.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(
+                      isSelected
+                        ? selected.filter((v) => v !== opt.value)
+                        : [...selected, opt.value],
+                    );
+                  }}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-2 rounded-sm",
+                    "px-3 py-1.5 text-sm transition-colors",
+                    "hover:bg-muted-foreground/10",
+                  )}
+                >
+                  <span className="truncate">{opt.label}</span>
+                  {isSelected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    </Popover>
+  );
+}

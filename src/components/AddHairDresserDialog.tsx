@@ -10,24 +10,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { ChevronDown, Check } from "lucide-react";
+import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import * as z from "zod";
 
 const countries = [
@@ -345,146 +337,35 @@ export default function AddHairDresserDialog({
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Hôtels</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
-                  >
-                    <span className="truncate">
-                      {selectedHotels.length === 0
-                        ? "Sélectionner"
-                        : hotels
-                            .filter((h) => selectedHotels.includes(h.id))
-                            .map((h) => h.name)
-                            .join(", ")}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-40 touch-pan-y">
-                    <div className="p-1">
-                      {hotels.map((hotel) => {
-                        const selected = selectedHotels.includes(hotel.id);
-                        return (
-                          <button
-                            key={hotel.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedHotels((prev) =>
-                                prev.includes(hotel.id)
-                                  ? prev.filter((id) => id !== hotel.id)
-                                  : [...prev, hotel.id],
-                              );
-                            }}
-                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
-                          >
-                            <span className="truncate">{hotel.name}</span>
-                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
+              <MultiSelectPopover
+                selected={selectedHotels}
+                onChange={setSelectedHotels}
+                options={hotels.map((h) => ({ value: h.id, label: h.name }))}
+                popoverWidthClassName="w-48"
+                popoverMaxHeightClassName="h-40"
+              />
             </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Trunk</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
-                  >
-                    <span className="truncate">
-                      {selectedTrunks.length === 0
-                        ? "Sélectionner"
-                        : TRUNKS_OPTIONS
-                            .filter((t) => selectedTrunks.includes(t.value))
-                            .map((t) => t.label)
-                            .join(", ")}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-32 touch-pan-y">
-                    <div className="p-1">
-                      {TRUNKS_OPTIONS.map((trunk) => {
-                        const selected = selectedTrunks.includes(trunk.value);
-                        return (
-                          <button
-                            key={trunk.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedTrunks((prev) =>
-                                prev.includes(trunk.value)
-                                  ? prev.filter((t) => t !== trunk.value)
-                                  : [...prev, trunk.value],
-                              );
-                            }}
-                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
-                          >
-                            <span className="truncate">{trunk.label}</span>
-                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
+              <MultiSelectPopover
+                selected={selectedTrunks}
+                onChange={setSelectedTrunks}
+                options={TRUNKS_OPTIONS.map((t) => ({ value: t.value, label: t.label }))}
+                popoverWidthClassName="w-36"
+                popoverMaxHeightClassName="h-32"
+              />
             </div>
 
             <div className="space-y-1">
               <Label className="text-xs">Compétences</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
-                  >
-                    <span className="truncate">
-                      {selectedSkills.length === 0
-                        ? "Sélectionner"
-                        : SKILLS_OPTIONS
-                            .filter((s) => selectedSkills.includes(s.value))
-                            .map((s) => s.label)
-                            .join(", ")}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-32 touch-pan-y">
-                    <div className="p-1">
-                      {SKILLS_OPTIONS.map((skill) => {
-                        const selected = selectedSkills.includes(skill.value);
-                        return (
-                          <button
-                            key={skill.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedSkills((prev) =>
-                                prev.includes(skill.value)
-                                  ? prev.filter((s) => s !== skill.value)
-                                  : [...prev, skill.value],
-                              );
-                            }}
-                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
-                          >
-                            <span className="truncate">{skill.label}</span>
-                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
+              <MultiSelectPopover
+                selected={selectedSkills}
+                onChange={setSelectedSkills}
+                options={SKILLS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                popoverWidthClassName="w-36"
+                popoverMaxHeightClassName="h-32"
+              />
             </div>
           </div>
 
