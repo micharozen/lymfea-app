@@ -23,7 +23,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// Generate a secure random password
+// Generate a cryptographically secure random password
 function generatePassword(): string {
   const length = 12;
   const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -32,23 +32,31 @@ function generatePassword(): string {
   const special = "!@#$%&*";
   const all = uppercase + lowercase + numbers + special;
 
-  let password = "";
-  // Ensure at least one of each type
-  password += uppercase[Math.floor(Math.random() * uppercase.length)];
-  password += lowercase[Math.floor(Math.random() * lowercase.length)];
-  password += numbers[Math.floor(Math.random() * numbers.length)];
-  password += special[Math.floor(Math.random() * special.length)];
+  // Use cryptographically secure random values
+  const randomBytes = new Uint8Array(length);
+  crypto.getRandomValues(randomBytes);
 
-  // Fill the rest randomly
-  for (let i = password.length; i < length; i++) {
-    password += all[Math.floor(Math.random() * all.length)];
+  // Ensure at least one of each type using secure random
+  const chars: string[] = [];
+  chars.push(uppercase[randomBytes[0] % uppercase.length]);
+  chars.push(lowercase[randomBytes[1] % lowercase.length]);
+  chars.push(numbers[randomBytes[2] % numbers.length]);
+  chars.push(special[randomBytes[3] % special.length]);
+
+  // Fill the rest randomly with secure random
+  for (let i = 4; i < length; i++) {
+    chars.push(all[randomBytes[i] % all.length]);
   }
 
-  // Shuffle the password
-  return password
-    .split("")
-    .sort(() => Math.random() - 0.5)
-    .join("");
+  // Shuffle using Fisher-Yates with secure random
+  const shuffleBytes = new Uint8Array(chars.length);
+  crypto.getRandomValues(shuffleBytes);
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = shuffleBytes[i] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join("");
 }
 
 serve(async (req: Request): Promise<Response> => {
