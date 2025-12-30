@@ -111,26 +111,40 @@ const PwaLogin = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { 
+        body: {
           phoneNumber: phone,
-          countryCode: countryCode 
-        }
+          countryCode: countryCode,
+        },
       });
-      
+
+      // Backward-compat: some responses may still come back as an error (non-2xx)
       if (error) {
         console.log('Full error object:', JSON.stringify(error, null, 2));
-        const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
-        
+        const errorMessage =
+          (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
+
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
-          toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
-            duration: 8000,
-          });
+          toast.error(
+            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            { duration: 8000 },
+          );
         } else {
           toast.error(errorMessage);
         }
         return;
       }
-      
+
+      // Preferred: 200 with success=false
+      if (data && (data as any).success === false) {
+        const msg = (data as any).error || t('common:errors.generic');
+        toast.error(
+          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          { duration: 8000 },
+        );
+        console.warn('send-otp rejected:', msg);
+        return;
+      }
+
       setStep("otp");
       setTimer(91);
       setCanResend(false);
@@ -158,25 +172,35 @@ const PwaLogin = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-otp', {
-        body: { 
+        body: {
           phoneNumber: phone,
-          countryCode: countryCode 
-        }
+          countryCode: countryCode,
+        },
       });
-      
+
       if (error) {
-        const errorMessage = (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
-        
+        const errorMessage =
+          (error as any)?.context?.body?.error || error.message || t('common:errors.generic');
+
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
-          toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
-            duration: 8000,
-          });
+          toast.error(
+            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            { duration: 8000 },
+          );
         } else {
           toast.error(errorMessage);
         }
         return;
       }
-      
+
+      if (data && (data as any).success === false) {
+        toast.error(
+          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          { duration: 8000 },
+        );
+        return;
+      }
+
       setTimer(91);
       setCanResend(false);
       setIsCodeExpired(false);
