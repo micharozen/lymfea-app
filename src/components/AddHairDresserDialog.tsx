@@ -381,11 +381,7 @@ export default function AddHairDresserDialog({
                                   : [...selectedHotels, hotel.id],
                               );
                             }}
-                            className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors",
-                              "hover:bg-muted-foreground/10",
-                              selected && "bg-foreground/10 font-medium",
-                            )}
+                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
                           >
                             <span className="truncate">{hotel.name}</span>
                             {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
@@ -433,11 +429,7 @@ export default function AddHairDresserDialog({
                                   : [...selectedTrunks, trunk.value],
                               );
                             }}
-                            className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors",
-                              "hover:bg-muted-foreground/10",
-                              selected && "bg-foreground/10 font-medium",
-                            )}
+                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
                           >
                             <span className="truncate">{trunk.label}</span>
                             {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
@@ -485,11 +477,7 @@ export default function AddHairDresserDialog({
                                   : [...selectedSkills, skill.value],
                               );
                             }}
-                            className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors",
-                              "hover:bg-muted-foreground/10",
-                              selected && "bg-foreground/10 font-medium",
-                            )}
+                            className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
                           >
                             <span className="truncate">{skill.label}</span>
                             {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
