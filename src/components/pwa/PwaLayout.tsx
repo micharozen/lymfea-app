@@ -171,10 +171,21 @@ const PwaLayout = () => {
 
   return (
     <div className="flex flex-col h-[100dvh] bg-white overflow-hidden">
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden"
+        style={{ 
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingLeft: 'env(safe-area-inset-left)',
+          paddingRight: 'env(safe-area-inset-right)',
+        }}
+      >
         <Outlet />
       </div>
-      {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
+      {shouldShowTabBar && (
+        <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <TabBar unreadCount={unreadCount} />
+        </div>
+      )}
     </div>
   );
 };
