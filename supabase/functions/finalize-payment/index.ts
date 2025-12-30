@@ -355,15 +355,17 @@ serve(async (req) => {
           payment_method: 'room',
           signature_url: signaturePublicUrl || '',
         },
-        custom_fields: signaturePublicUrl ? [
+        custom_fields: [
           {
-            name: 'Preuve de Signature',
-            value: signaturePublicUrl.substring(0, 30) + '...',
+            name: 'Chambre',
+            value: booking.room_number || 'N/A',
           },
-        ] : undefined,
-        footer: signaturePublicUrl 
-          ? `Signature client: ${signaturePublicUrl}\nPaiement: Facturé sur la chambre ${booking.room_number || 'N/A'}` 
-          : `Paiement: Facturé sur la chambre ${booking.room_number || 'N/A'}`,
+          {
+            name: 'Signature',
+            value: signaturePublicUrl ? '✓ Validée' : 'N/A',
+          },
+        ],
+        footer: `Paiement mis sur la note de chambre ${booking.room_number || ''}. Document de prestation signé par le client.`,
       });
 
       // Add invoice line item
