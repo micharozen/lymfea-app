@@ -348,7 +348,8 @@ serve(async (req) => {
       const { data: admins } = await supabaseClient
         .from("admins")
         .select("email, first_name, last_name")
-        .eq("status", "active");
+        // Some environments store status in French (ex: "Actif")
+        .in("status", ["active", "Active", "actif", "Actif"]);
 
       if (admins && admins.length > 0) {
         const adminEmailHtml = `
