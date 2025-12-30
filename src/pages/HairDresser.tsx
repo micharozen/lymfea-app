@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
@@ -67,6 +67,8 @@ export default function HairDresser() {
   const [selectedHairDresser, setSelectedHairDresser] = useState<HairDresser | null>(null);
   const [deleteHairDresserId, setDeleteHairDresserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   useEffect(() => {
     fetchHairdressers();
@@ -297,7 +299,9 @@ export default function HairDresser() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHairdressers.map((hairdresser) => (
+                filteredHairdressers
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((hairdresser) => (
                   <TableRow key={hairdresser.id} className="h-10">
                     <TableCell className="py-0 px-2">
                       <div className="flex items-center gap-2">
@@ -372,6 +376,38 @@ export default function HairDresser() {
               )}
             </TableBody>
           </Table>
+          
+          {/* Pagination */}
+          {filteredHairdressers.length > itemsPerPage && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-border">
+              <span className="text-xs text-muted-foreground">
+                {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredHairdressers.length)} sur {filteredHairdressers.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="text-xs px-2">
+                  {currentPage} / {Math.ceil(filteredHairdressers.length / itemsPerPage)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredHairdressers.length / itemsPerPage), p + 1))}
+                  disabled={currentPage >= Math.ceil(filteredHairdressers.length / itemsPerPage)}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
