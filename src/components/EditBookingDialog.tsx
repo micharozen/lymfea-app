@@ -897,7 +897,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-md p-0 gap-0 flex flex-col max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-md p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
@@ -970,9 +970,9 @@ export default function EditBookingDialog({
             </div>
           </div>
         ) : viewMode === "view" ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* BODY - Scrollable */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          <>
+            {/* BODY */}
+            <div className="px-4 py-3 space-y-2">
               {/* En-tête */}
               <div className="flex items-center justify-between pb-3 border-b">
                 <div className="flex items-center gap-3">
@@ -988,7 +988,6 @@ export default function EditBookingDialog({
                   <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
                     {getBookingStatusConfig(booking?.status || 'pending').label}
                   </Badge>
-                  {/* Hide payment status when quote is pending or waiting approval */}
                   {booking?.payment_status && 
                    booking?.status !== 'quote_pending' && 
                    booking?.status !== 'waiting_approval' && (
@@ -1153,9 +1152,8 @@ export default function EditBookingDialog({
               </div>
             </div>
 
-            {/* FOOTER - Fixed at bottom */}
-            <DialogFooter className="shrink-0 px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
-              {/* Quote button - Left side */}
+            {/* FOOTER */}
+            <div className="px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
               {booking?.status === "quote_pending" && isAdmin ? (
                 <Button
                   type="button"
@@ -1172,7 +1170,6 @@ export default function EditBookingDialog({
                 </Button>
               )}
               
-              {/* Action buttons - Right side */}
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
                   {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
@@ -1194,8 +1191,8 @@ export default function EditBookingDialog({
                   </Button>
                 </div>
               )}
-            </DialogFooter>
-          </div>
+            </div>
+          </>
         ) : (
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
