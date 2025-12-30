@@ -978,7 +978,7 @@ export default function EditBookingDialog({
               </Button>
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
-                  {booking?.status !== "cancelled" && canCancelBooking && (
+                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
                     <Button 
                       type="button" 
                       variant="destructive"
@@ -1220,7 +1220,7 @@ export default function EditBookingDialog({
                   <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
                     Annuler
                   </Button>
-                  {booking?.status !== "cancelled" && canCancelBooking && (
+                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
                     <Button 
                       type="button" 
                       variant="destructive"
