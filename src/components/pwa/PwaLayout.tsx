@@ -3,7 +3,6 @@ import { useEffect, useState, useLayoutEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import TabBar from "./TabBar";
-import DebugViewportOverlay from "./DebugViewportOverlay";
 import { setNotificationClickHandler, getPendingNotificationUrl } from "@/hooks/useOneSignal";
 
 const PwaLayout = () => {
@@ -184,8 +183,6 @@ const PwaLayout = () => {
       </main>
       
       {shouldShowTabBar && <TabBar unreadCount={unreadCount} />}
-      
-      <DebugViewportOverlay />
     </div>
   );
 };
