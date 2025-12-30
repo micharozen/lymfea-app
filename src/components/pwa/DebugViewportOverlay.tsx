@@ -21,6 +21,12 @@ const DebugViewportOverlay = () => {
     oomSafeBottom: "0px",
     dvh: "N/A",
     vh: "N/A",
+    // Layout elements
+    tabBarHeight: 0,
+    tabBarBottom: 0,
+    mainHeight: 0,
+    mainScrollHeight: 0,
+    layoutHeight: 0,
   });
   const [isVisible, setIsVisible] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(() => {
@@ -88,6 +94,11 @@ const DebugViewportOverlay = () => {
       document.body.appendChild(vhEl);
       const vhValue = vhEl.offsetHeight;
 
+      // Measure actual layout elements
+      const tabBar = document.querySelector("nav.fixed.bottom-0") as HTMLElement | null;
+      const mainEl = document.querySelector("main") as HTMLElement | null;
+      const layoutEl = document.querySelector(".fixed.inset-0") as HTMLElement | null;
+
       setValues({
         innerHeight: window.innerHeight,
         innerWidth: window.innerWidth,
@@ -100,6 +111,12 @@ const DebugViewportOverlay = () => {
         oomSafeBottom: getComputedStyle(document.documentElement).getPropertyValue("--oom-safe-bottom") || "0px",
         dvh: `${dvhValue}px`,
         vh: `${vhValue}px`,
+        // Layout elements
+        tabBarHeight: tabBar?.offsetHeight || 0,
+        tabBarBottom: tabBar ? parseInt(getComputedStyle(tabBar).bottom || "0") : 0,
+        mainHeight: mainEl?.clientHeight || 0,
+        mainScrollHeight: mainEl?.scrollHeight || 0,
+        layoutHeight: layoutEl?.clientHeight || 0,
       });
 
       document.body.removeChild(el);
@@ -174,6 +191,13 @@ const DebugViewportOverlay = () => {
         
         <div className="text-pink-400 mt-2">OOM Clamped</div>
         <div>--oom-safe-bottom: {values.oomSafeBottom}</div>
+        
+        <div className="text-cyan-400 mt-2">Layout Elements</div>
+        <div>TabBar H: {values.tabBarHeight}px</div>
+        <div>TabBar bottom: {values.tabBarBottom}px</div>
+        <div>Main H: {values.mainHeight}px</div>
+        <div>Main scrollH: {values.mainScrollHeight}px</div>
+        <div>Layout H: {values.layoutHeight}px</div>
       </div>
       <button
         onClick={() => {
