@@ -371,10 +371,11 @@ export default function Booking() {
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
             <SelectItem value="pending">En attente</SelectItem>
-            <SelectItem value="assigned">Assigné</SelectItem>
             <SelectItem value="confirmed">Confirmé</SelectItem>
+            <SelectItem value="ongoing">En cours</SelectItem>
             <SelectItem value="completed">Terminé</SelectItem>
             <SelectItem value="cancelled">Annulé</SelectItem>
+            <SelectItem value="noshow">No-show</SelectItem>
           </SelectContent>
         </Select>
 
