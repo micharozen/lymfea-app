@@ -974,28 +974,6 @@ export default function EditBookingDialog({
               </div>
             </div>
 
-            {/* Signature Client - Display only for completed bookings */}
-            {(booking?.status === "completed" || booking?.client_signature) && (
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Signature client</p>
-                {booking?.client_signature ? (
-                  <div className="bg-background border rounded-md p-2 inline-block">
-                    <img 
-                      src={booking.client_signature} 
-                      alt="Signature Client" 
-                      className="h-20 w-auto max-w-full object-contain"
-                    />
-                    {booking.signed_at && (
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Signé le {format(new Date(booking.signed_at), "dd/MM/yyyy à HH:mm", { locale: fr })}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground italic">Pas de signature</span>
-                )}
-              </div>
-            )}
 
             {/* Actions Footer */}
             <div className="flex justify-between gap-3 pt-3 border-t">
