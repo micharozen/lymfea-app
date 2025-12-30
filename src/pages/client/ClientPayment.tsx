@@ -53,11 +53,7 @@ export default function ClientPayment() {
               date: dateTime.date,
               time: dateTime.time,
             },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              quantity: item.quantity,
-              note: item.note,
-            })),
+            treatmentIds: items.map(item => item.id),
             totalPrice: total,
           },
         });
