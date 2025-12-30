@@ -141,9 +141,7 @@ export default function ClientPayment() {
                   <span className="text-muted-foreground">
                     {item.name} x{item.quantity}
                   </span>
-                  <Badge className="text-[10px] px-2 py-0.5 bg-amber-500 text-white border-0">
-                    TBD
-                  </Badge>
+                  <span className="text-amber-600 text-xs font-medium">On quote</span>
                 </div>
               ))}
             </div>
