@@ -84,8 +84,11 @@ const DebugViewportOverlay = () => {
     };
   }, []);
 
-  // Only show in development
-  if (import.meta.env.PROD) return null;
+  // Show in dev mode OR when ?debug=true is in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const debugEnabled = !import.meta.env.PROD || urlParams.get("debug") === "true";
+  
+  if (!debugEnabled) return null;
 
   if (!isVisible) {
     return (
