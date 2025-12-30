@@ -242,44 +242,41 @@ export default function AddHairDresserDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Ajouter un coiffeur</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Photo de profil</Label>
-            <div className="flex items-center gap-3">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={profileImage || ""} />
-                <AvatarFallback className="bg-muted">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
-                  </svg>
-                </AvatarFallback>
-              </Avatar>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-              >
-                {uploading ? "Téléchargement..." : "Télécharger une image"}
-              </Button>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={profileImage || ""} />
+              <AvatarFallback className="bg-muted">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-muted-foreground">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                </svg>
+              </AvatarFallback>
+            </Avatar>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? "..." : "Photo"}
+            </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">Prénom *</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="first_name" className="text-xs">Prénom *</Label>
               <Input
                 id="first_name"
                 value={formData.first_name}
@@ -287,10 +284,11 @@ export default function AddHairDresserDialog({
                   setFormData({ ...formData, first_name: e.target.value })
                 }
                 required
+                className="h-9"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Nom *</Label>
+            <div className="space-y-1">
+              <Label htmlFor="last_name" className="text-xs">Nom *</Label>
               <Input
                 id="last_name"
                 value={formData.last_name}
@@ -298,12 +296,13 @@ export default function AddHairDresserDialog({
                   setFormData({ ...formData, last_name: e.target.value })
                 }
                 required
+                className="h-9"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-xs">Email *</Label>
             <Input
               id="email"
               type="email"
@@ -312,22 +311,24 @@ export default function AddHairDresserDialog({
                 setFormData({ ...formData, email: e.target.value })
               }
               required
+              className="h-9"
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="country_code">Code pays</Label>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="country_code" className="text-xs">Code</Label>
               <Input
                 id="country_code"
                 value={formData.country_code}
                 onChange={(e) =>
                   setFormData({ ...formData, country_code: e.target.value })
                 }
+                className="h-9"
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="phone">Téléphone *</Label>
+            <div className="col-span-2 space-y-1">
+              <Label htmlFor="phone" className="text-xs">Téléphone *</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -335,177 +336,182 @@ export default function AddHairDresserDialog({
                   setFormData({ ...formData, phone: e.target.value })
                 }
                 required
+                className="h-9"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Hôtels</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between font-normal"
-                >
-                  <span>
-                    {selectedHotels.length === 0
-                      ? "Sélectionner des hôtels"
-                      : `${selectedHotels.length} hôtel(s) sélectionné(s)`}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0" align="start">
-                <div className="max-h-80 overflow-y-auto p-3 space-y-2">
-                  {hotels.map((hotel) => (
-                    <div
-                      key={hotel.id}
-                      className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={hotel.image || ""} alt={hotel.name} />
-                        <AvatarFallback>{hotel.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <Label htmlFor={`hotel-${hotel.id}`} className="flex-1 cursor-pointer font-normal">
-                        {hotel.name}
-                      </Label>
-                      <Checkbox
-                        id={`hotel-${hotel.id}`}
-                        checked={selectedHotels.includes(hotel.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedHotels([...selectedHotels, hotel.id]);
-                          } else {
-                            setSelectedHotels(
-                              selectedHotels.filter((id) => id !== hotel.id)
-                            );
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Hôtels</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal h-9 text-xs"
+                  >
+                    <span>
+                      {selectedHotels.length === 0
+                        ? "Sélectionner"
+                        : `${selectedHotels.length} hôtel(s)`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" align="start">
+                  <div className="max-h-60 overflow-y-auto p-2 space-y-1">
+                    {hotels.map((hotel) => (
+                      <div
+                        key={hotel.id}
+                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={hotel.image || ""} alt={hotel.name} />
+                          <AvatarFallback className="text-xs">{hotel.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <Label htmlFor={`hotel-${hotel.id}`} className="flex-1 cursor-pointer font-normal text-sm">
+                          {hotel.name}
+                        </Label>
+                        <Checkbox
+                          id={`hotel-${hotel.id}`}
+                          checked={selectedHotels.includes(hotel.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedHotels([...selectedHotels, hotel.id]);
+                            } else {
+                              setSelectedHotels(
+                                selectedHotels.filter((id) => id !== hotel.id)
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Statut *</Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, status: value })
+                }
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Actif</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="inactive">Inactif</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Trunk (Malle)</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between font-normal"
-                >
-                  <span>
-                    {selectedTrunks.length === 0
-                      ? "Sélectionner des trunks"
-                      : `${selectedTrunks.length} trunk(s) sélectionné(s)`}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
-                <div className="max-h-60 overflow-y-auto p-3 space-y-2">
-                  {TRUNKS_OPTIONS.map((trunk) => (
-                    <div
-                      key={trunk.value}
-                      className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal">
-                        {trunk.label}
-                      </Label>
-                      <Checkbox
-                        id={`trunk-${trunk.value}`}
-                        checked={selectedTrunks.includes(trunk.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedTrunks([...selectedTrunks, trunk.value]);
-                          } else {
-                            setSelectedTrunks(
-                              selectedTrunks.filter((t) => t !== trunk.value)
-                            );
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Trunk</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal h-9 text-xs"
+                  >
+                    <span>
+                      {selectedTrunks.length === 0
+                        ? "Sélectionner"
+                        : `${selectedTrunks.length} trunk(s)`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <div className="max-h-48 overflow-y-auto p-2 space-y-1">
+                    {TRUNKS_OPTIONS.map((trunk) => (
+                      <div
+                        key={trunk.value}
+                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                      >
+                        <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal text-sm">
+                          {trunk.label}
+                        </Label>
+                        <Checkbox
+                          id={`trunk-${trunk.value}`}
+                          checked={selectedTrunks.includes(trunk.value)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTrunks([...selectedTrunks, trunk.value]);
+                            } else {
+                              setSelectedTrunks(
+                                selectedTrunks.filter((t) => t !== trunk.value)
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">Compétences</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal h-9 text-xs"
+                  >
+                    <span>
+                      {selectedSkills.length === 0
+                        ? "Sélectionner"
+                        : `${selectedSkills.length} comp.`}
+                    </span>
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <div className="p-2 space-y-1">
+                    {SKILLS_OPTIONS.map((skill) => (
+                      <div
+                        key={skill.value}
+                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                      >
+                        <div className="text-lg">{skill.label.split(" ")[0]}</div>
+                        <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal text-sm">
+                          {skill.label.split(" ").slice(1).join(" ")}
+                        </Label>
+                        <Checkbox
+                          id={`skill-${skill.value}`}
+                          checked={selectedSkills.includes(skill.value)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedSkills([...selectedSkills, skill.value]);
+                            } else {
+                              setSelectedSkills(
+                                selectedSkills.filter((s) => s !== skill.value)
+                              );
+                            }
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Compétences</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between font-normal"
-                >
-                  <span>
-                    {selectedSkills.length === 0
-                      ? "Sélectionner des compétences"
-                      : `${selectedSkills.length} compétence(s) sélectionnée(s)`}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
-                <div className="p-3 space-y-2">
-                  {SKILLS_OPTIONS.map((skill) => (
-                    <div
-                      key={skill.value}
-                      className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
-                    >
-                      <div className="text-2xl">{skill.label.split(" ")[0]}</div>
-                      <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal">
-                        {skill.label.split(" ").slice(1).join(" ")}
-                      </Label>
-                      <Checkbox
-                        id={`skill-${skill.value}`}
-                        checked={selectedSkills.includes(skill.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedSkills([...selectedSkills, skill.value]);
-                          } else {
-                            setSelectedSkills(
-                              selectedSkills.filter((s) => s !== skill.value)
-                            );
-                          }
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Statut *</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) =>
-                setFormData({ ...formData, status: value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-end gap-4 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               Annuler
             </Button>
-            <Button type="submit">Ajouter</Button>
+            <Button type="submit" size="sm">Ajouter</Button>
           </div>
         </form>
       </DialogContent>
