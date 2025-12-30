@@ -1,7 +1,7 @@
 // Centralized Status Configuration
 // All database values are now in English
 
-export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow';
+export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
@@ -51,6 +51,12 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     badgeClass: 'bg-rose-100 text-rose-800 border border-rose-400 font-bold',
     cardClass: 'bg-rose-600 text-white',
     hexColor: '#e11d48',
+  },
+  quote_pending: {
+    label: 'Devis en attente',
+    badgeClass: 'bg-orange-100 text-orange-800 border border-orange-400',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
   },
 };
 

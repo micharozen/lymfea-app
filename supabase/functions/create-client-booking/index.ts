@@ -136,11 +136,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate that all treatment IDs exist
+    // Validate that all treatment IDs exist and check for price_on_request
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id')
+      .select('id, price_on_request')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -168,6 +168,11 @@ serve(async (req) => {
       );
     }
 
+    // Check if any treatment is price_on_request
+    const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
+    const bookingStatus = hasPriceOnRequest ? 'quote_pending' : 'pending';
+    console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest);
+
     // Create booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -182,11 +187,11 @@ serve(async (req) => {
         client_note: sanitizedClientData.note,
         booking_date: bookingData.date,
         booking_time: bookingData.time,
-        status: 'En attente',
+        status: bookingStatus,
         hairdresser_id: null,
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'room' ? 'charged_to_room' : 'pending',
-        total_price: totalPrice,
+        total_price: hasPriceOnRequest ? 0 : totalPrice,
       })
       .select()
       .single();
@@ -273,38 +278,56 @@ serve(async (req) => {
       }
     }
 
-    // Trigger push notifications for hairdressers
-    try {
-      console.log('Triggering push notifications for booking:', booking.id);
-      const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
-        body: { bookingId: booking.id }
-      });
+    // For quote_pending bookings, only notify admin (not hairdressers)
+    if (bookingStatus === 'quote_pending') {
+      try {
+        console.log('Sending quote pending notification to admin for booking:', booking.id);
+        const quoteNotifResponse = await supabase.functions.invoke('notify-admin-quote-pending', {
+          body: { bookingId: booking.id }
+        });
 
-      if (pushResponse.error) {
-        console.error('Failed to trigger push notifications:', pushResponse.error);
-      } else {
-        console.log('Push notifications triggered:', pushResponse.data);
+        if (quoteNotifResponse.error) {
+          console.error('Failed to send quote pending notification:', quoteNotifResponse.error);
+        } else {
+          console.log('Quote pending notification sent:', quoteNotifResponse.data);
+        }
+      } catch (quoteNotifError) {
+        console.error('Error sending quote pending notification:', quoteNotifError);
       }
-    } catch (pushError) {
-      console.error('Error triggering push notifications:', pushError);
-      // Continue even if push notifications fail
-    }
+    } else {
+      // Trigger push notifications for hairdressers (only for regular pending bookings)
+      try {
+        console.log('Triggering push notifications for booking:', booking.id);
+        const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: booking.id }
+        });
 
-    // Trigger email notification to admins
-    try {
-      console.log('Sending admin email notification for booking:', booking.id);
-      const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
-        body: { bookingId: booking.id }
-      });
-
-      if (adminEmailResponse.error) {
-        console.error('Failed to send admin email notification:', adminEmailResponse.error);
-      } else {
-        console.log('Admin email notification sent:', adminEmailResponse.data);
+        if (pushResponse.error) {
+          console.error('Failed to trigger push notifications:', pushResponse.error);
+        } else {
+          console.log('Push notifications triggered:', pushResponse.data);
+        }
+      } catch (pushError) {
+        console.error('Error triggering push notifications:', pushError);
+        // Continue even if push notifications fail
       }
-    } catch (adminEmailError) {
-      console.error('Error sending admin email notification:', adminEmailError);
-      // Continue even if admin email fails
+
+      // Trigger email notification to admins
+      try {
+        console.log('Sending admin email notification for booking:', booking.id);
+        const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
+          body: { bookingId: booking.id }
+        });
+
+        if (adminEmailResponse.error) {
+          console.error('Failed to send admin email notification:', adminEmailResponse.error);
+        } else {
+          console.log('Admin email notification sent:', adminEmailResponse.data);
+        }
+      } catch (adminEmailError) {
+        console.error('Error sending admin email notification:', adminEmailError);
+        // Continue even if admin email fails
+      }
     }
 
     // If payment method is room, notify concierge to charge the room
