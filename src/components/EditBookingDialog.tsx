@@ -897,7 +897,7 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-xl p-0 gap-0 flex flex-col">
+      <DialogContent className="max-w-md p-0 gap-0 flex flex-col max-h-[85vh]">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
@@ -931,92 +931,82 @@ export default function EditBookingDialog({
 
             {/* Quote Card - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
-              <div className="p-4 bg-orange-50 border-2 border-orange-400 rounded-lg space-y-4">
+              <div className="p-3 bg-orange-50 border border-orange-300 rounded-lg space-y-3">
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                  <h3 className="font-semibold text-orange-800">Devis à valider</h3>
+                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+                  <h3 className="font-medium text-sm text-orange-800">Devis à valider</h3>
                 </div>
                 
                 {/* Fixed Price Items (read-only) */}
                 {fixedTreatments.length > 0 && (
-                  <div className="bg-white/50 rounded-lg p-3 space-y-2">
-                    <p className="text-xs font-medium text-green-700 mb-2">✓ Prestations à prix fixe</p>
+                  <div className="bg-white/50 rounded p-2 space-y-1">
+                    <p className="text-[10px] font-medium text-green-700">✓ Prix fixe</p>
                     {fixedTreatments.map((treatment: any) => (
-                      <div key={treatment.id} className="flex justify-between text-sm">
+                      <div key={treatment.id} className="flex justify-between text-xs">
                         <span className="text-gray-700">{treatment.name}</span>
-                        <span className="font-medium text-green-700">€{(treatment.price || 0).toFixed(2)}</span>
+                        <span className="font-medium text-green-700">€{(treatment.price || 0).toFixed(0)}</span>
                       </div>
                     ))}
-                    <div className="flex justify-between text-sm pt-2 border-t border-green-200">
-                      <span className="font-medium text-green-700">Sous-total fixe</span>
-                      <span className="font-semibold text-green-700">€{fixedTreatmentsTotal.toFixed(2)}</span>
+                    <div className="flex justify-between text-xs pt-1 border-t border-green-200">
+                      <span className="font-medium text-green-700">Sous-total</span>
+                      <span className="font-semibold text-green-700">€{fixedTreatmentsTotal.toFixed(0)}</span>
                     </div>
                   </div>
                 )}
                 
                 {/* Variable Price Items (need quote input) */}
                 {variableTreatments.length > 0 && (
-                  <div className="bg-orange-100/50 rounded-lg p-3 space-y-3">
-                    <p className="text-xs font-medium text-orange-700 mb-2">⏳ Prestations sur devis</p>
+                  <div className="bg-orange-100/50 rounded p-2 space-y-1">
+                    <p className="text-[10px] font-medium text-orange-700">⏳ Sur devis</p>
                     {variableTreatments.map((treatment: any) => (
-                      <div key={treatment.id} className="flex items-center justify-between text-sm">
+                      <div key={treatment.id} className="flex items-center justify-between text-xs">
                         <span className="text-orange-800">{treatment.name}</span>
-                        <Badge className="bg-orange-500 text-white text-[10px]">Sur devis</Badge>
                       </div>
                     ))}
                   </div>
                 )}
                 
-                <p className="text-sm text-orange-700">
-                  Définissez le prix et la durée pour les soins sur devis :
-                </p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-xs text-orange-700">
+                  Définissez le prix et la durée :</p>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label htmlFor="quote-price" className="text-sm font-medium text-orange-800">
-                      Prix des soins sur devis (€)
-                    </Label>
+                    <Label htmlFor="quote-price" className="text-xs text-orange-800">Prix (€)</Label>
                     <Input
                       id="quote-price"
                       type="number"
                       min="0"
                       step="0.01"
-                      placeholder="Ex: 100.00"
+                      placeholder="100"
                       value={quotePrice}
                       onChange={(e) => setQuotePrice(e.target.value)}
-                      className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
+                      className="h-8 text-sm border-orange-300"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="quote-duration" className="text-sm font-medium text-orange-800">
-                      Durée des soins sur devis (min)
-                    </Label>
+                    <Label htmlFor="quote-duration" className="text-xs text-orange-800">Durée (min)</Label>
                     <Input
                       id="quote-duration"
                       type="number"
                       min="0"
                       step="5"
-                      placeholder="Ex: 60"
+                      placeholder="60"
                       value={quoteDuration}
                       onChange={(e) => setQuoteDuration(e.target.value)}
-                      className="mt-1 border-orange-300 focus:border-orange-500 focus:ring-orange-500"
+                      className="h-8 text-sm border-orange-300"
                     />
                   </div>
                 </div>
                 
                 {/* Grand Total Preview */}
                 {quotePrice && (
-                  <div className="bg-white rounded-lg p-3 border border-orange-300">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-600">Prestations fixes</span>
-                      <span>€{fixedTreatmentsTotal.toFixed(2)}</span>
+                  <div className="bg-white rounded p-2 border border-orange-300 text-xs">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-gray-600">Fixes: €{fixedTreatmentsTotal.toFixed(0)}</span>
+                      <span className="text-gray-600">Devis: €{parseFloat(quotePrice || "0").toFixed(0)}</span>
                     </div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-gray-600">Prestations sur devis</span>
-                      <span>€{parseFloat(quotePrice || "0").toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-base pt-2 border-t border-orange-200">
-                      <span className="text-orange-800">TOTAL À FACTURER</span>
-                      <span className="text-orange-800">€{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(2)}</span>
+                    <div className="flex justify-between font-bold pt-1 border-t border-orange-200">
+                      <span className="text-orange-800">TOTAL</span>
+                      <span className="text-orange-800">€{(fixedTreatmentsTotal + parseFloat(quotePrice || "0")).toFixed(0)}</span>
                     </div>
                   </div>
                 )}
@@ -1024,9 +1014,10 @@ export default function EditBookingDialog({
                 <Button
                   onClick={handleValidateQuote}
                   disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
+                  size="sm"
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  {validateQuoteMutation.isPending ? "Envoi en cours..." : "Envoyer le devis au client"}
+                  {validateQuoteMutation.isPending ? "Envoi..." : "Envoyer le devis"}
                 </Button>
               </div>
             )}
