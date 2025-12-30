@@ -358,12 +358,12 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0" align="start">
+                <PopoverContent className="w-[300px] p-0 bg-background border shadow-lg" align="start">
                   <div className="max-h-60 overflow-y-auto p-2 space-y-1">
                     {hotels.map((hotel) => (
                       <div
                         key={hotel.id}
-                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-md"
                       >
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={hotel.image || ""} alt={hotel.name} />
@@ -408,12 +408,12 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0" align="start">
+                <PopoverContent className="w-[250px] p-0 bg-background border shadow-lg" align="start">
                   <div className="max-h-48 overflow-y-auto p-2 space-y-1">
                     {TRUNKS_OPTIONS.map((trunk) => (
                       <div
                         key={trunk.value}
-                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-md"
                       >
                         <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal text-sm">
                           {trunk.label}
@@ -454,12 +454,12 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0" align="start">
+                <PopoverContent className="w-[250px] p-0 bg-background border shadow-lg" align="start">
                   <div className="p-2 space-y-1">
                     {SKILLS_OPTIONS.map((skill) => (
                       <div
                         key={skill.value}
-                        className="flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                        className="flex items-center gap-2 p-2 rounded-md"
                       >
                         <div className="text-lg">{skill.label.split(" ")[0]}</div>
                         <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal text-sm">
