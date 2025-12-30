@@ -102,10 +102,14 @@ serve(async (req) => {
     // Create treatment description for Stripe
     const treatmentNames = treatments.map(t => t.name).join(', ');
 
+    // Validate email format before passing to Stripe
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmail = clientData.email && emailRegex.test(clientData.email) ? clientData.email : undefined;
+
     // Create Stripe Checkout session with verified server-side price
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      customer_email: clientData.email || undefined,
+      customer_email: validEmail,
       line_items: [
         {
           price_data: {
