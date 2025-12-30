@@ -196,16 +196,25 @@ All colors MUST be HSL.
     /* Better font rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Ensure the canvas behind iOS safe-areas matches app background */
+    background: hsl(var(--background));
+    height: 100%;
   }
 
   body {
     @apply bg-background text-foreground;
-    /* Prevent pull-to-refresh on mobile (except where explicitly enabled) */
-    overscroll-behavior-y: contain;
+    /* Prevent pull-to-refresh / rubber-band revealing a different background */
+    overscroll-behavior-y: none;
     /* Touch action for better mobile scrolling */
     touch-action: pan-x pan-y;
     /* Prevent text size adjustment on orientation change */
     -webkit-text-size-adjust: 100%;
+    height: 100%;
+  }
+
+  #root {
+    height: 100%;
+    background: hsl(var(--background));
   }
 
   /* Make all interactive elements touch-friendly */
