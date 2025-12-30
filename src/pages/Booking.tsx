@@ -742,10 +742,8 @@ export default function Booking() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         {(booking.stripe_invoice_url || booking.payment_status === "paid" || booking.status === "completed") && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 text-[10px] px-1.5"
+                          <button
+                            className="p-1 hover:bg-muted rounded transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (booking.stripe_invoice_url) {
@@ -765,8 +763,8 @@ export default function Booking() {
                               }
                             }}
                           >
-                            <FileText className="h-3 w-3" />
-                          </Button>
+                            <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          </button>
                         )}
                       </TableCell>
                     </TableRow>
