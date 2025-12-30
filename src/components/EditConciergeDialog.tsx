@@ -19,13 +19,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -34,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,16 +55,16 @@ interface EditConciergeDialogProps {
 }
 
 const countryCodes = [
-  { code: "+33", country: "FR" },
-  { code: "+971", country: "AE" },
-  { code: "+1", country: "US" },
-  { code: "+44", country: "UK" },
-  { code: "+49", country: "DE" },
-  { code: "+39", country: "IT" },
-  { code: "+34", country: "ES" },
-  { code: "+41", country: "CH" },
-  { code: "+32", country: "BE" },
-  { code: "+377", country: "MC" },
+  { code: "+33", label: "France", flag: "🇫🇷" },
+  { code: "+971", label: "EAU", flag: "🇦🇪" },
+  { code: "+1", label: "États-Unis", flag: "🇺🇸" },
+  { code: "+44", label: "Royaume-Uni", flag: "🇬🇧" },
+  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+  { code: "+39", label: "Italie", flag: "🇮🇹" },
+  { code: "+34", label: "Espagne", flag: "🇪🇸" },
+  { code: "+41", label: "Suisse", flag: "🇨🇭" },
+  { code: "+32", label: "Belgique", flag: "🇧🇪" },
+  { code: "+377", label: "Monaco", flag: "🇲🇨" },
 ];
 
 export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId }: EditConciergeDialogProps) {
@@ -350,29 +344,15 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Numéro de téléphone</FormLabel>
-                  <div className="flex">
-                    <FormField
-                      control={form.control}
-                      name="country_code"
-                      render={({ field: codeField }) => (
-                        <Select value={codeField.value} onValueChange={codeField.onChange}>
-                          <SelectTrigger className="w-[80px] rounded-r-none border-r-0">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background border shadow-lg">
-                            {countryCodes.map((cc) => (
-                              <SelectItem key={cc.code} value={cc.code}>
-                                {cc.code}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                  <FormControl>
+                    <PhoneNumberField
+                      value={field.value}
+                      onChange={field.onChange}
+                      countryCode={form.watch("country_code")}
+                      setCountryCode={(value) => form.setValue("country_code", value)}
+                      countries={countryCodes}
                     />
-                    <FormControl>
-                      <Input type="tel" placeholder="" {...field} className="flex-1 rounded-l-none" />
-                    </FormControl>
-                  </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

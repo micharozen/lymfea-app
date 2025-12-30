@@ -23,20 +23,21 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 const countries = [
-  { code: "+33", label: "France" },
-  { code: "+971", label: "EAU" },
-  { code: "+1", label: "États-Unis" },
-  { code: "+44", label: "Royaume-Uni" },
-  { code: "+49", label: "Allemagne" },
-  { code: "+39", label: "Italie" },
-  { code: "+34", label: "Espagne" },
-  { code: "+41", label: "Suisse" },
-  { code: "+32", label: "Belgique" },
-  { code: "+377", label: "Monaco" },
+  { code: "+33", label: "France", flag: "🇫🇷" },
+  { code: "+971", label: "EAU", flag: "🇦🇪" },
+  { code: "+1", label: "États-Unis", flag: "🇺🇸" },
+  { code: "+44", label: "Royaume-Uni", flag: "🇬🇧" },
+  { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+  { code: "+39", label: "Italie", flag: "🇮🇹" },
+  { code: "+34", label: "Espagne", flag: "🇪🇸" },
+  { code: "+41", label: "Suisse", flag: "🇨🇭" },
+  { code: "+32", label: "Belgique", flag: "🇧🇪" },
+  { code: "+377", label: "Monaco", flag: "🇲🇨" },
 ];
 
 interface EditHairDresserDialogProps {
@@ -317,32 +318,14 @@ export default function EditHairDresserDialog({
 
           <div className="space-y-2">
             <Label htmlFor="phone">Téléphone *</Label>
-            <div className="flex">
-              <Select
-                value={formData.country_code}
-                onValueChange={(value) => setFormData({ ...formData, country_code: value })}
-              >
-                <SelectTrigger className="w-[80px] rounded-r-none border-r-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg">
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                required
-                className="flex-1 rounded-l-none"
-              />
-            </div>
+            <PhoneNumberField
+              id="phone"
+              value={formData.phone}
+              onChange={(value) => setFormData({ ...formData, phone: value })}
+              countryCode={formData.country_code}
+              setCountryCode={(value) => setFormData({ ...formData, country_code: value })}
+              countries={countries}
+            />
           </div>
 
           <div className="space-y-2">

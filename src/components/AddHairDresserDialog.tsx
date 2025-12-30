@@ -24,6 +24,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -331,32 +332,14 @@ export default function AddHairDresserDialog({
 
           <div className="space-y-1">
             <Label htmlFor="phone" className="text-xs">Téléphone *</Label>
-            <div className="flex">
-              <Select
-                value={formData.country_code}
-                onValueChange={(value) => setFormData({ ...formData, country_code: value })}
-              >
-                <SelectTrigger className="w-[80px] rounded-r-none border-r-0 h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg">
-                  {countries.map((country) => (
-                    <SelectItem key={country.code} value={country.code}>
-                      {country.code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                required
-                className="h-9 rounded-l-none flex-1"
-              />
-            </div>
+            <PhoneNumberField
+              id="phone"
+              value={formData.phone}
+              onChange={(value) => setFormData({ ...formData, phone: value })}
+              countryCode={formData.country_code}
+              setCountryCode={(value) => setFormData({ ...formData, country_code: value })}
+              countries={countries}
+            />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
