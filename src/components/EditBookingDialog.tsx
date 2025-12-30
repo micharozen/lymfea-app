@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
@@ -24,7 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Trash2, CalendarIcon, ChevronDown, User, Plus, Minus } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -162,6 +163,7 @@ export default function EditBookingDialog({
   const [totalDuration, setTotalDuration] = useState(0);
   const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
   const [viewMode, setViewMode] = useState<"view" | "edit">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
@@ -574,40 +576,37 @@ export default function EditBookingDialog({
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
+  const cancelMutation = useMutation({
+    mutationFn: async (reason: string) => {
       if (!booking?.id) return;
 
-      const { error: deleteTreatmentsError } = await supabase
-        .from("booking_treatments")
-        .delete()
-        .eq("booking_id", booking.id);
-
-      if (deleteTreatmentsError) throw deleteTreatmentsError;
-
-      const { error: deleteBookingError } = await supabase
+      const { error } = await supabase
         .from("bookings")
-        .delete()
+        .update({
+          status: "cancelled",
+          cancellation_reason: reason,
+        })
         .eq("id", booking.id);
 
-      if (deleteBookingError) throw deleteBookingError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: "Succès",
-        description: "La réservation a été supprimée avec succès",
+        description: "La réservation a été annulée avec succès",
       });
       setShowDeleteDialog(false);
+      setCancellationReason("");
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la suppression de la réservation",
+        description: "Une erreur est survenue lors de l'annulation de la réservation",
         variant: "destructive",
       });
-      console.error("Error deleting booking:", error);
+      console.error("Error cancelling booking:", error);
     },
   });
 
@@ -940,15 +939,17 @@ export default function EditBookingDialog({
               </Button>
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Supprimer
-                  </Button>
+                  {booking?.status !== "cancelled" && (
+                    <Button 
+                      type="button" 
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Annuler
+                    </Button>
+                  )}
                   <Button 
                     type="button" 
                     onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
@@ -1180,15 +1181,17 @@ export default function EditBookingDialog({
                   <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
                     Annuler
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="gap-2"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Supprimer
-                  </Button>
+                  {booking?.status !== "cancelled" && (
+                    <Button 
+                      type="button" 
+                      variant="destructive"
+                      onClick={() => setShowDeleteDialog(true)}
+                      className="gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Annuler
+                    </Button>
+                  )}
                 </div>
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
                   Suivant
@@ -1350,21 +1353,38 @@ export default function EditBookingDialog({
         )}
       </DialogContent>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
+        setShowDeleteDialog(open);
+        if (!open) setCancellationReason("");
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogTitle>Annuler la réservation</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette réservation ? Cette action est irréversible.
+              Veuillez indiquer la raison de l'annulation. Cette action ne supprimera pas la réservation mais changera son statut en "Annulé".
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="cancellation-reason" className="text-sm font-medium">
+              Raison de l'annulation <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="cancellation-reason"
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              placeholder="Saisissez la raison de l'annulation..."
+              className="mt-2"
+              rows={3}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Retour</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => cancelMutation.mutate(cancellationReason)}
+              disabled={!cancellationReason.trim() || cancelMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Suppression..." : "Supprimer"}
+              {cancelMutation.isPending ? "Annulation..." : "Confirmer l'annulation"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
