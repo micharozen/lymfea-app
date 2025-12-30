@@ -636,7 +636,7 @@ const PwaBookingDetail = () => {
 
   if (!booking) {
     return (
-      <div className="h-full overflow-hidden flex items-center justify-center bg-background">
+      <div className="min-h-full flex items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">{t('bookingDetail.notFound')}</div>
       </div>
     );
@@ -650,7 +650,7 @@ const PwaBookingDetail = () => {
 
   return (
     <>
-      <div className="h-full overflow-hidden flex flex-col bg-background pb-20">
+      <div className="min-h-full flex flex-col bg-background pb-20">
         <PwaHeader
           title={t('bookingDetail.myBooking')}
           showBack

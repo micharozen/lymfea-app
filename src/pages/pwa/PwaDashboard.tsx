@@ -539,7 +539,7 @@ const PwaDashboard = () => {
   const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
   return (
-    <div className="h-full overflow-hidden bg-white flex flex-col">
+    <div className="flex flex-col min-h-full bg-white">
       <PwaHeader
         leftSlot={
           <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>OOM</span>
