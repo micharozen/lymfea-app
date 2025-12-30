@@ -11,7 +11,7 @@ All colors MUST be HSL.
   src: url('/fonts/WT_Kormelink_Roman_DESK_1.1.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: swap;
+  font-display: block; /* Changed from swap to block to prevent FOUT */
 }
 
 @layer base {
