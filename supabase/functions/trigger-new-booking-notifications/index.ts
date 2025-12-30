@@ -68,9 +68,10 @@ serve(async (req) => {
     // Filter active hairdressers who haven't declined this booking
     let eligibleHairdressers = hairdressers.filter(hh => {
       const h = hh.hairdressers as any;
+      const statusLower = (h?.status || "").toLowerCase();
       return h && 
              h.user_id && 
-             h.status === "Actif" &&
+             (statusLower === "active" || statusLower === "actif") &&
              !(booking.declined_by || []).includes(h.id);
     });
 
