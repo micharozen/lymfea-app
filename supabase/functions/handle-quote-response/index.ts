@@ -56,8 +56,8 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate token (stored in client_signature)
-    if (booking.client_signature !== token) {
+    // Validate token (stored in quote_token column)
+    if (booking.quote_token !== token) {
       console.error("Invalid token for booking:", bookingId);
       return new Response(
         JSON.stringify({ error: "Invalid or expired link", success: false }),
@@ -87,7 +87,7 @@ const handler = async (req: Request): Promise<Response> => {
         .from("bookings")
         .update({
           status: "pending",
-          client_signature: null, // Clear the token
+          quote_token: null, // Clear the token
         })
         .eq("id", bookingId);
 
@@ -136,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
         .update({
           status: "cancelled",
           cancellation_reason: "Devis refusé par client",
-          client_signature: null, // Clear the token
+          quote_token: null, // Clear the token
         })
         .eq("id", bookingId);
 

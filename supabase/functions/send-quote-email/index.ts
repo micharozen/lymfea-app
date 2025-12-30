@@ -103,14 +103,18 @@ const handler = async (req: Request): Promise<Response> => {
     const approveUrl = `${siteUrl}/quote-response?bookingId=${bookingId}&action=approve&token=${token}`;
     const refuseUrl = `${siteUrl}/quote-response?bookingId=${bookingId}&action=refuse&token=${token}`;
 
-    // Store the token for validation
+    // Store the token for validation in the proper quote_token column
     const { error: tokenError } = await supabase
       .from("bookings")
-      .update({ client_signature: token }) // Reusing client_signature to store token temporarily
+      .update({ quote_token: token })
       .eq("id", bookingId);
 
     if (tokenError) {
-      console.error("Error storing token:", tokenError);
+      console.error("Error storing quote token:", tokenError);
+      return new Response(
+        JSON.stringify({ error: "Failed to save quote token" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const emailResponse = await resend.emails.send({
