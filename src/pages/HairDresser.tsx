@@ -378,36 +378,57 @@ export default function HairDresser() {
           </Table>
           
           {/* Pagination */}
-          {filteredHairdressers.length > itemsPerPage && (
-            <div className="flex items-center justify-between px-4 py-2 border-t border-border">
-              <span className="text-xs text-muted-foreground">
-                {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredHairdressers.length)} sur {filteredHairdressers.length}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </Button>
-                <span className="text-xs px-2">
-                  {currentPage} / {Math.ceil(filteredHairdressers.length / itemsPerPage)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredHairdressers.length / itemsPerPage), p + 1))}
-                  disabled={currentPage >= Math.ceil(filteredHairdressers.length / itemsPerPage)}
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
+          {filteredHairdressers.length > itemsPerPage && (() => {
+            const totalPages = Math.max(1, Math.ceil(filteredHairdressers.length / itemsPerPage));
+            return (
+              <div className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card">
+                <div className="text-sm text-muted-foreground">
+                  Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredHairdressers.length)} sur {filteredHairdressers.length} entrées
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Précédent
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      );
+                    })
+                    .map((page, idx, arr) => (
+                      <div key={page} className="flex items-center">
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <span className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="min-w-[40px]"
+                        >
+                          {page}
+                        </Button>
+                      </div>
+                    ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage >= totalPages}
+                  >
+                    Suivant
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
