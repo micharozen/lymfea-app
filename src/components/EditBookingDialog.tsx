@@ -1168,7 +1168,7 @@ export default function EditBookingDialog({
                   type="button"
                   variant="outline"
                   onClick={() => setViewMode("quote")}
-                  className="border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100"
+                  className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
                 >
                   <AlertTriangle className="w-4 h-4 mr-2" />
                   Valider le devis
