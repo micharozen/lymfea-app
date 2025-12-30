@@ -94,7 +94,7 @@ const PwaBookings = () => {
   }
 
   return (
-    <div className="min-h-full flex flex-col bg-background">
+    <div className="flex flex-1 flex-col bg-background">
       {/* Header */}
       <div className="bg-black text-white p-6">
         <div className="flex items-center gap-4 mb-4">

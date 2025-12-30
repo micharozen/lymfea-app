@@ -294,7 +294,7 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   }
 
   return (
-    <div className="min-h-full flex flex-col bg-muted/30">
+    <div className="flex flex-1 flex-col bg-muted/30">
       <PwaHeader
         title={t('notifications.title')}
         showBack={standalone}

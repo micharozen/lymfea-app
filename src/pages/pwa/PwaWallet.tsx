@@ -134,7 +134,7 @@ const PwaWallet = () => {
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
 
   return (
-    <div className="flex flex-col min-h-full bg-muted/30">
+    <div className="flex flex-1 flex-col bg-muted/30">
       <PwaHeader
         title="Wallet"
         centerSlot={
