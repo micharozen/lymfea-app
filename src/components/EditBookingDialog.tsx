@@ -917,11 +917,14 @@ export default function EditBookingDialog({
                   <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-2">
                 <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
                   {getBookingStatusConfig(booking?.status || 'pending').label}
                 </Badge>
-                {booking?.payment_status && (
+                {/* Hide payment status when quote is pending or waiting approval */}
+                {booking?.payment_status && 
+                 booking?.status !== 'quote_pending' && 
+                 booking?.status !== 'waiting_approval' && (
                   <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
                     {getPaymentStatusConfig(booking.payment_status).label}
                   </Badge>
