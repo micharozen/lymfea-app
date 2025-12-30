@@ -21,9 +21,9 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-50 bg-background border-t border-border pb-[env(safe-area-inset-bottom,0px)]"
+      className="fixed bottom-0 left-0 right-0 w-full z-50 bg-background border-t border-border pb-[env(safe-area-inset-bottom,0px)]"
     >
-      <div className="flex items-center justify-around h-14">
+      <div className="flex items-center justify-around h-16">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
           className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
