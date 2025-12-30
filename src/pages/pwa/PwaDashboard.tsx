@@ -542,7 +542,7 @@ const PwaDashboard = () => {
     <div className="h-full bg-white flex flex-col min-h-0">
       <PwaHeader
         leftSlot={
-          <h1 className="text-xl font-bold font-kormelink tracking-wider">OOM</h1>
+          <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>OOM</span>
         }
         rightSlot={
           <Avatar
