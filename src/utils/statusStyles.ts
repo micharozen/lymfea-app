@@ -1,7 +1,7 @@
 // Centralized Status Configuration
 // All database values are now in English
 
-export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval';
+export type BookingStatus = 'pending' | 'confirmed' | 'assigned' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
@@ -23,6 +23,12 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   },
   confirmed: {
     label: 'Confirmé',
+    badgeClass: 'bg-sky-100 text-sky-800 border border-sky-300',
+    cardClass: 'bg-sky-500 text-white',
+    hexColor: '#0ea5e9',
+  },
+  assigned: {
+    label: 'Assigné',
     badgeClass: 'bg-sky-100 text-sky-800 border border-sky-300',
     cardClass: 'bg-sky-500 text-white',
     hexColor: '#0ea5e9',
@@ -136,11 +142,29 @@ function capitalizeFirst(str: string): string {
 
 // Helper functions
 export function getBookingStatusConfig(status: string): StatusConfig {
-  const normalizedStatus = status.toLowerCase() as BookingStatus;
-  return bookingStatusConfig[normalizedStatus] || {
-    label: capitalizeFirst(status),
-    badgeClass: 'bg-gray-100 text-gray-700',
-    cardClass: 'bg-gray-500 text-white',
+  const raw = (status || "").toString();
+  const normalized = raw.toLowerCase().trim();
+
+  const aliases: Partial<Record<string, BookingStatus>> = {
+    "en attente": "pending",
+    "assigné": "assigned",
+    "assigne": "assigned",
+    "devis": "quote_pending",
+    "en cours": "ongoing",
+    "terminé": "completed",
+    "termine": "completed",
+    "annulé": "cancelled",
+    "annule": "cancelled",
+    "confirmé": "confirmed",
+    "confirme": "confirmed",
+  };
+
+  const key = (aliases[normalized] || (normalized as BookingStatus)) as BookingStatus;
+
+  return bookingStatusConfig[key] || {
+    label: capitalizeFirst(raw),
+    badgeClass: 'bg-muted text-foreground border border-border',
+    cardClass: 'bg-muted text-foreground',
     hexColor: '#6b7280',
   };
 }
