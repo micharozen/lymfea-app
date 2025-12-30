@@ -377,7 +377,6 @@ export default function AddHairDresserDialog({
                             }}
                             className={cn(
                               "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
-                              "hover:bg-muted/60",
                               selected && "bg-muted",
                             )}
                           >
@@ -408,30 +407,32 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-36 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-32">
+                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-32 touch-pan-y">
                     <div className="p-1">
-                      {TRUNKS_OPTIONS.map((trunk) => (
-                        <div
-                          key={trunk.value}
-                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
-                          onClick={() => {
-                            if (selectedTrunks.includes(trunk.value)) {
-                              setSelectedTrunks(selectedTrunks.filter((t) => t !== trunk.value));
-                            } else {
-                              setSelectedTrunks([...selectedTrunks, trunk.value]);
-                            }
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedTrunks.includes(trunk.value)}
-                            onCheckedChange={() => {}}
-                          />
-                          <Label className="cursor-pointer font-normal text-xs">
-                            {trunk.label}
-                          </Label>
-                        </div>
-                      ))}
+                      {TRUNKS_OPTIONS.map((trunk) => {
+                        const selected = selectedTrunks.includes(trunk.value);
+                        return (
+                          <button
+                            key={trunk.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTrunks(
+                                selected
+                                  ? selectedTrunks.filter((t) => t !== trunk.value)
+                                  : [...selectedTrunks, trunk.value],
+                              );
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              selected && "bg-muted",
+                            )}
+                          >
+                            <span className="truncate">{trunk.label}</span>
+                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </PopoverContent>
@@ -454,30 +455,32 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-36 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-32">
+                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-32 touch-pan-y">
                     <div className="p-1">
-                      {SKILLS_OPTIONS.map((skill) => (
-                        <div
-                          key={skill.value}
-                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
-                          onClick={() => {
-                            if (selectedSkills.includes(skill.value)) {
-                              setSelectedSkills(selectedSkills.filter((s) => s !== skill.value));
-                            } else {
-                              setSelectedSkills([...selectedSkills, skill.value]);
-                            }
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedSkills.includes(skill.value)}
-                            onCheckedChange={() => {}}
-                          />
-                          <Label className="cursor-pointer font-normal text-xs">
-                            {skill.label}
-                          </Label>
-                        </div>
-                      ))}
+                      {SKILLS_OPTIONS.map((skill) => {
+                        const selected = selectedSkills.includes(skill.value);
+                        return (
+                          <button
+                            key={skill.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSkills(
+                                selected
+                                  ? selectedSkills.filter((s) => s !== skill.value)
+                                  : [...selectedSkills, skill.value],
+                              );
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              selected && "bg-muted",
+                            )}
+                          >
+                            <span className="truncate">{skill.label}</span>
+                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </PopoverContent>
