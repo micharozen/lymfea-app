@@ -135,13 +135,12 @@ export default function ClientPayment() {
           {/* Variable Price Items (Quote Required) */}
           {variableItems.length > 0 && (
             <div className="space-y-2 pt-3 border-t border-border">
-              <p className="text-xs text-amber-600 font-medium mb-2">On Quote:</p>
               {variableItems.map(item => (
                 <div key={item.id} className="flex justify-between text-sm items-center">
                   <span className="text-muted-foreground">
                     {item.name} x{item.quantity}
                   </span>
-                  <span className="text-amber-600 text-xs font-medium">On quote</span>
+                  <span className="text-amber-600 text-xs font-medium whitespace-nowrap">On quote</span>
                 </div>
               ))}
             </div>
