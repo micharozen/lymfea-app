@@ -21,7 +21,8 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="flex-shrink-0 bg-background border-t border-border pb-safe"
+      className="fixed bottom-0 inset-x-0 z-50 bg-background border-t border-border"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <div className="flex items-center justify-around h-14">
         <button 
