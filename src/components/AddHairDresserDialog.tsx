@@ -372,10 +372,10 @@ export default function AddHairDresserDialog({
                             key={hotel.id}
                             type="button"
                             onClick={() => {
-                              setSelectedHotels(
-                                selected
-                                  ? selectedHotels.filter((id) => id !== hotel.id)
-                                  : [...selectedHotels, hotel.id],
+                              setSelectedHotels((prev) =>
+                                prev.includes(hotel.id)
+                                  ? prev.filter((id) => id !== hotel.id)
+                                  : [...prev, hotel.id],
                               );
                             }}
                             className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
@@ -420,10 +420,10 @@ export default function AddHairDresserDialog({
                             key={trunk.value}
                             type="button"
                             onClick={() => {
-                              setSelectedTrunks(
-                                selected
-                                  ? selectedTrunks.filter((t) => t !== trunk.value)
-                                  : [...selectedTrunks, trunk.value],
+                              setSelectedTrunks((prev) =>
+                                prev.includes(trunk.value)
+                                  ? prev.filter((t) => t !== trunk.value)
+                                  : [...prev, trunk.value],
                               );
                             }}
                             className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
@@ -468,10 +468,10 @@ export default function AddHairDresserDialog({
                             key={skill.value}
                             type="button"
                             onClick={() => {
-                              setSelectedSkills(
-                                selected
-                                  ? selectedSkills.filter((s) => s !== skill.value)
-                                  : [...selectedSkills, skill.value],
+                              setSelectedSkills((prev) =>
+                                prev.includes(skill.value)
+                                  ? prev.filter((s) => s !== skill.value)
+                                  : [...prev, skill.value],
                               );
                             }}
                             className="w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm transition-colors hover:bg-muted-foreground/10"
