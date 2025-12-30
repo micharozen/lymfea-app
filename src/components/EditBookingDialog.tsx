@@ -168,7 +168,7 @@ export default function EditBookingDialog({
   const [activeTab, setActiveTab] = useState("info");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
-  const [viewMode, setViewMode] = useState<"view" | "edit">("view");
+  const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
   const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
   const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
@@ -900,11 +900,74 @@ export default function EditBookingDialog({
       <DialogContent className="max-w-md p-0 gap-0 flex flex-col max-h-[85vh]">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
-            {viewMode === "view" ? "Détails de la réservation" : "Modifier la réservation"}
+            {viewMode === "view" ? "Détails de la réservation" : viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
           </DialogTitle>
         </DialogHeader>
 
-        {viewMode === "view" ? (
+        {/* QUOTE VIEW */}
+        {viewMode === "quote" ? (
+          <div className="flex-1 px-4 py-4 space-y-4">
+            <div className="flex items-center gap-3 pb-3 border-b">
+              <div className="w-10 h-10 bg-orange-100 rounded flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Réservation #{booking?.booking_id}</p>
+                <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
+              </div>
+            </div>
+
+            {/* Prestations sur devis */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Prestations sur devis</p>
+              {variableTreatments.map((treatment: any) => (
+                <div key={treatment.id} className="p-2 bg-orange-50 border border-orange-200 rounded text-sm">
+                  {treatment.name}
+                </div>
+              ))}
+            </div>
+
+            {/* Form */}
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="quote-price-form" className="text-sm">Prix (€)</Label>
+                <Input
+                  id="quote-price-form"
+                  type="number"
+                  min="0"
+                  value={quotePrice}
+                  onChange={(e) => setQuotePrice(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="quote-duration-form" className="text-sm">Durée (min)</Label>
+                <Input
+                  id="quote-duration-form"
+                  type="number"
+                  min="0"
+                  value={quoteDuration}
+                  onChange={(e) => setQuoteDuration(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-between gap-3 pt-3 border-t">
+              <Button variant="outline" onClick={() => setViewMode("view")}>
+                Retour
+              </Button>
+              <Button
+                onClick={handleValidateQuote}
+                disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {validateQuoteMutation.isPending ? "Envoi..." : "Envoyer le devis"}
+              </Button>
+            </div>
+          </div>
+        ) : viewMode === "view" ? (
           <div className="flex-1 px-4 py-3 space-y-2">
             {/* En-tête */}
             <div className="flex items-center justify-between pb-3 border-b">
@@ -932,49 +995,16 @@ export default function EditBookingDialog({
               </div>
             </div>
 
-            {/* Quote Card - Only shown for quote_pending status and admin */}
+            {/* Quote Banner - Only shown for quote_pending status and admin */}
             {booking?.status === "quote_pending" && isAdmin && (
-              <div className="p-2 bg-orange-50 border border-orange-300 rounded-lg">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <AlertTriangle className="w-3 h-3 text-orange-600" />
-                  <span className="font-medium text-xs text-orange-800">Devis à valider</span>
-                  {variableTreatments.length > 0 && (
-                    <span className="text-[10px] text-orange-600 ml-1">
-                      ({variableTreatments.map((t: any) => t.name).join(", ")})
-                    </span>
-                  )}
-                </div>
-                
-                {/* Compact input row */}
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    id="quote-price"
-                    type="number"
-                    min="0"
-                    value={quotePrice}
-                    onChange={(e) => setQuotePrice(e.target.value)}
-                    className="h-6 w-16 text-xs border-orange-300 px-1.5"
-                  />
-                  <span className="text-[10px] text-orange-700">€</span>
-                  <Input
-                    id="quote-duration"
-                    type="number"
-                    min="0"
-                    value={quoteDuration}
-                    onChange={(e) => setQuoteDuration(e.target.value)}
-                    className="h-6 w-14 text-xs border-orange-300 px-1.5"
-                  />
-                  <span className="text-[10px] text-orange-700">min</span>
-                  <Button
-                    onClick={handleValidateQuote}
-                    disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
-                    size="sm"
-                    className="h-6 px-2 text-[10px] bg-orange-600 hover:bg-orange-700 text-white ml-auto"
-                  >
-                    {validateQuoteMutation.isPending ? "..." : "Envoyer"}
-                  </Button>
-                </div>
-              </div>
+              <Button
+                variant="outline"
+                onClick={() => setViewMode("quote")}
+                className="w-full border-orange-300 bg-orange-50 text-orange-800 hover:bg-orange-100"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Valider le devis
+              </Button>
             )}
 
             {/* Infos principales */}
