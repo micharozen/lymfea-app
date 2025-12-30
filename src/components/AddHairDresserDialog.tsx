@@ -374,7 +374,6 @@ export default function AddHairDresserDialog({
                           }}
                         >
                           <Checkbox
-                            className="h-3.5 w-3.5"
                             checked={selectedHotels.includes(hotel.id)}
                             onCheckedChange={() => {}}
                           />
@@ -403,29 +402,26 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                <PopoverContent className="w-36 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                   <ScrollArea className="h-32">
                     <div className="p-1">
                       {TRUNKS_OPTIONS.map((trunk) => (
                         <div
                           key={trunk.value}
-                          className="flex items-center gap-2 px-2 py-1"
+                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
+                          onClick={() => {
+                            if (selectedTrunks.includes(trunk.value)) {
+                              setSelectedTrunks(selectedTrunks.filter((t) => t !== trunk.value));
+                            } else {
+                              setSelectedTrunks([...selectedTrunks, trunk.value]);
+                            }
+                          }}
                         >
                           <Checkbox
-                            id={`trunk-${trunk.value}`}
-                            className="h-3.5 w-3.5"
                             checked={selectedTrunks.includes(trunk.value)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedTrunks([...selectedTrunks, trunk.value]);
-                              } else {
-                                setSelectedTrunks(
-                                  selectedTrunks.filter((t) => t !== trunk.value)
-                                );
-                              }
-                            }}
+                            onCheckedChange={() => {}}
                           />
-                          <Label htmlFor={`trunk-${trunk.value}`} className="cursor-pointer font-normal text-xs">
+                          <Label className="cursor-pointer font-normal text-xs">
                             {trunk.label}
                           </Label>
                         </div>
@@ -452,29 +448,26 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                <PopoverContent className="w-36 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                   <ScrollArea className="h-32">
                     <div className="p-1">
                       {SKILLS_OPTIONS.map((skill) => (
                         <div
                           key={skill.value}
-                          className="flex items-center gap-2 px-2 py-1"
+                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
+                          onClick={() => {
+                            if (selectedSkills.includes(skill.value)) {
+                              setSelectedSkills(selectedSkills.filter((s) => s !== skill.value));
+                            } else {
+                              setSelectedSkills([...selectedSkills, skill.value]);
+                            }
+                          }}
                         >
                           <Checkbox
-                            id={`skill-${skill.value}`}
-                            className="h-3.5 w-3.5"
                             checked={selectedSkills.includes(skill.value)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedSkills([...selectedSkills, skill.value]);
-                              } else {
-                                setSelectedSkills(
-                                  selectedSkills.filter((s) => s !== skill.value)
-                                );
-                              }
-                            }}
+                            onCheckedChange={() => {}}
                           />
-                          <Label htmlFor={`skill-${skill.value}`} className="cursor-pointer font-normal text-xs">
+                          <Label className="cursor-pointer font-normal text-xs">
                             {skill.label}
                           </Label>
                         </div>
