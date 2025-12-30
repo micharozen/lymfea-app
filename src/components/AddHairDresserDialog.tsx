@@ -10,17 +10,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ChevronDown } from "lucide-react";
@@ -270,7 +264,7 @@ export default function AddHairDresserDialog({
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
-              {uploading ? "..." : "Photo"}
+              {uploading ? "..." : "Télécharger une image"}
             </Button>
           </div>
 
@@ -353,41 +347,40 @@ export default function AddHairDresserDialog({
                     <span>
                       {selectedHotels.length === 0
                         ? "Sélectionner"
-                        : `${selectedHotels.length} hôtel(s)`}
+                        : `${selectedHotels.length}`}
                     </span>
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 bg-background border shadow-lg" align="start">
-                  <div className="max-h-60 overflow-y-auto p-2 space-y-1">
-                    {hotels.map((hotel) => (
-                      <div
-                        key={hotel.id}
-                        className="flex items-center gap-2 p-2 rounded-md"
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={hotel.image || ""} alt={hotel.name} />
-                          <AvatarFallback className="text-xs">{hotel.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <Label htmlFor={`hotel-${hotel.id}`} className="flex-1 cursor-pointer font-normal text-sm">
-                          {hotel.name}
-                        </Label>
-                        <Checkbox
-                          id={`hotel-${hotel.id}`}
-                          checked={selectedHotels.includes(hotel.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedHotels([...selectedHotels, hotel.id]);
-                            } else {
-                              setSelectedHotels(
-                                selectedHotels.filter((id) => id !== hotel.id)
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-32">
+                    <div className="p-1">
+                      {hotels.map((hotel) => (
+                        <div
+                          key={hotel.id}
+                          className="flex items-center gap-2 px-2 py-1"
+                        >
+                          <Checkbox
+                            id={`hotel-${hotel.id}`}
+                            className="h-3.5 w-3.5"
+                            checked={selectedHotels.includes(hotel.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedHotels([...selectedHotels, hotel.id]);
+                              } else {
+                                setSelectedHotels(
+                                  selectedHotels.filter((id) => id !== hotel.id)
+                                );
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`hotel-${hotel.id}`} className="cursor-pointer font-normal text-xs">
+                            {hotel.name}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -403,37 +396,40 @@ export default function AddHairDresserDialog({
                     <span>
                       {selectedTrunks.length === 0
                         ? "Sélectionner"
-                        : `${selectedTrunks.length} trunk(s)`}
+                        : `${selectedTrunks.length}`}
                     </span>
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0 bg-background border shadow-lg" align="start">
-                  <div className="max-h-48 overflow-y-auto p-2 space-y-1">
-                    {TRUNKS_OPTIONS.map((trunk) => (
-                      <div
-                        key={trunk.value}
-                        className="flex items-center gap-2 p-2 rounded-md"
-                      >
-                        <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal text-sm">
-                          {trunk.label}
-                        </Label>
-                        <Checkbox
-                          id={`trunk-${trunk.value}`}
-                          checked={selectedTrunks.includes(trunk.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedTrunks([...selectedTrunks, trunk.value]);
-                            } else {
-                              setSelectedTrunks(
-                                selectedTrunks.filter((t) => t !== trunk.value)
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-32">
+                    <div className="p-1">
+                      {TRUNKS_OPTIONS.map((trunk) => (
+                        <div
+                          key={trunk.value}
+                          className="flex items-center gap-2 px-2 py-1"
+                        >
+                          <Checkbox
+                            id={`trunk-${trunk.value}`}
+                            className="h-3.5 w-3.5"
+                            checked={selectedTrunks.includes(trunk.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedTrunks([...selectedTrunks, trunk.value]);
+                              } else {
+                                setSelectedTrunks(
+                                  selectedTrunks.filter((t) => t !== trunk.value)
+                                );
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`trunk-${trunk.value}`} className="cursor-pointer font-normal text-xs">
+                            {trunk.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -449,38 +445,40 @@ export default function AddHairDresserDialog({
                     <span>
                       {selectedSkills.length === 0
                         ? "Sélectionner"
-                        : `${selectedSkills.length} comp.`}
+                        : `${selectedSkills.length}`}
                     </span>
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[250px] p-0 bg-background border shadow-lg" align="start">
-                  <div className="p-2 space-y-1">
-                    {SKILLS_OPTIONS.map((skill) => (
-                      <div
-                        key={skill.value}
-                        className="flex items-center gap-2 p-2 rounded-md"
-                      >
-                        <div className="text-lg">{skill.label.split(" ")[0]}</div>
-                        <Label htmlFor={`skill-${skill.value}`} className="flex-1 cursor-pointer font-normal text-sm">
-                          {skill.label.split(" ").slice(1).join(" ")}
-                        </Label>
-                        <Checkbox
-                          id={`skill-${skill.value}`}
-                          checked={selectedSkills.includes(skill.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedSkills([...selectedSkills, skill.value]);
-                            } else {
-                              setSelectedSkills(
-                                selectedSkills.filter((s) => s !== skill.value)
-                              );
-                            }
-                          }}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-32">
+                    <div className="p-1">
+                      {SKILLS_OPTIONS.map((skill) => (
+                        <div
+                          key={skill.value}
+                          className="flex items-center gap-2 px-2 py-1"
+                        >
+                          <Checkbox
+                            id={`skill-${skill.value}`}
+                            className="h-3.5 w-3.5"
+                            checked={selectedSkills.includes(skill.value)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedSkills([...selectedSkills, skill.value]);
+                              } else {
+                                setSelectedSkills(
+                                  selectedSkills.filter((s) => s !== skill.value)
+                                );
+                              }
+                            }}
+                          />
+                          <Label htmlFor={`skill-${skill.value}`} className="cursor-pointer font-normal text-xs">
+                            {skill.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
