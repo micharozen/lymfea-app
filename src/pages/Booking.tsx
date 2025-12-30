@@ -724,11 +724,14 @@ export default function Booking() {
                         <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <StatusBadge
-                          status={booking.payment_status || "pending"}
-                          type="payment"
-                          className="text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
-                        />
+                        {/* Hide payment status for quote_pending and waiting_approval */}
+                        {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
+                          <StatusBadge
+                            status={booking.payment_status || "pending"}
+                            type="payment"
+                            className="text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block">{booking.client_first_name} {booking.client_last_name}</span>
@@ -743,8 +746,8 @@ export default function Booking() {
                         <span className="truncate block">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        {/* Document visibility logic by role */}
-                        {(() => {
+                        {/* Document visibility logic by role - hide for quote_pending and waiting_approval */}
+                        {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
                           const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
                           const isRoomPayment = booking.payment_method === "room";
                           const hasStripeInvoice = !!booking.stripe_invoice_url;
