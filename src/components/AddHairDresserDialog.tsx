@@ -25,8 +25,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import * as z from "zod";
 
 const countries = [
@@ -358,28 +359,33 @@ export default function AddHairDresserDialog({
                     <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-0 bg-background border shadow-lg" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                  <ScrollArea className="h-40">
+                <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                  <ScrollArea className="h-40 touch-pan-y">
                     <div className="p-1">
-                      {hotels.map((hotel) => (
-                        <div
-                          key={hotel.id}
-                          className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
-                          onClick={() => {
-                            if (selectedHotels.includes(hotel.id)) {
-                              setSelectedHotels(selectedHotels.filter((id) => id !== hotel.id));
-                            } else {
-                              setSelectedHotels([...selectedHotels, hotel.id]);
-                            }
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedHotels.includes(hotel.id)}
-                            onCheckedChange={() => {}}
-                          />
-                          <span className="text-sm">{hotel.name}</span>
-                        </div>
-                      ))}
+                      {hotels.map((hotel) => {
+                        const selected = selectedHotels.includes(hotel.id);
+                        return (
+                          <button
+                            key={hotel.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedHotels(
+                                selected
+                                  ? selectedHotels.filter((id) => id !== hotel.id)
+                                  : [...selectedHotels, hotel.id],
+                              );
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              "hover:bg-muted/60",
+                              selected && "bg-muted",
+                            )}
+                          >
+                            <span className="truncate">{hotel.name}</span>
+                            {selected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </ScrollArea>
                 </PopoverContent>
