@@ -7,10 +7,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface QuoteItem {
+  name: string;
+  price: number;
+  isFixed: boolean;
+}
+
 interface SendQuoteEmailRequest {
   bookingId: string;
   quotedPrice: number;
   quotedDuration: number;
+  fixedTotal?: number;
+  variableTotal?: number;
+  fixedItems?: QuoteItem[];
+  variableItems?: QuoteItem[];
 }
 
 // Generate a secure token for the quote response
@@ -26,8 +36,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { bookingId, quotedPrice, quotedDuration }: SendQuoteEmailRequest = await req.json();
-    console.log("Sending quote email for booking:", bookingId, "Price:", quotedPrice, "Duration:", quotedDuration);
+    const { bookingId, quotedPrice, quotedDuration, fixedTotal, variableTotal, fixedItems, variableItems }: SendQuoteEmailRequest = await req.json();
+    console.log("Sending quote email for booking:", bookingId, "Total Price:", quotedPrice, "Duration:", quotedDuration, "Fixed:", fixedTotal, "Variable:", variableTotal);
 
     if (!bookingId) {
       return new Response(
@@ -146,12 +156,35 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="background-color: #f9fafb; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
               <div style="text-align: center; margin-bottom: 16px;">
                 <p style="color: #6b7280; font-size: 14px; margin: 0 0 8px 0;">Réservation #${booking.booking_id}</p>
-                <p style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 0;">${treatmentNames}</p>
               </div>
               
-              <div style="display: flex; justify-content: center; gap: 32px; margin-top: 16px;">
+              ${fixedItems && fixedItems.length > 0 ? `
+              <div style="margin-bottom: 16px;">
+                <p style="color: #059669; font-size: 12px; font-weight: 600; margin: 0 0 8px 0;">✓ Prestations à prix fixe</p>
+                ${fixedItems.map((item: QuoteItem) => `
+                  <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
+                    <span style="color: #374151;">${item.name}</span>
+                    <span style="color: #059669; font-weight: 500;">${item.price.toFixed(2)} €</span>
+                  </div>
+                `).join('')}
+              </div>
+              ` : ''}
+              
+              ${variableItems && variableItems.length > 0 ? `
+              <div style="margin-bottom: 16px; padding-top: 12px; border-top: 1px dashed #f59e0b;">
+                <p style="color: #d97706; font-size: 12px; font-weight: 600; margin: 0 0 8px 0;">📋 Prestations sur devis</p>
+                ${variableItems.map((item: QuoteItem) => `
+                  <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 4px;">
+                    <span style="color: #374151;">${item.name}</span>
+                    <span style="color: #d97706; font-weight: 500;">${item.price.toFixed(2)} €</span>
+                  </div>
+                `).join('')}
+              </div>
+              ` : ''}
+              
+              <div style="display: flex; justify-content: center; gap: 32px; margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
                 <div style="text-align: center;">
-                  <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Prix</p>
+                  <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Prix Total</p>
                   <p style="color: #1f2937; font-size: 28px; font-weight: 700; margin: 0;">${quotedPrice.toFixed(2)} €</p>
                 </div>
                 <div style="text-align: center;">
