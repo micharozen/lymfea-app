@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.notify-admin-quote-pending]
 verify_jwt = false
+
+[functions.send-quote-email]
+verify_jwt = false
+
+[functions.handle-quote-response]
+verify_jwt = false

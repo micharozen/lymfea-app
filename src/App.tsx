@@ -59,6 +59,7 @@ const ClientPayment = lazy(() => import("./pages/client/ClientPayment"));
 const ClientConfirmation = lazy(() => import("./pages/client/ClientConfirmation"));
 const ClientManageBooking = lazy(() => import("./pages/client/ClientManageBooking"));
 const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
+const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -159,6 +160,9 @@ const App = () => {
             
             {/* Rating Page (Public) */}
             <Route path="/rate/:token" element={<RateHairdresser />} />
+            
+            {/* Quote Response Page (Public) */}
+            <Route path="/quote-response" element={<QuoteResponse />} />
             
             {/* Admin Auth Routes */}
             <Route path="/auth" element={<Auth />} />

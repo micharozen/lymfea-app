@@ -656,38 +656,42 @@ export default function EditBookingDialog({
     },
   });
 
-  // Quote validation mutation
+  // Quote validation mutation - sends to client for approval
   const validateQuoteMutation = useMutation({
     mutationFn: async ({ price, duration }: { price: number; duration: number }) => {
       if (!booking?.id) throw new Error("No booking ID");
 
+      // Update booking with price and set to waiting_approval
       const { error } = await supabase
         .from("bookings")
         .update({
           total_price: price,
-          status: "pending",
+          status: "waiting_approval",
         })
         .eq("id", booking.id);
 
       if (error) throw error;
+
+      // Send quote email to client
+      const { error: emailError } = await supabase.functions.invoke('send-quote-email', {
+        body: { 
+          bookingId: booking.id,
+          quotedPrice: price,
+          quotedDuration: duration
+        }
+      });
+
+      if (emailError) {
+        console.error("Error sending quote email:", emailError);
+        throw new Error("Failed to send quote email");
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       
-      // Trigger notifications to hairdressers
-      if (booking?.id) {
-        try {
-          await supabase.functions.invoke('trigger-new-booking-notifications', {
-            body: { bookingId: booking.id }
-          });
-        } catch (e) {
-          console.error("Error triggering notifications:", e);
-        }
-      }
-      
       toast({
-        title: "Mission publiée !",
-        description: "Mission publiée pour les coiffeurs !",
+        title: "Devis envoyé !",
+        description: "Le client va recevoir un email pour accepter ou refuser le devis.",
       });
       setQuotePrice("");
       setQuoteDuration("");
@@ -696,7 +700,7 @@ export default function EditBookingDialog({
     onError: (error) => {
       toast({
         title: "Erreur",
-        description: "Une erreur est survenue lors de la validation du devis",
+        description: "Une erreur est survenue lors de l'envoi du devis",
         variant: "destructive",
       });
       console.error("Error validating quote:", error);
@@ -940,7 +944,7 @@ export default function EditBookingDialog({
                   disabled={validateQuoteMutation.isPending || !quotePrice || !quoteDuration}
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white"
                 >
-                  {validateQuoteMutation.isPending ? "Validation..." : "Valider et Publier la mission"}
+                  {validateQuoteMutation.isPending ? "Envoi en cours..." : "Envoyer le devis au client"}
                 </Button>
               </div>
             )}
