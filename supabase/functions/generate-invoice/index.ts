@@ -223,8 +223,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     <body>
       <div class="header">
         <div class="logo-section">
-          <div class="logo">O</div>
-          <div class="company-name">OOM</div>
+          <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM" style="height: 48px; width: auto;" />
         </div>
         <div class="invoice-info">
           <div class="invoice-title">${documentTitle}</div>
