@@ -929,6 +929,14 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
+              {/* Note du client */}
+              {booking?.client_note && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note du client</p>
+                  <p className="text-sm text-foreground">{decodeHtmlEntities(booking.client_note)}</p>
+                </div>
+              )}
+
               {/* Form */}
               <div className="space-y-3">
                 <div>
@@ -1041,14 +1049,6 @@ export default function EditBookingDialog({
                       <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Note du client */}
-              {booking?.client_note && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note du client</p>
-                  <p className="text-sm text-foreground">{decodeHtmlEntities(booking.client_note)}</p>
                 </div>
               )}
 
