@@ -1,21 +1,21 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import BookingProgressBar from '@/components/BookingProgressBar';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export default function ClientPayment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
-  const [selectedMethod] = useState<'room'>('room');
+  const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('room');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { t, i18n } = useTranslation('client');
+  const { t } = useTranslation('client');
 
   // Separate fixed and variable items for display
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
@@ -36,39 +36,73 @@ export default function ClientPayment() {
     setIsProcessing(true);
 
     try {
-      // Create booking directly (room payment only)
-      const { data, error } = await supabase.functions.invoke('create-client-booking', {
-        body: {
-          hotelId,
-          clientData: {
-            firstName: clientInfo.firstName,
-            lastName: clientInfo.lastName,
-            phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-            email: clientInfo.email,
-            roomNumber: clientInfo.roomNumber,
-            note: clientInfo.note || '',
+      if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Stripe payment flow
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+            },
+            bookingData: {
+              date: dateTime.date,
+              time: dateTime.time,
+            },
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+            totalPrice: total,
           },
-          bookingData: {
-            date: dateTime.date,
-            time: dateTime.time,
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          // Store session info for later retrieval
+          sessionStorage.setItem('pendingCheckoutSession', data.sessionId);
+          window.location.href = data.url;
+        }
+      } else {
+        // Room payment - create booking directly
+        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+            },
+            bookingData: {
+              date: dateTime.date,
+              time: dateTime.time,
+            },
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+            paymentMethod: 'room',
+            totalPrice: fixedTotal,
           },
-          treatments: items.map(item => ({
-            treatmentId: item.id,
-            quantity: item.quantity,
-            note: item.note,
-          })),
-          paymentMethod: selectedMethod,
-          totalPrice: fixedTotal, // Only fixed items total - variable items will be quoted
-        },
-      });
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      clearBasket();
-      sessionStorage.removeItem('bookingDateTime');
-      sessionStorage.removeItem('clientInfo');
-      navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
-      
+        clearBasket();
+        sessionStorage.removeItem('bookingDateTime');
+        sessionStorage.removeItem('clientInfo');
+        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+      }
     } catch (error: any) {
       console.error('Payment error:', error);
       toast.error(error.message || t('common:errors.generic'));
@@ -102,10 +136,10 @@ export default function ClientPayment() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-semibold text-amber-800 mb-1">Quote Required</h3>
+                <h3 className="font-semibold text-amber-800 mb-1">Devis requis</h3>
                 <p className="text-sm text-amber-700">
-                  Your cart contains services requiring a custom quote. 
-                  An advisor will contact you to confirm the final price.
+                  Votre panier contient des prestations sur devis. 
+                  Un conseiller vous contactera pour confirmer le prix final.
                 </p>
               </div>
             </div>
@@ -140,7 +174,7 @@ export default function ClientPayment() {
                   <span className="text-muted-foreground">
                     {item.name} x{item.quantity}
                   </span>
-                  <span className="text-amber-600 text-xs font-medium whitespace-nowrap">On quote</span>
+                  <span className="text-amber-600 text-xs font-medium whitespace-nowrap">Sur devis</span>
                 </div>
               ))}
             </div>
@@ -151,12 +185,67 @@ export default function ClientPayment() {
             {hasPriceOnRequest ? (
               <div className="text-right">
                 <span className="text-base">€{fixedTotal.toFixed(2)}</span>
-                <span className="text-amber-600 text-sm ml-1">+ quote</span>
+                <span className="text-amber-600 text-sm ml-1">+ devis</span>
               </div>
             ) : (
               <span>€{total.toFixed(2)}</span>
             )}
           </div>
+        </div>
+
+        {/* Payment Method Selection */}
+        <div className="space-y-3">
+          <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
+          
+          {/* Room Payment Option */}
+          <button
+            onClick={() => setSelectedMethod('room')}
+            className={cn(
+              "w-full p-4 rounded-xl border-2 transition-all text-left",
+              selectedMethod === 'room' 
+                ? "border-primary bg-primary/5" 
+                : "border-border hover:border-primary/50"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                selectedMethod === 'room' ? "bg-primary text-primary-foreground" : "bg-muted"
+              )}>
+                <Building className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-medium">{t('payment.addToRoom')}</p>
+                <p className="text-sm text-muted-foreground">{t('payment.addToRoomDesc')}</p>
+              </div>
+            </div>
+          </button>
+
+          {/* Card Payment Option - Only show if no quote required */}
+          {!hasPriceOnRequest && (
+            <button
+              onClick={() => setSelectedMethod('card')}
+              className={cn(
+                "w-full p-4 rounded-xl border-2 transition-all text-left",
+                selectedMethod === 'card' 
+                  ? "border-primary bg-primary/5" 
+                  : "border-border hover:border-primary/50"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  selectedMethod === 'card' ? "bg-primary text-primary-foreground" : "bg-muted"
+                )}>
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-medium">{t('payment.payNow')}</p>
+                  <p className="text-sm text-muted-foreground">{t('payment.payNowDesc')}</p>
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
@@ -173,7 +262,9 @@ export default function ClientPayment() {
               {t('payment.processing')}
             </>
           ) : hasPriceOnRequest ? (
-            "Request Final Quote"
+            "Demander un devis"
+          ) : selectedMethod === 'card' ? (
+            t('payment.payNow')
           ) : (
             t('payment.confirmBook')
           )}
