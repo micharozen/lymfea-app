@@ -81,11 +81,20 @@ serve(async (req) => {
           .ilike("email", emailNorm)
           .maybeSingle();
 
-        if (conciergeByEmail) {
+      if (conciergeByEmail) {
           role = "concierge";
-          await supabaseAdmin.from("concierges").update({ user_id: userId }).ilike("email", emailNorm);
+          await supabaseAdmin.from("concierges").update({ user_id: userId, status: "active" }).ilike("email", emailNorm);
         }
       }
+    }
+
+    // Auto-activate concierges on first login
+    if (role === "concierge") {
+      await supabaseAdmin
+        .from("concierges")
+        .update({ status: "active" })
+        .eq("user_id", userId)
+        .eq("status", "pending");
     }
 
     if (role) {
