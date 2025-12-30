@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.notify-concierge-room-payment]
 verify_jwt = false
+
+[functions.trigger-booking-cancelled-notification]
+verify_jwt = false
