@@ -359,10 +359,7 @@ export default function AddHairDresserDialog({
                             .map((h) => h.name)
                             .join(", ")}
                     </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {selectedHotels.length > 0 && <Check className="h-3 w-3" />}
-                      <ChevronDown className="h-3 w-3 opacity-50" />
-                    </div>
+                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
