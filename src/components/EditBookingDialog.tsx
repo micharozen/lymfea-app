@@ -606,10 +606,30 @@ export default function EditBookingDialog({
       if (error) throw error;
     },
     onSuccess: async () => {
-      // Note: The database trigger automatically calls handle-booking-cancellation
-      // which sends notifications to hairdresser, concierge, and client
-      console.log("Booking cancelled successfully - notifications will be sent via database trigger");
-      
+      // Call the backend cancellation handler directly (DB trigger is unreliable in this environment)
+      if (booking?.id) {
+        try {
+          console.log("Calling handle-booking-cancellation for booking:", booking.id);
+          const { data, error } = await supabase.functions.invoke(
+            "handle-booking-cancellation",
+            {
+              body: {
+                bookingId: booking.id,
+                cancellationReason: cancellationReason || undefined,
+              },
+            }
+          );
+
+          if (error) {
+            console.error("handle-booking-cancellation error:", error);
+          } else {
+            console.log("handle-booking-cancellation result:", data);
+          }
+        } catch (e) {
+          console.error("handle-booking-cancellation exception:", e);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: "Succès",
