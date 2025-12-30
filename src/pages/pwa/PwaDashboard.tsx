@@ -539,7 +539,7 @@ const PwaDashboard = () => {
   const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
   return (
-    <div className="h-full bg-white flex flex-col min-h-0">
+    <div className="h-full overflow-hidden bg-white flex flex-col">
       <PwaHeader
         leftSlot={
           <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>OOM</span>
@@ -570,9 +570,9 @@ const PwaDashboard = () => {
         </div>
       )}
 
-      {/* Content - Scrollable */}
+      {/* Content - no scroll, parent handles it */}
       <div 
-        className="flex-1 overflow-y-auto min-h-0 pb-2"
+        className="flex-1 min-h-0 pb-2"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

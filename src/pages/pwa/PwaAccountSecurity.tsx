@@ -73,7 +73,7 @@ const PwaAccountSecurity = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full overflow-hidden flex flex-col bg-background">
       {/* Header */}
       <div className="bg-background border-b p-4">
         <div className="flex items-center gap-4">
@@ -89,7 +89,7 @@ const PwaAccountSecurity = () => {
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-6">
+      <div className="flex-1 min-h-0 p-6 space-y-6">
         <div className="flex items-start gap-3 text-muted-foreground">
           <Lock className="h-5 w-5 flex-shrink-0 mt-0.5" />
           <p className="text-sm">

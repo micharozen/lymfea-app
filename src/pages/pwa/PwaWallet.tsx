@@ -134,7 +134,7 @@ const PwaWallet = () => {
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
 
   return (
-    <div className="h-full flex flex-col bg-muted/30">
+    <div className="h-full overflow-hidden flex flex-col bg-muted/30">
       <PwaHeader
         title="Wallet"
         centerSlot={
@@ -162,7 +162,7 @@ const PwaWallet = () => {
 
       {/* Content with Stripe */}
       {currentEarnings.stripeAccountId && (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0">
           <div className="px-6 pt-4">
             {/* Period Label */}
             <p className="text-xs text-muted-foreground text-center mb-3">{getPeriodLabel()}</p>
