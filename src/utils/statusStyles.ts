@@ -42,9 +42,9 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
   },
   cancelled: {
     label: 'Annulé',
-    badgeClass: 'bg-red-500/10 text-red-700',
-    cardClass: 'bg-red-500 text-white',
-    hexColor: '#ef4444',
+    badgeClass: 'bg-orange-500/10 text-orange-700',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
   },
   noshow: {
     label: 'No-show',
