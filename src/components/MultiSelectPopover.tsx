@@ -76,11 +76,16 @@ export function MultiSelectPopover({
                   className={cn(
                     "w-full flex items-center justify-between gap-2 rounded-sm",
                     "px-3 py-1.5 text-sm transition-colors",
-                    "hover:bg-muted-foreground/10",
+                    "hover:bg-foreground/5",
+                    isSelected && "font-medium",
                   )}
                 >
                   <span className="truncate">{opt.label}</span>
-                  {isSelected ? <Check className="h-4 w-4" /> : <span className="h-4 w-4" />}
+                  {isSelected ? (
+                    <Check className="h-4 w-4 text-foreground" strokeWidth={2.5} />
+                  ) : (
+                    <span className="h-4 w-4" />
+                  )}
                 </button>
               );
             })}
