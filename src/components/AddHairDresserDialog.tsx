@@ -349,14 +349,17 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
                   >
-                    <span>
+                    <span className="truncate">
                       {selectedHotels.length === 0
                         ? "Sélectionner"
-                        : `${selectedHotels.length}`}
+                        : hotels
+                            .filter((h) => selectedHotels.includes(h.id))
+                            .map((h) => h.name)
+                            .join(", ")}
                     </span>
-                    <ChevronDown className="h-3 w-3 opacity-50" />
+                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-48 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
@@ -376,7 +379,7 @@ export default function AddHairDresserDialog({
                               );
                             }}
                             className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm hover:bg-muted/60",
                               selected && "bg-muted",
                             )}
                           >
@@ -397,14 +400,17 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
                   >
-                    <span>
+                    <span className="truncate">
                       {selectedTrunks.length === 0
                         ? "Sélectionner"
-                        : `${selectedTrunks.length}`}
+                        : TRUNKS_OPTIONS
+                            .filter((t) => selectedTrunks.includes(t.value))
+                            .map((t) => t.label)
+                            .join(", ")}
                     </span>
-                    <ChevronDown className="h-3 w-3 opacity-50" />
+                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
@@ -424,7 +430,7 @@ export default function AddHairDresserDialog({
                               );
                             }}
                             className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm hover:bg-muted/60",
                               selected && "bg-muted",
                             )}
                           >
@@ -445,14 +451,17 @@ export default function AddHairDresserDialog({
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal h-9 text-xs"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background"
                   >
-                    <span>
+                    <span className="truncate">
                       {selectedSkills.length === 0
                         ? "Sélectionner"
-                        : `${selectedSkills.length}`}
+                        : SKILLS_OPTIONS
+                            .filter((s) => selectedSkills.includes(s.value))
+                            .map((s) => s.label)
+                            .join(", ")}
                     </span>
-                    <ChevronDown className="h-3 w-3 opacity-50" />
+                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-36 p-0" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
@@ -472,7 +481,7 @@ export default function AddHairDresserDialog({
                               );
                             }}
                             className={cn(
-                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm",
+                              "w-full flex items-center justify-between gap-2 rounded-sm px-3 py-1.5 text-sm hover:bg-muted/60",
                               selected && "bg-muted",
                             )}
                           >
