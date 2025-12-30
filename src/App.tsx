@@ -57,6 +57,7 @@ const ClientDateTime = lazy(() => import("./pages/client/ClientDateTime"));
 const ClientInfo = lazy(() => import("./pages/client/ClientInfo"));
 const ClientPayment = lazy(() => import("./pages/client/ClientPayment"));
 const ClientConfirmation = lazy(() => import("./pages/client/ClientConfirmation"));
+const ClientManageBooking = lazy(() => import("./pages/client/ClientManageBooking"));
 const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
 
 const queryClient = new QueryClient({
@@ -152,6 +153,9 @@ const App = () => {
                 </BasketProvider>
               </ClientFlowWrapper>
             } />
+            
+            {/* Client Booking Management (Public) */}
+            <Route path="/booking/manage/:bookingId" element={<ClientManageBooking />} />
             
             {/* Rating Page (Public) */}
             <Route path="/rate/:token" element={<RateHairdresser />} />
