@@ -171,9 +171,9 @@ const PwaLayout = () => {
   const shouldShowTabBar = !location.pathname.includes('/pwa/booking/');
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background">
+    <div className="min-h-[100dvh] flex flex-col bg-background">
       <main 
-        className="flex-1 overflow-y-auto overscroll-y-contain"
+        className="flex-1 overflow-y-auto overscroll-y-none"
         style={{ 
           paddingBottom: shouldShowTabBar 
             ? "calc(64px + env(safe-area-inset-bottom, 0px))" 
