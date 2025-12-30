@@ -195,7 +195,31 @@ export default function AddHairDresserDialog({
       }
     }
 
-    toast.success("Coiffeur ajouté avec succès");
+    // Send welcome email with PWA installation instructions
+    try {
+      const { error: emailError } = await supabase.functions.invoke('invite-hairdresser', {
+        body: {
+          hairdresserId: hairdresser.id,
+          email: formData.email,
+          firstName: formData.first_name,
+          lastName: formData.last_name,
+          phone: formData.phone,
+          countryCode: formData.country_code,
+          hotelIds: selectedHotels,
+        }
+      });
+
+      if (emailError) {
+        console.error("Error sending welcome email:", emailError);
+        toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+      } else {
+        toast.success("Coiffeur ajouté et email de bienvenue envoyé");
+      }
+    } catch (emailErr) {
+      console.error("Error invoking invite-hairdresser:", emailErr);
+      toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+    }
+
     onOpenChange(false);
     onSuccess();
     resetForm();
