@@ -25,8 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
+import { getCurrentOffset } from "@/lib/timezones";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -245,12 +246,15 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name")
+        .select("id, name, timezone")
         .order("name");
       if (error) throw error;
       return data;
     },
   });
+
+  const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
+  const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers", booking?.hotel_id],
@@ -1353,12 +1357,12 @@ export default function EditBookingDialog({
 
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
                     <Popover open={hourOpen} onOpenChange={setHourOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
+                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
                           {time.split(':')[0] || "HH"}
-                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
@@ -1387,9 +1391,9 @@ export default function EditBookingDialog({
                     <span className="flex items-center text-muted-foreground">:</span>
                     <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[68px] justify-between font-normal">
+                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
                           {time.split(':')[1] || "MM"}
-                          <ChevronDown className="ml-1 h-3 w-3 opacity-50" />
+                          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
@@ -1415,6 +1419,12 @@ export default function EditBookingDialog({
                         </ScrollArea>
                       </PopoverContent>
                     </Popover>
+                    {hotelId && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                        <Globe className="h-3 w-3" />
+                        {getCurrentOffset(hotelTimezone)}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
