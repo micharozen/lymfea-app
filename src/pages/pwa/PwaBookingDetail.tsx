@@ -950,7 +950,8 @@ const PwaBookingDetail = () => {
                 </Drawer>
 
                 {/* Main Action Button - Smart Cashier */}
-                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && (
+                {/* Only show payment selection if NOT already paid by card */}
+                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status !== 'paid' && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
@@ -958,6 +959,18 @@ const PwaBookingDetail = () => {
                   >
                     <Wallet className="w-4 h-4" />
                     Finaliser ({totalPrice}€)
+                  </button>
+                )}
+                
+                {/* If already paid by card, show signature-only button */}
+                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status === 'paid' && (
+                  <button
+                    onClick={() => setShowSignatureDialog(true)}
+                    disabled={updating}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full py-2.5 px-4 text-xs font-bold hover:from-green-500 hover:to-green-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
+                  >
+                    <Pen className="w-4 h-4" />
+                    Signature client
                   </button>
                 )}
               </>
