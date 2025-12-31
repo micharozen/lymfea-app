@@ -168,7 +168,7 @@ export function TimezoneSelectField({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal"
+            className="w-full justify-between font-normal hover:bg-transparent"
           >
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />
