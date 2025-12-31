@@ -165,115 +165,110 @@ export default function ClientMenu() {
         </div>
 
         {/* Categories Tabs - Inside sticky container */}
-        <div className="w-full overflow-x-auto scrollbar-hide border-t border-border">
-          <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-            <TabsList className="w-full justify-start rounded-none bg-background p-0 h-auto">
-              {categories.map(category => (
-                <TabsTrigger
-                  key={category}
-                  value={category}
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3 text-sm whitespace-nowrap"
-                >
-                  {t(`menu.categories.${category}`, category)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        <div className="w-full overflow-x-auto scrollbar-hide bg-background">
+          <div className="flex">
+            {categories.map(category => (
+              <button
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                  activeCategory === category 
+                    ? 'border-primary text-foreground font-medium' 
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t(`menu.categories.${category}`, category)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Categories Tabs Content */}
-      <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
-
-        {categories.map(category => (
-          <TabsContent key={category} value={category} className="mt-0">
-            <div className="divide-y divide-border">
-              {treatments
-                .filter(t => t.category === category)
-                .map(treatment => (
-                  <div key={treatment.id} className="p-4 active:bg-muted/50 transition-colors">
-                    <div className="flex gap-3">
-                      {treatment.image && (
-                        <img
-                          src={treatment.image}
-                          alt={treatment.name}
-                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground text-sm">
-                          {treatment.name}
-                        </h3>
-                        {treatment.price_on_request && (
-                          <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium mt-1">
-                            On quote
-                          </Badge>
-                        )}
-                        {treatment.description && (
-                          <p className="text-xs text-muted-foreground mt-1 mb-2 line-clamp-2">
-                            {treatment.description}
-                          </p>
-                        )}
-                        {!treatment.price_on_request && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className="font-semibold text-foreground">
-                              €{Number(treatment.price).toFixed(0)}
-                            </span>
-                            {treatment.duration && (
-                              <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Controls Row */}
-                    <div className="flex items-center justify-end mt-3 gap-2">
-                      {getItemQuantity(treatment.id) > 0 ? (
-                        <div className="flex items-center gap-1 bg-muted rounded-full p-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
-                              if (navigator.vibrate) navigator.vibrate(30);
-                            }}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold text-sm">
-                            {getItemQuantity(treatment.id)}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddToBasket(treatment);
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={() => handleAddToBasket(treatment)}
-                          size="sm"
-                          className="rounded-full px-4 h-8 text-xs"
-                        >
-                          {t('menu.add')}
-                        </Button>
+      {/* Content - Filtered by active category */}
+      <div className="divide-y divide-border">
+        {treatments
+          .filter(treatment => treatment.category === activeCategory)
+          .map(treatment => (
+            <div key={treatment.id} className="p-4 active:bg-muted/50 transition-colors">
+              <div className="flex gap-3">
+                {treatment.image && (
+                  <img
+                    src={treatment.image}
+                    alt={treatment.name}
+                    className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground text-sm">
+                    {treatment.name}
+                  </h3>
+                  {treatment.price_on_request && (
+                    <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium mt-1">
+                      On quote
+                    </Badge>
+                  )}
+                  {treatment.description && (
+                    <p className="text-xs text-muted-foreground mt-1 mb-2 line-clamp-2">
+                      {treatment.description}
+                    </p>
+                  )}
+                  {!treatment.price_on_request && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-foreground">
+                        €{Number(treatment.price).toFixed(0)}
+                      </span>
+                      {treatment.duration && (
+                        <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>
                       )}
                     </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Controls Row */}
+              <div className="flex items-center justify-end mt-3 gap-2">
+                {getItemQuantity(treatment.id) > 0 ? (
+                  <div className="flex items-center gap-1 bg-muted rounded-full p-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
+                        if (navigator.vibrate) navigator.vibrate(30);
+                      }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-8 text-center font-semibold text-sm">
+                      {getItemQuantity(treatment.id)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddToBasket(treatment);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  <Button
+                    onClick={() => handleAddToBasket(treatment)}
+                    size="sm"
+                    className="rounded-full px-4 h-8 text-xs"
+                  >
+                    {t('menu.add')}
+                  </Button>
+                )}
+              </div>
             </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+          ))}
+      </div>
 
       {/* Fixed Bottom Button */}
       {itemCount > 0 && (
