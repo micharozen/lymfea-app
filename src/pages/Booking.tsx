@@ -672,7 +672,8 @@ export default function Booking() {
               </div>
             </div>
           ) : (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
               <Table className="text-xs w-full table-fixed">
                 <colgroup>
                   <col className="w-[7%]" />   {/* Booking ID */}
@@ -854,16 +855,19 @@ export default function Booking() {
                     : null}
                 </TableBody>
               </Table>
+              </div>
 
-              {/* Pagination */}
-              {filteredBookings && filteredBookings.length > itemsPerPage && (
-                <div
-                  ref={paginationRef}
-                  className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card"
-                >
-                  <div className="text-sm text-muted-foreground">
-                    Display from {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredBookings.length)} on {filteredBookings.length} entries
-                  </div>
+              {/* Pagination - Always fixed at bottom */}
+              <div
+                ref={paginationRef}
+                className="flex items-center justify-between px-3 py-2 border-t flex-shrink-0 bg-card"
+              >
+                <div className="text-sm text-muted-foreground">
+                  {filteredBookings && filteredBookings.length > 0
+                    ? `Display from ${((currentPage - 1) * itemsPerPage) + 1} to ${Math.min(currentPage * itemsPerPage, filteredBookings.length)} on ${filteredBookings.length} entries`
+                    : 'No entries'}
+                </div>
+                {totalPages > 1 && (
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -905,8 +909,8 @@ export default function Booking() {
                       Next
                     </Button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
