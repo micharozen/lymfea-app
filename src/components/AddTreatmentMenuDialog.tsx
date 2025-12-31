@@ -300,16 +300,20 @@ export function AddTreatmentMenuDialog({
                 control={form.control}
                 name="price_on_request"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-end space-x-2 space-y-0 pb-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="text-sm cursor-pointer font-normal whitespace-nowrap">
-                      Sur demande
-                    </FormLabel>
+                  <FormItem>
+                    <FormLabel className="text-sm whitespace-nowrap opacity-0">Sur demande</FormLabel>
+                    <div className="flex items-center gap-2 h-10">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          className="h-4 w-4"
+                        />
+                      </FormControl>
+                      <FormLabel className="text-sm cursor-pointer font-normal whitespace-nowrap m-0">
+                        Sur demande
+                      </FormLabel>
+                    </div>
                   </FormItem>
                 )}
               />
