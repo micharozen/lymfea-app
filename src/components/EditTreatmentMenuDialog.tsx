@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery } from "@tanstack/react-query";
@@ -78,6 +78,8 @@ export function EditTreatmentMenuDialog({
       price_on_request: false,
     },
   });
+
+  const priceOnRequest = useWatch({ control: form.control, name: "price_on_request" });
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -274,8 +276,8 @@ export function EditTreatmentMenuDialog({
                         type="number" 
                         placeholder="60" 
                         {...field} 
-                        disabled={form.watch("price_on_request")}
-                        className={form.watch("price_on_request") ? "bg-muted text-muted-foreground" : ""}
+                        disabled={priceOnRequest}
+                        className={priceOnRequest ? "bg-muted text-muted-foreground" : ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -295,8 +297,8 @@ export function EditTreatmentMenuDialog({
                         step="0.01" 
                         placeholder="0.00" 
                         {...field} 
-                        disabled={form.watch("price_on_request")}
-                        className={form.watch("price_on_request") ? "bg-muted text-muted-foreground" : ""}
+                        disabled={priceOnRequest}
+                        className={priceOnRequest ? "bg-muted text-muted-foreground" : ""}
                       />
                     </FormControl>
                     <FormMessage />
