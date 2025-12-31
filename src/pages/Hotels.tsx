@@ -317,9 +317,9 @@ export default function Hotels() {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2">
+                    <TableCell className="py-0 px-2 text-center">
                       {hotel.trunks && hotel.trunks.length > 0 ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           {hotel.trunks.slice(0, 2).map((trunk) => (
                             <Avatar key={trunk.id} className="h-5 w-5">
                               <AvatarImage src={trunk.image || ""} />
