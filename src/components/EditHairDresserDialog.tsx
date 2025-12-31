@@ -512,7 +512,6 @@ export default function EditHairDresserDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
                 <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
