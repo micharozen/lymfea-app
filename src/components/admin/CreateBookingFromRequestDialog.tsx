@@ -63,6 +63,8 @@ export default function CreateBookingFromRequestDialog({
   const [hairdresserId, setHairdresserId] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
+  const [hourOpen, setHourOpen] = useState(false);
+  const [minuteOpen, setMinuteOpen] = useState(false);
 
   // Pre-fill form when request changes
   useEffect(() => {
