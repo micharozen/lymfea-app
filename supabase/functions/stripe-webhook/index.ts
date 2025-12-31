@@ -136,33 +136,56 @@ serve(async (req) => {
 
         const currencyForEmail = (hotel?.currency || 'EUR').toUpperCase();
 
-        // Create ledger entry so Finance shows the transaction
-        // OOM commission = 100% - hairdresser_commission - hotel_commission
+        // Create ledger entries so Finance shows all transactions
+        // For card payments: OOM receives full amount, then owes hotel their commission
         try {
-          const hairdresserCommission = hotel?.hairdresser_commission ?? 70;
-          const hotelCommission = hotel?.hotel_commission ?? 10;
-          const oomCommissionPercent = Math.max(0, 100 - hairdresserCommission - hotelCommission);
+          const hairdresserCommissionPercent = hotel?.hairdresser_commission ?? 70;
+          const hotelCommissionPercent = hotel?.hotel_commission ?? 10;
+          const oomCommissionPercent = Math.max(0, 100 - hairdresserCommissionPercent - hotelCommissionPercent);
           const totalPrice = parseFloat(metadata.verified_total_price || '0');
-          const oomCommission = (totalPrice * oomCommissionPercent) / 100;
+          
+          const oomAmount = (totalPrice * oomCommissionPercent) / 100;
+          const hotelAmount = (totalPrice * hotelCommissionPercent) / 100;
+          const hairdresserAmount = (totalPrice * hairdresserCommissionPercent) / 100;
 
-          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommission}%, Hairdresser ${hairdresserCommission}%, OOM ${oomCommissionPercent}%`);
-          console.log(`[STRIPE-WEBHOOK] Total: ${totalPrice}€, OOM amount: ${oomCommission}€`);
+          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Hairdresser ${hairdresserCommissionPercent}% (${hairdresserAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
+          console.log(`[STRIPE-WEBHOOK] Total: ${totalPrice}€`);
 
-          const { error: ledgerError } = await supabase
+          // Entry 1: OOM commission (what OOM keeps)
+          const { error: oomLedgerError } = await supabase
             .from('hotel_ledger')
             .insert({
               hotel_id: booking.hotel_id,
               booking_id: booking.id,
-              amount: oomCommission,
-              status: 'pending',
-              description: `Paiement carte - Réservation #${booking.booking_id}`,
+              amount: oomAmount,
+              status: 'completed',
+              description: `Commission OOM (${oomCommissionPercent}%) - Réservation #${booking.booking_id}`,
             });
 
-          if (ledgerError) {
-            console.error('[STRIPE-WEBHOOK] Ledger entry failed:', ledgerError);
-          } else {
-            console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission} ${currencyForEmail}`);
+          if (oomLedgerError) {
+            console.error('[STRIPE-WEBHOOK] OOM ledger entry failed:', oomLedgerError);
           }
+
+          // Entry 2: Hotel commission (what OOM owes to hotel) - negative amount means OOM owes hotel
+          if (hotelAmount > 0) {
+            const { error: hotelLedgerError } = await supabase
+              .from('hotel_ledger')
+              .insert({
+                hotel_id: booking.hotel_id,
+                booking_id: booking.id,
+                amount: -hotelAmount, // Negative = OOM owes hotel
+                status: 'pending',
+                description: `Commission Hôtel à payer (${hotelCommissionPercent}%) - Réservation #${booking.booking_id}`,
+              });
+
+            if (hotelLedgerError) {
+              console.error('[STRIPE-WEBHOOK] Hotel commission ledger entry failed:', hotelLedgerError);
+            } else {
+              console.log(`[STRIPE-WEBHOOK] Hotel commission entry created: -${hotelAmount}€ (OOM owes hotel)`);
+            }
+          }
+
+          console.log(`[STRIPE-WEBHOOK] Ledger entries created for booking #${booking.booking_id}`);
         } catch (ledgerErr) {
           console.error('[STRIPE-WEBHOOK] Ledger entry error:', ledgerErr);
         }
