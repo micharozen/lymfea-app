@@ -24,8 +24,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, ChevronDown, Plus, Minus } from "lucide-react";
+import { CalendarIcon, ChevronDown, Plus, Minus, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getCurrentOffset } from "@/lib/timezones";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -147,10 +148,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: hotels } = useQuery({ 
     queryKey: ["hotels"], 
     queryFn: async () => { 
-      const { data } = await supabase.from("hotels").select("id, name").order("name"); 
+      const { data } = await supabase.from("hotels").select("id, name, timezone").order("name"); 
       return data || []; 
     }
   });
+
+  const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
+  const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
   
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers-for-hotel", hotelId],
@@ -394,7 +398,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
                   <div className="space-y-1">
                     <Label className="text-xs">Heure *</Label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <Popover open={hourOpen} onOpenChange={setHourOpen}>
                         <PopoverTrigger asChild>
                           <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
@@ -456,6 +460,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                           </ScrollArea>
                         </PopoverContent>
                       </Popover>
+                      {hotelId && (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                          <Globe className="h-3 w-3" />
+                          {getCurrentOffset(hotelTimezone)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
