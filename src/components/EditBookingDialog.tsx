@@ -737,21 +737,29 @@ export default function EditBookingDialog({
     },
   });
 
+  // Admin can directly approve a quote without needing the token
   const approveQuoteMutation = useMutation({
     mutationFn: async () => {
       if (!booking?.id) throw new Error("No booking ID");
 
-      const quoteToken = (booking as any)?.quote_token as string | undefined;
-      if (!quoteToken) throw new Error("Missing quote token");
-
-      const { data, error } = await supabase.functions.invoke("handle-quote-response", {
-        body: { bookingId: booking.id, action: "approve", token: quoteToken },
-      });
+      // Admin directly updates the booking status to pending
+      const { error } = await supabase
+        .from("bookings")
+        .update({ 
+          status: "pending", 
+          quote_token: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", booking.id);
 
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Failed to approve quote");
 
-      return data;
+      // Trigger notifications for hairdressers
+      await supabase.functions.invoke("trigger-new-booking-notifications", {
+        body: { bookingId: booking.id },
+      });
+
+      return { success: true };
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
