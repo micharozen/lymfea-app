@@ -4,11 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ArrowLeft, ShoppingBag, Minus, Plus, MessageSquare } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Minus, Plus } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useState, useEffect } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
+import { cn } from '@/lib/utils';
 
 interface Treatment {
   id: string;
@@ -119,7 +119,13 @@ export default function ClientMenu() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div
+      className={cn(
+        'min-h-screen bg-background',
+        // Avoid useless scrolling when there are very few treatments and no fixed basket button
+        itemCount > 0 ? 'pb-24' : 'pb-safe'
+      )}
+    >
       {/* Header + Tabs Sticky */}
       <div className="sticky top-0 z-20 bg-background border-b border-border">
         <div className="relative h-28 overflow-hidden">
