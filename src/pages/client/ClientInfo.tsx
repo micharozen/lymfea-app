@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PhoneNumberField } from '@/components/PhoneNumberField';
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -25,14 +25,17 @@ export default function ClientInfo() {
     note: '',
   });
 
-  const countryCodes = [
-    { code: '+33', country: '🇫🇷 France' },
-    { code: '+1', country: '🇺🇸 USA' },
-    { code: '+44', country: '🇬🇧 UK' },
-    { code: '+49', country: '🇩🇪 Germany' },
-    { code: '+34', country: '🇪🇸 Spain' },
-    { code: '+39', country: '🇮🇹 Italy' },
-    { code: '+971', country: '🇦🇪 UAE' },
+  const countries = [
+    { code: "+33", label: "France", flag: "🇫🇷" },
+    { code: "+971", label: "EAU", flag: "🇦🇪" },
+    { code: "+1", label: "États-Unis", flag: "🇺🇸" },
+    { code: "+44", label: "Royaume-Uni", flag: "🇬🇧" },
+    { code: "+49", label: "Allemagne", flag: "🇩🇪" },
+    { code: "+39", label: "Italie", flag: "🇮🇹" },
+    { code: "+34", label: "Espagne", flag: "🇪🇸" },
+    { code: "+41", label: "Suisse", flag: "🇨🇭" },
+    { code: "+32", label: "Belgique", flag: "🇧🇪" },
+    { code: "+377", label: "Monaco", flag: "🇲🇨" },
   ];
 
   useEffect(() => {
@@ -114,32 +117,15 @@ export default function ClientInfo() {
 
           <div className="space-y-2">
             <Label htmlFor="phone" className="text-sm">{t('info.phone')}</Label>
-            <div className="flex gap-2">
-              <Select
-                value={formData.countryCode}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, countryCode: value }))}
-              >
-                <SelectTrigger className="w-28 h-12 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border shadow-lg z-50">
-                  {countryCodes.map(({ code, country }) => (
-                    <SelectItem key={code} value={code}>
-                      {code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="612345678"
-                className="flex-1 h-12 rounded-xl"
-                required
-              />
-            </div>
+            <PhoneNumberField
+              id="phone"
+              value={formData.phone}
+              onChange={(value) => setFormData(prev => ({ ...prev, phone: value }))}
+              countryCode={formData.countryCode}
+              setCountryCode={(value) => setFormData(prev => ({ ...prev, countryCode: value }))}
+              countries={countries}
+              placeholder="612345678"
+            />
           </div>
 
           <div className="space-y-2">

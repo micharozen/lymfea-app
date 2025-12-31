@@ -20,9 +20,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Clock, Send, X } from "lucide-react";
+import { CalendarIcon, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -310,28 +311,15 @@ export default function OnRequestFormDrawer({
                 <Label htmlFor="phone" className="text-sm">
                   Téléphone *
                 </Label>
-                <div className="flex gap-2">
-                  <select
-                    value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="flex h-10 w-[100px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {countries.map((country) => (
-                      <option key={country.code} value={country.code}>
-                        {country.flag} {country.code}
-                      </option>
-                    ))}
-                  </select>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Numéro de téléphone"
-                    className="flex-1"
-                    required
-                  />
-                </div>
+                <PhoneNumberField
+                  id="phone"
+                  value={phone}
+                  onChange={setPhone}
+                  countryCode={countryCode}
+                  setCountryCode={setCountryCode}
+                  countries={countries}
+                  placeholder="Numéro de téléphone"
+                />
               </div>
 
               {/* Email */}
