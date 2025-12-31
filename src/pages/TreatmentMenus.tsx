@@ -260,10 +260,14 @@ export default function TreatmentMenus() {
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">{formatDuration(menu.duration)}</span>
+                      <span className="truncate block text-foreground">
+                        {menu.price_on_request ? "Sur demande" : formatDuration(menu.duration)}
+                      </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">{menu.price ? `${menu.price}€` : "0"}</span>
+                      <span className="truncate block text-foreground">
+                        {menu.price_on_request ? "Sur demande" : (menu.price ? `${menu.price}€` : "0")}
+                      </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
