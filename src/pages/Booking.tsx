@@ -166,21 +166,21 @@ export default function Booking() {
   const computeRows = useCallback(() => {
     if (view !== 'list') return;
     
-    const rowHeight = 36; // h-9 = 36px
+    const rowHeight = 40; // h-10 = 40px (matching actual row height)
     const tableHeaderHeight = 32; // h-8 = 32px
-    const cardPadding = 0; // minimal padding
-    const safetyMargin = 8; // small buffer
+    const safetyMargin = 16;
     
     // Get actual header height (title + filters)
     const headerHeight = headerRef.current?.offsetHeight || 120;
-    // Pagination height (0 when hidden)
-    const paginationHeight = paginationRef.current?.offsetHeight || 0;
+    // Pagination height (estimate if not rendered yet)
+    const paginationHeight = 48;
     // Content padding (px-4 pb-4 = 16px each side roughly)
     const contentPadding = 32;
     
     const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + safetyMargin;
     const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+    // Calculate rows but cap between 5 and 15 for good UX
+    const rows = Math.min(15, Math.max(5, Math.floor(availableForRows / rowHeight)));
     
     setItemsPerPage(rows);
   }, [view]);
