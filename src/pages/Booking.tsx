@@ -162,27 +162,11 @@ export default function Booking() {
   const headerRef = useRef<HTMLDivElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
 
-  // Auto-fit the number of rows so the page never needs scrolling
+  // Fixed items per page for consistent display
   const computeRows = useCallback(() => {
     if (view !== 'list') return;
-    
-    const rowHeight = 40; // h-10 = 40px (matching actual row height)
-    const tableHeaderHeight = 32; // h-8 = 32px
-    const safetyMargin = 16;
-    
-    // Get actual header height (title + filters)
-    const headerHeight = headerRef.current?.offsetHeight || 120;
-    // Pagination height (estimate if not rendered yet)
-    const paginationHeight = 48;
-    // Content padding (px-4 pb-4 = 16px each side roughly)
-    const contentPadding = 32;
-    
-    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + safetyMargin;
-    const availableForRows = window.innerHeight - usedHeight;
-    // Calculate rows but cap between 5 and 15 for good UX
-    const rows = Math.min(15, Math.max(5, Math.floor(availableForRows / rowHeight)));
-    
-    setItemsPerPage(rows);
+    // Fixed at 15 items per page for consistent UX
+    setItemsPerPage(15);
   }, [view]);
 
   useEffect(() => {
@@ -706,25 +690,25 @@ export default function Booking() {
                   {paginatedBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors h-10 max-h-10"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium text-primary py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="font-medium text-primary py-3 px-2 overflow-hidden">
                         <span className="truncate block">#{booking.booking_id}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">{booking.booking_time.substring(0, 5)}</span>
                       </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="py-3 px-2 overflow-hidden">
                         <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <TableCell className="py-3 px-2 overflow-hidden text-center">
                         {/* Hide payment status for quote_pending and waiting_approval */}
                         {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
                           <StatusBadge
@@ -734,19 +718,19 @@ export default function Booking() {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">{booking.client_first_name} {booking.client_last_name}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">€{booking.total_price?.toFixed(2) || "0.00"}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">{booking.hotel_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
                         <span className="truncate block">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                      <TableCell className="py-3 px-2 overflow-hidden text-center">
                         {/* Document visibility logic by role - hide for quote_pending and waiting_approval */}
                         {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
                           const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
