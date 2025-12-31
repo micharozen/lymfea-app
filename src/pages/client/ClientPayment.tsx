@@ -257,7 +257,7 @@ export default function ClientPayment() {
               {t('payment.processing')}
             </>
           ) : hasPriceOnRequest ? (
-            "t('payment.requestQuote')"
+            t('payment.requestQuote')
           ) : selectedMethod === 'card' ? (
             t('payment.payNow')
           ) : (
