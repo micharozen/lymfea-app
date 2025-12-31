@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
+import { TimezoneProvider } from "@/contexts/TimezoneContext";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
@@ -125,9 +126,10 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-      <Sonner />
-      <BrowserRouter>
+      <TimezoneProvider>
+        <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Root - Smart redirect based on user type */}
@@ -294,7 +296,8 @@ const App = () => {
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </TimezoneProvider>
   </QueryClientProvider>
   );
 };
