@@ -208,7 +208,15 @@ export default function HairDresser() {
       beauty: "💅",
     };
 
-    return skills.map((skill) => skillMap[skill] || skill).join(" ");
+    // Check if skills are using the emoji format (men, women, barber, beauty)
+    const hasEmojiSkills = skills.some(skill => skillMap[skill]);
+    
+    if (hasEmojiSkills) {
+      return skills.map((skill) => skillMap[skill] || "").filter(Boolean).join(" ");
+    }
+    
+    // Otherwise, show text skills truncated
+    return skills.join(", ");
   };
 
   const getTrunkName = (trunkIdOrName: string | null) => {
@@ -336,7 +344,7 @@ export default function HairDresser() {
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Email</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Téléphone</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtels</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Box</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold">Trunk</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Compétences</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Statut</TableHead>
                 {isAdmin && <TableHead className="py-1.5 px-2 text-xs font-semibold text-right">Actions</TableHead>}
