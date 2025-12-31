@@ -188,36 +188,36 @@ export default function ClientPayment() {
           </div>
         </div>
 
-        {/* Payment Method Selection */}
-        <div className="space-y-3">
-          <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
-          
-          {/* Room Payment Option */}
-          <button
-            onClick={() => setSelectedMethod('room')}
-            className={cn(
-              "w-full p-4 rounded-xl border-2 transition-all text-left",
-              selectedMethod === 'room' 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                selectedMethod === 'room' ? "bg-primary text-primary-foreground" : "bg-muted"
-              )}>
-                <Building className="h-5 w-5" />
+        {/* Payment Method Selection - Only show if no quote required */}
+        {!hasPriceOnRequest && (
+          <div className="space-y-3">
+            <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
+            
+            {/* Room Payment Option */}
+            <button
+              onClick={() => setSelectedMethod('room')}
+              className={cn(
+                "w-full p-4 rounded-xl border-2 transition-all text-left",
+                selectedMethod === 'room' 
+                  ? "border-primary bg-primary/5" 
+                  : "border-border hover:border-primary/50"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  selectedMethod === 'room' ? "bg-primary text-primary-foreground" : "bg-muted"
+                )}>
+                  <Building className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-medium">{t('payment.addToRoom')}</p>
+                  <p className="text-sm text-muted-foreground">{t('payment.addToRoomDesc')}</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{t('payment.addToRoom')}</p>
-                <p className="text-sm text-muted-foreground">{t('payment.addToRoomDesc')}</p>
-              </div>
-            </div>
-          </button>
+            </button>
 
-          {/* Card Payment Option - Only show if no quote required */}
-          {!hasPriceOnRequest && (
+            {/* Card Payment Option */}
             <button
               onClick={() => setSelectedMethod('card')}
               className={cn(
@@ -240,8 +240,8 @@ export default function ClientPayment() {
                 </div>
               </div>
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Fixed Bottom Button */}
