@@ -51,49 +51,49 @@ export default function ClientWelcome() {
 
   return (
     <div 
-      className="h-screen bg-cover bg-center relative flex flex-col overflow-hidden"
+      className="h-[100dvh] bg-cover bg-center relative flex flex-col overflow-hidden"
       style={{ backgroundImage: `url(${bgImageUrl})` }}
     >
       {/* Overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-black/60" />
       
       {/* Language Switcher */}
-      <div className="absolute top-3 right-3 z-20">
+      <div className="absolute top-2 right-2 z-20">
         <LanguageSwitcher variant="client" />
       </div>
       
-      {/* Content - Compact */}
-      <div className="relative z-10 h-full flex flex-col items-center justify-between p-4 text-center">
-        {/* Logo - Smaller */}
-        <div className="pt-6 flex-shrink-0">
-          <img src={oomLogo} alt="OOM" className="h-12 w-12 mx-auto mb-3 animate-fade-in" />
-          <h1 className="text-white text-xl font-kormelink animate-fade-in">
+      {/* Content - Ultra Compact */}
+      <div className="relative z-10 h-full flex flex-col items-center justify-between px-4 py-3 text-center safe-area-inset">
+        {/* Logo - Compact */}
+        <div className="flex-shrink-0 pt-1">
+          <img src={oomLogo} alt="OOM" className="h-10 w-10 mx-auto mb-1 animate-fade-in" />
+          <h1 className="text-white text-lg font-kormelink animate-fade-in">
             {hotel.name}
           </h1>
         </div>
 
-        {/* Main Content - Compact */}
-        <div className="flex-1 flex flex-col justify-center max-w-md animate-fade-in py-4">
-          <h2 className="text-white text-lg font-semibold mb-2">
+        {/* Main Content - Minimal */}
+        <div className="flex-1 flex flex-col justify-center max-w-xs animate-fade-in">
+          <h2 className="text-white text-base font-semibold mb-1">
             {t('welcome.beautyRoomService')}
           </h2>
-          <p className="text-white/90 text-sm leading-relaxed">
+          <p className="text-white/90 text-xs leading-snug">
             {t('welcome.description')}
           </p>
         </div>
 
         {/* Buttons - Compact */}
-        <div className="w-full max-w-md space-y-2 pb-6 flex-shrink-0 animate-fade-in">
+        <div className="w-full max-w-xs space-y-2 pb-2 flex-shrink-0 animate-fade-in">
           <Button
             onClick={() => navigate(`/client/${hotelId}/menu?gender=women`)}
-            className="w-full h-11 text-sm bg-white text-primary hover:bg-white/90 transition-all duration-300"
+            className="w-full h-10 text-sm bg-white text-primary hover:bg-white/90 transition-all duration-300"
           >
             {t('welcome.womensMenu')}
           </Button>
           <Button
             onClick={() => navigate(`/client/${hotelId}/menu?gender=men`)}
             variant="outline"
-            className="w-full h-11 text-sm bg-transparent border-2 border-white text-white hover:bg-white/10 transition-all duration-300"
+            className="w-full h-10 text-sm bg-transparent border-2 border-white text-white hover:bg-white/10 transition-all duration-300"
           >
             {t('welcome.mensMenu')}
           </Button>
