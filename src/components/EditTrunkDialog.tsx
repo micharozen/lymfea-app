@@ -121,6 +121,9 @@ export function EditTrunkDialog({
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!trunk?.id) return;
 
+    // Find hotel name if hotel_id is selected
+    const selectedHotel = hotels?.find(h => h.id === values.hotel_id);
+
     const { error } = await supabase
       .from("trunks")
       .update({
@@ -128,6 +131,7 @@ export function EditTrunkDialog({
         trunk_model: values.trunk_model,
         trunk_id: values.trunk_id,
         hotel_id: values.hotel_id || null,
+        hotel_name: selectedHotel?.name || null,
         image: trunkImage || null,
       })
       .eq("id", trunk.id);

@@ -105,11 +105,15 @@ export function AddTrunkDialog({
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Find hotel name if hotel_id is selected
+    const selectedHotel = hotels?.find(h => h.id === values.hotel_id);
+
     const { error } = await supabase.from("trunks").insert({
       name: values.name,
       trunk_model: values.trunk_model,
       trunk_id: values.trunk_id,
       hotel_id: values.hotel_id || null,
+      hotel_name: selectedHotel?.name || null,
       image: trunkImage || null,
       status: "active",
     });

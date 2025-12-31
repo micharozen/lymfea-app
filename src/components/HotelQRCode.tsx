@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
-import { Download, QrCode as QrCodeIcon } from 'lucide-react';
+import { Download, QrCode as QrCodeIcon, ExternalLink, Copy, Check } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ interface HotelQRCodeProps {
 export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Production domain for public QR codes
@@ -37,6 +38,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   };
 
   const bookingUrl = `${getPublicBaseUrl()}/client/${hotelId}`;
+  
   useEffect(() => {
     if (isOpen) {
       // Small delay to ensure canvas is mounted
@@ -55,7 +57,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
       }
 
       await QRCode.toCanvas(canvasRef.current, bookingUrl, {
-        width: 300,
+        width: 280,
         margin: 2,
         color: {
           dark: '#000000',
@@ -82,63 +84,81 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
     }
     const link = document.createElement('a');
     link.href = qrCodeUrl;
-    link.download = `${hotelId}-booking-qr.png`;
+    link.download = `qr-${hotelName.toLowerCase().replace(/\s+/g, '-')}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     toast.success('QR code téléchargé');
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(bookingUrl);
-    toast.success('Lien copié dans le presse-papiers');
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(bookingUrl);
+    setCopied(true);
+    toast.success('Lien copié');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenLink = () => {
+    window.open(bookingUrl, '_blank');
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-7 w-7 hover:bg-primary/10"
+          title="Voir le QR code"
+        >
           <QrCodeIcon className="h-4 w-4" />
-          QR Code
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>QR Code de réservation</DialogTitle>
+          <DialogTitle className="text-center">{hotelName}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-4">{hotelName}</p>
-            <div className="flex justify-center mb-4">
-              <canvas ref={canvasRef} className="border rounded-lg p-4 bg-white" />
-            </div>
-            <p className="text-xs text-muted-foreground mb-2">
-              Scannez ce code pour accéder à la page de réservation
+        <div className="flex flex-col items-center gap-4">
+          {/* QR Code */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border">
+            <canvas ref={canvasRef} />
+          </div>
+
+          {/* URL Display */}
+          <div className="w-full p-2.5 bg-muted/50 rounded-lg border">
+            <p className="text-xs font-mono text-muted-foreground break-all text-center">
+              {bookingUrl}
             </p>
           </div>
 
-          <div className="space-y-2">
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs font-mono break-all">{bookingUrl}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCopyLink}
-                variant="outline"
-                className="flex-1"
-                size="sm"
-              >
-                Copier le lien
-              </Button>
-              <Button
-                onClick={handleDownload}
-                className="flex-1 gap-2"
-                size="sm"
-              >
-                <Download className="h-4 w-4" />
-                Télécharger QR
-              </Button>
-            </div>
+          {/* Actions */}
+          <div className="grid grid-cols-3 gap-2 w-full">
+            <Button
+              onClick={handleCopyLink}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+            >
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              <span className="text-xs">{copied ? 'Copié' : 'Copier'}</span>
+            </Button>
+            <Button
+              onClick={handleOpenLink}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="text-xs">Ouvrir</span>
+            </Button>
+            <Button
+              onClick={handleDownload}
+              size="sm"
+              className="gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="text-xs">PNG</span>
+            </Button>
           </div>
         </div>
       </DialogContent>
