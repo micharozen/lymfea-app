@@ -219,13 +219,13 @@ export default function Booking() {
     }
   }, [bookings, searchParams, hasOpenedFromUrl, setSearchParams]);
 
-  // Generate hourly slots from 07:00 to 21:00 for main display (working hours only)
+  // Generate hourly slots from 07:00 to 23:00 for main display
   const START_HOUR = 7;
-  const END_HOUR = 23;
+  const END_HOUR = 24; // 24 means we show up to 23:00 slot
   const HOUR_HEIGHT = 40; // pixels per hour - compact view
   
   const hours = useMemo(() => {
-    return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
+    return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 23
   }, []);
 
   // Generate 10-minute time slots for booking selection (7h-23h)
