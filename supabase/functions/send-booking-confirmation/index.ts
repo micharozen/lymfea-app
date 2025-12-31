@@ -12,7 +12,15 @@ interface Treatment {
   isPriceOnRequest: boolean;
 }
 
-// Compact email template - handles both confirmed and quote_pending bookings
+type IncomingTreatment =
+  | Treatment
+  | string
+  | {
+      name?: string;
+      price?: number | null;
+      price_on_request?: boolean;
+      priceOnRequest?: boolean;
+    };
 function generateBookingConfirmationHtml({
   bookingId,
   bookingNumber,
@@ -41,11 +49,13 @@ function generateBookingConfirmationHtml({
   isQuotePending: boolean;
 }) {
   // Build treatments list with proper handling for on-quote items
+  const safeCurrency = (currency || 'EUR').toUpperCase();
   const treatmentsList = treatments.map(t => {
-    const priceDisplay = t.isPriceOnRequest ? 'On quote' : `${t.price || 0}€`;
+    const name = t?.name || 'Service';
+    const priceDisplay = t.isPriceOnRequest ? 'Sur devis' : `${t.price ?? 0} ${safeCurrency}`;
     const bgColor = t.isPriceOnRequest ? '#fef3c7' : '#f3f4f6';
     const textColor = t.isPriceOnRequest ? '#92400e' : '#374151';
-    return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${t.name} - ${priceDisplay}</span>`;
+    return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${name} - ${priceDisplay}</span>`;
   }).join('');
   
   const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
@@ -186,13 +196,32 @@ serve(async (req) => {
       treatments,
       totalPrice,
       currency,
+      siteUrl: siteUrlFromBody,
       isQuotePending = false
     } = await req.json();
 
     console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending);
 
-    // Get site URL from environment or use default
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://oomworld.com';
+    // Prefer the app URL coming from the checkout metadata/webhook, fallback to env
+    const siteUrl =
+      (typeof siteUrlFromBody === 'string' && siteUrlFromBody) ||
+      Deno.env.get('SITE_URL') ||
+      'https://oomworld.com';
+
+    const normalizedTreatments: Treatment[] = (Array.isArray(treatments) ? treatments : []).map(
+      (t: IncomingTreatment) => {
+        if (typeof t === 'string') {
+          return { name: t, price: null, isPriceOnRequest: false };
+        }
+        return {
+          name: (t as any)?.name || 'Service',
+          price: (t as any)?.price ?? null,
+          isPriceOnRequest: !!((t as any)?.isPriceOnRequest || (t as any)?.priceOnRequest || (t as any)?.price_on_request),
+        };
+      }
+    );
+
+    const normalizedCurrency = (currency || 'EUR').toUpperCase();
 
     // Format date for display
     const formattedDate = new Date(bookingDate).toLocaleDateString('en-US', {
@@ -209,9 +238,9 @@ serve(async (req) => {
       roomNumber,
       bookingDate: formattedDate,
       bookingTime,
-      treatments: treatments || [],
+      treatments: normalizedTreatments,
       totalPrice,
-      currency,
+      currency: normalizedCurrency,
       siteUrl,
       isQuotePending,
     });
