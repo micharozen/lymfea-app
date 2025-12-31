@@ -222,7 +222,6 @@ export default function TreatmentMenus() {
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[180px]">Prestation</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Description</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Durée</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[60px]">Tarif</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Délai</TableHead>
@@ -253,11 +252,6 @@ export default function TreatmentMenus() {
                         )}
                         <span className="truncate font-medium text-foreground">{menu.name}</span>
                       </div>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-muted-foreground">
-                        {menu.description || "-"}
-                      </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <span className="truncate block text-foreground">
