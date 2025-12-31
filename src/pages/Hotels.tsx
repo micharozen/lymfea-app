@@ -37,6 +37,13 @@ interface Concierge {
   profile_image: string | null;
 }
 
+interface Trunk {
+  id: string;
+  name: string;
+  trunk_id: string;
+  image: string | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -54,6 +61,7 @@ interface Hotel {
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
+  trunks?: Trunk[];
 }
 
 export default function Hotels() {
@@ -117,8 +125,15 @@ export default function Hotels() {
 
       if (conciergesError) throw conciergesError;
 
-      // Map concierges to hotels
-      const hotelsWithConcierges = (hotelsData || []).map((hotel) => {
+      // Fetch all trunks
+      const { data: trunksData, error: trunksError } = await supabase
+        .from("trunks")
+        .select("id, name, trunk_id, image, hotel_id");
+
+      if (trunksError) throw trunksError;
+
+      // Map concierges and trunks to hotels
+      const hotelsWithData = (hotelsData || []).map((hotel) => {
         const hotelConcierges = (conciergeMappings || [])
           .filter((mapping) => mapping.hotel_id === hotel.id)
           .map((mapping) => {
@@ -126,13 +141,23 @@ export default function Hotels() {
           })
           .filter((c): c is Concierge => c !== undefined);
 
+        const hotelTrunks = (trunksData || [])
+          .filter((trunk) => trunk.hotel_id === hotel.id)
+          .map((trunk): Trunk => ({
+            id: trunk.id,
+            name: trunk.name,
+            trunk_id: trunk.trunk_id,
+            image: trunk.image,
+          }));
+
         return {
           ...hotel,
           concierges: hotelConcierges,
+          trunks: hotelTrunks,
         };
       });
 
-      setHotels(hotelsWithConcierges);
+      setHotels(hotelsWithData);
     } catch (error: any) {
       toast.error("Erreur lors du chargement des hôtels");
       console.error(error);
@@ -292,8 +317,24 @@ export default function Hotels() {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs text-muted-foreground">-</span>
+                    <TableCell className="py-0 px-2">
+                      {hotel.trunks && hotel.trunks.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          {hotel.trunks.slice(0, 2).map((trunk) => (
+                            <Avatar key={trunk.id} className="h-5 w-5">
+                              <AvatarImage src={trunk.image || ""} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-[8px]">
+                                {trunk.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {hotel.trunks.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">+{hotel.trunks.length - 2}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
                       <Badge 
