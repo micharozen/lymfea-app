@@ -70,7 +70,17 @@ export default function ClientMenu() {
     },
   });
 
-  const categories = [...new Set(treatments.map(t => t.category))];
+  // Define category order priority
+  const categoryOrder = ['Blowout', 'Brushing', 'Haircut', 'Hair cut', 'Coloration', 'Nail', 'Nails'];
+  
+  const categories = [...new Set(treatments.map(t => t.category))].sort((a, b) => {
+    const indexA = categoryOrder.findIndex(c => c.toLowerCase() === a.toLowerCase());
+    const indexB = categoryOrder.findIndex(c => c.toLowerCase() === b.toLowerCase());
+    // If not in order list, put at the end
+    const orderA = indexA === -1 ? 999 : indexA;
+    const orderB = indexB === -1 ? 999 : indexB;
+    return orderA - orderB;
+  });
 
   // Set initial active category when categories are loaded
   useEffect(() => {
@@ -118,12 +128,16 @@ export default function ClientMenu() {
     );
   }
 
+  // Calculate how many treatments are in the active category
+  const activeCategoryTreatments = treatments.filter(t => t.category === activeCategory);
+  const needsScroll = activeCategoryTreatments.length > 3;
+
   return (
     <div
       className={cn(
-        'min-h-screen bg-background',
-        // Avoid useless scrolling when there are very few treatments and no fixed basket button
-        itemCount > 0 ? 'pb-24' : 'pb-safe'
+        'min-h-screen bg-background flex flex-col',
+        // Only add padding for basket button, and less padding if few items
+        itemCount > 0 ? 'pb-24' : ''
       )}
     >
       {/* Header + Tabs Sticky */}
@@ -193,7 +207,7 @@ export default function ClientMenu() {
       </div>
 
       {/* Content - Filtered by active category */}
-      <div className="divide-y divide-border">
+      <div className="flex-1 divide-y divide-border overflow-y-auto">
         {treatments
           .filter(treatment => treatment.category === activeCategory)
           .map(treatment => (
