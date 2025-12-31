@@ -21,8 +21,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Euro, Timer } from "lucide-react";
+import { CalendarIcon, Euro, Timer, Globe, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getCurrentOffset } from "@/lib/timezones";
 
 interface TreatmentRequest {
   id: string;
@@ -61,6 +63,8 @@ export default function CreateBookingFromRequestDialog({
   const [hairdresserId, setHairdresserId] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
+  const [hourOpen, setHourOpen] = useState(false);
+  const [minuteOpen, setMinuteOpen] = useState(false);
 
   // Pre-fill form when request changes
   useEffect(() => {
@@ -86,7 +90,7 @@ export default function CreateBookingFromRequestDialog({
       if (!request?.hotel_id) return null;
       const { data, error } = await supabase
         .from("hotels")
-        .select("*")
+        .select("id, name, timezone")
         .eq("id", request.hotel_id)
         .single();
       if (error) throw error;
@@ -94,6 +98,8 @@ export default function CreateBookingFromRequestDialog({
     },
     enabled: !!request?.hotel_id,
   });
+
+  const hotelTimezone = hotel?.timezone || "Europe/Paris";
 
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers"],
@@ -298,12 +304,73 @@ export default function CreateBookingFromRequestDialog({
             </div>
             <div className="space-y-2">
               <Label>Heure *</Label>
-              <Input
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                step="600"
-              />
+              <div className="flex gap-1 items-center">
+                <Popover open={hourOpen} onOpenChange={setHourOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 w-[68px] justify-between font-normal hover:bg-background hover:text-foreground">
+                      {time.split(':')[0] || "HH"}
+                      <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
+                    <ScrollArea className="h-40">
+                      <div>
+                        {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
+                          <button
+                            key={h}
+                            type="button"
+                            onClick={() => {
+                              setTime(`${h}:${time.split(':')[1] || '00'}`);
+                              setHourOpen(false);
+                            }}
+                            className={cn(
+                              "w-full px-3 py-1.5 text-sm text-center hover:bg-muted",
+                              time.split(':')[0] === h && "bg-muted"
+                            )}
+                          >
+                            {h}
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                <span className="text-muted-foreground">:</span>
+                <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="h-9 w-[68px] justify-between font-normal hover:bg-background hover:text-foreground">
+                      {time.split(':')[1] || "MM"}
+                      <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start">
+                    <ScrollArea className="h-40">
+                      <div>
+                        {['00', '10', '20', '30', '40', '50'].map(m => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setTime(`${time.split(':')[0] || '09'}:${m}`);
+                              setMinuteOpen(false);
+                            }}
+                            className={cn(
+                              "w-full px-3 py-1.5 text-sm text-center hover:bg-muted",
+                              time.split(':')[1] === m && "bg-muted"
+                            )}
+                          >
+                            {m}
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                  <Globe className="h-3 w-3 shrink-0" />
+                  {getCurrentOffset(hotelTimezone)}
+                </span>
+              </div>
             </div>
           </div>
 

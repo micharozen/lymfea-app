@@ -1420,8 +1420,8 @@ export default function EditBookingDialog({
                       </PopoverContent>
                     </Popover>
                     {hotelId && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
-                        <Globe className="h-3 w-3" />
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                        <Globe className="h-3 w-3 shrink-0" />
                         {getCurrentOffset(hotelTimezone)}
                       </span>
                     )}
