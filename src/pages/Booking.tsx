@@ -745,26 +745,66 @@ export default function Booking() {
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                         <span className="truncate block leading-none">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="h-12 py-0 px-2 overflow-hidden text-center">
-                        {/* Document visibility logic by role - hide for quote_pending and waiting_approval */}
-                        {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
-                          const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
-                          const isRoomPayment = booking.payment_method === "room";
-                          const hasStripeInvoice = !!booking.stripe_invoice_url;
-                          
-                          // Admin: Always show relevant document
-                          if (isAdmin && isCompleted) {
-                            return (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1 hover:bg-muted rounded transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (hasStripeInvoice) {
-                                          window.open(booking.stripe_invoice_url, "_blank");
-                                        } else {
+                      <TableCell className="h-12 py-0 px-2 overflow-hidden">
+                        <div className="flex items-center justify-center h-full">
+                          {/* Document visibility logic by role - hide for quote_pending and waiting_approval */}
+                          {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
+                            const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
+                            const isRoomPayment = booking.payment_method === "room";
+                            const hasStripeInvoice = !!booking.stripe_invoice_url;
+                            
+                            // Admin: Always show relevant document
+                            if (isAdmin && isCompleted) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (hasStripeInvoice) {
+                                            window.open(booking.stripe_invoice_url, "_blank");
+                                          } else {
+                                            supabase.functions
+                                              .invoke("generate-invoice", {
+                                                body: { bookingId: booking.id },
+                                              })
+                                              .then(({ data, error }) => {
+                                                if (!error && data) {
+                                                  setInvoiceHTML(data.html);
+                                                  setInvoiceBookingId(data.bookingId);
+                                                  setInvoiceIsRoomPayment(isRoomPayment);
+                                                  setIsInvoicePreviewOpen(true);
+                                                }
+                                              });
+                                          }
+                                        }}
+                                      >
+                                        <FileText className="h-3.5 w-3.5" />
+                                        <span>{hasStripeInvoice ? "Facture" : "Bon"}</span>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {hasStripeInvoice 
+                                        ? "Voir la Facture Stripe" 
+                                        : "Télécharger le Bon de Prestation"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            }
+                            
+                            // Concierge: Only show "Bon de Prestation" for room payments
+                            if (isConcierge && isCompleted && isRoomPayment) {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
                                           supabase.functions
                                             .invoke("generate-invoice", {
                                               body: { bookingId: booking.id },
@@ -773,66 +813,30 @@ export default function Booking() {
                                               if (!error && data) {
                                                 setInvoiceHTML(data.html);
                                                 setInvoiceBookingId(data.bookingId);
-                                                setInvoiceIsRoomPayment(isRoomPayment);
+                                                setInvoiceIsRoomPayment(true);
                                                 setIsInvoicePreviewOpen(true);
                                               }
                                             });
-                                        }
-                                      }}
-                                    >
-                                      <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {hasStripeInvoice 
-                                      ? "📄 Voir la Facture Stripe" 
-                                      : "📝 Télécharger le Bon de Prestation"}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          }
-                          
-                          // Concierge: Only show "Bon de Prestation" for room payments
-                          if (isConcierge && isCompleted && isRoomPayment) {
-                            return (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1 hover:bg-muted rounded transition-colors"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        supabase.functions
-                                          .invoke("generate-invoice", {
-                                            body: { bookingId: booking.id },
-                                          })
-                                          .then(({ data, error }) => {
-                                            if (!error && data) {
-                                              setInvoiceHTML(data.html);
-                                              setInvoiceBookingId(data.bookingId);
-                                              setInvoiceIsRoomPayment(true);
-                                              setIsInvoicePreviewOpen(true);
-                                            }
-                                          });
-                                      }}
-                                    >
-                                      <FileText className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    📄 Télécharger Bon de Prestation
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          }
-                          
-                          // Concierge: Hide invoice button for card payments (they don't handle external payments)
-                          // Return null for this case
-                          
-                          return null;
-                        })()}
+                                        }}
+                                      >
+                                        <FileText className="h-3.5 w-3.5" />
+                                        <span>Bon</span>
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Télécharger le Bon de Prestation
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            }
+                            
+                            // Concierge: Hide invoice button for card payments (they don't handle external payments)
+                            // Return null for this case
+                            
+                            return null;
+                          })()}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
