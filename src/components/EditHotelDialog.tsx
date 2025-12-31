@@ -379,15 +379,6 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
               </div>
             </div>
 
-            {/* Read-only Hotel ID display */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Hotel ID (auto-generated)</label>
-              <Input 
-                value={currentHotelId} 
-                disabled 
-                className="bg-muted/50 text-muted-foreground cursor-not-allowed"
-              />
-            </div>
 
             <FormField
               control={form.control}
