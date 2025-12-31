@@ -29,37 +29,177 @@ serve(async (req) => {
 
     console.log(`[STRIPE-WEBHOOK] Event: ${event.type}`);
 
-    // Quand une facture est payée
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Handle checkout.session.completed - Create booking after payment
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      
+      if (session.mode === "payment" && session.payment_status === "paid") {
+        console.log(`[STRIPE-WEBHOOK] Processing paid checkout session: ${session.id}`);
+        
+        const metadata = session.metadata;
+        
+        if (!metadata?.hotel_id) {
+          console.error("[STRIPE-WEBHOOK] Missing hotel_id in metadata");
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
+        // Check if booking already exists for this session
+        const { data: existingBooking } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('stripe_invoice_url', session.id)
+          .maybeSingle();
+
+        if (existingBooking) {
+          console.log(`[STRIPE-WEBHOOK] Booking already exists for session ${session.id}`);
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
+        // Fetch hotel info
+        const { data: hotel } = await supabase
+          .from('hotels')
+          .select('name')
+          .eq('id', metadata.hotel_id)
+          .maybeSingle();
+
+        // Parse treatment IDs from metadata
+        let treatmentIds: string[] = [];
+        try {
+          treatmentIds = JSON.parse(metadata.treatment_ids || '[]');
+        } catch (e) {
+          console.error("[STRIPE-WEBHOOK] Failed to parse treatment_ids:", e);
+        }
+
+        // Create the booking
+        const { data: booking, error: bookingError } = await supabase
+          .from('bookings')
+          .insert({
+            hotel_id: metadata.hotel_id,
+            hotel_name: hotel?.name || null,
+            client_first_name: metadata.client_first_name || '',
+            client_last_name: metadata.client_last_name || '',
+            client_email: metadata.client_email || null,
+            phone: metadata.client_phone || '',
+            room_number: metadata.room_number || null,
+            client_note: metadata.client_note || null,
+            booking_date: metadata.booking_date,
+            booking_time: metadata.booking_time,
+            status: 'pending',
+            payment_method: 'card',
+            payment_status: 'paid',
+            total_price: parseFloat(metadata.verified_total_price || '0'),
+            stripe_invoice_url: session.id, // Store session ID to prevent duplicates
+          })
+          .select()
+          .single();
+
+        if (bookingError) {
+          console.error("[STRIPE-WEBHOOK] Booking creation error:", bookingError);
+          throw bookingError;
+        }
+
+        console.log(`[STRIPE-WEBHOOK] Booking created: #${booking.booking_id} (${booking.id})`);
+
+        // Add booking treatments
+        if (treatmentIds.length > 0) {
+          for (const treatmentId of treatmentIds) {
+            const { error: treatmentError } = await supabase
+              .from('booking_treatments')
+              .insert({
+                booking_id: booking.id,
+                treatment_id: treatmentId,
+              });
+
+            if (treatmentError) {
+              console.error("[STRIPE-WEBHOOK] Treatment insert error:", treatmentError);
+            }
+          }
+          console.log(`[STRIPE-WEBHOOK] Added ${treatmentIds.length} treatments to booking`);
+        }
+
+        // Get treatment details for email
+        const { data: treatmentDetails } = await supabase
+          .from('treatment_menus')
+          .select('name, price')
+          .in('id', treatmentIds);
+
+        const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
+
+        // Send confirmation email to client
+        if (metadata.client_email) {
+          try {
+            await supabase.functions.invoke('send-booking-confirmation', {
+              body: {
+                email: metadata.client_email,
+                bookingNumber: booking.booking_id.toString(),
+                clientName: `${metadata.client_first_name} ${metadata.client_last_name}`,
+                hotelName: hotel?.name,
+                roomNumber: metadata.room_number,
+                bookingDate: metadata.booking_date,
+                bookingTime: metadata.booking_time,
+                treatments: treatmentNames,
+                totalPrice: parseFloat(metadata.verified_total_price || '0'),
+                currency: 'EUR',
+              },
+            });
+            console.log("[STRIPE-WEBHOOK] Confirmation email sent to client");
+          } catch (emailError) {
+            console.error("[STRIPE-WEBHOOK] Email error:", emailError);
+          }
+        }
+
+        // Notify admins
+        try {
+          await supabase.functions.invoke('notify-admin-new-booking', {
+            body: { bookingId: booking.id }
+          });
+          console.log("[STRIPE-WEBHOOK] Admin notification sent");
+        } catch (adminError) {
+          console.error("[STRIPE-WEBHOOK] Admin notification error:", adminError);
+        }
+
+        // Trigger push notifications to hairdressers
+        try {
+          await supabase.functions.invoke('trigger-new-booking-notifications', {
+            body: { bookingId: booking.id }
+          });
+          console.log("[STRIPE-WEBHOOK] Push notifications triggered");
+        } catch (pushError) {
+          console.error("[STRIPE-WEBHOOK] Push notification error:", pushError);
+        }
+      }
+    }
+
+    // Handle invoice.payment_succeeded - For subscription or invoice payments
     if (event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as Stripe.Invoice;
       
       console.log(`[STRIPE-WEBHOOK] Invoice paid: ${invoice.id}`);
 
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
-
-      // Récupérer les invoice items pour voir les bookings
+      // Get invoice items to find bookings
       const invoiceItems = await stripe.invoiceItems.list({
         invoice: invoice.id,
       });
 
       console.log(`[STRIPE-WEBHOOK] Processing ${invoiceItems.data.length} items`);
 
-      // Pour chaque booking dans la facture
       for (const item of invoiceItems.data) {
         const bookingId = item.metadata?.booking_id;
         
         if (!bookingId) continue;
 
-        // Récupérer le booking et les infos du coiffeur
+        // Fetch booking with hairdresser and hotel info
         const { data: booking, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
-            hairdresser:hairdressers!inner(id, stripe_account_id),
-            hotel:hotels!inner(hairdresser_commission)
+            hairdresser:hairdressers(id, stripe_account_id),
+            hotel:hotels(hairdresser_commission)
           `)
           .eq('id', bookingId)
           .single();
@@ -71,136 +211,84 @@ serve(async (req) => {
 
         console.log(`[STRIPE-WEBHOOK] Processing booking ${booking.booking_id}`);
 
-        // Vérifier que le coiffeur a un compte Stripe Connect
+        // Check hairdresser has Stripe Connect
         if (!booking.hairdresser?.stripe_account_id) {
-          console.error(`[STRIPE-WEBHOOK] Hairdresser has no Stripe Connect account for booking ${booking.booking_id}`);
+          console.log(`[STRIPE-WEBHOOK] Hairdresser has no Stripe Connect account for booking ${booking.booking_id}`);
+          // Still update payment status
+          await supabase
+            .from('bookings')
+            .update({ payment_status: 'paid' })
+            .eq('id', bookingId);
           continue;
         }
 
-        // Calculer la part du coiffeur (ex: 70%)
-        const hairdresserCommission = booking.hotel.hairdresser_commission || 70;
+        // Calculate hairdresser share
+        const hairdresserCommission = booking.hotel?.hairdresser_commission || 70;
         const hairdresserAmount = Math.round((booking.total_price * hairdresserCommission) / 100);
+        const oomCommission = booking.total_price - hairdresserAmount;
 
-          // Calculer la commission OOM (ce qui reste après le coiffeur)
-          const oomCommission = booking.total_price - hairdresserAmount;
+        try {
+          // Transfer to hairdresser via Stripe Connect
+          const transfer = await stripe.transfers.create({
+            amount: hairdresserAmount * 100, // Stripe uses cents
+            currency: invoice.currency,
+            destination: booking.hairdresser.stripe_account_id,
+            description: `Paiement pour réservation #${booking.booking_id}`,
+            metadata: {
+              booking_id: booking.id,
+              invoice_id: invoice.id,
+            },
+          });
 
-          // Transférer au coiffeur via Stripe Connect
-          try {
-            const transfer = await stripe.transfers.create({
-              amount: hairdresserAmount * 100, // Stripe utilise les centimes
-              currency: invoice.currency,
-              destination: booking.hairdresser.stripe_account_id,
-              description: `Paiement pour réservation #${booking.booking_id}`,
-              metadata: {
-                booking_id: booking.id,
-                invoice_id: invoice.id,
-              },
+          console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${hairdresserAmount}€`);
+
+          // Record payout
+          await supabase
+            .from('hairdresser_payouts')
+            .insert({
+              hairdresser_id: booking.hairdresser.id,
+              booking_id: booking.id,
+              amount: hairdresserAmount,
+              status: 'completed',
+              stripe_transfer_id: transfer.id,
             });
 
-            console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${hairdresserAmount}€`);
-
-            // Créer l'entrée dans le ledger (positif = recette pour OOM)
-            const { error: ledgerError } = await supabase
-              .from('hotel_ledger')
-              .insert({
-                hotel_id: booking.hotel_id,
-                booking_id: booking.id,
-                amount: oomCommission,
-                status: 'paid',
-                description: `Paiement carte - Réservation #${booking.booking_id}`,
-              });
-
-            if (ledgerError) {
-              console.error(`[STRIPE-WEBHOOK] Ledger entry failed:`, ledgerError);
-            } else {
-              console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission}€ for hotel ${booking.hotel_id}`);
-            }
-
-            // Mettre à jour le statut du paiement dans la DB
-            await supabase
-              .from('bookings')
-              .update({ payment_status: 'paid' })
-              .eq('id', bookingId);
-
-          } catch (transferError) {
-            console.error(`[STRIPE-WEBHOOK] Transfer failed for booking ${booking.booking_id}:`, transferError);
-          }
-      }
-    }
-
-    // Gérer les paiements carte directs (mode payment)
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      
-      // Si c'est un paiement one-time (pas une subscription)
-      if (session.mode === "payment" && session.metadata?.booking_id) {
-        console.log(`[STRIPE-WEBHOOK] Card payment for booking: ${session.metadata.booking_id}`);
-
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL") ?? "",
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-        );
-
-        const { data: booking, error: bookingError } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            hairdresser:hairdressers!inner(id, stripe_account_id),
-            hotel:hotels!inner(hairdresser_commission)
-          `)
-          .eq('id', session.metadata.booking_id)
-          .single();
-
-        if (bookingError || !booking) {
-          console.error(`[STRIPE-WEBHOOK] Booking not found: ${session.metadata.booking_id}`);
-          return new Response(JSON.stringify({ received: true }), { status: 200 });
-        }
-
-        // Calculer et transférer au coiffeur
-        if (booking.hairdresser?.stripe_account_id) {
-          const hairdresserCommission = booking.hotel.hairdresser_commission || 70;
-          const hairdresserAmount = Math.round((booking.total_price * hairdresserCommission) / 100);
-          const oomCommission = booking.total_price - hairdresserAmount;
-
-          try {
-            const transfer = await stripe.transfers.create({
-              amount: hairdresserAmount * 100,
-              currency: session.currency || 'eur',
-              destination: booking.hairdresser.stripe_account_id,
-              description: `Paiement carte pour réservation #${booking.booking_id}`,
-              metadata: {
-                booking_id: booking.id,
-                session_id: session.id,
-              },
+          // Create ledger entry for OOM commission
+          const { error: ledgerError } = await supabase
+            .from('hotel_ledger')
+            .insert({
+              hotel_id: booking.hotel_id,
+              booking_id: booking.id,
+              amount: oomCommission,
+              status: 'paid',
+              description: `Paiement carte - Réservation #${booking.booking_id}`,
             });
 
-            console.log(`[STRIPE-WEBHOOK] Card payment transfer: ${transfer.id}`);
-
-            // Créer l'entrée dans le ledger (positif = recette pour OOM)
-            const { error: ledgerError } = await supabase
-              .from('hotel_ledger')
-              .insert({
-                hotel_id: booking.hotel_id,
-                booking_id: booking.id,
-                amount: oomCommission,
-                status: 'paid',
-                description: `Paiement carte - Réservation #${booking.booking_id}`,
-              });
-
-            if (ledgerError) {
-              console.error(`[STRIPE-WEBHOOK] Ledger entry failed:`, ledgerError);
-            } else {
-              console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission}€`);
-            }
-
-            await supabase
-              .from('bookings')
-              .update({ payment_status: 'paid' })
-              .eq('id', booking.id);
-
-          } catch (transferError) {
-            console.error(`[STRIPE-WEBHOOK] Card payment transfer failed:`, transferError);
+          if (ledgerError) {
+            console.error(`[STRIPE-WEBHOOK] Ledger entry failed:`, ledgerError);
+          } else {
+            console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission}€ for hotel ${booking.hotel_id}`);
           }
+
+          // Update booking payment status
+          await supabase
+            .from('bookings')
+            .update({ payment_status: 'paid' })
+            .eq('id', bookingId);
+
+        } catch (transferError) {
+          console.error(`[STRIPE-WEBHOOK] Transfer failed for booking ${booking.booking_id}:`, transferError);
+          
+          // Record failed payout
+          await supabase
+            .from('hairdresser_payouts')
+            .insert({
+              hairdresser_id: booking.hairdresser.id,
+              booking_id: booking.id,
+              amount: hairdresserAmount,
+              status: 'failed',
+              error_message: transferError instanceof Error ? transferError.message : String(transferError),
+            });
         }
       }
     }
