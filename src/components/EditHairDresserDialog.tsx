@@ -411,25 +411,26 @@ export default function EditHairDresserDialog({
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[400px] p-0" align="start">
-                <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                <div className="max-h-80 overflow-y-auto p-3 space-y-1">
                   {trunks.map((trunk) => (
                     <div
                       key={trunk.id}
-                      className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
+                      className="flex items-center gap-2 p-1.5 rounded-md"
                     >
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={trunk.image || ""} alt={trunk.name} />
-                        <AvatarFallback className="bg-muted text-xs">
+                        <AvatarFallback className="bg-muted text-[10px]">
                           {trunk.trunk_id.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <Label htmlFor={`trunk-${trunk.id}`} className="cursor-pointer font-normal block">
+                        <Label htmlFor={`trunk-${trunk.id}`} className="cursor-pointer font-normal block text-sm">
                           {trunk.name}
                         </Label>
-                        <span className="text-xs text-muted-foreground">{trunk.trunk_id}</span>
+                        <span className="text-[10px] text-muted-foreground">{trunk.trunk_id}</span>
                       </div>
                       <Checkbox
+                        className="h-4 w-4"
                         id={`trunk-${trunk.id}`}
                         checked={selectedTrunks.includes(trunk.id)}
                         onCheckedChange={(checked) => {
