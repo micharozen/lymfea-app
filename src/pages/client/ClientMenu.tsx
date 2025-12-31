@@ -212,7 +212,7 @@ export default function ClientMenu() {
                   </h3>
                   {treatment.price_on_request && (
                     <Badge className="text-[10px] px-1.5 py-0.5 bg-amber-500 text-white border-0 font-medium mt-1">
-                      On quote
+                      {t('payment.onQuote')}
                     </Badge>
                   )}
                   {treatment.description && (

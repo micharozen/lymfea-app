@@ -132,10 +132,9 @@ export default function ClientPayment() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-semibold text-amber-800 mb-1">Devis requis</h3>
+                <h3 className="font-semibold text-amber-800 mb-1">{t('payment.quoteRequired')}</h3>
                 <p className="text-sm text-amber-700">
-                  Votre panier contient des prestations sur devis. 
-                  Un conseiller vous contactera pour confirmer le prix final.
+                  {t('payment.quoteRequiredDesc')}
                 </p>
               </div>
             </div>
@@ -170,7 +169,7 @@ export default function ClientPayment() {
                   <span className="text-muted-foreground">
                     {item.name} x{item.quantity}
                   </span>
-                  <span className="text-amber-600 text-xs font-medium whitespace-nowrap">Sur devis</span>
+                  <span className="text-amber-600 text-xs font-medium whitespace-nowrap">{t('payment.onQuote')}</span>
                 </div>
               ))}
             </div>
