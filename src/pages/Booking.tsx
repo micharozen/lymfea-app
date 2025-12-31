@@ -221,21 +221,23 @@ export default function Booking() {
 
   // Generate hourly slots from 07:00 to 21:00 for main display (working hours only)
   const START_HOUR = 7;
-  const END_HOUR = 22;
+  const END_HOUR = 23;
   const HOUR_HEIGHT = 40; // pixels per hour - compact view
   
   const hours = useMemo(() => {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
   }, []);
 
-  // Generate 10-minute time slots for booking selection (24h)
+  // Generate 10-minute time slots for booking selection (7h-23h)
   const timeSlots = useMemo(() => {
     const slots = [];
-    for (let hour = 0; hour <= 23; hour++) {
+    for (let hour = 7; hour <= 22; hour++) {
       for (let minute = 0; minute < 60; minute += 10) {
         slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
       }
     }
+    // Add 23:00 as last slot
+    slots.push('23:00');
     return slots;
   }, []);
 

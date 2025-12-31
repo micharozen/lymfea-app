@@ -405,7 +405,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                         <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
-                              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => (
+                              {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
                                 <button
                                   key={h}
                                   type="button"
