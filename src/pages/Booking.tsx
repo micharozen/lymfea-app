@@ -414,7 +414,7 @@ export default function Booking() {
           </SelectContent>
         </Select>
 
-        <TimezoneSelector compact showReset className="ml-2" />
+        {view === "calendar" && <TimezoneSelector compact showReset className="ml-2" />}
 
         <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <Button
