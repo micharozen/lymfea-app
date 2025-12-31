@@ -47,19 +47,18 @@ interface Hotel {
   image: string | null;
 }
 
+interface Trunk {
+  id: string;
+  name: string;
+  trunk_id: string;
+  image: string | null;
+}
+
 const SKILLS_OPTIONS = [
   { value: "men", label: "👨 Hommes" },
   { value: "women", label: "👩 Femmes" },
   { value: "barber", label: "💈 Barbier" },
   { value: "beauty", label: "💅 Beauté" },
-];
-
-const TRUNKS_OPTIONS = [
-  { value: "trunk1", label: "Trunk 1" },
-  { value: "trunk2", label: "Trunk 2" },
-  { value: "trunk3", label: "Trunk 3" },
-  { value: "trunk4", label: "Trunk 4" },
-  { value: "trunk5", label: "Trunk 5" },
 ];
 
 const formSchema = z.object({
@@ -77,6 +76,7 @@ export default function AddHairDresserDialog({
   onSuccess,
 }: AddHairDresserDialogProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
@@ -95,6 +95,7 @@ export default function AddHairDresserDialog({
   useEffect(() => {
     if (open) {
       fetchHotels();
+      fetchTrunks();
     }
   }, [open]);
 
@@ -110,6 +111,20 @@ export default function AddHairDresserDialog({
     }
 
     setHotels(data || []);
+  };
+
+  const fetchTrunks = async () => {
+    const { data, error } = await supabase
+      .from("trunks")
+      .select("id, name, trunk_id, image")
+      .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des trunks");
+      return;
+    }
+
+    setTrunks(data || []);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -351,9 +366,9 @@ export default function AddHairDresserDialog({
               <MultiSelectPopover
                 selected={selectedTrunks}
                 onChange={setSelectedTrunks}
-                options={TRUNKS_OPTIONS.map((t) => ({ value: t.value, label: t.label }))}
-                popoverWidthClassName="w-36"
-                popoverMaxHeightClassName="h-32"
+                options={trunks.map((t) => ({ value: t.id, label: t.name }))}
+                popoverWidthClassName="w-48"
+                popoverMaxHeightClassName="h-40"
               />
             </div>
 

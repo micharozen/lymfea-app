@@ -65,19 +65,18 @@ interface Hotel {
   image: string | null;
 }
 
+interface Trunk {
+  id: string;
+  name: string;
+  trunk_id: string;
+  image: string | null;
+}
+
 const SKILLS_OPTIONS = [
   { value: "men", label: "👨 Hommes" },
   { value: "women", label: "👩 Femmes" },
   { value: "barber", label: "💈 Barbier" },
   { value: "beauty", label: "💅 Beauté" },
-];
-
-const TRUNKS_OPTIONS = [
-  { value: "trunk1", label: "Trunk 1" },
-  { value: "trunk2", label: "Trunk 2" },
-  { value: "trunk3", label: "Trunk 3" },
-  { value: "trunk4", label: "Trunk 4" },
-  { value: "trunk5", label: "Trunk 5" },
 ];
 
 export default function EditHairDresserDialog({
@@ -87,18 +86,14 @@ export default function EditHairDresserDialog({
   onSuccess,
 }: EditHairDresserDialogProps) {
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
     hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
   );
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     hairdresser.skills || []
   );
-  const [selectedTrunks, setSelectedTrunks] = useState<string[]>(
-    hairdresser.trunks ? hairdresser.trunks.split(", ").map(t => {
-      const trunkMatch = t.match(/trunk(\d+)/i);
-      return trunkMatch ? `trunk${trunkMatch[1]}` : t;
-    }) : []
-  );
+  const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(hairdresser.profile_image);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -114,6 +109,7 @@ export default function EditHairDresserDialog({
   useEffect(() => {
     if (open) {
       fetchHotels();
+      fetchTrunks();
       setFormData({
         first_name: hairdresser.first_name,
         last_name: hairdresser.last_name,
@@ -126,11 +122,9 @@ export default function EditHairDresserDialog({
         hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
       );
       setSelectedSkills(hairdresser.skills || []);
+      // Parse trunk IDs from stored string (now stores real trunk IDs)
       setSelectedTrunks(
-        hairdresser.trunks ? hairdresser.trunks.split(", ").map(t => {
-          const trunkMatch = t.match(/trunk(\d+)/i);
-          return trunkMatch ? `trunk${trunkMatch[1]}` : t;
-        }) : []
+        hairdresser.trunks ? hairdresser.trunks.split(", ").filter(t => t.length > 0) : []
       );
       setProfileImage(hairdresser.profile_image);
     }
@@ -148,6 +142,20 @@ export default function EditHairDresserDialog({
     }
 
     setHotels(data || []);
+  };
+
+  const fetchTrunks = async () => {
+    const { data, error } = await supabase
+      .from("trunks")
+      .select("id, name, trunk_id, image")
+      .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des trunks");
+      return;
+    }
+
+    setTrunks(data || []);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -394,25 +402,34 @@ export default function EditHairDresserDialog({
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[350px] p-0" align="start">
-                <div className="p-3 space-y-2">
-                  {TRUNKS_OPTIONS.map((trunk) => (
+              <PopoverContent className="w-[400px] p-0" align="start">
+                <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                  {trunks.map((trunk) => (
                     <div
-                      key={trunk.value}
+                      key={trunk.id}
                       className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
                     >
-                      <Label htmlFor={`trunk-${trunk.value}`} className="flex-1 cursor-pointer font-normal">
-                        {trunk.label}
-                      </Label>
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={trunk.image || ""} alt={trunk.name} />
+                        <AvatarFallback className="bg-muted text-xs">
+                          {trunk.trunk_id.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <Label htmlFor={`trunk-${trunk.id}`} className="cursor-pointer font-normal block">
+                          {trunk.name}
+                        </Label>
+                        <span className="text-xs text-muted-foreground">{trunk.trunk_id}</span>
+                      </div>
                       <Checkbox
-                        id={`trunk-${trunk.value}`}
-                        checked={selectedTrunks.includes(trunk.value)}
+                        id={`trunk-${trunk.id}`}
+                        checked={selectedTrunks.includes(trunk.id)}
                         onCheckedChange={(checked) => {
                           if (checked) {
-                            setSelectedTrunks([...selectedTrunks, trunk.value]);
+                            setSelectedTrunks([...selectedTrunks, trunk.id]);
                           } else {
                             setSelectedTrunks(
-                              selectedTrunks.filter((t) => t !== trunk.value)
+                              selectedTrunks.filter((t) => t !== trunk.id)
                             );
                           }
                         }}
