@@ -25,12 +25,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ImageIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ImageIcon, ChevronDown } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { suggestTimezoneFromCountry } from "@/lib/timezones";
+
+interface Trunk {
+  id: string;
+  name: string;
+  trunk_id: string;
+  image: string | null;
+  hotel_id: string | null;
+}
 
 // Component to display calculated OOM commission
 function OomCommissionDisplay({ control }: { control: Control<any> }) {
@@ -88,8 +103,31 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
   const [hotelImage, setHotelImage] = useState<string>("");
   const [coverImage, setCoverImage] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  const [trunks, setTrunks] = useState<Trunk[]>([]);
+  const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
   const hotelImageRef = useRef<HTMLInputElement>(null);
   const coverImageRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      fetchTrunks();
+      setSelectedTrunkIds([]);
+    }
+  }, [open]);
+
+  const fetchTrunks = async () => {
+    const { data, error } = await supabase
+      .from("trunks")
+      .select("id, name, trunk_id, image, hotel_id")
+      .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des trunks");
+      return;
+    }
+
+    setTrunks(data || []);
+  };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -194,6 +232,19 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
 
       if (error) throw error;
 
+      // Associate selected trunks with this hotel
+      if (insertedHotel && selectedTrunkIds.length > 0) {
+        const { error: trunkError } = await supabase
+          .from("trunks")
+          .update({ hotel_id: insertedHotel.id })
+          .in("id", selectedTrunkIds);
+
+        if (trunkError) {
+          console.error("Error associating trunks:", trunkError);
+          toast.warning("Hôtel créé mais erreur lors de l'association des trunks");
+        }
+      }
+
       toast.success("Hôtel ajouté avec succès");
       
       // Show success message with QR code info
@@ -207,6 +258,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
       form.reset();
       setHotelImage("");
       setCoverImage("");
+      setSelectedTrunkIds([]);
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
@@ -481,6 +533,65 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                 </FormItem>
               )}
             />
+
+            {/* Trunk Selection */}
+            <div className="space-y-2">
+              <Label>Trunks (Malles)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal"
+                  >
+                    <span>
+                      {selectedTrunkIds.length === 0
+                        ? "Sélectionner des trunks"
+                        : `${selectedTrunkIds.length} trunk(s) sélectionné(s)`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="max-h-80 overflow-y-auto p-3 space-y-1">
+                    {trunks.map((trunk) => (
+                      <div
+                        key={trunk.id}
+                        className="flex items-start gap-2 p-1.5 rounded-md"
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={trunk.image || ""} alt={trunk.name} />
+                          <AvatarFallback className="bg-muted text-[10px]">
+                            {trunk.trunk_id.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <Label htmlFor={`add-trunk-${trunk.id}`} className="cursor-pointer font-normal block text-sm">
+                            {trunk.name}
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">{trunk.trunk_id}</span>
+                        </div>
+                        <div className="pt-1">
+                          <Checkbox
+                            className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4"
+                            id={`add-trunk-${trunk.id}`}
+                            checked={selectedTrunkIds.includes(trunk.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedTrunkIds([...selectedTrunkIds, trunk.id]);
+                              } else {
+                                setSelectedTrunkIds(
+                                  selectedTrunkIds.filter((id) => id !== trunk.id)
+                                );
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button
