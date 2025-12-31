@@ -63,6 +63,30 @@ serve(async (req) => {
       throw hairdressersError;
     }
 
+    // Get trunk count for this hotel (CAPACITY CONSTRAINT)
+    const { data: trunks, error: trunksError } = await supabase
+      .from('trunks')
+      .select('id')
+      .eq('hotel_id', hotelId)
+      .eq('status', 'active');
+
+    if (trunksError) {
+      console.error('Error fetching trunks:', trunksError);
+      throw trunksError;
+    }
+
+    const totalTrunks = trunks?.length || 0;
+    console.log(`Hotel has ${totalTrunks} active trunks`);
+
+    // If no trunks, no availability
+    if (totalTrunks === 0) {
+      console.log('No active trunks found for hotel - no availability');
+      return new Response(
+        JSON.stringify({ availableSlots: [] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!activeHairdressers || activeHairdressers.length === 0) {
       console.log('No active hairdressers found for hotel');
       return new Response(
@@ -74,23 +98,21 @@ serve(async (req) => {
     const hairdresserIds = activeHairdressers.map((h: any) => h.hairdresser_id);
     console.log(`Found ${hairdresserIds.length} active hairdressers`);
 
-    // Get all bookings that block slots (assigned to hairdressers, not cancelled/terminated)
-    // Exclude: Annulé, Terminé - these should NOT block availability
-    const { data: bookings, error: bookingsError } = await supabase
+    // Get all bookings for this hotel on this date (for trunk capacity check)
+    // Exclude cancelled/terminated bookings
+    const { data: allHotelBookings, error: allBookingsError } = await supabase
       .from('bookings')
-      .select('booking_time, hairdresser_id, status')
+      .select('booking_time, hairdresser_id, status, trunk_id')
       .eq('booking_date', date)
-      .in('hairdresser_id', hairdresserIds)
-      .not('status', 'in', '("Annulé","Terminé")');
+      .eq('hotel_id', hotelId)
+      .not('status', 'in', '("Annulé","Terminé","cancelled")');
 
-    if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
-      throw bookingsError;
+    if (allBookingsError) {
+      console.error('Error fetching hotel bookings:', allBookingsError);
+      throw allBookingsError;
     }
-    
-    console.log('Bookings blocking slots:', bookings?.map(b => ({ time: b.booking_time, status: b.status })));
 
-    console.log(`Found ${bookings?.length || 0} existing bookings`);
+    console.log(`Found ${allHotelBookings?.length || 0} active bookings for hotel on ${date}`);
 
     // Generate all time slots (6AM to 11PM every 30 minutes)
     const timeSlots = [];
@@ -120,27 +142,32 @@ serve(async (req) => {
       console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} (current time + ${maxLeadTime} min)`);
     }
 
-    // Check which slots have at least one available hairdresser
+    // Check which slots have availability (both hairdresser AND trunk)
     const availableSlots = timeSlots.filter(slot => {
       // Filter out slots that are too soon based on lead_time (only for today)
       if (isToday && earliestBookableTime && slot < earliestBookableTime) {
         return false;
       }
 
-      // Count how many hairdressers are busy at this time
+      // Get bookings at this slot
+      const bookingsAtSlot = (allHotelBookings || []).filter(b => b.booking_time === slot);
+
+      // TRUNK CAPACITY CHECK: Count active bookings at this slot
+      const activeBookingsCount = bookingsAtSlot.length;
+      if (activeBookingsCount >= totalTrunks) {
+        // All trunks are occupied at this time
+        return false;
+      }
+
+      // HAIRDRESSER CHECK: At least one hairdresser must be free
       const busyHairdressers = new Set(
-        (bookings || [])
-          .filter(b => {
-            // Format booking time to match our slot format
-            const bookingTime = b.booking_time;
-            return bookingTime === slot;
-          })
+        bookingsAtSlot
+          .filter(b => b.hairdresser_id !== null)
           .map(b => b.hairdresser_id)
       );
 
-      // At least one hairdresser must be available
-      const availableCount = hairdresserIds.length - busyHairdressers.size;
-      return availableCount > 0;
+      const availableHairdresserCount = hairdresserIds.length - busyHairdressers.size;
+      return availableHairdresserCount > 0;
     });
 
     console.log(`${availableSlots.length} slots available out of ${timeSlots.length}`);

@@ -66,6 +66,55 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
+// Find an available trunk for the booking
+async function findAvailableTrunk(
+  supabase: any,
+  hotelId: string,
+  bookingDate: string,
+  bookingTime: string
+): Promise<string | null> {
+  // Get all active trunks for this hotel
+  const { data: trunks, error: trunksError } = await supabase
+    .from('trunks')
+    .select('id')
+    .eq('hotel_id', hotelId)
+    .eq('status', 'active');
+
+  if (trunksError || !trunks || trunks.length === 0) {
+    console.log('No active trunks found for hotel:', hotelId);
+    return null;
+  }
+
+  // Get all bookings at this time slot that have trunks assigned
+  const { data: bookingsWithTrunks, error: bookingsError } = await supabase
+    .from('bookings')
+    .select('trunk_id')
+    .eq('hotel_id', hotelId)
+    .eq('booking_date', bookingDate)
+    .eq('booking_time', bookingTime)
+    .not('trunk_id', 'is', null)
+    .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+  if (bookingsError) {
+    console.error('Error fetching bookings with trunks:', bookingsError);
+    return null;
+  }
+
+  // Find trunk IDs that are already in use
+  const usedTrunkIds = new Set(bookingsWithTrunks?.map((b: any) => b.trunk_id) || []);
+
+  // Find first available trunk
+  for (const trunk of trunks) {
+    if (!usedTrunkIds.has(trunk.id)) {
+      console.log('Found available trunk:', trunk.id);
+      return trunk.id;
+    }
+  }
+
+  console.log('No available trunks at this time slot');
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -136,6 +185,28 @@ serve(async (req) => {
       );
     }
 
+    // Find an available trunk for this booking
+    const availableTrunkId = await findAvailableTrunk(
+      supabase,
+      hotelId,
+      bookingData.date,
+      bookingData.time
+    );
+
+    if (!availableTrunkId) {
+      console.error('No available trunk for booking');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Ce créneau n\'est plus disponible (capacité atteinte)'
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      );
+    }
+
     // Validate that all treatment IDs exist and check for price_on_request
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
@@ -173,7 +244,7 @@ serve(async (req) => {
     const bookingStatus = hasPriceOnRequest ? 'quote_pending' : 'pending';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest);
 
-    // Create booking
+    // Create booking with trunk_id assigned
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -189,6 +260,7 @@ serve(async (req) => {
         booking_time: bookingData.time,
         status: bookingStatus,
         hairdresser_id: null,
+        trunk_id: availableTrunkId, // Assign trunk
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'room' ? 'charged_to_room' : 'pending',
         total_price: hasPriceOnRequest ? 0 : totalPrice,
@@ -207,7 +279,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Booking created:', booking.id);
+    console.log('Booking created:', booking.id, 'with trunk:', availableTrunkId);
 
     // Create booking treatments
     const treatmentInserts = [];
