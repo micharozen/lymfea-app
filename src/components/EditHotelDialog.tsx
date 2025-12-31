@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,31 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageIcon } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 
+
+// Component to display calculated OOM commission
+function OomCommissionDisplay({ control }: { control: Control<any> }) {
+  const hotelCommission = useWatch({ control, name: "hotel_commission" });
+  const hairdresserCommission = useWatch({ control, name: "hairdresser_commission" });
+  
+  const hotelComm = parseFloat(hotelCommission) || 0;
+  const hairdresserComm = parseFloat(hairdresserCommission) || 0;
+  const oomCommission = Math.max(0, 100 - hotelComm - hairdresserComm);
+  const isInvalid = hotelComm + hairdresserComm > 100;
+  
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Commission OOM</label>
+      <div className={`relative flex items-center h-10 px-3 border rounded-md bg-muted/50 ${isInvalid ? 'border-destructive' : ''}`}>
+        <span className={`text-sm font-medium ${isInvalid ? 'text-destructive' : 'text-foreground'}`}>
+          {isInvalid ? 'Erreur' : `${oomCommission.toFixed(2)}%`}
+        </span>
+      </div>
+      {isInvalid && (
+        <p className="text-xs text-destructive">Total &gt; 100%</p>
+      )}
+    </div>
+  );
+}
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   address: z.string().min(1, "L'adresse est requise"),
@@ -43,6 +68,13 @@ const formSchema = z.object({
   hairdresser_commission: z.string().default("0"),
   status: z.string().default("Actif"),
   timezone: z.string().default("Europe/Paris"),
+}).refine((data) => {
+  const hotelComm = parseFloat(data.hotel_commission) || 0;
+  const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
+  return hotelComm + hairdresserComm <= 100;
+}, {
+  message: "La somme des commissions (hôtel + coiffeur) ne peut pas dépasser 100%",
+  path: ["hotel_commission"],
 });
 
 interface EditHotelDialogProps {
@@ -399,16 +431,16 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="hotel_commission"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hotel commission</FormLabel>
+                    <FormLabel>Commission hôtel</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input type="number" step="0.01" {...field} />
+                        <Input type="number" step="0.01" min="0" max="100" {...field} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
                       </div>
                     </FormControl>
@@ -422,10 +454,10 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                 name="hairdresser_commission"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Hairdresser commission</FormLabel>
+                    <FormLabel>Commission coiffeur</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input type="number" step="0.01" {...field} />
+                        <Input type="number" step="0.01" min="0" max="100" {...field} />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
                       </div>
                     </FormControl>
@@ -433,6 +465,8 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                   </FormItem>
                 )}
               />
+
+              <OomCommissionDisplay control={form.control} />
             </div>
 
             <FormField
