@@ -164,24 +164,26 @@ export default function ClientMenu() {
           </div>
         </div>
 
-        {/* Categories Tabs - Inside sticky container */}
-        <div className="w-full overflow-x-auto scrollbar-hide bg-background">
-          <div className="flex">
-            {categories.map(category => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-colors ${
-                  activeCategory === category 
-                    ? 'border-primary text-foreground font-medium' 
-                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {t(`menu.categories.${category}`, category)}
-              </button>
-            ))}
+        {/* Categories Tabs - Only show if more than 1 category */}
+        {categories.length > 1 && (
+          <div className="w-full overflow-x-auto scrollbar-hide bg-background">
+            <div className="flex">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setActiveCategory(category)}
+                  className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-colors ${
+                    activeCategory === category 
+                      ? 'border-primary text-foreground font-medium' 
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t(`menu.categories.${category}`, category)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Content - Filtered by active category */}
