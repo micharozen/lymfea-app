@@ -221,7 +221,7 @@ export default function Booking() {
   // Generate hourly slots from 07:00 to 21:00 for main display (working hours only)
   const START_HOUR = 7;
   const END_HOUR = 22;
-  const HOUR_HEIGHT = 48; // pixels per hour - compact view
+  const HOUR_HEIGHT = 40; // pixels per hour - compact view
   
   const hours = useMemo(() => {
     return Array.from({ length: END_HOUR - START_HOUR }, (_, i) => i + START_HOUR); // 7 to 21
@@ -438,7 +438,7 @@ export default function Booking() {
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col">
         {view === "calendar" ? (
-            <div className="p-2 md:p-6 overflow-x-auto">
+            <div className="p-2 md:p-6 overflow-hidden">
               <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
                 <Button variant="outline" size="sm" onClick={handlePreviousWeek} className="px-2 md:px-3">
                   <ChevronLeft className="h-4 w-4" />
@@ -454,7 +454,7 @@ export default function Booking() {
                 </Button>
               </div>
 
-              <div className="w-full overflow-x-auto -mx-2 md:mx-0 px-2 md:px-0">
+              <div className="w-full overflow-hidden -mx-2 md:mx-0 px-2 md:px-0">
                 <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border">
                   {/* Header avec les jours */}
                   <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
