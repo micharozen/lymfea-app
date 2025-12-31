@@ -48,11 +48,11 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get admin emails
+    // Get admin emails (check both "active" and "Actif" statuses)
     const { data: admins, error: adminsError } = await supabase
       .from("admins")
       .select("email, first_name")
-      .eq("status", "active");
+      .or("status.eq.active,status.eq.Actif");
 
     if (adminsError || !admins || admins.length === 0) {
       console.error("Error fetching admins:", adminsError);
