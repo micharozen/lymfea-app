@@ -25,12 +25,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ImageIcon, Plus, X, Package } from "lucide-react";
+import { ImageIcon, ChevronDown, Package } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 
 // Component to display calculated OOM commission
@@ -94,9 +101,9 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
   const hotelImageRef = useRef<HTMLInputElement>(null);
   const coverImageRef = useRef<HTMLInputElement>(null);
   
-  // Trunks state
-  const [affiliatedTrunks, setAffiliatedTrunks] = useState<any[]>([]);
-  const [availableTrunks, setAvailableTrunks] = useState<any[]>([]);
+  // Trunks state - all trunks and selected IDs
+  const [allTrunks, setAllTrunks] = useState<any[]>([]);
+  const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
   const [loadingTrunks, setLoadingTrunks] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -127,25 +134,21 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
     try {
       setLoadingTrunks(true);
       
-      // Load trunks affiliated to this hotel
-      const { data: affiliated, error: affiliatedError } = await supabase
+      // Load all trunks (available ones + those affiliated to this hotel)
+      const { data: trunks, error } = await supabase
         .from("trunks")
         .select("*")
-        .eq("hotel_id", hotelId)
+        .or(`hotel_id.is.null,hotel_id.eq.${hotelId}`)
         .order("name");
 
-      if (affiliatedError) throw affiliatedError;
-      setAffiliatedTrunks(affiliated || []);
-
-      // Load trunks that are not affiliated to any hotel (available)
-      const { data: available, error: availableError } = await supabase
-        .from("trunks")
-        .select("*")
-        .is("hotel_id", null)
-        .order("name");
-
-      if (availableError) throw availableError;
-      setAvailableTrunks(available || []);
+      if (error) throw error;
+      
+      setAllTrunks(trunks || []);
+      // Set initially selected trunks (those affiliated to this hotel)
+      const affiliatedIds = (trunks || [])
+        .filter(t => t.hotel_id === hotelId)
+        .map(t => t.id);
+      setSelectedTrunkIds(affiliatedIds);
     } catch (error) {
       console.error("Error loading trunks:", error);
     } finally {
@@ -153,39 +156,33 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
     }
   };
 
-  const handleAffiliateTrunk = async (trunkId: string) => {
+  const handleTrunkToggle = async (trunkId: string, checked: boolean) => {
     try {
-      const trunk = availableTrunks.find(t => t.id === trunkId);
       const hotelName = form.getValues("name");
       
-      const { error } = await supabase
-        .from("trunks")
-        .update({ hotel_id: hotelId, hotel_name: hotelName })
-        .eq("id", trunkId);
+      if (checked) {
+        // Affiliate trunk to this hotel
+        const { error } = await supabase
+          .from("trunks")
+          .update({ hotel_id: hotelId, hotel_name: hotelName })
+          .eq("id", trunkId);
 
-      if (error) throw error;
-      
-      toast.success("Trunk affilié avec succès");
-      loadTrunks();
+        if (error) throw error;
+        setSelectedTrunkIds(prev => [...prev, trunkId]);
+        toast.success("Trunk affilié");
+      } else {
+        // Unlink trunk from hotel
+        const { error } = await supabase
+          .from("trunks")
+          .update({ hotel_id: null, hotel_name: null })
+          .eq("id", trunkId);
+
+        if (error) throw error;
+        setSelectedTrunkIds(prev => prev.filter(id => id !== trunkId));
+        toast.success("Trunk délié");
+      }
     } catch (error) {
-      toast.error("Erreur lors de l'affiliation du trunk");
-      console.error(error);
-    }
-  };
-
-  const handleUnlinkTrunk = async (trunkId: string) => {
-    try {
-      const { error } = await supabase
-        .from("trunks")
-        .update({ hotel_id: null, hotel_name: null })
-        .eq("id", trunkId);
-
-      if (error) throw error;
-      
-      toast.success("Trunk délié avec succès");
-      loadTrunks();
-    } catch (error) {
-      toast.error("Erreur lors de la suppression du lien");
+      toast.error("Erreur lors de la modification");
       console.error(error);
     }
   };
@@ -589,91 +586,60 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
             />
 
             {/* Trunks Section */}
-            <div className="space-y-3 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                  <label className="text-sm font-medium">Trunks affiliés</label>
-                  <Badge variant="secondary" className="text-xs">
-                    {affiliatedTrunks.length}
-                  </Badge>
-                </div>
-              </div>
-
-              {loadingTrunks ? (
-                <p className="text-sm text-muted-foreground">Chargement...</p>
-              ) : (
-                <>
-                  {/* Affiliated trunks list */}
-                  {affiliatedTrunks.length > 0 ? (
-                    <div className="space-y-2">
-                      {affiliatedTrunks.map((trunk) => (
+            <div className="space-y-2">
+              <Label>Trunks</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between font-normal"
+                    disabled={loadingTrunks}
+                  >
+                    <span>
+                      {loadingTrunks 
+                        ? "Chargement..." 
+                        : selectedTrunkIds.length === 0
+                          ? "Sélectionner des trunks"
+                          : `${selectedTrunkIds.length} trunk(s) sélectionné(s)`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="max-h-80 overflow-y-auto p-3 space-y-2">
+                    {allTrunks.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Aucun trunk disponible
+                      </p>
+                    ) : (
+                      allTrunks.map((trunk) => (
                         <div
                           key={trunk.id}
-                          className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+                          className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
                         >
-                          <div className="flex items-center gap-2">
-                            {trunk.image ? (
-                              <img
-                                src={trunk.image}
-                                alt={trunk.name}
-                                className="h-8 w-8 rounded object-cover"
-                              />
-                            ) : (
-                              <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs">
-                                🧳
-                              </div>
-                            )}
-                            <div>
-                              <p className="text-sm font-medium">{trunk.name}</p>
-                              <p className="text-xs text-muted-foreground">{trunk.trunk_id}</p>
-                            </div>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={trunk.image || ""} alt={trunk.name} />
+                            <AvatarFallback className="bg-muted text-xs">
+                              {trunk.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <Label htmlFor={`trunk-${trunk.id}`} className="cursor-pointer font-normal block">
+                              {trunk.name}
+                            </Label>
+                            <span className="text-xs text-muted-foreground">{trunk.trunk_id}</span>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleUnlinkTrunk(trunk.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <Checkbox
+                            id={`trunk-${trunk.id}`}
+                            checked={selectedTrunkIds.includes(trunk.id)}
+                            onCheckedChange={(checked) => handleTrunkToggle(trunk.id, !!checked)}
+                          />
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      Aucun trunk affilié à cet hôtel
-                    </p>
-                  )}
-
-                  {/* Add trunk selector */}
-                  {availableTrunks.length > 0 && (
-                    <div className="pt-2">
-                      <Select onValueChange={handleAffiliateTrunk}>
-                        <SelectTrigger className="w-full">
-                          <div className="flex items-center gap-2">
-                            <Plus className="h-4 w-4" />
-                            <span>Ajouter un trunk</span>
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableTrunks.map((trunk) => (
-                            <SelectItem key={trunk.id} value={trunk.id}>
-                              <div className="flex items-center gap-2">
-                                <span>{trunk.name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  ({trunk.trunk_id})
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </>
-              )}
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
