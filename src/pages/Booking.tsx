@@ -162,11 +162,25 @@ export default function Booking() {
   const headerRef = useRef<HTMLDivElement>(null);
   const paginationRef = useRef<HTMLDivElement>(null);
 
-  // Fixed items per page for consistent display
+  // Auto-fit the number of rows so the page never needs scrolling
   const computeRows = useCallback(() => {
     if (view !== 'list') return;
-    // Fixed at 15 items per page for consistent UX
-    setItemsPerPage(15);
+    
+    const rowHeight = 44; // py-3 = 12px*2 + content ~20px = 44px
+    const tableHeaderHeight = 32; // h-8 = 32px
+    const paginationHeight = 48;
+    const sidebarOffset = 64; // sidebar margin
+    
+    // Get actual header height (title + filters)
+    const headerHeight = headerRef.current?.offsetHeight || 140;
+    // Content padding
+    const contentPadding = 48;
+    
+    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+    
+    setItemsPerPage(rows);
   }, [view]);
 
   useEffect(() => {
@@ -657,8 +671,8 @@ export default function Booking() {
             </div>
           ) : (
             <div className="h-full flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto bg-card">
-              <Table className="text-xs w-full table-fixed">
+              <div className="flex-1 overflow-hidden bg-card">
+              <Table className="text-xs w-full table-fixed h-full">
                 <colgroup>
                   <col className="w-[7%]" />   {/* Booking ID */}
                   <col className="w-[10%]" />  {/* Date */}
