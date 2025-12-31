@@ -120,6 +120,7 @@ export type Database = {
           status: string
           stripe_invoice_url: string | null
           total_price: number | null
+          trunk_id: string | null
           updated_at: string
         }
         Insert: {
@@ -149,6 +150,7 @@ export type Database = {
           status?: string
           stripe_invoice_url?: string | null
           total_price?: number | null
+          trunk_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -178,9 +180,18 @@ export type Database = {
           status?: string
           stripe_invoice_url?: string | null
           total_price?: number | null
+          trunk_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bookings_trunk_id_fkey"
+            columns: ["trunk_id"]
+            isOneToOne: false
+            referencedRelation: "trunks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       concierge_hotels: {
         Row: {

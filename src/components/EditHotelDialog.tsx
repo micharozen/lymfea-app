@@ -28,8 +28,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Plus, X, Package } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
+import { Badge } from "@/components/ui/badge";
 
 
 // Component to display calculated OOM commission
@@ -92,6 +93,11 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
   const [uploading, setUploading] = useState(false);
   const hotelImageRef = useRef<HTMLInputElement>(null);
   const coverImageRef = useRef<HTMLInputElement>(null);
+  
+  // Trunks state
+  const [affiliatedTrunks, setAffiliatedTrunks] = useState<any[]>([]);
+  const [availableTrunks, setAvailableTrunks] = useState<any[]>([]);
+  const [loadingTrunks, setLoadingTrunks] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -113,8 +119,76 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
   useEffect(() => {
     if (open && hotelId) {
       loadHotel();
+      loadTrunks();
     }
   }, [open, hotelId]);
+
+  const loadTrunks = async () => {
+    try {
+      setLoadingTrunks(true);
+      
+      // Load trunks affiliated to this hotel
+      const { data: affiliated, error: affiliatedError } = await supabase
+        .from("trunks")
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .order("name");
+
+      if (affiliatedError) throw affiliatedError;
+      setAffiliatedTrunks(affiliated || []);
+
+      // Load trunks that are not affiliated to any hotel (available)
+      const { data: available, error: availableError } = await supabase
+        .from("trunks")
+        .select("*")
+        .is("hotel_id", null)
+        .order("name");
+
+      if (availableError) throw availableError;
+      setAvailableTrunks(available || []);
+    } catch (error) {
+      console.error("Error loading trunks:", error);
+    } finally {
+      setLoadingTrunks(false);
+    }
+  };
+
+  const handleAffiliateTrunk = async (trunkId: string) => {
+    try {
+      const trunk = availableTrunks.find(t => t.id === trunkId);
+      const hotelName = form.getValues("name");
+      
+      const { error } = await supabase
+        .from("trunks")
+        .update({ hotel_id: hotelId, hotel_name: hotelName })
+        .eq("id", trunkId);
+
+      if (error) throw error;
+      
+      toast.success("Trunk affilié avec succès");
+      loadTrunks();
+    } catch (error) {
+      toast.error("Erreur lors de l'affiliation du trunk");
+      console.error(error);
+    }
+  };
+
+  const handleUnlinkTrunk = async (trunkId: string) => {
+    try {
+      const { error } = await supabase
+        .from("trunks")
+        .update({ hotel_id: null, hotel_name: null })
+        .eq("id", trunkId);
+
+      if (error) throw error;
+      
+      toast.success("Trunk délié avec succès");
+      loadTrunks();
+    } catch (error) {
+      toast.error("Erreur lors de la suppression du lien");
+      console.error(error);
+    }
+  };
 
   const loadHotel = async () => {
     try {
@@ -513,6 +587,94 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                 </FormItem>
               )}
             />
+
+            {/* Trunks Section */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <label className="text-sm font-medium">Trunks affiliés</label>
+                  <Badge variant="secondary" className="text-xs">
+                    {affiliatedTrunks.length}
+                  </Badge>
+                </div>
+              </div>
+
+              {loadingTrunks ? (
+                <p className="text-sm text-muted-foreground">Chargement...</p>
+              ) : (
+                <>
+                  {/* Affiliated trunks list */}
+                  {affiliatedTrunks.length > 0 ? (
+                    <div className="space-y-2">
+                      {affiliatedTrunks.map((trunk) => (
+                        <div
+                          key={trunk.id}
+                          className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            {trunk.image ? (
+                              <img
+                                src={trunk.image}
+                                alt={trunk.name}
+                                className="h-8 w-8 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs">
+                                🧳
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium">{trunk.name}</p>
+                              <p className="text-xs text-muted-foreground">{trunk.trunk_id}</p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleUnlinkTrunk(trunk.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      Aucun trunk affilié à cet hôtel
+                    </p>
+                  )}
+
+                  {/* Add trunk selector */}
+                  {availableTrunks.length > 0 && (
+                    <div className="pt-2">
+                      <Select onValueChange={handleAffiliateTrunk}>
+                        <SelectTrigger className="w-full">
+                          <div className="flex items-center gap-2">
+                            <Plus className="h-4 w-4" />
+                            <span>Ajouter un trunk</span>
+                          </div>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableTrunks.map((trunk) => (
+                            <SelectItem key={trunk.id} value={trunk.id}>
+                              <div className="flex items-center gap-2">
+                                <span>{trunk.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({trunk.trunk_id})
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
             <div className="flex justify-end gap-3 pt-4">
               <Button
