@@ -155,7 +155,10 @@ export default function EditHairDresserDialog({
       return;
     }
 
-    setTrunks(data || []);
+    const list = data || [];
+    setTrunks(list);
+    // Remove any legacy/unknown trunk values that might still be stored on the hairdresser
+    setSelectedTrunks((prev) => prev.filter((id) => list.some((t) => t.id === id)));
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,6 +204,8 @@ export default function EditHairDresserDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const validSelectedTrunks = selectedTrunks.filter((id) => trunks.some((t) => t.id === id));
+
     const { error } = await supabase
       .from("hairdressers")
       .update({
@@ -209,7 +214,7 @@ export default function EditHairDresserDialog({
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        trunks: selectedTrunks.join(", ") || null,
+        trunks: validSelectedTrunks.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
         profile_image: profileImage,
@@ -395,9 +400,12 @@ export default function EditHairDresserDialog({
                   className="w-full justify-between font-normal"
                 >
                   <span>
-                    {selectedTrunks.length === 0
-                      ? "Sélectionner des trunks"
-                      : `${selectedTrunks.length} trunk(s) sélectionné(s)`}
+                    {(() => {
+                      const validCount = selectedTrunks.filter((id) => trunks.some((t) => t.id === id)).length;
+                      return validCount === 0
+                        ? "Sélectionner des trunks"
+                        : `${validCount} trunk(s) sélectionné(s)`;
+                    })()}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </Button>
