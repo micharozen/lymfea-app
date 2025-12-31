@@ -127,6 +127,7 @@ serve(async (req) => {
       cancel_url: `${req.headers.get("origin")}/client/${hotelId}/payment`,
       metadata: {
         hotel_id: hotelId,
+        site_url: req.headers.get("origin") || "",
         client_first_name: clientData.firstName,
         client_last_name: clientData.lastName,
         client_email: clientData.email || '',

@@ -63,7 +63,7 @@ serve(async (req) => {
         // Fetch hotel info
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('name')
+          .select('name, currency, hairdresser_commission')
           .eq('id', metadata.hotel_id)
           .maybeSingle();
 
@@ -125,10 +125,42 @@ serve(async (req) => {
         // Get treatment details for email
         const { data: treatmentDetails } = await supabase
           .from('treatment_menus')
-          .select('name, price')
+          .select('name, price, price_on_request')
           .in('id', treatmentIds);
 
-        const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
+        const treatmentsForEmail = (treatmentDetails || []).map((t) => ({
+          name: t.name,
+          price: t.price,
+          isPriceOnRequest: !!t.price_on_request,
+        }));
+
+        const currencyForEmail = (hotel?.currency || 'EUR').toUpperCase();
+
+        // Create ledger entry so Finance shows the transaction
+        try {
+          const hairdresserCommission = hotel?.hairdresser_commission ?? 70;
+          const totalPrice = parseFloat(metadata.verified_total_price || '0');
+          const hairdresserAmount = (totalPrice * hairdresserCommission) / 100;
+          const oomCommission = Math.max(0, totalPrice - hairdresserAmount);
+
+          const { error: ledgerError } = await supabase
+            .from('hotel_ledger')
+            .insert({
+              hotel_id: booking.hotel_id,
+              booking_id: booking.id,
+              amount: oomCommission,
+              status: 'pending',
+              description: `Paiement carte - Réservation #${booking.booking_id}`,
+            });
+
+          if (ledgerError) {
+            console.error('[STRIPE-WEBHOOK] Ledger entry failed:', ledgerError);
+          } else {
+            console.log(`[STRIPE-WEBHOOK] Ledger entry created: ${oomCommission} ${currencyForEmail}`);
+          }
+        } catch (ledgerErr) {
+          console.error('[STRIPE-WEBHOOK] Ledger entry error:', ledgerErr);
+        }
 
         // Send confirmation email to client
         if (metadata.client_email) {
@@ -136,20 +168,22 @@ serve(async (req) => {
             await supabase.functions.invoke('send-booking-confirmation', {
               body: {
                 email: metadata.client_email,
+                bookingId: booking.id,
                 bookingNumber: booking.booking_id.toString(),
                 clientName: `${metadata.client_first_name} ${metadata.client_last_name}`,
                 hotelName: hotel?.name,
                 roomNumber: metadata.room_number,
                 bookingDate: metadata.booking_date,
                 bookingTime: metadata.booking_time,
-                treatments: treatmentNames,
+                treatments: treatmentsForEmail,
                 totalPrice: parseFloat(metadata.verified_total_price || '0'),
-                currency: 'EUR',
+                currency: currencyForEmail,
+                siteUrl: metadata.site_url || '',
               },
             });
-            console.log("[STRIPE-WEBHOOK] Confirmation email sent to client");
+            console.log('[STRIPE-WEBHOOK] Confirmation email sent to client');
           } catch (emailError) {
-            console.error("[STRIPE-WEBHOOK] Email error:", emailError);
+            console.error('[STRIPE-WEBHOOK] Email error:', emailError);
           }
         }
 
