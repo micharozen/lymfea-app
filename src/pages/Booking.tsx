@@ -673,7 +673,7 @@ export default function Booking() {
             </div>
           ) : (
             <div className="h-full flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto bg-card">
               <Table className="text-xs w-full table-fixed">
                 <colgroup>
                   <col className="w-[7%]" />   {/* Booking ID */}
@@ -846,13 +846,6 @@ export default function Booking() {
                     </TableRow>
                   )}
 
-                  {filteredBookings?.length
-                    ? Array.from({ length: emptyRowsCount }).map((_, idx) => (
-                        <TableRow key={`empty-${idx}`} className="h-10 border-b">
-                          <TableCell colSpan={totalListColumns} className="py-1.5">&nbsp;</TableCell>
-                        </TableRow>
-                      ))
-                    : null}
                 </TableBody>
               </Table>
               </div>
