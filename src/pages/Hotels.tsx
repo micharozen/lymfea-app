@@ -297,14 +297,14 @@ export default function Hotels() {
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
                       <Badge 
-                        variant={(hotel.status === "Actif" || hotel.status === "Active") ? "default" : "secondary"}
+                        variant={(hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") ? "default" : "secondary"}
                         className={cn(
                           "text-[10px] px-1.5 py-0",
-                          (hotel.status === "Actif" || hotel.status === "Active") && "bg-green-500/10 text-green-700",
+                          (hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") && "bg-green-500/10 text-green-700",
                           hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
                         )}
                       >
-                        {(hotel.status === "Active" || hotel.status === "Actif") ? "Actif" : hotel.status}
+                        {(hotel.status?.toLowerCase() === "active" || hotel.status?.toLowerCase() === "actif") ? "Actif" : hotel.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
