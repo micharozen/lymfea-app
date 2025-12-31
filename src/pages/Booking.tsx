@@ -700,29 +700,30 @@ export default function Booking() {
                   </TableRow>
                 </TableHeader>
 
-                <TableBody>
+                <TableBody className="[&>tr]:flex-1" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 32px)' }}>
                   {paginatedBookings.map((booking) => (
                     <TableRow
                       key={booking.id}
-                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
+                      className="cursor-pointer border-b hover:bg-muted/50 transition-colors flex-1 flex items-center"
+                      style={{ display: 'table-row' }}
                       onClick={() => {
                         setSelectedBooking(booking);
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <TableCell className="font-medium text-primary py-3 px-2 overflow-hidden">
+                      <TableCell className="font-medium text-primary px-2 overflow-hidden">
                         <span className="truncate block">#{booking.booking_id}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">{booking.booking_time.substring(0, 5)}</span>
                       </TableCell>
-                      <TableCell className="py-3 px-2 overflow-hidden">
+                      <TableCell className="px-2 overflow-hidden">
                         <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
-                      <TableCell className="py-3 px-2 overflow-hidden text-center">
+                      <TableCell className="px-2 overflow-hidden text-center">
                         {/* Hide payment status for quote_pending and waiting_approval */}
                         {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
                           <StatusBadge
@@ -732,19 +733,19 @@ export default function Booking() {
                           />
                         )}
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">{booking.client_first_name} {booking.client_last_name}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">€{booking.total_price?.toFixed(2) || "0.00"}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">{booking.hotel_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="text-foreground py-3 px-2 overflow-hidden">
+                      <TableCell className="text-foreground px-2 overflow-hidden">
                         <span className="truncate block">{booking.hairdresser_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="py-3 px-2 overflow-hidden text-center">
+                      <TableCell className="px-2 overflow-hidden text-center">
                         {/* Document visibility logic by role - hide for quote_pending and waiting_approval */}
                         {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
                           const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
@@ -837,7 +838,7 @@ export default function Booking() {
                   ))}
 
                   {!filteredBookings?.length && (
-                    <TableRow>
+                    <TableRow className="flex-1">
                       <TableCell colSpan={totalListColumns} className="text-center text-muted-foreground py-6">
                         No bookings found
                       </TableCell>
