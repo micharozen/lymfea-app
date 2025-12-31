@@ -34,6 +34,8 @@ import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Cloc
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
+import { TimezoneSelector } from "@/components/TimezoneSelector";
+import { useTimezone } from "@/contexts/TimezoneContext";
 
 import { StatusBadge } from "@/components/StatusBadge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -43,6 +45,7 @@ import { fr } from "date-fns/locale";
 
 export default function Booking() {
   const { isAdmin, isConcierge } = useUserContext();
+  const { activeTimezone } = useTimezone();
   const [searchParams, setSearchParams] = useSearchParams();
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,7 +58,6 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
-  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
@@ -306,7 +308,7 @@ export default function Booking() {
 
   const isCurrentHour = (date: Date, hour: number) => {
     if (format(date, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")) return false;
-    const now = new Date(currentTime.toLocaleString("en-US", { timeZone: timezone }));
+    const now = new Date(currentTime.toLocaleString("en-US", { timeZone: activeTimezone }));
     return now.getHours() === hour;
   };
 
@@ -409,6 +411,8 @@ export default function Booking() {
             ))}
           </SelectContent>
         </Select>
+
+        <TimezoneSelector compact showReset className="ml-2" />
 
         <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <Button

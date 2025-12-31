@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useRef, useEffect } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageIcon } from "lucide-react";
+import { TimezoneSelectField } from "@/components/TimezoneSelector";
+import { suggestTimezoneFromCountry } from "@/lib/timezones";
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -41,6 +43,7 @@ const formSchema = z.object({
   hotel_commission: z.string().default("0"),
   hairdresser_commission: z.string().default("0"),
   status: z.string().default("Actif"),
+  timezone: z.string().default("Europe/Paris"),
 });
 
 interface AddHotelDialogProps {
@@ -69,8 +72,23 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
       hotel_commission: "0",
       hairdresser_commission: "0",
       status: "Actif",
+      timezone: "Europe/Paris",
     },
   });
+
+  // Watch country field and auto-suggest timezone
+  const countryValue = useWatch({ control: form.control, name: "country" });
+  
+  useEffect(() => {
+    if (countryValue) {
+      const suggestedTimezone = suggestTimezoneFromCountry(countryValue);
+      const currentTimezone = form.getValues("timezone");
+      // Only auto-suggest if timezone hasn't been manually changed from default
+      if (currentTimezone === "Europe/Paris" || !currentTimezone) {
+        form.setValue("timezone", suggestedTimezone);
+      }
+    }
+  }, [countryValue, form]);
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -137,6 +155,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
           status: values.status,
           image: hotelImage || null,
           cover_image: coverImage || null,
+          timezone: values.timezone,
         })
         .select('id')
         .single();
@@ -383,6 +402,21 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="timezone"
+              render={({ field }) => (
+                <FormItem>
+                  <TimezoneSelectField
+                    value={field.value}
+                    onChange={field.onChange}
+                    label="Timezone"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

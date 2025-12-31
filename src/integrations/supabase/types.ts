@@ -515,6 +515,7 @@ export type Database = {
           name: string
           postal_code: string | null
           status: string | null
+          timezone: string | null
           updated_at: string
           vat: number | null
         }
@@ -533,6 +534,7 @@ export type Database = {
           name: string
           postal_code?: string | null
           status?: string | null
+          timezone?: string | null
           updated_at?: string
           vat?: number | null
         }
@@ -551,6 +553,7 @@ export type Database = {
           name?: string
           postal_code?: string | null
           status?: string | null
+          timezone?: string | null
           updated_at?: string
           vat?: number | null
         }
@@ -593,6 +596,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          timezone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          timezone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       push_notification_logs: {
         Row: {
@@ -949,6 +976,7 @@ export type Database = {
           sort_order: number
         }[]
       }
+      get_user_timezone: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

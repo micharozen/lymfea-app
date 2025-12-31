@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ImageIcon } from "lucide-react";
+import { TimezoneSelectField } from "@/components/TimezoneSelector";
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -41,6 +42,7 @@ const formSchema = z.object({
   hotel_commission: z.string().default("0"),
   hairdresser_commission: z.string().default("0"),
   status: z.string().default("Actif"),
+  timezone: z.string().default("Europe/Paris"),
 });
 
 interface EditHotelDialogProps {
@@ -72,6 +74,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       hotel_commission: "0",
       hairdresser_commission: "0",
       status: "Actif",
+      timezone: "Europe/Paris",
     },
   });
 
@@ -103,6 +106,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
         hotel_commission: hotel.hotel_commission?.toString() || "0",
         hairdresser_commission: hotel.hairdresser_commission?.toString() || "0",
         status: hotel.status || "Actif",
+        timezone: hotel.timezone || "Europe/Paris",
       });
       
       setHotelImage(hotel.image || "");
@@ -181,6 +185,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
           status: values.status,
           image: hotelImage || null,
           cover_image: coverImage || null,
+          timezone: values.timezone,
         })
         .eq("id", hotelId);
 
@@ -429,6 +434,21 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="timezone"
+              render={({ field }) => (
+                <FormItem>
+                  <TimezoneSelectField
+                    value={field.value}
+                    onChange={field.onChange}
+                    label="Timezone"
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
