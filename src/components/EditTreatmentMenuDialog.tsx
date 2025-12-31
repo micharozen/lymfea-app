@@ -270,7 +270,13 @@ export function EditTreatmentMenuDialog({
                   <FormItem>
                     <FormLabel className="text-sm whitespace-nowrap">Durée (min)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="60" {...field} />
+                      <Input 
+                        type="number" 
+                        placeholder="60" 
+                        {...field} 
+                        disabled={form.watch("price_on_request")}
+                        className={form.watch("price_on_request") ? "bg-muted text-muted-foreground" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -284,7 +290,14 @@ export function EditTreatmentMenuDialog({
                   <FormItem>
                     <FormLabel className="text-sm whitespace-nowrap">Prix (€)</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                      <Input 
+                        type="number" 
+                        step="0.01" 
+                        placeholder="0.00" 
+                        {...field} 
+                        disabled={form.watch("price_on_request")}
+                        className={form.watch("price_on_request") ? "bg-muted text-muted-foreground" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -307,14 +320,18 @@ export function EditTreatmentMenuDialog({
 
               <FormField
                 control={form.control}
-                name="sort_order"
+                name="price_on_request"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Ordre d'affichage</FormLabel>
+                  <FormItem className="flex flex-row items-end space-x-2 space-y-0 pb-2">
                     <FormControl>
-                      <Input type="number" placeholder="10" {...field} />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormLabel className="text-sm cursor-pointer font-normal whitespace-nowrap">
+                      Sur demande
+                    </FormLabel>
                   </FormItem>
                 )}
               />
@@ -370,7 +387,7 @@ export function EditTreatmentMenuDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="status"
@@ -405,20 +422,14 @@ export function EditTreatmentMenuDialog({
 
               <FormField
                 control={form.control}
-                name="price_on_request"
+                name="sort_order"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem>
+                    <FormLabel className="text-sm whitespace-nowrap">Ordre d'affichage</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Input type="number" placeholder="10" {...field} />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="cursor-pointer">
-                        Prix sur demande
-                      </FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
