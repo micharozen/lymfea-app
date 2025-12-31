@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
 
@@ -40,8 +41,9 @@ const formSchema = z.object({
   service_for: z.string().min(1, "Le service pour est requis"),
   category: z.string().min(1, "La catégorie est requise"),
   hotel_id: z.string().optional(),
-  status: z.string().default("Actif"),
+  status: z.string().default("active"),
   sort_order: z.string().default("0"),
+  price_on_request: z.boolean().default(false),
 });
 
 interface EditTreatmentMenuDialogProps {
@@ -71,8 +73,9 @@ export function EditTreatmentMenuDialog({
       service_for: "",
       category: "",
       hotel_id: "",
-      status: "Actif",
+      status: "active",
       sort_order: "0",
+      price_on_request: false,
     },
   });
 
@@ -100,8 +103,9 @@ export function EditTreatmentMenuDialog({
         service_for: menu.service_for || "",
         category: menu.category || "",
         hotel_id: menu.hotel_id || "",
-        status: menu.status || "Actif",
+        status: menu.status || "active",
         sort_order: menu.sort_order?.toString() || "0",
+        price_on_request: menu.price_on_request || false,
       });
       setMenuImage(menu.image || "");
     }
@@ -154,6 +158,7 @@ export function EditTreatmentMenuDialog({
         image: menuImage || null,
         status: values.status,
         sort_order: parseInt(values.sort_order),
+        price_on_request: values.price_on_request,
       })
       .eq("id", menu.id);
 
@@ -365,37 +370,59 @@ export function EditTreatmentMenuDialog({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Statut</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Statut</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-green-500" />
+                            Actif
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="inactive">
+                          <div className="flex items-center gap-2">
+                            <div className="h-2 w-2 rounded-full bg-red-500" />
+                            Inactif
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price_on_request"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      <SelectItem value="Actif">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                          Actif
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="En attente">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-orange-500" />
-                          En attente
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="cursor-pointer">
+                        Prix sur demande
+                      </FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="flex justify-end gap-3">
               <Button
