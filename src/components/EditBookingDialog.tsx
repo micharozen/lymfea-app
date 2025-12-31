@@ -1196,36 +1196,30 @@ export default function EditBookingDialog({
 
             {/* FOOTER */}
             <div className="px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
-              <div className="flex gap-2">
-                {booking?.status === "quote_pending" && isAdmin && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setViewMode("quote")}
-                    className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-2" />
-                    Valider le devis
-                  </Button>
-                )}
-
-                {booking?.status === "waiting_approval" && isAdmin && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => approveQuoteMutation.mutate()}
-                    disabled={approveQuoteMutation.isPending}
-                  >
-                    {approveQuoteMutation.isPending ? "Validation..." : "Marquer accepté"}
-                  </Button>
-                )}
-
-                {!(booking?.status === "quote_pending" && isAdmin) && (
-                  <Button type="button" variant="outline" onClick={handleClose}>
-                    Fermer
-                  </Button>
-                )}
-              </div>
+              {booking?.status === "quote_pending" && isAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setViewMode("quote")}
+                  className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Valider le devis
+                </Button>
+              ) : booking?.status === "waiting_approval" && isAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => approveQuoteMutation.mutate()}
+                  disabled={approveQuoteMutation.isPending}
+                >
+                  {approveQuoteMutation.isPending ? "Validation..." : "Marquer accepté"}
+                </Button>
+              ) : (
+                <Button type="button" variant="outline" onClick={handleClose}>
+                  Fermer
+                </Button>
+              )}
               
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
