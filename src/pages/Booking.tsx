@@ -34,7 +34,6 @@ import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Cloc
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
-import { TimezoneSelector } from "@/components/TimezoneSelector";
 import { useTimezone } from "@/contexts/TimezoneContext";
 
 import { StatusBadge } from "@/components/StatusBadge";
@@ -414,7 +413,7 @@ export default function Booking() {
           </SelectContent>
         </Select>
 
-        {view === "calendar" && <TimezoneSelector compact showReset className="ml-2" />}
+        
 
         <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <Button
