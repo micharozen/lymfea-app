@@ -430,7 +430,6 @@ export default function EditHairDresserDialog({
                         <span className="text-[10px] text-muted-foreground">{trunk.trunk_id}</span>
                       </div>
                       <Checkbox
-                        className="h-4 w-4"
                         id={`trunk-${trunk.id}`}
                         checked={selectedTrunks.includes(trunk.id)}
                         onCheckedChange={(checked) => {
