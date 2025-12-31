@@ -39,6 +39,12 @@ interface Hotel {
   image: string | null;
 }
 
+interface Trunk {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 interface HairDresser {
   id: string;
   first_name: string;
@@ -57,6 +63,7 @@ export default function HairDresser() {
   const [hairdressers, setHairdressers] = useState<HairDresser[]>([]);
   const [filteredHairdressers, setFilteredHairdressers] = useState<HairDresser[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState("all");
@@ -73,6 +80,7 @@ export default function HairDresser() {
   useEffect(() => {
     fetchHairdressers();
     fetchHotels();
+    fetchTrunks();
     fetchUserRole();
   }, []);
 
@@ -109,6 +117,20 @@ export default function HairDresser() {
     }
 
     setHotels(data || []);
+  };
+
+  const fetchTrunks = async () => {
+    const { data, error } = await supabase
+      .from("trunks")
+      .select("id, name, image")
+      .order("name");
+
+    if (error) {
+      console.error("Erreur lors du chargement des trunks:", error);
+      return;
+    }
+
+    setTrunks(data || []);
   };
 
   const fetchHairdressers = async () => {
@@ -187,6 +209,35 @@ export default function HairDresser() {
     };
 
     return skills.map((skill) => skillMap[skill] || skill).join(" ");
+  };
+
+  const getTrunkName = (trunkIdOrName: string | null) => {
+    if (!trunkIdOrName) return "-";
+    
+    // If it looks like a UUID, find the trunk by ID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trunkIdOrName);
+    
+    if (isUuid) {
+      const trunk = trunks.find((t) => t.id === trunkIdOrName);
+      return trunk?.name || "-";
+    }
+    
+    // If it's a comma-separated list, process each item
+    if (trunkIdOrName.includes(",")) {
+      const trunkNames = trunkIdOrName.split(",").map((item) => {
+        const trimmed = item.trim();
+        const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+        if (isItemUuid) {
+          const trunk = trunks.find((t) => t.id === trimmed);
+          return trunk?.name;
+        }
+        return trimmed;
+      }).filter(Boolean);
+      
+      return trunkNames.length > 0 ? trunkNames.join(", ") : "-";
+    }
+    
+    return trunkIdOrName;
   };
 
   const handleDelete = async () => {
@@ -335,7 +386,7 @@ export default function HairDresser() {
                       <span className="text-xs truncate max-w-[100px] block">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2">
-                      <span className="text-xs">{hairdresser.trunks || "-"}</span>
+                      <span className="text-xs truncate max-w-[120px] block">{getTrunkName(hairdresser.trunks)}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2">
                       <span className="text-xs truncate max-w-[80px] block">{getSkillsDisplay(hairdresser.skills)}</span>
