@@ -307,7 +307,8 @@ const PwaBookingDetail = () => {
         return;
       }
 
-      // Legacy flow - direct signature without payment processing
+      // Flow for already-paid bookings (card payment at reservation time)
+      // Just need signature and mark as completed
       const { error } = await supabase
         .from("bookings")
         .update({ 
@@ -319,6 +320,11 @@ const PwaBookingDetail = () => {
         .eq("id", booking.id);
 
       if (error) throw error;
+
+      // Notify concierge of completion with final payment method (non-blocking)
+      supabase.functions.invoke('notify-concierge-completion', {
+        body: { bookingId: booking.id }
+      }).catch(err => console.error("Concierge notification error:", err));
 
       // Send rating email to client (non-blocking)
       if (booking.client_email) {

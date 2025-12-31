@@ -8,9 +8,9 @@ const corsHeaders = {
 };
 
 /**
- * NOTIFICATION TYPE 2: "Clôture & Facturation" (Deferred)
- * Trigger: When hairdresser clicks "Completed"
- * Content: Administrative email with FINAL amount + PDF invoice attached
+ * SERVICE COMPLETION REPORT
+ * Trigger: When hairdresser finalizes booking (room charge or card payment)
+ * Content: Dynamic email based on payment method with clear billing instructions
  */
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -39,16 +39,10 @@ serve(async (req) => {
       throw new Error('Booking not found');
     }
 
-    // Only send billing notification for room payments
-    if (booking.payment_method !== 'room') {
-      console.log('[notify-concierge-completion] Not a room payment, skipping billing notification');
-      return new Response(
-        JSON.stringify({ success: true, skipped: true, reason: 'not_room_payment' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('[notify-concierge-completion] Processing completion for booking #', booking.booking_id);
+    const paymentMethod = booking.payment_method || 'room';
+    const isRoomPayment = paymentMethod === 'room';
+    
+    console.log('[notify-concierge-completion] Processing completion for booking #', booking.booking_id, '- Payment method:', paymentMethod);
 
     // Get treatments with details
     const { data: bookingTreatments } = await supabase
@@ -67,14 +61,24 @@ serve(async (req) => {
 
     const treatmentsList = treatments.map(t => `${t.name} (${t.price}€)`).join(', ');
 
-    // Get hotel for VAT
+    // Get hotel for VAT and currency
     const { data: hotel } = await supabase
       .from('hotels')
-      .select('name, vat, address, city, postal_code')
+      .select('name, vat, address, city, postal_code, currency')
       .eq('id', booking.hotel_id)
       .single();
 
+    const currency = hotel?.currency || 'EUR';
+    const currencySymbol = currency === 'EUR' ? '€' : currency;
+
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    
+    const formattedDateShort = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
       weekday: 'short',
       day: 'numeric',
       month: 'short'
@@ -86,10 +90,16 @@ serve(async (req) => {
 
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
     const totalAmount = booking.total_price || 0;
+    const roomNumber = booking.room_number || 'N/A';
 
     const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
 
-    // Generate PDF Invoice HTML
+    // Dynamic subject based on payment method
+    const emailSubject = isRoomPayment
+      ? `⚠️ A FACTURER : Rapport prestation - Chambre ${roomNumber}`
+      : `✅ TERMINÉ (Payé CB) : Rapport prestation - Chambre ${roomNumber}`;
+
+    // Generate Invoice PDF HTML
     const generateInvoicePdfHtml = () => {
       const subtotal = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
       const vat = hotel?.vat || 20;
@@ -100,7 +110,7 @@ serve(async (req) => {
         <tr>
           <td style="padding:10px;border-bottom:1px solid #e5e7eb;font-size:13px;">${t.name}</td>
           <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:center;color:#6b7280;font-size:13px;">${t.duration} min</td>
-          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;">${t.price}€</td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;">${t.price}${currencySymbol}</td>
         </tr>
       `).join('');
 
@@ -141,9 +151,10 @@ serve(async (req) => {
     <!-- Service Details -->
     <div style="background:#000;color:#fff;padding:16px;border-radius:8px;margin-bottom:24px;">
       <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Détails prestation</div>
-      <div style="font-size:14px;"><strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+      <div style="font-size:14px;"><strong>Date:</strong> ${formattedDate}</div>
       <div style="font-size:14px;margin-top:4px;"><strong>Heure:</strong> ${formattedTime}</div>
       ${booking.hairdresser_name ? `<div style="font-size:14px;margin-top:4px;"><strong>Coiffeur:</strong> ${booking.hairdresser_name}</div>` : ''}
+      <div style="font-size:14px;margin-top:4px;"><strong>Paiement:</strong> ${isRoomPayment ? 'Facturation chambre' : 'Carte bancaire (déjà payé)'}</div>
     </div>
     
     <!-- Treatments Table -->
@@ -159,15 +170,15 @@ serve(async (req) => {
         ${treatmentRows}
         <tr style="background:#fafafa;">
           <td colspan="2" style="padding:10px;text-align:right;font-size:13px;">Sous-total</td>
-          <td style="padding:10px;text-align:right;font-size:13px;font-weight:500;">${subtotal.toFixed(2)}€</td>
+          <td style="padding:10px;text-align:right;font-size:13px;font-weight:500;">${subtotal.toFixed(2)}${currencySymbol}</td>
         </tr>
         <tr style="background:#fafafa;">
           <td colspan="2" style="padding:10px;text-align:right;font-size:13px;color:#6b7280;">TVA (${vat}%)</td>
-          <td style="padding:10px;text-align:right;font-size:13px;color:#6b7280;">${vatAmount.toFixed(2)}€</td>
+          <td style="padding:10px;text-align:right;font-size:13px;color:#6b7280;">${vatAmount.toFixed(2)}${currencySymbol}</td>
         </tr>
         <tr style="background:#000;color:#fff;">
           <td colspan="2" style="padding:14px;text-align:right;font-size:15px;font-weight:700;">TOTAL</td>
-          <td style="padding:14px;text-align:right;font-size:18px;font-weight:700;">${total.toFixed(2)}€</td>
+          <td style="padding:14px;text-align:right;font-size:18px;font-weight:700;">${total.toFixed(2)}${currencySymbol}</td>
         </tr>
       </tbody>
     </table>
@@ -196,8 +207,54 @@ serve(async (req) => {
       `;
     };
 
-    // Billing notification email with CTA
-    const createBillingEmailHtml = () => `
+    // Dynamic email content based on payment method
+    const createCompletionEmailHtml = () => {
+      // Colors and styles based on payment method
+      const headerBgColor = isRoomPayment ? '#fef3c7' : '#ecfdf5';
+      const headerBorderColor = isRoomPayment ? '#f59e0b' : '#10b981';
+      const headerTextColor = isRoomPayment ? '#92400e' : '#047857';
+      const badgeColor = isRoomPayment ? '#f59e0b' : '#10b981';
+      const badgeText = isRoomPayment ? '⚠️ ACTION REQUISE' : '✅ PAYÉ PAR CB';
+      
+      // Billing instruction block
+      const billingInstruction = isRoomPayment
+        ? `
+          <!-- ROOM CHARGE - Action Required -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:3px solid #f59e0b;border-radius:12px;margin-bottom:20px;">
+            <tr>
+              <td style="padding:20px;text-align:center;">
+                <p style="margin:0;font-size:14px;color:#92400e;font-weight:700;text-transform:uppercase;">⚠️ ACTION REQUISE</p>
+                <p style="margin:12px 0 0;font-size:36px;font-weight:bold;color:#92400e;">${totalAmount} ${currencySymbol}</p>
+                <p style="margin:8px 0 0;font-size:13px;color:#b45309;">Chambre ${roomNumber}</p>
+                <div style="margin-top:16px;padding:12px;background:#fff;border-radius:8px;border:1px solid #fcd34d;">
+                  <p style="margin:0;font-size:14px;color:#92400e;font-weight:600;">
+                    📋 Merci de poster le montant de <strong>${totalAmount}${currencySymbol}</strong> sur la note de la chambre <strong>${roomNumber}</strong>
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        `
+        : `
+          <!-- CARD PAYMENT - No Action Required -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf5;border:3px solid #10b981;border-radius:12px;margin-bottom:20px;">
+            <tr>
+              <td style="padding:20px;text-align:center;">
+                <p style="margin:0;font-size:14px;color:#047857;font-weight:700;text-transform:uppercase;">✅ PAYÉ PAR CARTE BANCAIRE</p>
+                <p style="margin:12px 0 0;font-size:36px;font-weight:bold;color:#047857;">${totalAmount} ${currencySymbol}</p>
+                <p style="margin:8px 0 0;font-size:13px;color:#059669;">Chambre ${roomNumber}</p>
+                <div style="margin-top:16px;padding:12px;background:#fff;border-radius:8px;border:1px solid #a7f3d0;">
+                  <p style="margin:0;font-size:14px;color:#047857;font-weight:600;">
+                    ℹ️ Le client a réglé par Carte Bancaire.<br/>
+                    <strong style="color:#dc2626;">NE PAS DÉBITER LA CHAMBRE</strong>
+                  </p>
+                </div>
+              </td>
+            </tr>
+          </table>
+        `;
+
+      return `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -205,54 +262,61 @@ serve(async (req) => {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
           <!-- Header -->
           <tr>
-            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
-              <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">✅ Prestation terminée</span>
+            <td style="background:#fff;padding:20px;text-align:center;border-bottom:1px solid #f0f0f0;">
+              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 12px;" />
+              <span style="display:inline-block;background:${badgeColor};color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:700;">${badgeText}</span>
             </td>
           </tr>
           
           <!-- Content -->
           <tr>
-            <td style="padding:20px;">
-              <p style="margin:0 0 16px;font-size:14px;color:#374151;">
-                La prestation a été réalisée avec succès. Merci de procéder à la facturation.
+            <td style="padding:24px;">
+              <!-- Header Text -->
+              <p style="margin:0 0 20px;font-size:16px;color:#111;font-weight:600;text-align:center;">
+                La prestation du ${formattedDateShort} à ${formattedTime} est terminée.
               </p>
               
-              <!-- Amount Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;margin-bottom:16px;">
-                <tr>
-                  <td style="padding:16px;text-align:center;">
-                    <p style="margin:0;font-size:12px;color:#92400e;font-weight:600;">Chambre ${booking.room_number || 'N/A'}</p>
-                    <p style="margin:6px 0 0;font-size:32px;font-weight:bold;color:#92400e;">${totalAmount} €</p>
-                    <p style="margin:6px 0 0;font-size:11px;color:#b45309;">À ajouter sur la note du client</p>
-                  </td>
-                </tr>
-              </table>
+              ${billingInstruction}
               
-              <!-- Details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:16px;">
+              <!-- Booking Details -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:20px;">
                 <tr>
-                  <td style="padding:5px 0;color:#6b7280;width:80px;">Résa</td>
-                  <td style="padding:5px 0;font-weight:600;">#${booking.booking_id}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">Client</td>
-                  <td style="padding:5px 0;">${booking.client_first_name} ${booking.client_last_name}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">RDV</td>
-                  <td style="padding:5px 0;">${formattedDate} à ${formattedTime}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">Coiffeur</td>
-                  <td style="padding:5px 0;">${booking.hairdresser_name || '-'}</td>
-                </tr>
-                <tr>
-                  <td style="padding:5px 0;color:#6b7280;">Soins</td>
-                  <td style="padding:5px 0;">${treatmentsList}</td>
+                  <td style="padding:16px;">
+                    <p style="margin:0 0 12px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;">Détails de la prestation</p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;width:100px;">Réservation</td>
+                        <td style="padding:6px 0;font-weight:600;">#${booking.booking_id}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Client</td>
+                        <td style="padding:6px 0;">${booking.client_first_name} ${booking.client_last_name}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Chambre</td>
+                        <td style="padding:6px 0;font-weight:600;">${roomNumber}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Date & Heure</td>
+                        <td style="padding:6px 0;">${formattedDateShort} à ${formattedTime}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Coiffeur</td>
+                        <td style="padding:6px 0;">${booking.hairdresser_name || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Soins</td>
+                        <td style="padding:6px 0;">${treatmentsList || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td style="padding:6px 0;color:#6b7280;">Montant</td>
+                        <td style="padding:6px 0;font-weight:700;font-size:15px;">${totalAmount} ${currencySymbol}</td>
+                      </tr>
+                    </table>
+                  </td>
                 </tr>
               </table>
               
@@ -260,24 +324,26 @@ serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
                 <tr>
                   <td align="center">
-                    <a href="${bookingDetailsUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
-                      Voir les détails de la commande →
+                    <a href="${bookingDetailsUrl}" style="display:inline-block;background:#000;color:#fff;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
+                      Voir les détails →
                     </a>
                   </td>
                 </tr>
               </table>
               
-              <!-- Note -->
-              <p style="margin:0;padding:12px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;font-size:12px;color:#047857;text-align:center;">
-                📎 La facture détaillée est jointe à cet email
+              <!-- Attachment Note -->
+              <p style="margin:0;padding:12px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;color:#6b7280;text-align:center;">
+                📎 La facture détaillée avec signature client est jointe à cet email
               </p>
             </td>
           </tr>
           
           <!-- Footer -->
           <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">
-              OOM · Merci de facturer sur la note du client
+            <td style="padding:16px;text-align:center;background:#fafafa;border-top:1px solid #f0f0f0;">
+              <p style="margin:0;font-size:11px;color:#9ca3af;">
+                OOM · Rapport de prestation automatique
+              </p>
             </td>
           </tr>
         </table>
@@ -286,7 +352,8 @@ serve(async (req) => {
   </table>
 </body>
 </html>
-    `;
+      `;
+    };
 
     const emailsSent: string[] = [];
     const errors: string[] = [];
@@ -312,7 +379,6 @@ serve(async (req) => {
       if (concierges && concierges.length > 0) {
         for (const concierge of concierges) {
           try {
-            // Send email with HTML invoice as attachment
             // Convert to base64 using TextEncoder (Deno compatible)
             const encoder = new TextEncoder();
             const invoiceBytes = encoder.encode(invoiceHtml);
@@ -321,8 +387,8 @@ serve(async (req) => {
             const { error: emailError } = await resend.emails.send({
               from: 'OOM <booking@oomworld.com>',
               to: [concierge.email],
-              subject: `💳 Facturer ${totalAmount}€ · Ch.${booking.room_number || 'N/A'} · #${booking.booking_id}`,
-              html: createBillingEmailHtml(),
+              subject: emailSubject,
+              html: createCompletionEmailHtml(),
               attachments: [
                 {
                   filename: `facture-${booking.booking_id}.html`,
@@ -336,7 +402,7 @@ serve(async (req) => {
               console.error(`[notify-concierge-completion] Error sending to ${concierge.email}:`, emailError);
               errors.push(concierge.email);
             } else {
-              console.log(`[notify-concierge-completion] Billing email sent to: ${concierge.email}`);
+              console.log(`[notify-concierge-completion] Completion email sent to: ${concierge.email} (${paymentMethod})`);
               emailsSent.push(concierge.email);
             }
           } catch (e) {
@@ -351,7 +417,7 @@ serve(async (req) => {
       console.log('[notify-concierge-completion] No concierges for hotel:', booking.hotel_id);
     }
 
-    console.log('[notify-concierge-completion] Summary - Sent:', emailsSent.length, 'Errors:', errors.length);
+    console.log('[notify-concierge-completion] Summary - Sent:', emailsSent.length, 'Errors:', errors.length, 'Payment method:', paymentMethod);
 
     return new Response(
       JSON.stringify({ 
@@ -359,7 +425,8 @@ serve(async (req) => {
         emailsSent: emailsSent.length, 
         emails: emailsSent, 
         errors: errors.length > 0 ? errors : undefined,
-        totalAmount 
+        totalAmount,
+        paymentMethod
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
