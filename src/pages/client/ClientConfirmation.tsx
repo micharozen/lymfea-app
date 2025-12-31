@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Clock } from 'lucide-react';
+import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function ClientConfirmation() {
@@ -11,7 +11,7 @@ export default function ClientConfirmation() {
   const { t } = useTranslation('client');
 
   // Fetch booking to check if it's a quote
-  const { data: booking } = useQuery({
+  const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-confirmation', bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,6 +26,15 @@ export default function ClientConfirmation() {
   });
 
   const isQuotePending = booking?.status === 'quote_pending';
+
+  // Show loading while fetching booking status
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
@@ -47,12 +56,12 @@ export default function ClientConfirmation() {
         {/* Success Message */}
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-foreground">
-            {isQuotePending ? t('confirmation.quotePendingTitle', 'Demande de devis envoyée') : t('confirmation.title')}
+            {isQuotePending ? t('confirmation.quotePendingTitle') : t('confirmation.title')}
           </h1>
           
           <p className="text-muted-foreground leading-relaxed px-4">
             {isQuotePending 
-              ? t('confirmation.quotePendingMessage', 'Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails.')
+              ? t('confirmation.quotePendingMessage')
               : t('confirmation.message')
             }
           </p>
