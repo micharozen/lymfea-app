@@ -650,7 +650,7 @@ const PwaBookingDetail = () => {
 
   return (
     <>
-       <div className="flex flex-1 flex-col bg-background pb-20">
+       <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
         <PwaHeader
           title={t('bookingDetail.myBooking')}
           showBack
@@ -660,7 +660,7 @@ const PwaBookingDetail = () => {
           }}
         />
 
-        <div className="px-4 pt-3">
+        <div className="flex-1 overflow-y-auto pb-20 px-4 pt-3">
           {/* Hotel Header - Centered */}
           <div className="flex flex-col items-center mb-4">
             {/* Hotel Image - Centered */}
