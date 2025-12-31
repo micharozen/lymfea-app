@@ -158,12 +158,14 @@ serve(async (req) => {
               hotel_id: booking.hotel_id,
               booking_id: booking.id,
               amount: oomAmount,
-              status: 'completed',
+              status: 'pending',
               description: `Commission OOM (${oomCommissionPercent}%) - Réservation #${booking.booking_id}`,
             });
 
           if (oomLedgerError) {
             console.error('[STRIPE-WEBHOOK] OOM ledger entry failed:', oomLedgerError);
+          } else {
+            console.log(`[STRIPE-WEBHOOK] OOM commission entry created: ${oomAmount}€`);
           }
 
           // Entry 2: Hotel commission (what OOM owes to hotel) - negative amount means OOM owes hotel
