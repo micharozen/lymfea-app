@@ -28,6 +28,7 @@ export default function ClientMenu() {
   const gender = searchParams.get('gender') || 'women';
   const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const { t } = useTranslation('client');
   
   // On Request drawer state
@@ -71,6 +72,13 @@ export default function ClientMenu() {
 
   const categories = [...new Set(treatments.map(t => t.category))];
 
+  // Set initial active category when categories are loaded
+  useEffect(() => {
+    if (categories.length > 0 && !activeCategory) {
+      setActiveCategory(categories[0]);
+    }
+  }, [categories.length, activeCategory]);
+
   const handleAddToBasket = (treatment: Treatment) => {
     // Add to basket - including price_on_request items for mixed cart logic
     addItem({
@@ -112,7 +120,7 @@ export default function ClientMenu() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
+      {/* Header + Tabs Sticky */}
       <div className="sticky top-0 z-20 bg-background border-b border-border">
         <div className="relative h-28 overflow-hidden">
           {hotel?.cover_image && (
@@ -155,21 +163,27 @@ export default function ClientMenu() {
           </div>
           </div>
         </div>
+
+        {/* Categories Tabs - Inside sticky container */}
+        <div className="w-full overflow-x-auto scrollbar-hide border-t border-border">
+          <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+            <TabsList className="w-full justify-start rounded-none bg-background p-0 h-auto">
+              {categories.map(category => (
+                <TabsTrigger
+                  key={category}
+                  value={category}
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3 text-sm whitespace-nowrap"
+                >
+                  {t(`menu.categories.${category}`, category)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
-      {/* Categories Tabs */}
-      <Tabs defaultValue={categories[0]} className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b border-border bg-background p-0 h-auto overflow-x-auto scrollbar-hide">
-          {categories.map(category => (
-            <TabsTrigger
-              key={category}
-              value={category}
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3 text-sm whitespace-nowrap"
-            >
-              {t(`menu.categories.${category}`, category)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Categories Tabs Content */}
+      <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
 
         {categories.map(category => (
           <TabsContent key={category} value={category} className="mt-0">
