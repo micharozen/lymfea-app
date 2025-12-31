@@ -261,7 +261,7 @@ export default function Hotels() {
               <TableRow className="h-8 bg-muted/50">
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtel</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Localisation</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Concierges</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Concierges</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Trunks</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Statut</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Ventes</TableHead>
@@ -298,9 +298,9 @@ export default function Hotels() {
                         {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
                       </span>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
+                    <TableCell className="py-0 px-2 text-center">
                       {hotel.concierges && hotel.concierges.length > 0 ? (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           {hotel.concierges.slice(0, 2).map((concierge) => (
                             <Avatar key={concierge.id} className="h-5 w-5">
                               <AvatarImage src={concierge.profile_image || ""} />
