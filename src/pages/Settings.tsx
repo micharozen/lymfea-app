@@ -1,4 +1,4 @@
-import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2, Globe, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,8 +6,10 @@ import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TimezoneSelectField } from "@/components/TimezoneSelector";
+import { useTimezone } from "@/contexts/TimezoneContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -157,6 +159,87 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
       return def.match(/.{1,2}/g)?.join(' ') || def;
   }
 };
+
+// Timezone Settings Component
+function TimezoneSettingsSection() {
+  const { userTimezone, saveUserTimezone, isLoading } = useTimezone();
+  const [selectedTimezone, setSelectedTimezone] = useState(userTimezone);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync local state when userTimezone loads
+  useState(() => {
+    if (userTimezone && userTimezone !== selectedTimezone) {
+      setSelectedTimezone(userTimezone);
+    }
+  });
+
+  const handleSave = async () => {
+    if (selectedTimezone === userTimezone) return;
+    
+    setIsSaving(true);
+    try {
+      await saveUserTimezone(selectedTimezone);
+      toast({
+        title: "Succès",
+        description: "Votre fuseau horaire a été mis à jour.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder le fuseau horaire.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const hasChanges = selectedTimezone !== userTimezone;
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Globe className="h-5 w-5 text-muted-foreground" />
+          <CardTitle className="text-xl">Fuseau horaire</CardTitle>
+        </div>
+        <CardDescription>
+          Définissez votre fuseau horaire par défaut pour l'affichage des dates et heures.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-4">
+          <div className="flex-1 max-w-md">
+            <TimezoneSelectField
+              value={selectedTimezone}
+              onChange={setSelectedTimezone}
+              label=""
+            />
+          </div>
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || isSaving || isLoading}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              "Enregistrer"
+            )}
+          </Button>
+        </div>
+        {hasChanges && (
+          <p className="text-sm text-muted-foreground mt-2">
+            Modifications non enregistrées
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Settings() {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
@@ -474,6 +557,9 @@ export default function Settings() {
             ⚙️ Paramètres & Accès
           </h1>
         </div>
+
+        {/* Timezone Settings Section */}
+        <TimezoneSettingsSection />
 
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-foreground mb-4">Admin</h2>

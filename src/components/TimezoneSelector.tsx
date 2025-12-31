@@ -1,14 +1,18 @@
 import { useState, useMemo } from 'react';
-import { Globe, RotateCcw, Check } from 'lucide-react';
+import { Globe, RotateCcw, Search } from 'lucide-react';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -42,7 +46,7 @@ export function TimezoneSelector({
     userTimezone 
   } = useTimezone();
 
-  const groupedTimezones = useMemo(() => getGroupedTimezones(), []);
+  const [open, setOpen] = useState(false);
 
   const currentLabel = getTimezoneLabel(activeTimezone);
 
@@ -66,36 +70,50 @@ export function TimezoneSelector({
         </Tooltip>
       </TooltipProvider>
 
-      <Select value={activeTimezone} onValueChange={setActiveTimezone}>
-        <SelectTrigger className={cn(
-          "w-auto min-w-[160px]",
-          compact && "h-8 text-sm",
-          isTemporaryTimezone && "border-amber-500/50 bg-amber-500/5"
-        )}>
-          <SelectValue>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "w-auto min-w-[160px] justify-between font-normal",
+              compact && "h-8 text-sm",
+              isTemporaryTimezone && "border-amber-500/50 bg-amber-500/5"
+            )}
+          >
             {compact ? currentLabel.split(',')[0] : currentLabel}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px]">
-          {Object.entries(groupedTimezones).map(([region, timezones]) => (
-            timezones.length > 0 && (
-              <SelectGroup key={region}>
-                <SelectLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {region}
-                </SelectLabel>
-                {timezones.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value}>
-                    <div className="flex items-center justify-between w-full gap-4">
-                      <span>{tz.label}</span>
-                      <span className="text-xs text-muted-foreground">{tz.offset}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            )
-          ))}
-        </SelectContent>
-      </Select>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[300px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Rechercher un fuseau horaire..." />
+            <CommandList className="max-h-[300px]">
+              <CommandEmpty>Aucun fuseau horaire trouvé.</CommandEmpty>
+              {Object.entries(getGroupedTimezones()).map(([region, timezones]) => (
+                timezones.length > 0 && (
+                  <CommandGroup key={region} heading={region}>
+                    {timezones.map((tz) => (
+                      <CommandItem
+                        key={tz.value}
+                        value={`${tz.label} ${tz.value}`}
+                        onSelect={() => {
+                          setActiveTimezone(tz.value);
+                          setOpen(false);
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        <span>{tz.label}</span>
+                        <span className="text-xs text-muted-foreground">{tz.offset}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
 
       {showReset && isTemporaryTimezone && (
         <TooltipProvider>
@@ -128,7 +146,7 @@ interface TimezoneSelectFieldProps {
 }
 
 /**
- * Timezone selector for forms (hotel edit, settings, etc.)
+ * Timezone selector for forms (hotel edit, settings, etc.) with search
  */
 export function TimezoneSelectField({ 
   value, 
@@ -136,40 +154,57 @@ export function TimezoneSelectField({
   label = "Fuseau horaire",
   className 
 }: TimezoneSelectFieldProps) {
-  const groupedTimezones = useMemo(() => getGroupedTimezones(), []);
+  const [open, setOpen] = useState(false);
+  const currentLabel = getTimezoneLabel(value);
 
   return (
     <div className={cn("space-y-2", className)}>
       {label && (
         <label className="text-sm font-medium">{label}</label>
       )}
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
-            <SelectValue placeholder="Sélectionner un fuseau horaire" />
-          </div>
-        </SelectTrigger>
-        <SelectContent className="max-h-[300px]">
-          {Object.entries(groupedTimezones).map(([region, timezones]) => (
-            timezones.length > 0 && (
-              <SelectGroup key={region}>
-                <SelectLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {region}
-                </SelectLabel>
-                {timezones.map((tz) => (
-                  <SelectItem key={tz.value} value={tz.value}>
-                    <div className="flex items-center justify-between w-full gap-4">
-                      <span>{tz.label}</span>
-                      <span className="text-xs text-muted-foreground">{tz.offset}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            )
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between font-normal"
+          >
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <span>{currentLabel || "Sélectionner un fuseau horaire"}</span>
+            </div>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[300px] p-0" align="start">
+          <Command>
+            <CommandInput placeholder="Rechercher un fuseau horaire..." />
+            <CommandList className="max-h-[300px]">
+              <CommandEmpty>Aucun fuseau horaire trouvé.</CommandEmpty>
+              {Object.entries(getGroupedTimezones()).map(([region, timezones]) => (
+                timezones.length > 0 && (
+                  <CommandGroup key={region} heading={region}>
+                    {timezones.map((tz) => (
+                      <CommandItem
+                        key={tz.value}
+                        value={`${tz.label} ${tz.value}`}
+                        onSelect={() => {
+                          onChange(tz.value);
+                          setOpen(false);
+                        }}
+                        className="flex items-center justify-between"
+                      >
+                        <span>{tz.label}</span>
+                        <span className="text-xs text-muted-foreground">{tz.offset}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )
+              ))}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
