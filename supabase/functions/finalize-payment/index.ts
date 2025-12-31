@@ -500,10 +500,12 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
-      // Notifier le concierge pour les paiements chambre (prestation terminée)
+      // Notifier le concierge de la fin de prestation (avec mode de paiement réel)
       try {
-        await notifyConcierge(supabase, booking, hotel, totalTTC, signature_data, paidInvoice.hosted_invoice_url);
-        log("Concierge notified for room payment");
+        await supabase.functions.invoke('notify-concierge-completion', {
+          body: { bookingId: booking.id }
+        });
+        log("Concierge notified for room payment completion");
       } catch (notifyError: any) {
         log("Failed to notify concierge", { error: notifyError.message });
       }
@@ -545,136 +547,6 @@ serve(async (req) => {
   }
 });
 
-// Fonction pour notifier le concierge
-async function notifyConcierge(
-  supabase: any, 
-  booking: any, 
-  hotel: any, 
-  amount: number, 
-  signature: string,
-  invoiceUrl?: string | null
-) {
-  // Récupérer les concierges de l'hôtel
-  const { data: conciergeHotels } = await supabase
-    .from('concierge_hotels')
-    .select('concierge_id')
-    .eq('hotel_id', booking.hotel_id);
-
-  if (!conciergeHotels?.length) {
-    log("No concierges found for hotel");
-    return;
-  }
-
-  const conciergeIds = conciergeHotels.map((ch: any) => ch.concierge_id);
-
-  const { data: concierges } = await supabase
-    .from('concierges')
-    .select('email, first_name, last_name')
-    .in('id', conciergeIds)
-    .eq('status', 'Actif');
-
-  if (!concierges?.length) {
-    log("No active concierges found");
-    return;
-  }
-
-  // Appeler la fonction d'envoi d'email
-  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  if (!RESEND_API_KEY) {
-    log("RESEND_API_KEY not configured");
-    return;
-  }
-
-  // Check DEV_MODE for test emails
-  const DEV_MODE = Deno.env.get("DEV_MODE") === "true";
-  const TEST_EMAIL = "aaron@oomworld.com";
-
-  for (const concierge of concierges) {
-    const targetEmail = DEV_MODE ? TEST_EMAIL : concierge.email;
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #000; color: #fff; padding: 20px; text-align: center; }
-          .content { padding: 20px; background: #f9f9f9; }
-          .amount { font-size: 24px; font-weight: bold; color: #000; }
-          .signature { margin-top: 20px; padding: 10px; background: #fff; border: 1px solid #ddd; }
-          .signature img { max-width: 100%; height: auto; }
-          .action { background: #ff6b35; color: #fff; padding: 15px; text-align: center; margin-top: 20px; }
-          .invoice-btn { display: inline-block; background: #000; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 16px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>⚠️ ACTION REQUISE</h1>
-          </div>
-          <div class="content">
-            <p>Bonjour ${concierge.first_name},</p>
-            <p>Une prestation OOM vient d'être finalisée et doit être facturée sur la chambre du client.</p>
-            
-            <h2>Détails de la réservation</h2>
-            <ul>
-              <li><strong>Réservation :</strong> #${booking.booking_id}</li>
-              <li><strong>Client :</strong> ${booking.client_first_name} ${booking.client_last_name}</li>
-              <li><strong>Chambre :</strong> ${booking.room_number || 'Non spécifiée'}</li>
-              <li><strong>Hôtel :</strong> ${hotel.name}</li>
-            </ul>
-            
-            <div class="action">
-              <p class="amount">Montant à débiter : ${amount.toFixed(2)} €</p>
-            </div>
-            
-            ${invoiceUrl ? `
-            <div style="text-align: center; margin-top: 20px;">
-              <a href="${invoiceUrl}" class="invoice-btn" target="_blank">📄 Voir la facture Stripe</a>
-            </div>
-            ` : ''}
-            
-            <div class="signature">
-              <h3>Signature du client :</h3>
-              <img src="${signature}" alt="Signature client" />
-            </div>
-            
-            <p style="margin-top: 20px;">
-              Merci de débiter ce montant sur la note de chambre du client.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'OOM App <booking@oomworld.com>',
-          to: [targetEmail],
-          subject: `${DEV_MODE ? '[TEST] ' : ''}⚠️ ACTION REQUISE : Débiter Chambre ${booking.room_number || 'N/A'} - ${amount.toFixed(2)}€ - Réservation #${booking.booking_id}`,
-          html: emailHtml,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        log(`Failed to send email to ${targetEmail}`, { error: errorText });
-      } else {
-        log(`Email sent to concierge: ${targetEmail}${DEV_MODE ? ` (original: ${concierge.email})` : ''}`);
-      }
-    } catch (emailError: any) {
-      log(`Error sending email to ${targetEmail}`, { error: emailError.message });
-    }
-    
-    // En mode test, on n'envoie qu'un seul email
-    if (DEV_MODE) break;
-  }
-}
+// NOTE: Concierge notification is now handled by the 'notify-concierge-completion' edge function
+// which is called after successful payment finalization. This provides a unified notification
+// with dynamic content based on the final payment method (room or card).
