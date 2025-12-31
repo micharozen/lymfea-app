@@ -212,8 +212,8 @@ export default function TreatmentMenus() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="Actif">Actif</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -298,16 +298,16 @@ export default function TreatmentMenus() {
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <Badge
-                        variant={menu.status === "Actif" ? "default" : "secondary"}
+                        variant={menu.status === "active" ? "default" : "secondary"}
                         className={cn(
                           "text-[10px] px-2 py-0.5",
-                          menu.status === "Actif" &&
+                          menu.status === "active" &&
                             "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                          menu.status === "En attente" &&
-                            "bg-orange-500/10 text-orange-700 hover:bg-orange-500/20"
+                          menu.status === "inactive" &&
+                            "bg-red-500/10 text-red-700 hover:bg-red-500/20"
                         )}
                       >
-                        {menu.status}
+                        {menu.status === "active" ? "Actif" : "Inactif"}
                       </Badge>
                     </TableCell>
                     {isAdmin && (
