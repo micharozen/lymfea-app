@@ -33,9 +33,17 @@ import { Upload } from "lucide-react";
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   trunk_model: z.string().min(1, "Le modèle de trunk est requis"),
-  trunk_id: z.string().min(1, "L'ID du trunk est requis"),
   hotel_id: z.string().optional(),
 });
+
+const generateTrunkId = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = 'TRK-';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 interface AddTrunkDialogProps {
   open: boolean;
@@ -56,7 +64,6 @@ export function AddTrunkDialog({
     defaultValues: {
       name: "",
       trunk_model: "",
-      trunk_id: "",
       hotel_id: "",
     },
   });
@@ -111,7 +118,7 @@ export function AddTrunkDialog({
     const { error } = await supabase.from("trunks").insert({
       name: values.name,
       trunk_model: values.trunk_model,
-      trunk_id: values.trunk_id,
+      trunk_id: generateTrunkId(),
       hotel_id: values.hotel_id || null,
       hotel_name: selectedHotel?.name || null,
       image: trunkImage || null,
@@ -195,20 +202,6 @@ export function AddTrunkDialog({
                   <FormLabel>Modèle du trunk</FormLabel>
                   <FormControl>
                     <Input placeholder="OOM Trunk V1" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="trunk_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ID du trunk</FormLabel>
-                  <FormControl>
-                    <Input placeholder="TRK-001" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
