@@ -86,7 +86,9 @@
     "confirmBook": "Confirmer et réserver",
     "quoteRequired": "Devis requis",
     "quoteRequiredDesc": "Votre panier contient des prestations sur devis. Un conseiller vous contactera pour confirmer le prix final.",
-    "onQuote": "Sur devis"
+    "onQuote": "Sur devis",
+    "plusQuote": "+ devis",
+    "requestQuote": "Demander un devis"
   },
   "confirmation": {
     "title": "Réservation confirmée",
