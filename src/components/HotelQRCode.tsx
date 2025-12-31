@@ -21,18 +21,18 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const getPublicBaseUrl = () => {
-    const { hostname, protocol } = window.location;
+  // Production domain for public QR codes
+  const PRODUCTION_DOMAIN = 'https://oom-clone-genesis.lovable.app';
 
-    // In Lovable preview domains, all routes are protected. We must point QR codes to the public domain.
-    // Example:
-    // - Preview:   https://<project>.lovableproject.com
-    // - Public:    https://id-preview--<project>.lovable.app
+  const getPublicBaseUrl = () => {
+    const { hostname } = window.location;
+
+    // If we're in preview mode (lovableproject.com), use the production domain
     if (hostname.endsWith('.lovableproject.com')) {
-      const projectSubdomain = hostname.replace('.lovableproject.com', '');
-      return `${protocol}//id-preview--${projectSubdomain}.lovable.app`;
+      return PRODUCTION_DOMAIN;
     }
 
+    // Otherwise use current origin (already on production or localhost)
     return window.location.origin;
   };
 
