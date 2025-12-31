@@ -371,6 +371,7 @@ export default function Booking() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les statuts</SelectItem>
+            <SelectItem value="quote_pending">Devis</SelectItem>
             <SelectItem value="pending">En attente</SelectItem>
             <SelectItem value="confirmed">Confirmé</SelectItem>
             <SelectItem value="ongoing">En cours</SelectItem>
