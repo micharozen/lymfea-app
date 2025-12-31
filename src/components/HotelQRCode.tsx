@@ -108,10 +108,10 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
         <Button 
           variant="ghost" 
           size="icon" 
-          className="h-7 w-7 hover:bg-primary/10"
+          className="h-7 w-7 hover:bg-muted"
           title="Voir le QR code"
         >
-          <QrCodeIcon className="h-4 w-4" />
+          <QrCodeIcon className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
