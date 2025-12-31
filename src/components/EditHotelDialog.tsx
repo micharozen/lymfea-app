@@ -134,11 +134,10 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
     try {
       setLoadingTrunks(true);
       
-      // Load all trunks (available ones + those affiliated to this hotel)
+      // Load ALL trunks (to allow reassignment between hotels)
       const { data: trunks, error } = await supabase
         .from("trunks")
         .select("*")
-        .or(`hotel_id.is.null,hotel_id.eq.${hotelId}`)
         .order("name");
 
       if (error) throw error;
