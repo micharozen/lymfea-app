@@ -21,8 +21,22 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const [isOpen, setIsOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const bookingUrl = `${window.location.origin}/client/${hotelId}`;
+  const getPublicBaseUrl = () => {
+    const { hostname, protocol } = window.location;
 
+    // In Lovable preview domains, all routes are protected. We must point QR codes to the public domain.
+    // Example:
+    // - Preview:   https://<project>.lovableproject.com
+    // - Public:    https://id-preview--<project>.lovable.app
+    if (hostname.endsWith('.lovableproject.com')) {
+      const projectSubdomain = hostname.replace('.lovableproject.com', '');
+      return `${protocol}//id-preview--${projectSubdomain}.lovable.app`;
+    }
+
+    return window.location.origin;
+  };
+
+  const bookingUrl = `${getPublicBaseUrl()}/client/${hotelId}`;
   useEffect(() => {
     if (isOpen) {
       // Small delay to ensure canvas is mounted
