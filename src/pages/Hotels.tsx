@@ -317,11 +317,21 @@ export default function Hotels() {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
+                    <TableCell className="py-0 px-2">
                       {hotel.trunks && hotel.trunks.length > 0 ? (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">
-                          {hotel.trunks.length}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {hotel.trunks.slice(0, 2).map((trunk) => (
+                            <Avatar key={trunk.id} className="h-5 w-5">
+                              <AvatarImage src={trunk.image || ""} />
+                              <AvatarFallback className="bg-muted text-[8px]">
+                                {trunk.trunk_id.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {hotel.trunks.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">+{hotel.trunks.length - 2}</span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
