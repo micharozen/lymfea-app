@@ -133,6 +133,7 @@ export default function Booking() {
       const { data, error } = await supabase
         .from("hairdressers")
         .select("id, first_name, last_name")
+        .eq("status", "active")
         .order("first_name");
       if (error) throw error;
       return data;
