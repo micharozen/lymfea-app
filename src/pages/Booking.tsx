@@ -510,7 +510,7 @@ export default function Booking() {
                       const dayBookings = getBookingsForDay(day);
                       
                       // Calculate current time indicator position
-                      const now = new Date(currentTime.toLocaleString("en-US", { timeZone: timezone }));
+                      const now = new Date(currentTime.toLocaleString("en-US", { timeZone: activeTimezone }));
                       const currentHour = now.getHours();
                       const currentMinute = now.getMinutes();
                       const showCurrentTimeIndicator = isToday && currentHour >= START_HOUR && currentHour < END_HOUR;
