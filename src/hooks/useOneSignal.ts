@@ -58,8 +58,8 @@ export const getPendingNotificationUrl = (): string | null => {
   return url;
 };
 
-// Pages where OneSignal should NOT initialize (auth pages)
-const AUTH_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash'];
+// Pages where OneSignal should NOT initialize (auth pages and client booking flow)
+const EXCLUDED_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash', '/client'];
 
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);
@@ -92,10 +92,10 @@ export const useOneSignal = () => {
         return;
       }
 
-      // Skip initialization on auth pages - don't prompt for notifications before login
+      // Skip initialization on excluded pages - don't prompt for notifications before login or on client flow
       const currentPath = window.location.pathname;
-      if (AUTH_PAGES.some(page => currentPath === page || currentPath.startsWith(page + '/'))) {
-        console.log('[OneSignal] Skipping initialization on auth page:', currentPath);
+      if (EXCLUDED_PAGES.some(page => currentPath === page || currentPath.startsWith(page + '/'))) {
+        console.log('[OneSignal] Skipping initialization on excluded page:', currentPath);
         return;
       }
 
