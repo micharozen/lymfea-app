@@ -180,7 +180,7 @@ export default function ClientPayment() {
             {hasPriceOnRequest ? (
               <div className="text-right">
                 <span className="text-base">€{fixedTotal.toFixed(2)}</span>
-                <span className="text-amber-600 text-sm ml-1">+ devis</span>
+                <span className="text-amber-600 text-sm ml-1">{t('payment.plusQuote')}</span>
               </div>
             ) : (
               <span>€{total.toFixed(2)}</span>
@@ -257,7 +257,7 @@ export default function ClientPayment() {
               {t('payment.processing')}
             </>
           ) : hasPriceOnRequest ? (
-            "Demander un devis"
+            "t('payment.requestQuote')"
           ) : selectedMethod === 'card' ? (
             t('payment.payNow')
           ) : (
