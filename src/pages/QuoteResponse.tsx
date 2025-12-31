@@ -37,7 +37,7 @@ export default function QuoteResponse() {
 
         if (data.alreadyProcessed) {
           setStatus("already_processed");
-          setMessage("Ce devis a déjà été traité");
+          setMessage(data.message || "Ce devis a déjà été traité");
           return;
         }
 

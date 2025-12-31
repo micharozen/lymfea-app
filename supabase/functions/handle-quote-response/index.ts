@@ -56,25 +56,36 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate token (stored in quote_token column)
-    if (booking.quote_token !== token) {
-      console.error("Invalid token for booking:", bookingId);
+    // Check if booking has already been processed (token cleared or status changed)
+    if (!booking.quote_token || booking.status !== "waiting_approval") {
+      console.log("Quote already processed for booking:", bookingId, "Status:", booking.status);
+      
+      let statusMessage = "Ce devis a déjà été traité.";
+      if (booking.status === "pending" || booking.status === "confirmed") {
+        statusMessage = "Ce devis a déjà été accepté. Votre réservation est en cours de traitement.";
+      } else if (booking.status === "cancelled") {
+        statusMessage = "Ce devis a déjà été refusé ou la réservation a été annulée.";
+      } else if (booking.status === "completed") {
+        statusMessage = "Cette prestation a déjà été effectuée.";
+      }
+      
       return new Response(
-        JSON.stringify({ error: "Invalid or expired link", success: false }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ 
+          success: false,
+          alreadyProcessed: true,
+          currentStatus: booking.status,
+          message: statusMessage
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if booking is still in waiting_approval status
-    if (booking.status !== "waiting_approval") {
+    // Validate token
+    if (booking.quote_token !== token) {
+      console.error("Invalid token for booking:", bookingId);
       return new Response(
-        JSON.stringify({ 
-          error: "This quote has already been processed", 
-          success: false,
-          alreadyProcessed: true,
-          currentStatus: booking.status
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Lien invalide. Veuillez utiliser le lien reçu par email.", success: false }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
