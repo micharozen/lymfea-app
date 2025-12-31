@@ -737,6 +737,39 @@ export default function EditBookingDialog({
     },
   });
 
+  const approveQuoteMutation = useMutation({
+    mutationFn: async () => {
+      if (!booking?.id) throw new Error("No booking ID");
+
+      const quoteToken = (booking as any)?.quote_token as string | undefined;
+      if (!quoteToken) throw new Error("Missing quote token");
+
+      const { data, error } = await supabase.functions.invoke("handle-quote-response", {
+        body: { bookingId: booking.id, action: "approve", token: quoteToken },
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Failed to approve quote");
+
+      return data;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast({
+        title: "Devis accepté",
+        description: "La réservation est maintenant en attente d'un coiffeur.",
+      });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erreur",
+        description: error?.message || "Impossible de valider le devis",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleValidateQuote = () => {
     const variablePrice = parseFloat(quotePrice);
     const variableDuration = parseInt(quoteDuration);
@@ -1163,21 +1196,36 @@ export default function EditBookingDialog({
 
             {/* FOOTER */}
             <div className="px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
-              {booking?.status === "quote_pending" && isAdmin ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setViewMode("quote")}
-                  className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
-                >
-                  <AlertTriangle className="w-4 h-4 mr-2" />
-                  Valider le devis
-                </Button>
-              ) : (
-                <Button type="button" variant="outline" onClick={handleClose}>
-                  Fermer
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {booking?.status === "quote_pending" && isAdmin && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setViewMode("quote")}
+                    className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
+                  >
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Valider le devis
+                  </Button>
+                )}
+
+                {booking?.status === "waiting_approval" && isAdmin && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => approveQuoteMutation.mutate()}
+                    disabled={approveQuoteMutation.isPending}
+                  >
+                    {approveQuoteMutation.isPending ? "Validation..." : "Marquer accepté"}
+                  </Button>
+                )}
+
+                {!(booking?.status === "quote_pending" && isAdmin) && (
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    Fermer
+                  </Button>
+                )}
+              </div>
               
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
