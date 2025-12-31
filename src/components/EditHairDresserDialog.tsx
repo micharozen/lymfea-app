@@ -415,7 +415,7 @@ export default function EditHairDresserDialog({
                   {trunks.map((trunk) => (
                     <div
                       key={trunk.id}
-                      className="flex items-center gap-2 p-1.5 rounded-md"
+                      className="flex items-start gap-2 p-1.5 rounded-md"
                     >
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={trunk.image || ""} alt={trunk.name} />
@@ -429,19 +429,22 @@ export default function EditHairDresserDialog({
                         </Label>
                         <span className="text-[10px] text-muted-foreground">{trunk.trunk_id}</span>
                       </div>
-                      <Checkbox
-                        id={`trunk-${trunk.id}`}
-                        checked={selectedTrunks.includes(trunk.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedTrunks([...selectedTrunks, trunk.id]);
-                          } else {
-                            setSelectedTrunks(
-                              selectedTrunks.filter((t) => t !== trunk.id)
-                            );
-                          }
-                        }}
-                      />
+                      <div className="pt-1">
+                        <Checkbox
+                          className="h-4 w-4 min-h-4 min-w-4 max-h-4 max-w-4"
+                          id={`trunk-${trunk.id}`}
+                          checked={selectedTrunks.includes(trunk.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTrunks([...selectedTrunks, trunk.id]);
+                            } else {
+                              setSelectedTrunks(
+                                selectedTrunks.filter((t) => t !== trunk.id)
+                              );
+                            }
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
