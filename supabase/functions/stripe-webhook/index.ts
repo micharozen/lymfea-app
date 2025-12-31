@@ -60,10 +60,10 @@ serve(async (req) => {
           return new Response(JSON.stringify({ received: true }), { status: 200 });
         }
 
-        // Fetch hotel info
+        // Fetch hotel info with both commissions
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('name, currency, hairdresser_commission')
+          .select('name, currency, hairdresser_commission, hotel_commission')
           .eq('id', metadata.hotel_id)
           .maybeSingle();
 
@@ -137,11 +137,16 @@ serve(async (req) => {
         const currencyForEmail = (hotel?.currency || 'EUR').toUpperCase();
 
         // Create ledger entry so Finance shows the transaction
+        // OOM commission = 100% - hairdresser_commission - hotel_commission
         try {
           const hairdresserCommission = hotel?.hairdresser_commission ?? 70;
+          const hotelCommission = hotel?.hotel_commission ?? 10;
+          const oomCommissionPercent = Math.max(0, 100 - hairdresserCommission - hotelCommission);
           const totalPrice = parseFloat(metadata.verified_total_price || '0');
-          const hairdresserAmount = (totalPrice * hairdresserCommission) / 100;
-          const oomCommission = Math.max(0, totalPrice - hairdresserAmount);
+          const oomCommission = (totalPrice * oomCommissionPercent) / 100;
+
+          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommission}%, Hairdresser ${hairdresserCommission}%, OOM ${oomCommissionPercent}%`);
+          console.log(`[STRIPE-WEBHOOK] Total: ${totalPrice}€, OOM amount: ${oomCommission}€`);
 
           const { error: ledgerError } = await supabase
             .from('hotel_ledger')
