@@ -21,8 +21,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Euro, Timer } from "lucide-react";
+import { CalendarIcon, Euro, Timer, Globe, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getCurrentOffset } from "@/lib/timezones";
 
 interface TreatmentRequest {
   id: string;
@@ -86,7 +88,7 @@ export default function CreateBookingFromRequestDialog({
       if (!request?.hotel_id) return null;
       const { data, error } = await supabase
         .from("hotels")
-        .select("*")
+        .select("id, name, timezone")
         .eq("id", request.hotel_id)
         .single();
       if (error) throw error;
@@ -94,6 +96,8 @@ export default function CreateBookingFromRequestDialog({
     },
     enabled: !!request?.hotel_id,
   });
+
+  const hotelTimezone = hotel?.timezone || "Europe/Paris";
 
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers"],
