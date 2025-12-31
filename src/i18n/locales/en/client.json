@@ -83,7 +83,10 @@
     "payNowDesc": "Credit card, Apple Pay, Google Pay",
     "processing": "Processing...",
     "secure": "Secure payment",
-    "confirmBook": "Confirm & Book"
+    "confirmBook": "Confirm & Book",
+    "quoteRequired": "Quote required",
+    "quoteRequiredDesc": "Your cart contains items requiring a quote. A consultant will contact you to confirm the final price.",
+    "onQuote": "On quote"
   },
   "confirmation": {
     "title": "Booking Complete",

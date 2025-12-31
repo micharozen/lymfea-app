@@ -83,7 +83,10 @@
     "payNowDesc": "Carte bancaire, Apple Pay, Google Pay",
     "processing": "Traitement en cours...",
     "secure": "Paiement sécurisé",
-    "confirmBook": "Confirmer et réserver"
+    "confirmBook": "Confirmer et réserver",
+    "quoteRequired": "Devis requis",
+    "quoteRequiredDesc": "Votre panier contient des prestations sur devis. Un conseiller vous contactera pour confirmer le prix final.",
+    "onQuote": "Sur devis"
   },
   "confirmation": {
     "title": "Réservation confirmée",
