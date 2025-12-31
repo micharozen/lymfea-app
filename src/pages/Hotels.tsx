@@ -262,7 +262,7 @@ export default function Hotels() {
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtel</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Localisation</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold">Concierges</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Boxes</TableHead>
+                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Trunks</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Statut</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Ventes</TableHead>
                 <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Rés.</TableHead>
@@ -317,21 +317,11 @@ export default function Hotels() {
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2">
+                    <TableCell className="py-0 px-2 text-center">
                       {hotel.trunks && hotel.trunks.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          {hotel.trunks.slice(0, 2).map((trunk) => (
-                            <Avatar key={trunk.id} className="h-5 w-5">
-                              <AvatarImage src={trunk.image || ""} />
-                              <AvatarFallback className="bg-primary/10 text-primary text-[8px]">
-                                {trunk.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                          {hotel.trunks.length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">+{hotel.trunks.length - 2}</span>
-                          )}
-                        </div>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium">
+                          {hotel.trunks.length}
+                        </Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}
