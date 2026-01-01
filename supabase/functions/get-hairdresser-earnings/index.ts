@@ -85,6 +85,29 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
+    // Sync Stripe onboarding status (so the app doesn't rely only on webhooks)
+    let stripeOnboardingCompleted = hairdresser.stripe_onboarding_completed || false;
+    try {
+      const account = await stripe.accounts.retrieve(hairdresser.stripe_account_id);
+      const isOnboardingComplete =
+        !!account.details_submitted && (!!account.charges_enabled || !!account.payouts_enabled);
+
+      if (isOnboardingComplete && !stripeOnboardingCompleted) {
+        const { error: updateError } = await supabaseAdmin
+          .from("hairdressers")
+          .update({ stripe_onboarding_completed: true, updated_at: new Date().toISOString() })
+          .eq("id", hairdresser.id);
+
+        if (updateError) {
+          console.warn("Failed to update stripe_onboarding_completed", updateError);
+        } else {
+          stripeOnboardingCompleted = true;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not retrieve Stripe account to sync onboarding status", err);
+    }
+
     // Get transfers to this connected account
     const transfers = await stripe.transfers.list({
       destination: hairdresser.stripe_account_id,
@@ -94,7 +117,9 @@ serve(async (req) => {
       limit: 100,
     });
 
-    console.log(`Found ${transfers.data.length} transfers for account ${hairdresser.stripe_account_id}`);
+    console.log(
+      `Found ${transfers.data.length} transfers for account ${hairdresser.stripe_account_id}`
+    );
 
     // Calculate total and format payouts
     let total = 0;
@@ -139,14 +164,17 @@ serve(async (req) => {
     // Sort payouts by date (most recent first)
     payouts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    return new Response(JSON.stringify({
-      total,
-      payouts,
-      stripeAccountId: hairdresser.stripe_account_id,
-      stripeOnboardingCompleted: hairdresser.stripe_onboarding_completed || false,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        total,
+        payouts,
+        stripeAccountId: hairdresser.stripe_account_id,
+        stripeOnboardingCompleted,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
