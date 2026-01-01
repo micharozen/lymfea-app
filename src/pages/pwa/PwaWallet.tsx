@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Payout {
   id: string;
@@ -190,8 +190,30 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  if (isInitialMount && !earnings) {
-    return <PwaPageLoader title="Wallet" />;
+  // Show skeleton while loading
+  if (isLoading || isInitialMount) {
+    return (
+      <div className="flex flex-1 flex-col bg-muted/30">
+        <PwaHeader title="Wallet" />
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-sm w-full bg-background rounded-2xl shadow-sm p-8">
+            {/* Icon skeleton */}
+            <div className="flex justify-center mb-4">
+              <Skeleton className="w-14 h-14 rounded-full" />
+            </div>
+            {/* Title skeleton */}
+            <Skeleton className="h-5 w-3/4 mx-auto mb-3" />
+            {/* Description skeleton */}
+            <Skeleton className="h-4 w-full mx-auto mb-2" />
+            <Skeleton className="h-4 w-5/6 mx-auto mb-5" />
+            {/* Button skeleton */}
+            <div className="flex justify-center">
+              <Skeleton className="h-10 w-40 rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null, stripeOnboardingCompleted: false };
