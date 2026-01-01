@@ -40,7 +40,7 @@ serve(async (req) => {
     // Get hairdresser profile with stripe_account_id using admin client
     const { data: hairdresser, error: hairdresserError } = await supabaseAdmin
       .from("hairdressers")
-      .select("id, stripe_account_id")
+      .select("id, stripe_account_id, stripe_onboarding_completed")
       .eq("user_id", userData.user.id)
       .single();
 
@@ -75,6 +75,7 @@ serve(async (req) => {
         total: 0,
         payouts: [],
         stripeAccountId: null,
+        stripeOnboardingCompleted: false,
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -142,6 +143,7 @@ serve(async (req) => {
       total,
       payouts,
       stripeAccountId: hairdresser.stripe_account_id,
+      stripeOnboardingCompleted: hairdresser.stripe_onboarding_completed || false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
