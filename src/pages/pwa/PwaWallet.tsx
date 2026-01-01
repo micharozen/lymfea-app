@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,8 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+
 interface Payout {
   id: string;
   booking_id: number | null;
@@ -28,18 +29,32 @@ interface EarningsData {
   total: number;
   payouts: Payout[];
   stripeAccountId: string | null;
+  stripeOnboardingCompleted: boolean;
 }
 
 const PwaWallet = () => {
   const { t } = useTranslation('pwa');
+  const [searchParams] = useSearchParams();
   const [period, setPeriod] = useState("this_month");
   const [connectingStripe, setConnectingStripe] = useState(false);
   const [isInitialMount, setIsInitialMount] = useState(true);
   const queryClient = useQueryClient();
 
-  // Don't clear cache - just refetch in background
+  // Check URL params for Stripe callback
+  const successParam = searchParams.get("success");
+  const refreshParam = searchParams.get("refresh");
+
   useEffect(() => {
-    // Mark as no longer initial mount after first render
+    if (successParam === "true") {
+      toast.success(t('wallet.stripeConnected', 'Stripe account connected successfully!'));
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["wallet-earnings"] });
+    } else if (refreshParam === "true") {
+      toast.error(t('wallet.onboardingIncomplete', 'Stripe setup incomplete. Please try again.'));
+    }
+  }, [successParam, refreshParam, queryClient, t]);
+
+  useEffect(() => {
     const timer = setTimeout(() => setIsInitialMount(false), 0);
     return () => clearTimeout(timer);
   }, []);
@@ -61,38 +76,87 @@ const PwaWallet = () => {
         total: data.total || 0,
         payouts: data.payouts || [],
         stripeAccountId: data.stripeAccountId,
+        stripeOnboardingCompleted: data.stripeOnboardingCompleted || false,
       };
     },
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    // Only enable query after initial cache clear
     enabled: !isInitialMount,
   });
 
-  const openStripe = () => {
-    // Open Stripe Express dashboard for connected accounts
+  const openStripe = async () => {
+    // Generate a login link to Stripe Express dashboard
     if (earnings?.stripeAccountId) {
-      window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
-    } else {
-      window.open("https://dashboard.stripe.com/", "_blank");
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
+          body: {},
+        });
+        if (data?.url) {
+          window.open(data.url, "_blank");
+        } else {
+          // Fallback to direct URL
+          window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
+        }
+      } catch {
+        window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
+      }
     }
   };
 
   const handleSetupStripe = async () => {
     setConnectingStripe(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-stripe-connect-account');
+      // Step 1: Create connected account
+      const { data: accountData, error: accountError } = await supabase.functions.invoke('create-connect-account');
+
+      if (accountError) {
+        console.error('Error creating Stripe account:', accountError);
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+        return;
+      }
+
+      if (!accountData?.stripeAccountId) {
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+        return;
+      }
+
+      // Step 2: Generate onboarding link
+      const { data: linkData, error: linkError } = await supabase.functions.invoke('generate-onboarding-link');
+
+      if (linkError) {
+        console.error('Error generating onboarding link:', linkError);
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+        return;
+      }
+
+      if (linkData?.url) {
+        // Redirect to Stripe onboarding
+        window.location.href = linkData.url;
+      } else {
+        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
+    } finally {
+      setConnectingStripe(false);
+    }
+  };
+
+  const handleCompleteOnboarding = async () => {
+    setConnectingStripe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-onboarding-link');
 
       if (error) {
-        console.error('Error creating Stripe account:', error);
+        console.error('Error generating onboarding link:', error);
         toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
         return;
       }
 
       if (data?.url) {
-        // Redirect to Stripe onboarding
         window.location.href = data.url;
       } else {
         toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
@@ -126,19 +190,20 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Only show loader on very first load when we have no cached data
   if (isInitialMount && !earnings) {
     return <PwaPageLoader title="Wallet" />;
   }
 
-  const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null };
+  const currentEarnings = earnings || { total: 0, payouts: [], stripeAccountId: null, stripeOnboardingCompleted: false };
+  const hasStripeAccount = !!currentEarnings.stripeAccountId;
+  const isOnboardingComplete = currentEarnings.stripeOnboardingCompleted;
 
   return (
     <div className="flex flex-1 flex-col bg-muted/30">
       <PwaHeader
         title="Wallet"
         centerSlot={
-          currentEarnings.stripeAccountId ? (
+          hasStripeAccount && isOnboardingComplete ? (
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center gap-1 text-base font-semibold text-foreground">
                 Wallet
@@ -160,10 +225,18 @@ const PwaWallet = () => {
         }
       />
 
-      {/* Content with Stripe */}
-      {currentEarnings.stripeAccountId && (
+      {/* Content with completed Stripe onboarding */}
+      {hasStripeAccount && isOnboardingComplete && (
         <div className="flex-1 min-h-0">
           <div className="px-6 pt-4">
+            {/* Status Badge */}
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span className="text-xs text-green-600 font-medium">
+                {t('wallet.accountActive', 'Account Active')}
+              </span>
+            </div>
+
             {/* Period Label */}
             <p className="text-xs text-muted-foreground text-center mb-3">{getPeriodLabel()}</p>
             
@@ -182,7 +255,7 @@ const PwaWallet = () => {
               <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
                 <span className="text-background text-xs font-bold">S</span>
               </div>
-              Open Stripe
+              {t('wallet.viewDashboard', 'View Stripe Dashboard')}
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -206,7 +279,6 @@ const PwaWallet = () => {
                     key={payout.id}
                     className="flex items-center gap-4"
                   >
-                    {/* Hotel Image */}
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-muted flex-shrink-0">
                       {payout.hotel_image ? (
                         <img
@@ -219,7 +291,6 @@ const PwaWallet = () => {
                       )}
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">
                         {payout.hotel_name}
@@ -234,7 +305,6 @@ const PwaWallet = () => {
                       </p>
                     </div>
 
-                    {/* Amount & Date */}
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-medium text-foreground">
                         {formatPrice(payout.amount)}
@@ -251,8 +321,42 @@ const PwaWallet = () => {
         </div>
       )}
 
+      {/* Stripe account exists but onboarding incomplete */}
+      {hasStripeAccount && !isOnboardingComplete && (
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="max-w-sm bg-background rounded-2xl shadow-sm p-8 text-center">
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-7 h-7 text-amber-600" />
+            </div>
+            <h3 className="text-base font-semibold text-foreground mb-2">
+              {t('wallet.completeSetup', 'Complete your setup')}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              {t('wallet.completeSetupDesc', 'Your Stripe account is created but you need to complete verification to receive payments.')}
+            </p>
+            <button
+              onClick={handleCompleteOnboarding}
+              disabled={connectingStripe}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+            >
+              {connectingStripe ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {t('wallet.connecting', 'Connecting...')}
+                </>
+              ) : (
+                <>
+                  {t('wallet.continueSetup', 'Continue Setup')}
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Empty State - No Stripe Account */}
-      {!currentEarnings.stripeAccountId && (
+      {!hasStripeAccount && (
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="max-w-sm bg-background rounded-2xl shadow-sm p-8 text-center">
             <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
@@ -261,10 +365,10 @@ const PwaWallet = () => {
               </div>
             </div>
             <h3 className="text-base font-semibold text-foreground mb-2">
-              {t('wallet.noStripeAccount', 'Connect your Stripe account')}
+              {t('wallet.activateWallet', 'Activate your Wallet')}
             </h3>
             <p className="text-sm text-muted-foreground mb-5">
-              {t('wallet.noStripeAccountDesc', 'To receive your earnings, you need to connect a Stripe account.')}
+              {t('wallet.activateWalletDesc', 'To receive your earnings, you need to set up your payment account.')}
             </p>
             <button
               onClick={handleSetupStripe}
@@ -278,7 +382,7 @@ const PwaWallet = () => {
                 </>
               ) : (
                 <>
-                  {t('wallet.setupStripe', 'Set up Stripe')}
+                  {t('wallet.setupPayments', 'Set up payments')}
                   <ChevronRight className="w-4 h-4" />
                 </>
               )}

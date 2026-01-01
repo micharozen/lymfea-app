@@ -6,6 +6,15 @@ verify_jwt = true
 [functions.create-stripe-connect-account]
 verify_jwt = true
 
+[functions.create-connect-account]
+verify_jwt = true
+
+[functions.generate-onboarding-link]
+verify_jwt = true
+
+[functions.stripe-connect-webhook]
+verify_jwt = false
+
 [functions.finalize-payment]
 verify_jwt = true
 

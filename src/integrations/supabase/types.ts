@@ -419,6 +419,7 @@ export type Database = {
           skills: string[] | null
           status: string
           stripe_account_id: string | null
+          stripe_onboarding_completed: boolean | null
           trunks: string | null
           updated_at: string
           user_id: string | null
@@ -436,6 +437,7 @@ export type Database = {
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
+          stripe_onboarding_completed?: boolean | null
           trunks?: string | null
           updated_at?: string
           user_id?: string | null
@@ -453,6 +455,7 @@ export type Database = {
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
+          stripe_onboarding_completed?: boolean | null
           trunks?: string | null
           updated_at?: string
           user_id?: string | null
