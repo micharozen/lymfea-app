@@ -37,7 +37,6 @@ const PwaWallet = () => {
   const [searchParams] = useSearchParams();
   const [period, setPeriod] = useState("this_month");
   const [connectingStripe, setConnectingStripe] = useState(false);
-  const [isInitialMount, setIsInitialMount] = useState(true);
   const queryClient = useQueryClient();
 
   // Check URL params for Stripe callback
@@ -53,11 +52,6 @@ const PwaWallet = () => {
       toast.error(t('wallet.onboardingIncomplete', 'Stripe setup incomplete. Please try again.'));
     }
   }, [successParam, refreshParam, queryClient, t]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsInitialMount(false), 0);
-    return () => clearTimeout(timer);
-  }, []);
 
   const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
@@ -83,7 +77,6 @@ const PwaWallet = () => {
     gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    enabled: !isInitialMount,
   });
 
   const openStripe = async () => {
@@ -191,7 +184,7 @@ const PwaWallet = () => {
   };
 
   // Show skeleton while loading
-  if (isLoading || isInitialMount) {
+  if (isLoading) {
     return (
       <div className="flex flex-1 flex-col bg-muted/30">
         <PwaHeader title="Wallet" />
