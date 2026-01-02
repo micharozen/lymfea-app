@@ -215,30 +215,7 @@ const PwaWallet = () => {
 
   return (
     <div className="flex flex-1 flex-col bg-muted/30">
-      <PwaHeader
-        title="Wallet"
-        centerSlot={
-          hasStripeAccount && isOnboardingComplete ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-1 text-base font-semibold text-foreground">
-                Wallet
-                <ChevronDown className="w-3 h-3 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="bg-background">
-                <DropdownMenuItem onClick={() => setPeriod("this_month")}>
-                  {t('wallet.thisMonth', 'This Month')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPeriod("last_month")}>
-                  {t('wallet.lastMonth', 'Last Month')}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPeriod("last_3_months")}>
-                  {t('wallet.last3Months', 'Last 3 Months')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : undefined
-        }
-      />
+      <PwaHeader title="Wallet" />
 
       {/* Content with completed Stripe onboarding */}
       {hasStripeAccount && isOnboardingComplete && (
@@ -252,8 +229,24 @@ const PwaWallet = () => {
               </span>
             </div>
 
-            {/* Period Label */}
-            <p className="text-xs text-muted-foreground text-center mb-3">{getPeriodLabel()}</p>
+            {/* Period Selector */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center justify-center gap-1 mx-auto text-xs text-muted-foreground mb-3">
+                {getPeriodLabel()}
+                <ChevronDown className="w-3 h-3" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="bg-background">
+                <DropdownMenuItem onClick={() => setPeriod("this_month")}>
+                  {t('wallet.thisMonth', 'This Month')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPeriod("last_month")}>
+                  {t('wallet.lastMonth', 'Last Month')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPeriod("last_3_months")}>
+                  {t('wallet.last3Months', 'Last 3 Months')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {/* Total Earnings */}
             <div className="text-center mb-4">
