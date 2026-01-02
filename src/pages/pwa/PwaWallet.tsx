@@ -86,14 +86,26 @@ const PwaWallet = () => {
         const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
           body: {},
         });
-        if (data?.url) {
-          window.open(data.url, "_blank");
-        } else {
-          // Fallback to direct URL
-          window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
+        
+        if (error) {
+          console.error('Error generating Stripe login link:', error);
+          toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
+          return;
         }
-      } catch {
-        window.open(`https://dashboard.stripe.com/express/${earnings.stripeAccountId}`, "_blank");
+        
+        if (data?.url) {
+          // Try to open in new tab, if blocked use location.href
+          const newWindow = window.open(data.url, "_blank");
+          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            // Popup was blocked, redirect in same window
+            window.location.href = data.url;
+          }
+        } else {
+          toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
+        }
+      } catch (err) {
+        console.error('Error opening Stripe:', err);
+        toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
       }
     }
   };
