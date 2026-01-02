@@ -94,12 +94,8 @@ const PwaWallet = () => {
         }
         
         if (data?.url) {
-          // Try to open in new tab, if blocked use location.href
-          const newWindow = window.open(data.url, "_blank");
-          if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-            // Popup was blocked, redirect in same window
-            window.location.href = data.url;
-          }
+          // Redirect directly in the same window to avoid popup blocker issues on mobile
+          window.location.href = data.url;
         } else {
           toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
         }
