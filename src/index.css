@@ -196,17 +196,25 @@ All colors MUST be HSL.
     /* Better font rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Ensure the canvas behind iOS safe-areas matches app background */
-    background-color: #ffffff;
+    /* CRITICAL: Paint the canvas with app background to prevent white flash on iOS overscroll */
+    background-color: hsl(0 0% 10%);
     background: hsl(var(--background));
     /* Use dvh for iOS dynamic viewport */
     min-height: 100dvh;
     min-height: -webkit-fill-available;
   }
+  
+  .dark html {
+    background-color: hsl(0 0% 10%);
+  }
 
   body {
     @apply bg-background text-foreground;
+    /* CRITICAL: Match html background for iOS overscroll */
+    background-color: hsl(0 0% 10%);
+    background: hsl(var(--background));
     /* Prevent pull-to-refresh / rubber-band revealing a different background */
+    overscroll-behavior: none;
     overscroll-behavior-y: none;
     /* Touch action for better mobile scrolling */
     touch-action: pan-x pan-y;
@@ -220,7 +228,9 @@ All colors MUST be HSL.
   #root {
     min-height: 100dvh;
     min-height: -webkit-fill-available;
+    background-color: hsl(0 0% 10%);
     background: hsl(var(--background));
+    overscroll-behavior: none;
     overscroll-behavior-y: none;
   }
 
