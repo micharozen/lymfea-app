@@ -79,9 +79,42 @@ const PwaWallet = () => {
     refetchOnWindowFocus: true,
   });
 
-  const openStripe = async () => {
-    // Generate a login link to Stripe Express dashboard
+  const [stripeUrl, setStripeUrl] = useState<string | null>(null);
+  const [loadingStripeUrl, setLoadingStripeUrl] = useState(false);
+
+  // Pre-fetch Stripe dashboard URL when earnings are loaded
+  useEffect(() => {
+    const fetchStripeUrl = async () => {
+      if (earnings?.stripeAccountId && earnings?.stripeOnboardingCompleted) {
+        setLoadingStripeUrl(true);
+        try {
+          const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
+            body: {},
+          });
+          if (!error && data?.url) {
+            setStripeUrl(data.url);
+          }
+        } catch (err) {
+          console.error('Error pre-fetching Stripe URL:', err);
+        } finally {
+          setLoadingStripeUrl(false);
+        }
+      }
+    };
+    fetchStripeUrl();
+  }, [earnings?.stripeAccountId, earnings?.stripeOnboardingCompleted]);
+
+  const openStripe = async (e: React.MouseEvent) => {
+    // If we have a pre-fetched URL, let the <a> tag handle it naturally
+    if (stripeUrl) {
+      return; // Let the anchor tag open the link
+    }
+    
+    // Otherwise prevent default and fetch the URL
+    e.preventDefault();
+    
     if (earnings?.stripeAccountId) {
+      setLoadingStripeUrl(true);
       try {
         const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
           body: {},
@@ -94,14 +127,23 @@ const PwaWallet = () => {
         }
         
         if (data?.url) {
-          // Redirect directly in the same window to avoid popup blocker issues on mobile
-          window.location.href = data.url;
+          setStripeUrl(data.url);
+          // Create a temporary anchor and click it to open in new window
+          const a = document.createElement('a');
+          a.href = data.url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
         } else {
           toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
         }
       } catch (err) {
         console.error('Error opening Stripe:', err);
         toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
+      } finally {
+        setLoadingStripeUrl(false);
       }
     }
   };
@@ -263,17 +305,24 @@ const PwaWallet = () => {
               </p>
             </div>
 
-            {/* Open Stripe Button */}
-            <button
+            {/* Open Stripe Button - Use <a> tag to force external browser on iOS PWA */}
+            <a
+              href={stripeUrl || '#'}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={openStripe}
               className="flex items-center gap-2 mx-auto px-4 py-2 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
             >
-              <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
-                <span className="text-background text-xs font-bold">S</span>
-              </div>
+              {loadingStripeUrl ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
+                  <span className="text-background text-xs font-bold">S</span>
+                </div>
+              )}
               {t('wallet.viewDashboard', 'View Stripe Dashboard')}
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </a>
           </div>
 
           {/* Payouts Card */}
