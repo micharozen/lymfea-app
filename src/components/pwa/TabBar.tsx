@@ -20,9 +20,22 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
   };
 
   return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 w-full z-50 bg-background border-t border-border pb-[env(safe-area-inset-bottom,0px)]"
-    >
+    <>
+      {/* Invisible filler to paint safe area behind TabBar */}
+      <div 
+        className="fixed bottom-0 left-0 right-0 bg-background z-40"
+        style={{ 
+          height: 'calc(64px + env(safe-area-inset-bottom, 0px) + 20px)',
+          marginBottom: '-20px'
+        }}
+        aria-hidden="true"
+      />
+      <nav
+        className="fixed bottom-0 left-0 right-0 w-full z-50 bg-background border-t border-border"
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+        }}
+      >
       <div className="flex items-center justify-around h-16">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
@@ -68,7 +81,8 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           </span>
         </button>
       </div>
-    </nav>
+      </nav>
+    </>
   );
 };
 
