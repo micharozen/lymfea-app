@@ -341,7 +341,10 @@ const PwaLogin = () => {
   return (
     <div className="flex flex-1 flex-col bg-white">
       <div className="p-4 flex justify-between items-center">
-        <button onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}>
+        <button 
+          onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}
+          className="flex items-center justify-center h-10 w-10"
+        >
           <ArrowLeft className="h-6 w-6" />
         </button>
         <LanguageSwitcher variant="minimal" />
