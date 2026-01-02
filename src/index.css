@@ -188,6 +188,17 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    /* CRITICAL: Force dark background everywhere to prevent white flash */
+    background-color: #1a1a1a !important;
+    background: hsl(var(--background)) !important;
+  }
+
   html {
     /* Prevent overscroll bounce on iOS */
     overscroll-behavior: none;
@@ -196,23 +207,13 @@ All colors MUST be HSL.
     /* Better font rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* CRITICAL: Paint the canvas with app background to prevent white flash on iOS overscroll */
-    background-color: hsl(0 0% 10%);
-    background: hsl(var(--background));
     /* Use dvh for iOS dynamic viewport */
     min-height: 100dvh;
     min-height: -webkit-fill-available;
   }
-  
-  .dark html {
-    background-color: hsl(0 0% 10%);
-  }
 
   body {
     @apply bg-background text-foreground;
-    /* CRITICAL: Match html background for iOS overscroll */
-    background-color: hsl(0 0% 10%);
-    background: hsl(var(--background));
     /* Prevent pull-to-refresh / rubber-band revealing a different background */
     overscroll-behavior: none;
     overscroll-behavior-y: none;
@@ -223,15 +224,29 @@ All colors MUST be HSL.
     /* Use dvh for iOS dynamic viewport */
     min-height: 100dvh;
     min-height: -webkit-fill-available;
+    /* Position relative for pseudo-element */
+    position: relative;
+  }
+
+  /* CRITICAL: Paint the area below the viewport on iOS */
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -100px;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background-color: #1a1a1a;
+    background: hsl(var(--background));
+    z-index: 9999;
+    pointer-events: none;
   }
 
   #root {
     min-height: 100dvh;
     min-height: -webkit-fill-available;
-    background-color: hsl(0 0% 10%);
-    background: hsl(var(--background));
-    overscroll-behavior: none;
-    overscroll-behavior-y: none;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Make all interactive elements touch-friendly */
