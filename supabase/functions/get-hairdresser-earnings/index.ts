@@ -121,6 +121,31 @@ serve(async (req) => {
       `Found ${transfers.data.length} transfers for account ${hairdresser.stripe_account_id}`
     );
 
+    // Extract all booking IDs from transfers
+    const bookingIds = transfers.data
+      .map((t: Stripe.Transfer) => t.metadata?.booking_id)
+      .filter((id: string | undefined): id is string => !!id);
+
+    // Fetch all bookings in a single query (much faster than N queries)
+    let bookingsMap: Record<string, { booking_id: number; hotel_name: string; hotel_image: string | null }> = {};
+    
+    if (bookingIds.length > 0) {
+      const { data: bookings } = await supabaseAdmin
+        .from("bookings")
+        .select("id, booking_id, hotel_id, hotel_name, hotels(image)")
+        .in("id", bookingIds);
+
+      if (bookings) {
+        for (const booking of bookings) {
+          bookingsMap[booking.id] = {
+            booking_id: booking.booking_id,
+            hotel_name: booking.hotel_name || "Unknown Hotel",
+            hotel_image: (booking as any).hotels?.image || null,
+          };
+        }
+      }
+    }
+
     // Calculate total and format payouts
     let total = 0;
     const payouts = [];
@@ -129,32 +154,14 @@ serve(async (req) => {
       const amount = transfer.amount / 100; // Convert from cents
       total += amount;
 
-      // Get booking info from transfer metadata
       const bookingId = transfer.metadata?.booking_id;
-      let hotelName = "Unknown Hotel";
-      let hotelImage = null;
-      let bookingRefId = null;
-
-      if (bookingId) {
-        // Fetch booking details
-        const { data: booking } = await supabaseAdmin
-          .from("bookings")
-          .select("booking_id, hotel_id, hotel_name, hotels(image)")
-          .eq("id", bookingId)
-          .single();
-
-        if (booking) {
-          bookingRefId = booking.booking_id;
-          hotelName = booking.hotel_name || "Unknown Hotel";
-          hotelImage = (booking as any).hotels?.image || null;
-        }
-      }
+      const bookingInfo = bookingId ? bookingsMap[bookingId] : null;
 
       payouts.push({
         id: transfer.id,
-        booking_id: bookingRefId,
-        hotel_name: hotelName,
-        hotel_image: hotelImage,
+        booking_id: bookingInfo?.booking_id || null,
+        hotel_name: bookingInfo?.hotel_name || "Unknown Hotel",
+        hotel_image: bookingInfo?.hotel_image || null,
         amount: amount,
         status: transfer.reversed ? "reversed" : "completed",
         date: new Date(transfer.created * 1000).toISOString().split("T")[0],
