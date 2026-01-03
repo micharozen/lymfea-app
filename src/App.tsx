@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -82,6 +82,22 @@ const PageLoader = () => (
 const App = () => {
   // Initialize OneSignal for push notifications
   useOneSignal();
+
+  // Force iOS PWA to apply viewport-fit=cover even if index.html is cached
+  useLayoutEffect(() => {
+    let meta = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+    const content =
+      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+
+    if (meta) {
+      meta.setAttribute("content", content);
+    } else {
+      meta = document.createElement("meta");
+      meta.name = "viewport";
+      meta.content = content;
+      document.head.appendChild(meta);
+    }
+  }, []);
 
   const updateSafeAreaInsets = useCallback(() => {
     // iOS can report a gigantic safe-area-inset-bottom after certain navigations.

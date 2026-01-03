@@ -207,6 +207,12 @@ All colors MUST be HSL.
     /* Better font rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* CSS failsafe: ensure html truly matches the dynamic viewport */
+    height: 100dvh;
+    height: -webkit-fill-available;
+    background: hsl(var(--background)) !important;
+
     /* Use dvh for iOS dynamic viewport */
     min-height: 100dvh;
     min-height: -webkit-fill-available;
