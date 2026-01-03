@@ -1,0 +1,403 @@
+Test ID,Platform,Category,Description,Steps,Expected Result,Status,Comments
+ADM-001,Admin,Auth,Connexion admin avec email/password,"1. Aller sur /auth
+2. Entrer email admin
+3. Entrer mot de passe
+4. Cliquer Connexion",Redirection vers /dashboard,,
+ADM-002,Admin,Auth,Déconnexion admin,"1. Cliquer sur l'avatar en haut à droite
+2. Cliquer Déconnexion",Redirection vers /auth,,
+ADM-003,Admin,Auth,Réinitialisation mot de passe,"1. Cliquer 'Mot de passe oublié'
+2. Entrer email
+3. Soumettre",Email de reset envoyé,,
+ADM-004,Admin,Auth,Accès route protégée sans auth,Accéder directement à /dashboard sans être connecté,Redirection vers /auth,,
+ADM-005,Admin,Dashboard,Affichage statistiques principales,"1. Se connecter
+2. Aller sur /dashboard",Voir: Total Bookings - Pending - Confirmed - Completed,,
+ADM-006,Admin,Dashboard,Graphique revenus par période,"1. Sur /dashboard
+2. Vérifier graphique revenus",Graphique affiché avec données correctes,,
+ADM-007,Admin,Dashboard,Filtre par période (Today/Week/Month/Year),"1. Sur /dashboard
+2. Sélectionner différentes périodes",Stats se mettent à jour selon période,,
+ADM-008,Admin,Dashboard,Affichage dernières réservations,Sur /dashboard vérifier section réservations récentes,Liste des dernières réservations visible,,
+ADM-009,Admin,Bookings,Voir liste des réservations,Aller sur /booking,Liste paginée des réservations,,
+ADM-010,Admin,Bookings,Filtrer réservations par statut,"1. Sur /booking
+2. Utiliser filtre statut",Liste filtrée selon statut choisi,,
+ADM-011,Admin,Bookings,Filtrer réservations par hôtel,"1. Sur /booking
+2. Utiliser filtre hôtel",Liste filtrée selon hôtel choisi,,
+ADM-012,Admin,Bookings,Rechercher réservation par nom client,"1. Sur /booking
+2. Taper nom dans recherche",Réservations correspondantes affichées,,
+ADM-013,Admin,Bookings,Créer nouvelle réservation,"1. Sur /booking
+2. Cliquer 'Nouvelle réservation'
+3. Remplir formulaire
+4. Soumettre",Réservation créée avec succès,,
+ADM-014,Admin,Bookings,Modifier réservation existante,"1. Sur /booking
+2. Cliquer sur une réservation
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-015,Admin,Bookings,Annuler réservation,"1. Sur /booking
+2. Sélectionner réservation
+3. Cliquer Annuler
+4. Confirmer",Statut passe à 'cancelled',,
+ADM-016,Admin,Bookings,Assigner coiffeur à réservation,"1. Modifier réservation
+2. Sélectionner coiffeur
+3. Sauvegarder",Coiffeur assigné + notification envoyée,,
+ADM-017,Admin,Bookings,Voir détails réservation complets,"1. Cliquer sur une réservation
+2. Ouvrir dialogue détails",Tous les détails visibles: client + traitements + paiement,,
+ADM-018,Admin,Bookings,Télécharger facture PDF,"1. Ouvrir réservation complétée
+2. Cliquer 'Télécharger facture'",PDF généré et téléchargé,,
+ADM-019,Admin,Hotels,Voir liste des hôtels,Aller sur /hotels,Liste des hôtels avec images et stats,,
+ADM-020,Admin,Hotels,Ajouter nouvel hôtel,"1. Sur /hotels
+2. Cliquer 'Ajouter hôtel'
+3. Remplir formulaire
+4. Soumettre",Hôtel créé avec succès,,
+ADM-021,Admin,Hotels,Modifier hôtel existant,"1. Sur /hotels
+2. Cliquer Modifier sur un hôtel
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-022,Admin,Hotels,Supprimer hôtel,"1. Sur /hotels
+2. Cliquer Supprimer sur un hôtel
+3. Confirmer",Hôtel supprimé (ou désactivé),,
+ADM-023,Admin,Hotels,Configurer commission hôtel,"1. Modifier hôtel
+2. Changer pourcentage commission
+3. Sauvegarder",Nouvelle commission appliquée aux futures réservations,,
+ADM-024,Admin,Hotels,Configurer TVA hôtel,"1. Modifier hôtel
+2. Changer taux TVA
+3. Sauvegarder",Nouveau taux appliqué aux factures,,
+ADM-025,Admin,Hotels,Générer QR Code hôtel,"1. Sur /hotels
+2. Cliquer 'QR Code' sur un hôtel",QR Code affiché/téléchargeable,,
+ADM-026,Admin,Hotels,Configurer timezone hôtel,"1. Modifier hôtel
+2. Sélectionner timezone
+3. Sauvegarder",Timezone utilisée pour affichage heures,,
+ADM-027,Admin,Hotels,Upload image hôtel,"1. Modifier hôtel
+2. Uploader nouvelle image
+3. Sauvegarder",Nouvelle image affichée,,
+ADM-028,Admin,Hairdressers,Voir liste des coiffeurs,Aller sur /hairdresser,Liste des coiffeurs avec statut et hôtels,,
+ADM-029,Admin,Hairdressers,Inviter nouveau coiffeur,"1. Sur /hairdresser
+2. Cliquer 'Inviter coiffeur'
+3. Remplir email + hôtels
+4. Soumettre",Email d'invitation envoyé,,
+ADM-030,Admin,Hairdressers,Modifier coiffeur existant,"1. Sur /hairdresser
+2. Cliquer Modifier
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-031,Admin,Hairdressers,Désactiver coiffeur,"1. Sur /hairdresser
+2. Cliquer sur statut
+3. Désactiver",Coiffeur ne reçoit plus de nouvelles demandes,,
+ADM-032,Admin,Hairdressers,Assigner hôtels à coiffeur,"1. Modifier coiffeur
+2. Sélectionner hôtels
+3. Sauvegarder",Coiffeur voit réservations de ces hôtels,,
+ADM-033,Admin,Hairdressers,Renvoyer invitation,"1. Sur /hairdresser
+2. Trouver coiffeur pending
+3. Cliquer 'Renvoyer invitation'",Nouvel email envoyé,,
+ADM-034,Admin,Hairdressers,Voir statut Stripe Connect coiffeur,Sur /hairdresser vérifier colonne Stripe,Indicateur vert si onboardé / rouge sinon,,
+ADM-035,Admin,TreatmentRequests,Voir liste des demandes On-Request,Sur /booking vérifier section Treatment Requests,Liste des demandes avec statut pending/quoted/converted,,
+ADM-036,Admin,TreatmentRequests,Voir détails demande On-Request,"1. Cliquer sur une demande
+2. Voir dialogue détail",Infos client + traitement + description + préférences,,
+ADM-037,Admin,TreatmentRequests,Envoyer devis par email,"1. Ouvrir demande
+2. Remplir prix et durée
+3. Cliquer 'Envoyer devis'",Email envoyé au client avec lien validation,,
+ADM-038,Admin,TreatmentRequests,Convertir demande en réservation,"1. Ouvrir demande
+2. Cliquer 'Créer réservation'
+3. Compléter formulaire",Réservation créée + demande marquée 'converted',,
+ADM-039,Admin,TreatmentRequests,Rejeter demande,"1. Ouvrir demande
+2. Cliquer 'Rejeter'
+3. Confirmer",Demande marquée 'rejected',,
+ADM-040,Admin,Concierges,Voir liste des concierges,Aller sur /concierges,Liste des concierges avec hôtels assignés,,
+ADM-041,Admin,Concierges,Inviter nouveau concierge,"1. Sur /concierges
+2. Cliquer 'Inviter concierge'
+3. Remplir formulaire
+4. Soumettre",Email d'invitation envoyé,,
+ADM-042,Admin,Concierges,Modifier concierge existant,"1. Sur /concierges
+2. Cliquer Modifier
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-043,Admin,Concierges,Assigner hôtels à concierge,"1. Modifier concierge
+2. Sélectionner hôtels
+3. Sauvegarder",Concierge peut gérer réservations de ces hôtels,,
+ADM-044,Admin,Concierges,Désactiver concierge,"1. Sur /concierges
+2. Changer statut
+3. Confirmer",Concierge ne peut plus accéder au système,,
+ADM-045,Admin,Treatments,Voir liste des traitements,Aller sur /treatment-menus,Liste des traitements par catégorie,,
+ADM-046,Admin,Treatments,Filtrer traitements par hôtel,"1. Sur /treatment-menus
+2. Sélectionner filtre hôtel",Traitements de cet hôtel uniquement affichés,,
+ADM-047,Admin,Treatments,Filtrer traitements par catégorie,"1. Sur /treatment-menus
+2. Sélectionner filtre catégorie",Traitements de cette catégorie affichés,,
+ADM-048,Admin,Treatments,Ajouter nouveau traitement,"1. Sur /treatment-menus
+2. Cliquer 'Ajouter traitement'
+3. Remplir formulaire
+4. Soumettre",Traitement créé avec succès,,
+ADM-049,Admin,Treatments,Modifier traitement existant,"1. Sur /treatment-menus
+2. Cliquer Modifier
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-050,Admin,Treatments,Définir traitement comme 'Prix sur demande',"1. Modifier traitement
+2. Activer 'Price on request'
+3. Sauvegarder",Client voit 'Sur devis' au lieu du prix,,
+ADM-051,Admin,Treatments,Supprimer traitement,"1. Sur /treatment-menus
+2. Cliquer Supprimer
+3. Confirmer",Traitement supprimé (ou désactivé),,
+ADM-052,Admin,Treatments,Réordonner traitements,"1. Sur /treatment-menus
+2. Drag & drop pour réordonner
+3. Sauvegarder",Nouvel ordre affiché côté client,,
+ADM-053,Admin,Treatments,Upload image traitement,"1. Modifier traitement
+2. Uploader image
+3. Sauvegarder",Image affichée sur le traitement,,
+ADM-054,Admin,Trunks,Voir liste des malles/trunks,Aller sur /trunks,Liste des trunks avec statut et hôtel assigné,,
+ADM-055,Admin,Trunks,Ajouter nouvelle malle,"1. Sur /trunks
+2. Cliquer 'Ajouter malle'
+3. Remplir formulaire (nom + modèle + ID + hôtel)
+4. Soumettre",Malle créée avec succès,,
+ADM-056,Admin,Trunks,Modifier malle existante,"1. Sur /trunks
+2. Cliquer Modifier
+3. Modifier les champs
+4. Sauvegarder",Modifications enregistrées,,
+ADM-057,Admin,Trunks,Supprimer malle,"1. Sur /trunks
+2. Cliquer Supprimer
+3. Confirmer",Malle supprimée,,
+ADM-058,Admin,Trunks,Assigner malle à hôtel,"1. Modifier malle
+2. Sélectionner hôtel
+3. Sauvegarder",Malle liée à l'hôtel pour vérification disponibilité,,
+ADM-059,Admin,Trunks,Voir prochaine réservation trunk,Sur /trunks vérifier colonne 'Next Booking',Date/heure prochaine réservation affichée,,
+ADM-060,Admin,Finance,Voir dashboard finance,Aller sur /finance,Stats revenus + graphiques + filtres période,,
+ADM-061,Admin,Finance,Voir transactions par hôtel,"1. Sur /finance
+2. Filtrer par hôtel",Transactions de cet hôtel uniquement,,
+ADM-062,Admin,Finance,Voir transactions concierges,Aller sur /concierge-transactions,Liste des commissions concierges par hôtel,,
+ADM-063,Admin,Finance,Exporter données finance,"1. Sur /finance
+2. Cliquer 'Exporter'",CSV/Excel téléchargé,,
+ADM-064,Admin,Settings,Voir page paramètres,Aller sur /settings,Options de configuration affichées,,
+ADM-065,Admin,Settings,Modifier timezone admin,"1. Sur /settings
+2. Changer timezone
+3. Sauvegarder",Nouvelle timezone appliquée à l'affichage,,
+ADM-066,Admin,Profile,Voir profil admin,Aller sur /profile,Informations du profil affichées,,
+ADM-067,Admin,Profile,Modifier photo profil,"1. Sur /profile
+2. Uploader nouvelle photo
+3. Sauvegarder",Nouvelle photo affichée,,
+CLT-001,Client,Access,Accès via QR Code hôtel,Scanner QR Code généré pour un hôtel,Page d'accueil client avec nom hôtel correct,,
+CLT-002,Client,Access,Accès via URL directe,Aller sur /client/welcome/{hotel_id},Page d'accueil client affichée,,
+CLT-003,Client,Access,Hôtel inactif,Accéder URL d'un hôtel avec status 'inactive',Message d'erreur approprié,,
+CLT-004,Client,Welcome,Affichage page d'accueil,"1. Accéder page client
+2. Vérifier éléments",Logo + image hôtel + bouton 'Réserver',,
+CLT-005,Client,Welcome,Sélection langue,"1. Sur page accueil
+2. Changer langue (FR/EN)",Interface traduite dans la langue choisie,,
+CLT-006,Client,Menu,Navigation menu Femmes,"1. Depuis accueil
+2. Cliquer 'Pour Femmes'",Menu traitements Femmes affiché,,
+CLT-007,Client,Menu,Navigation menu Hommes,"1. Depuis accueil
+2. Cliquer 'Pour Hommes'",Menu traitements Hommes affiché,,
+CLT-008,Client,Menu,Affichage catégories traitements,Sur page menu vérifier catégories,Catégories avec traitements groupés,,
+CLT-009,Client,Menu,Affichage prix traitements,Vérifier prix sur chaque traitement,Prix affiché en devise hôtel (EUR/USD),,
+CLT-010,Client,Menu,Affichage durée traitements,Vérifier durée sur chaque traitement,Durée affichée en minutes,,
+CLT-011,Client,Menu,Traitement 'Prix sur demande',Vérifier traitement avec price_on_request=true,'Sur devis' affiché au lieu du prix,,
+CLT-012,Client,Basket,Ajouter traitement au panier,"1. Cliquer sur un traitement
+2. Cliquer 'Ajouter'",Traitement ajouté + compteur panier MAJ,,
+CLT-013,Client,Basket,Voir contenu panier,"1. Ajouter traitement(s)
+2. Cliquer icône panier",Liste des traitements avec quantités et total,,
+CLT-014,Client,Basket,Modifier quantité dans panier,"1. Ouvrir panier
+2. Changer quantité
+3. Valider",Total recalculé correctement,,
+CLT-015,Client,Basket,Supprimer traitement du panier,"1. Ouvrir panier
+2. Cliquer supprimer sur un traitement",Traitement retiré + total MAJ,,
+CLT-016,Client,Basket,Vider panier,"1. Ouvrir panier
+2. Cliquer 'Vider le panier'",Panier vidé complètement,,
+CLT-017,Client,Basket,Panier avec traitement On-Request,"1. Ajouter traitement On-Request
+2. Voir panier",Indication que devis sera envoyé,,
+CLT-018,Client,Checkout,Accéder au checkout,"1. Avoir panier non vide
+2. Cliquer 'Continuer'",Formulaire informations client affiché,,
+CLT-019,Client,Checkout,Remplir informations client,"1. Sur /client/info
+2. Remplir prénom + nom + email + téléphone
+3. Continuer",Validation OK + passage à étape suivante,,
+CLT-020,Client,Checkout,Validation email invalide,"1. Entrer email invalide
+2. Soumettre",Message d'erreur sur champ email,,
+CLT-021,Client,Checkout,Validation téléphone invalide,"1. Entrer téléphone invalide
+2. Soumettre",Message d'erreur sur champ téléphone,,
+CLT-022,Client,DateTime,Sélectionner date,"1. Sur /client/date-time
+2. Cliquer sur une date disponible",Date sélectionnée visuellement,,
+CLT-023,Client,DateTime,Dates passées non sélectionnables,Essayer de cliquer sur date passée,Date non cliquable / grisée,,
+CLT-024,Client,DateTime,Sélectionner créneau horaire,"1. Sélectionner date
+2. Choisir créneau horaire",Créneau sélectionné visuellement,,
+CLT-025,Client,DateTime,Créneaux indisponibles grisés,Vérifier créneaux déjà réservés,Créneaux occupés grisés/non cliquables,,
+CLT-026,Client,DateTime,Vérification lead time,"1. Traitement avec lead_time=24h
+2. Essayer réserver pour dans 12h",Créneau non disponible,,
+CLT-027,Client,DateTime,Trunk occupé bloque créneau,"1. Hôtel avec 1 trunk
+2. Réservation existante 14h-16h
+3. Essayer réserver 14h-16h",Créneau non disponible car trunk occupé,,
+CLT-028,Client,Payment,Sélectionner paiement Stripe,"1. Sur /client/payment
+2. Choisir 'Payer par carte'",Redirection vers Stripe Checkout,,
+CLT-029,Client,Payment,Sélectionner paiement chambre,"1. Sur /client/payment
+2. Choisir 'Facturer sur chambre'
+3. Entrer numéro chambre",Continuer vers confirmation,,
+CLT-030,Client,Payment,Paiement Stripe réussi,"1. Choisir paiement carte
+2. Compléter sur Stripe",Retour sur /client/confirmation + réservation créée,,
+CLT-031,Client,Payment,Paiement Stripe annulé,"1. Choisir paiement carte
+2. Annuler sur Stripe",Retour sur page paiement avec message,,
+CLT-032,Client,Confirmation,Affichage confirmation,"1. Finaliser réservation
+2. Voir /client/confirmation",Résumé réservation + numéro + date/heure,,
+CLT-033,Client,Confirmation,Email confirmation envoyé,Après confirmation vérifier email,Email reçu avec détails réservation,,
+CLT-034,Client,OnRequest,Soumettre demande On-Request,"1. Ajouter traitement On-Request au panier
+2. Compléter checkout",Demande créée en statut 'pending',,
+CLT-035,Client,OnRequest,Formulaire demande avec description,"1. Traitement On-Request
+2. Formulaire demande",Champ description pour préciser besoins,,
+CLT-036,Client,OnRequest,Confirmation demande On-Request,Après soumission demande On-Request,Message 'Vous serez contacté avec un devis',,
+CLT-037,Client,ManageBooking,Accéder gestion réservation,Cliquer lien dans email confirmation,Page gestion réservation affichée,,
+CLT-038,Client,ManageBooking,Annuler réservation,"1. Sur page gestion
+2. Cliquer 'Annuler'
+3. Confirmer",Réservation annulée + email confirmation,,
+PWA-001,PWA,Install,Affichage splash screen,Ouvrir PWA depuis écran accueil iOS,Splash screen OOM affiché 2-3 secondes,,
+PWA-002,PWA,Install,Installation PWA iOS,"1. Ouvrir dans Safari
+2. 'Ajouter à l'écran d'accueil'
+3. Ouvrir depuis icône",App ouvre en mode standalone,,
+PWA-003,PWA,Install,Installation PWA Android,"1. Ouvrir dans Chrome
+2. Accepter prompt installation
+3. Ouvrir depuis icône",App ouvre en mode standalone,,
+PWA-004,PWA,Auth,Affichage page login,Ouvrir /pwa/login,Formulaire téléphone + code pays,,
+PWA-005,PWA,Auth,Envoi OTP,"1. Entrer numéro téléphone
+2. Cliquer 'Envoyer code'",SMS reçu avec code 6 chiffres,,
+PWA-006,PWA,Auth,Validation OTP correct,"1. Recevoir OTP
+2. Entrer code correct
+3. Valider",Connexion réussie + redirection dashboard,,
+PWA-007,PWA,Auth,Validation OTP incorrect,"1. Entrer code incorrect
+2. Valider",Message d'erreur 'Code invalide',,
+PWA-008,PWA,Auth,OTP expiré,"1. Attendre expiration OTP
+2. Entrer code",Message d'erreur 'Code expiré',,
+PWA-009,PWA,Auth,Renvoyer OTP,"1. Sur page OTP
+2. Cliquer 'Renvoyer code'",Nouveau SMS reçu,,
+PWA-010,PWA,Auth,Rate limiting OTP,"1. Demander 5+ OTP rapidement
+2. Observer",Message 'Trop de tentatives' + blocage temporaire,,
+PWA-011,PWA,Onboarding,Affichage onboarding nouveau coiffeur,Première connexion nouveau coiffeur,Écrans onboarding affichés,,
+PWA-012,PWA,Onboarding,Navigation écrans onboarding,"1. Sur onboarding
+2. Swipe/cliquer 'Suivant'",Passage entre écrans fluide,,
+PWA-013,PWA,Onboarding,Configuration Stripe Connect,"1. Onboarding
+2. Cliquer 'Configurer paiements'",Redirection vers Stripe Connect onboarding,,
+PWA-014,PWA,Onboarding,Retour Stripe Connect,"1. Compléter Stripe onboarding
+2. Retour PWA",Statut Stripe mis à jour + continuer onboarding,,
+PWA-015,PWA,Onboarding,Compléter onboarding,"1. Finir tous les écrans
+2. Cliquer 'Commencer'",Redirection vers dashboard,,
+PWA-016,PWA,Dashboard,Affichage dashboard,Aller sur /pwa/dashboard,Sections: Demandes + Confirmées + Historique,,
+PWA-017,PWA,Dashboard,Voir demandes en attente,Sur dashboard section 'Demandes',Liste réservations pending non assignées,,
+PWA-018,PWA,Dashboard,Voir réservations confirmées,Sur dashboard section 'Confirmées',Liste réservations assignées au coiffeur,,
+PWA-019,PWA,Dashboard,Voir historique,Sur dashboard section 'Historique',Liste réservations complétées/annulées,,
+PWA-020,PWA,Dashboard,Compteur demandes en attente,Badge sur dashboard/notification,Nombre correct de demandes pending,,
+PWA-021,PWA,Dashboard,Pull to refresh,"1. Sur dashboard
+2. Tirer vers le bas",Données rafraîchies,,
+PWA-022,PWA,Booking,Voir détails réservation,"1. Sur dashboard
+2. Cliquer sur une réservation",Page détails avec toutes infos,,
+PWA-023,PWA,Booking,Accepter demande,"1. Ouvrir demande pending
+2. Cliquer 'Accepter'",Réservation assignée + notification admin,,
+PWA-024,PWA,Booking,Décliner demande,"1. Ouvrir demande pending
+2. Cliquer 'Décliner'",Demande retirée de la liste + coiffeur dans declined_by,,
+PWA-025,PWA,Booking,Contacter client par téléphone,"1. Ouvrir réservation
+2. Cliquer icône téléphone",App téléphone ouverte avec numéro client,,
+PWA-026,PWA,Booking,Contacter client par WhatsApp,"1. Ouvrir réservation
+2. Cliquer icône WhatsApp",WhatsApp ouvert avec conversation client,,
+PWA-027,PWA,Booking,Navigation GPS vers hôtel,"1. Ouvrir réservation
+2. Cliquer adresse hôtel",Google Maps/Apple Maps ouvert avec itinéraire,,
+PWA-028,PWA,Booking,Voir traitements réservation,Sur page détails réservation,Liste des traitements avec prix et durée,,
+PWA-029,PWA,Booking,Ajouter traitement à réservation,"1. Ouvrir réservation
+2. Cliquer 'Ajouter traitement'
+3. Sélectionner traitement",Traitement ajouté + total MAJ,,
+PWA-030,PWA,Booking,Supprimer traitement de réservation,"1. Ouvrir réservation
+2. Supprimer un traitement",Traitement retiré + total MAJ,,
+PWA-031,PWA,Booking,Finaliser prestation,"1. Ouvrir réservation confirmée
+2. Cliquer 'Finaliser'",Écran signature affiché,,
+PWA-032,PWA,Booking,Signature client,"1. Sur écran signature
+2. Client signe
+3. Valider",Signature enregistrée,,
+PWA-033,PWA,Booking,Sélection paiement à finalisation,"1. Après signature
+2. Choisir mode paiement (carte/chambre)",Paiement enregistré,,
+PWA-034,PWA,Booking,Prestation complétée,"1. Finaliser prestation
+2. Confirmer",Statut passe à 'completed' + commission calculée,,
+PWA-035,PWA,Booking,Annuler réservation assignée,"1. Ouvrir réservation
+2. Cliquer 'Annuler'
+3. Entrer raison
+4. Confirmer",Réservation annulée + notification admin,,
+PWA-036,PWA,Wallet,Voir wallet,Aller sur /pwa/wallet,Balance + historique gains affiché,,
+PWA-037,PWA,Wallet,Voir détail gain,"1. Sur wallet
+2. Cliquer sur un gain",Détails réservation + commission affichés,,
+PWA-038,PWA,Wallet,Balance correcte,Vérifier balance wallet,Somme des gains - versements = balance,,
+PWA-039,PWA,Wallet,Statut versements Stripe,Sur wallet voir statuts versements,Pending/Processing/Completed correctement affiché,,
+PWA-040,PWA,Profile,Voir profil,Aller sur /pwa/profile,Photo + nom + email + téléphone + hôtels,,
+PWA-041,PWA,Profile,Modifier photo profil,"1. Sur profil
+2. Cliquer photo
+3. Sélectionner nouvelle image",Nouvelle photo uploadée et affichée,,
+PWA-042,PWA,Profile,Voir hôtels affiliés,Sur profil section hôtels,Liste des hôtels où coiffeur peut travailler,,
+PWA-043,PWA,Profile,Accéder paramètres Stripe,"1. Sur profil
+2. Cliquer 'Paramètres paiement'",Redirection vers dashboard Stripe Connect,,
+PWA-044,PWA,Profile,Déconnexion,"1. Sur profil
+2. Cliquer 'Déconnexion'",Retour page login,,
+PWA-045,PWA,Profile,Accéder sécurité compte,Aller sur /pwa/account-security,Options sécurité affichées,,
+PWA-046,PWA,Notifications,Voir notifications,Aller sur /pwa/notifications,Liste des notifications in-app,,
+PWA-047,PWA,Notifications,Badge notifications non lues,Sur TabBar voir badge,Nombre correct de notifications non lues,,
+PWA-048,PWA,Notifications,Marquer notification lue,"1. Ouvrir notifications
+2. Cliquer sur une notification",Notification marquée comme lue,,
+PWA-049,PWA,Notifications,Marquer toutes lues,"1. Sur notifications
+2. Cliquer 'Tout marquer lu'",Toutes notifications marquées lues + badge reset,,
+PWA-050,PWA,Notifications,Supprimer notification,"1. Sur notifications
+2. Swipe ou cliquer supprimer",Notification supprimée,,
+PWA-051,PWA,Push,Prompt autorisation push,Première utilisation PWA,Prompt iOS/Android pour autoriser notifications,,
+PWA-052,PWA,Push,Push nouvelle demande,"1. Nouvelle réservation créée
+2. Vérifier téléphone coiffeur",Push notification reçue 'Nouvelle demande',,
+PWA-053,PWA,Push,Push réservation annulée,"1. Admin annule réservation
+2. Vérifier téléphone coiffeur",Push notification reçue 'Réservation annulée',,
+PWA-054,PWA,Push,Clic sur push ouvre détail,"1. Recevoir push
+2. Cliquer dessus",PWA ouvre sur page détail réservation concernée,,
+PWA-055,PWA,UI,TabBar correct sur iOS,"1. Ouvrir PWA sur iPhone X+
+2. Vérifier TabBar",TabBar compact sans espace blanc en bas,,
+PWA-056,PWA,UI,Safe Area iOS respectée,Sur iPhone avec notch/Dynamic Island,Contenu ne passe pas sous encoche/barre home,,
+PWA-057,PWA,UI,Scroll smooth,Scroller sur différentes pages,Scroll fluide sans saccades,,
+PWA-058,PWA,UI,Keyboard push content,"1. Cliquer champ texte
+2. Clavier apparaît",Contenu pousse vers le haut sans être caché,,
+PWA-059,PWA,UI,Orientation portrait lock,Tourner téléphone en paysage,App reste en portrait,,
+PWA-060,PWA,Offline,Mode offline basique,Activer mode avion,Message offline ou données cachées affichées,,
+INT-001,Integration,ClientToAdmin,Réservation client visible admin,"1. Client crée réservation
+2. Admin ouvre /booking",Nouvelle réservation dans la liste,,
+INT-002,Integration,ClientToAdmin,Détails réservation corrects,"1. Client crée réservation avec traitements
+2. Admin ouvre détails",Tous traitements + prix + client visibles,,
+INT-003,Integration,ClientToPWA,Demande visible PWA coiffeur,"1. Client crée réservation
+2. Coiffeur ouvre dashboard",Nouvelle demande dans section 'Demandes',,
+INT-004,Integration,AdminToPWA,Assignation visible PWA,"1. Admin assigne coiffeur
+2. Coiffeur ouvre dashboard",Réservation dans section 'Confirmées',,
+INT-005,Integration,PWAToAdmin,Acceptation visible admin,"1. Coiffeur accepte demande
+2. Admin ouvre réservation",Coiffeur assigné + statut 'confirmed',,
+INT-006,Integration,PWAToAdmin,Finalisation visible admin,"1. Coiffeur finalise prestation
+2. Admin ouvre réservation",Statut 'completed' + signature visible,,
+INT-007,Integration,Realtime,MAJ realtime liste réservations,"1. Admin ouvre /booking
+2. Client crée réservation
+3. Observer liste",Nouvelle réservation apparaît sans refresh,,
+INT-008,Integration,Realtime,MAJ realtime statut,"1. PWA coiffeur ouvre détail
+2. Admin annule réservation
+3. Observer PWA",Statut change automatiquement,,
+INT-009,Integration,RaceCondition,Deux coiffeurs acceptent simultanément,"1. Demande visible par 2 coiffeurs
+2. Les deux cliquent 'Accepter' simultanément",Un seul est assigné + l'autre voit message erreur,,
+INT-010,Integration,Stripe,Webhook paiement réussi,"1. Client paie via Stripe
+2. Vérifier DB",payment_status = 'paid' + booking créé,,
+INT-011,Integration,Stripe,Webhook Connect payout,"1. Prestation complétée
+2. Vérifier hairdresser_payouts",Payout créé avec bon montant,,
+INT-012,Integration,Email,Email confirmation client,Client complète réservation,Email reçu avec résumé correct,,
+INT-013,Integration,Email,Email notification admin,Nouvelle réservation créée,Admin reçoit email notification,,
+INT-014,Integration,Trunk,Trunk bloque double booking,"1. Hôtel avec 1 trunk
+2. Réservation 14h-16h existante
+3. Client tente réserver 15h",Créneau non disponible,,
+INT-015,Integration,TreatmentRequest,Notification admin nouvelle demande,Client soumet demande On-Request,Admin notifié nouvelle demande,,
+SEC-001,Security,Auth,Route admin protégée,Accéder /dashboard sans auth,Redirection /auth,,
+SEC-002,Security,Auth,Route PWA protégée,Accéder /pwa/dashboard sans auth,Redirection /pwa/login,,
+SEC-003,Security,Auth,Route client publique,Accéder /client/welcome/{id} sans auth,Page accessible,,
+SEC-004,Security,RLS,Admin voit toutes réservations,Admin requête bookings,Toutes réservations retournées,,
+SEC-005,Security,RLS,Coiffeur voit ses réservations uniquement,Coiffeur requête bookings,Seulement ses réservations + pending de ses hôtels,,
+SEC-006,Security,RLS,Concierge voit réservations hôtel,Concierge requête bookings,Seulement réservations de ses hôtels,,
+SEC-007,Security,RLS,Anonyme bloqué,"Requête anonyme sur bookings, hairdressers, etc.",Erreur RLS 'permission denied',,
+SEC-008,Security,XSS,Facture PDF sécurisée,"1. Créer réservation avec nom client <script>
+2. Générer facture",Script non exécuté + texte échappé,,
+SEC-009,Security,Data,Signatures non publiques,Essayer accéder URL signature directement,Accès refusé ou URL signée requise,,
+SEC-010,Security,Data,Données sensibles masquées,"1. Ouvrir DevTools
+2. Inspecter réponses API",Pas de mots de passe ou tokens exposés,,
+RES-001,Responsive,Admin,Admin desktop 1920x1080,Ouvrir admin sur écran 1920x1080,Layout correct + sidebar visible,,
+RES-002,Responsive,Admin,Admin tablet 768x1024,Ouvrir admin sur iPad,Layout adapté + sidebar collapsible,,
+RES-003,Responsive,Admin,Admin mobile 375x667,Ouvrir admin sur mobile,Layout mobile + hamburger menu,,
+RES-004,Responsive,Client,Client mobile 375x667,Ouvrir client sur iPhone,Layout optimisé mobile,,
+RES-005,Responsive,Client,Client desktop 1920x1080,Ouvrir client sur desktop,Layout acceptable (centré ou full),,
+RES-006,Responsive,PWA,PWA iPhone SE (375x667),Ouvrir PWA sur iPhone SE,Tous éléments visibles + lisibles,,
+RES-007,Responsive,PWA,PWA iPhone 14 Pro (393x852),Ouvrir PWA sur iPhone 14,Safe areas respectées + layout OK,,
+RES-008,Responsive,PWA,PWA Android (360x800),Ouvrir PWA sur Android standard,Layout correct,,
+RES-009,Responsive,PWA,PWA iPad (768x1024),Ouvrir PWA sur tablet,Layout adapté (optionnel),,
+RES-010,Responsive,General,Orientation paysage,Tourner appareils en paysage,Layouts acceptables ou lock portrait,,
+PERF-001,Performance,Load,Chargement dashboard admin,Mesurer temps chargement /dashboard,< 3 secondes,,
+PERF-002,Performance,Load,Chargement liste réservations,Mesurer temps chargement /booking avec 100+ entrées,< 2 secondes,,
+PERF-003,Performance,Load,Chargement PWA dashboard,Mesurer temps chargement /pwa/dashboard,< 2 secondes,,
+PERF-004,Performance,Realtime,Propagation realtime,Mesurer délai entre création et apparition,< 1 seconde,,
+PERF-005,Performance,API,Temps réponse check-availability,Mesurer temps réponse edge function,< 500ms,,
