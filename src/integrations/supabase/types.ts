@@ -611,6 +611,39 @@ export type Database = {
           },
         ]
       }
+      otp_rate_limits: {
+        Row: {
+          attempt_count: number
+          blocked_until: string | null
+          created_at: string
+          first_attempt_at: string
+          id: string
+          last_attempt_at: string
+          phone_number: string
+          request_type: string
+        }
+        Insert: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          last_attempt_at?: string
+          phone_number: string
+          request_type: string
+        }
+        Update: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          last_attempt_at?: string
+          phone_number?: string
+          request_type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -925,6 +958,7 @@ export type Database = {
         }
         Returns: Json
       }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       create_treatment_request: {
         Args: {
           _client_email?: string

@@ -7,6 +7,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting configuration for verification attempts
+const RATE_LIMIT_CONFIG = {
+  maxVerifyAttempts: 5, // Max OTP verification attempts per phone per window
+  windowMinutes: 15, // Time window in minutes
+  blockDurationMinutes: 60, // How long to block after exceeding limit (longer for verify to prevent brute force)
+};
+
 // SECURITY: Only allow DEV_MODE in non-production environments
 const isDevModeAllowed = (): boolean => {
   const siteUrl = Deno.env.get('SITE_URL') || '';
@@ -35,6 +42,138 @@ const isDevModeAllowed = (): boolean => {
   return devModeEnv;
 };
 
+interface RateLimitRecord {
+  id: string;
+  phone_number: string;
+  request_type: string;
+  attempt_count: number;
+  first_attempt_at: string;
+  last_attempt_at: string;
+  blocked_until: string | null;
+}
+
+// Check and update rate limit for verification attempts
+async function checkVerifyRateLimit(
+  supabase: any,
+  phoneNumber: string
+): Promise<{ allowed: boolean; retryAfterSeconds?: number; error?: string }> {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - RATE_LIMIT_CONFIG.windowMinutes * 60 * 1000);
+  
+  // Check existing rate limit record
+  const { data: existingLimit, error: fetchError } = await supabase
+    .from('otp_rate_limits')
+    .select('*')
+    .eq('phone_number', phoneNumber)
+    .eq('request_type', 'verify')
+    .maybeSingle();
+  
+  if (fetchError) {
+    console.error('Error checking verify rate limit:', fetchError);
+    // Allow request but log the error
+    return { allowed: true };
+  }
+  
+  const limit = existingLimit as RateLimitRecord | null;
+  
+  if (limit) {
+    // Check if currently blocked
+    if (limit.blocked_until && new Date(limit.blocked_until) > now) {
+      const retryAfterSeconds = Math.ceil((new Date(limit.blocked_until).getTime() - now.getTime()) / 1000);
+      console.log(`🚫 Verify rate limited: Phone ${phoneNumber.slice(0, -4)}**** blocked for ${retryAfterSeconds}s`);
+      return { 
+        allowed: false, 
+        retryAfterSeconds,
+        error: `Trop de tentatives de vérification. Réessayez dans ${Math.ceil(retryAfterSeconds / 60)} minutes.`
+      };
+    }
+    
+    // Check if within the rate limit window
+    const firstAttempt = new Date(limit.first_attempt_at);
+    
+    if (firstAttempt > windowStart) {
+      // Still within the window
+      if (limit.attempt_count >= RATE_LIMIT_CONFIG.maxVerifyAttempts) {
+        // Exceeded limit, block the phone number
+        const blockedUntil = new Date(now.getTime() + RATE_LIMIT_CONFIG.blockDurationMinutes * 60 * 1000);
+        
+        await supabase
+          .from('otp_rate_limits')
+          .update({ 
+            blocked_until: blockedUntil.toISOString(),
+            last_attempt_at: now.toISOString()
+          })
+          .eq('id', limit.id);
+        
+        const retryAfterSeconds = RATE_LIMIT_CONFIG.blockDurationMinutes * 60;
+        console.log(`🚫 Verify rate limit exceeded: Phone ${phoneNumber.slice(0, -4)}**** blocked for ${RATE_LIMIT_CONFIG.blockDurationMinutes} minutes`);
+        return { 
+          allowed: false, 
+          retryAfterSeconds,
+          error: `Trop de tentatives de vérification. Réessayez dans ${RATE_LIMIT_CONFIG.blockDurationMinutes} minutes.`
+        };
+      }
+      
+      // Increment attempt count
+      await supabase
+        .from('otp_rate_limits')
+        .update({ 
+          attempt_count: limit.attempt_count + 1,
+          last_attempt_at: now.toISOString()
+        })
+        .eq('id', limit.id);
+        
+      console.log(`📊 Verify rate limit: ${limit.attempt_count + 1}/${RATE_LIMIT_CONFIG.maxVerifyAttempts} attempts for ${phoneNumber.slice(0, -4)}****`);
+    } else {
+      // Window expired, reset the counter
+      await supabase
+        .from('otp_rate_limits')
+        .update({ 
+          attempt_count: 1,
+          first_attempt_at: now.toISOString(),
+          last_attempt_at: now.toISOString(),
+          blocked_until: null
+        })
+        .eq('id', limit.id);
+        
+      console.log(`📊 Verify rate limit reset: 1/${RATE_LIMIT_CONFIG.maxVerifyAttempts} attempts for ${phoneNumber.slice(0, -4)}****`);
+    }
+  } else {
+    // Create new rate limit record
+    await supabase
+      .from('otp_rate_limits')
+      .insert({
+        phone_number: phoneNumber,
+        request_type: 'verify',
+        attempt_count: 1,
+        first_attempt_at: now.toISOString(),
+        last_attempt_at: now.toISOString()
+      });
+      
+    console.log(`📊 Verify rate limit started: 1/${RATE_LIMIT_CONFIG.maxVerifyAttempts} attempts for ${phoneNumber.slice(0, -4)}****`);
+  }
+  
+  return { allowed: true };
+}
+
+// Clear rate limit on successful verification
+async function clearRateLimitOnSuccess(
+  supabase: any,
+  phoneNumber: string
+): Promise<void> {
+  try {
+    // Delete both send and verify rate limit records on successful login
+    await supabase
+      .from('otp_rate_limits')
+      .delete()
+      .eq('phone_number', phoneNumber);
+    
+    console.log(`✅ Rate limits cleared for ${phoneNumber.slice(0, -4)}****`);
+  } catch (error) {
+    console.error('Error clearing rate limits:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,6 +189,11 @@ serve(async (req) => {
       );
     }
 
+    // Initialize Supabase client early for rate limiting
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
     // Normalize phone number (remove spaces and leading 0) - must match send-otp normalization
     const normalizedPhone = phoneNumber.replace(/\s/g, '').replace(/^0/, '');
     
@@ -59,6 +203,28 @@ serve(async (req) => {
     console.log('=== OTP Verification Attempt ===');
     console.log('Phone Number:', fullPhoneNumber.slice(0, -4) + '****');
     console.log('===============================');
+
+    // SECURITY: Check rate limit before attempting verification
+    const rateLimitResult = await checkVerifyRateLimit(supabase, fullPhoneNumber);
+    if (!rateLimitResult.allowed) {
+      console.log(`🚫 OTP verify blocked by rate limit for ${fullPhoneNumber.slice(0, -4)}****`);
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          code: 'RATE_LIMITED',
+          error: rateLimitResult.error,
+          retryAfterSeconds: rateLimitResult.retryAfterSeconds
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimitResult.retryAfterSeconds || 60)
+          } 
+        }
+      );
+    }
 
     // SECURITY: Check DEV_MODE with production safeguard
     const DEV_MODE = isDevModeAllowed();
@@ -152,10 +318,6 @@ serve(async (req) => {
     console.log('✅ OTP verified successfully');
 
     // Find hairdresser by phone number
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     // Use the same normalized phone for database lookup
     const { data: hairdresser, error: dbError } = await supabase
       .from('hairdressers')
@@ -191,7 +353,7 @@ serve(async (req) => {
     } else {
       // First, check if a user with this email already exists
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(u => u.email === hairdresser.email);
+      const existingUser = existingUsers?.users?.find((u: any) => u.email === hairdresser.email);
       
       if (existingUser) {
         console.log('Found existing user with email:', hairdresser.email);
@@ -270,6 +432,9 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // SECURITY: Clear rate limits on successful verification
+    await clearRateLimitOnSuccess(supabase, fullPhoneNumber);
 
     console.log('✅ Session created successfully');
 
