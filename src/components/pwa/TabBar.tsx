@@ -21,12 +21,12 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border pt-3 pb-[env(safe-area-inset-bottom,12px)]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 w-full"
     >
-      <div className="flex items-center justify-around">
+      <div className="flex items-center justify-around pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
+          className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"
         >
           <Home
             className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-foreground" : "text-muted-foreground"}`} 
@@ -38,7 +38,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/wallet")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
+          className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"
         >
           <Wallet 
             className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-foreground" : "text-muted-foreground"}`} 
@@ -50,7 +50,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
         </button>
         <button 
           onClick={() => handleNavigation("/pwa/notifications")}
-          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all relative"
+          className="flex flex-col items-center justify-center gap-1 flex-1 transition-all relative"
         >
           <div className="relative">
             <Bell 
