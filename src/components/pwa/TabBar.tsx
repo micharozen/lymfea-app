@@ -21,14 +21,14 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border pt-3 pb-[env(safe-area-inset-bottom,12px)]"
     >
-      <div className="flex items-center justify-around py-3">
+      <div className="flex items-center justify-around">
         <button 
           onClick={() => handleNavigation("/pwa/dashboard")}
           className="flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-all"
         >
-          <Home 
+          <Home
             className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-foreground" : "text-muted-foreground"}`} 
             strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
           />
