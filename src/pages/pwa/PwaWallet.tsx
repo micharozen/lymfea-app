@@ -306,23 +306,25 @@ const PwaWallet = () => {
             </div>
 
             {/* Open Stripe Button - Use <a> tag to force external browser on iOS PWA */}
-            <a
-              href={stripeUrl || '#'}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={openStripe}
-              className="flex items-center gap-2 mx-auto px-4 py-2 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
-            >
-              {loadingStripeUrl ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
-                  <span className="text-background text-xs font-bold">S</span>
-                </div>
-              )}
-              {t('wallet.viewDashboard', 'View Stripe Dashboard')}
-              <ChevronRight className="w-4 h-4" />
-            </a>
+            <div className="w-full flex justify-center items-center">
+              <a
+                href={stripeUrl || '#'}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={openStripe}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full text-sm font-medium text-foreground hover:bg-muted/80 transition-colors"
+              >
+                {loadingStripeUrl ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
+                    <span className="text-background text-xs font-bold">S</span>
+                  </div>
+                )}
+                {t('wallet.viewDashboard', 'View Stripe Dashboard')}
+                <ChevronRight className="w-4 h-4" />
+              </a>
+            </div>
           </div>
 
           {/* Payouts Card */}
