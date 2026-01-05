@@ -39,6 +39,7 @@ const RateHairdresser = () => {
           id,
           rating,
           comment,
+          submitted_at,
           bookings (
             hairdresser_name,
             hotel_name
@@ -52,8 +53,8 @@ const RateHairdresser = () => {
         return;
       }
 
-      // Check if already rated (has comment)
-      if (data.comment) {
+      // Check if already submitted (submitted_at is set)
+      if (data.submitted_at) {
         setSubmitted(true);
       }
 
@@ -84,6 +85,7 @@ const RateHairdresser = () => {
         .update({
           rating,
           comment: comment.trim() || null,
+          submitted_at: new Date().toISOString(),
         })
         .eq("id", ratingData.id);
 
