@@ -443,8 +443,9 @@ export default function Booking() {
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col">
         {view === "calendar" ? (
-            <div className="p-2 md:p-6 overflow-auto h-full">
-              <div className="flex items-center justify-between mb-4 md:mb-6 gap-2">
+            <div className="p-2 md:p-6 flex flex-col h-full overflow-hidden">
+              {/* Navigation - Fixed at top */}
+              <div className="flex items-center justify-between mb-4 md:mb-6 gap-2 flex-shrink-0">
                 <Button variant="outline" size="sm" onClick={handlePreviousWeek} className="px-2 md:px-3">
                   <ChevronLeft className="h-4 w-4" />
                   <span className="hidden md:inline ml-1">Précédente</span>
@@ -459,10 +460,10 @@ export default function Booking() {
                 </Button>
               </div>
 
-              <div className="w-full -mx-2 md:mx-0 px-2 md:px-0">
-                <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border">
-                  {/* Header avec les jours */}
-                  <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
+              <div className="w-full -mx-2 md:mx-0 px-2 md:px-0 flex-1 flex flex-col min-h-0">
+                <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border flex flex-col h-full overflow-hidden">
+                  {/* Header avec les jours - Fixed */}
+                  <div className="grid grid-cols-8 border-b border-border bg-card flex-shrink-0">
                     <div className="p-1 md:p-3 border-r border-border bg-muted/30">
                       <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
                     </div>
@@ -489,8 +490,8 @@ export default function Booking() {
                     })}
                   </div>
 
-                  {/* Grille avec les créneaux horaires - Nouvelle structure avec positionnement absolu */}
-                  <div className="grid grid-cols-8">
+                  {/* Grille avec les créneaux horaires - Scrollable */}
+                  <div className="grid grid-cols-8 flex-1 overflow-auto">
                     {/* Colonne des heures */}
                     <div className="border-r border-border bg-muted/20">
                       {hours.map((hour) => (
