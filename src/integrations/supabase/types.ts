@@ -369,6 +369,7 @@ export type Database = {
           id: string
           rating: number
           rating_token: string | null
+          submitted_at: string | null
         }
         Insert: {
           booking_id: string
@@ -378,6 +379,7 @@ export type Database = {
           id?: string
           rating: number
           rating_token?: string | null
+          submitted_at?: string | null
         }
         Update: {
           booking_id?: string
@@ -387,6 +389,7 @@ export type Database = {
           id?: string
           rating?: number
           rating_token?: string | null
+          submitted_at?: string | null
         }
         Relationships: [
           {
