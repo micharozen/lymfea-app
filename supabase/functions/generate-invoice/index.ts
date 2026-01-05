@@ -20,6 +20,29 @@ const escapeHtml = (unsafe: string | null | undefined): string => {
     .replace(/'/g, '&#039;');
 };
 
+// Security: Validate and sanitize signature data URLs to prevent XSS
+// Only allows PNG and JPEG data URLs - blocks SVG which can contain scripts
+const sanitizeSignatureDataUrl = (dataUrl: string | null | undefined): string | null => {
+  if (!dataUrl) return null;
+  
+  // Only allow safe image data URL formats (PNG/JPEG)
+  // SVG is explicitly blocked as it can contain embedded scripts
+  const safeDataUrlPattern = /^data:image\/(png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/;
+  
+  if (safeDataUrlPattern.test(dataUrl)) {
+    return dataUrl;
+  }
+  
+  // If it's a Supabase storage URL (already uploaded signature), allow it
+  if (dataUrl.startsWith('https://') && dataUrl.includes('supabase.co/storage')) {
+    return escapeHtml(dataUrl);
+  }
+  
+  // Log suspicious signature for monitoring
+  console.warn('Blocked potentially unsafe signature data URL format');
+  return null;
+};
+
 interface InvoiceData {
   booking: any;
   treatments: any[];
@@ -334,7 +357,12 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     <div class="signature-box">
       <div class="signature-label">Signature client</div>
       <div class="signature-image">
-        ${booking.client_signature ? `<img src="${booking.client_signature}" alt="Signature client" />` : `<div class="signature-placeholder">Non signée</div>`}
+        ${(() => {
+          const safeSignature = sanitizeSignatureDataUrl(booking.client_signature);
+          return safeSignature 
+            ? `<img src="${safeSignature}" alt="Signature client" />` 
+            : `<div class="signature-placeholder">Non signée</div>`;
+        })()}
       </div>
       <div class="signature-date">
         ${booking.signed_at ? `Signé le ${new Date(booking.signed_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}` : 'Non signé'}
