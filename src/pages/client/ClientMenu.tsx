@@ -9,6 +9,7 @@ import { useBasket } from './context/BasketContext';
 import { useState, useEffect } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { cn } from '@/lib/utils';
+import { formatPrice } from '@/lib/formatPrice';
 
 interface Treatment {
   id: string;
@@ -237,7 +238,7 @@ export default function ClientMenu() {
                   {!treatment.price_on_request && (
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold text-foreground">
-                        €{Number(treatment.price).toFixed(0)}
+                        {formatPrice(treatment.price, 'EUR', { decimals: 0 })}
                       </span>
                       {treatment.duration && (
                         <span className="text-muted-foreground text-xs">• {treatment.duration} min</span>

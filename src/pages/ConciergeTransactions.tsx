@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { useUserContext } from "@/hooks/useUserContext";
+import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 
 interface BookingTransaction {
@@ -151,7 +152,7 @@ const ConciergeTransactions = () => {
       `${t.client_first_name} ${t.client_last_name}`,
       `Réservation #${t.booking_id}`,
       t.hairdresser_name || "-",
-      t.total_price ? `${t.total_price.toFixed(2)}€` : "-",
+      t.total_price ? formatPrice(t.total_price) : "-",
       t.payment_status || "-"
     ]);
 
@@ -330,7 +331,7 @@ const ConciergeTransactions = () => {
                       </td>
                       <td className="py-3 px-2 text-right">
                         <span className="font-medium">
-                          {transaction.total_price ? `${transaction.total_price.toFixed(2)}€` : "-"}
+                          {transaction.total_price ? formatPrice(transaction.total_price) : "-"}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-center">

@@ -12,6 +12,7 @@ import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
 import PwaHeader from "@/components/pwa/PwaHeader";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface Hairdresser {
   id: string;
@@ -694,7 +695,7 @@ const PwaDashboard = () => {
                         })()}
                       </div>
                       <p className="text-[11px] text-gray-500">
-                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • €{calculateTotalPrice(booking)}
+                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -785,7 +786,7 @@ const PwaDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
                             <p className="text-[11px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • €{calculateTotalPrice(booking)}
+                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
                             </p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />

@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, Plus, Minus, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
 
 const countries = [
@@ -590,7 +591,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                                   {treatment.name}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {treatment.price}€ • {treatment.duration} min
+                                  {formatPrice(treatment.price, 'EUR', { decimals: 0 })} • {treatment.duration} min
                                 </span>
                               </div>
 
@@ -654,7 +655,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
                   {/* Total + Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-sm">{totalPrice}€</span>
+                    <span className="font-bold text-sm">{formatPrice(totalPrice)}</span>
                     <Button 
                       type="button" 
                       variant="outline"

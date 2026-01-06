@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import BookingProgressBar from '@/components/BookingProgressBar';
 import { cn } from '@/lib/utils';
+import { formatPrice } from '@/lib/formatPrice';
 
 export default function ClientPayment() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -154,7 +155,7 @@ export default function ClientPayment() {
                     {item.name} x{item.quantity}
                   </span>
                   <span className="font-medium">
-                    €{(item.price * item.quantity).toFixed(2)}
+                    {formatPrice(item.price * item.quantity)}
                   </span>
                 </div>
               ))}
@@ -179,11 +180,11 @@ export default function ClientPayment() {
             <span>{t('checkout.total')}</span>
             {hasPriceOnRequest ? (
               <div className="text-right">
-                <span className="text-base">€{fixedTotal.toFixed(2)}</span>
+                <span className="text-base">{formatPrice(fixedTotal)}</span>
                 <span className="text-amber-600 text-sm ml-1">{t('payment.plusQuote')}</span>
               </div>
             ) : (
-              <span>€{total.toFixed(2)}</span>
+              <span>{formatPrice(total)}</span>
             )}
           </div>
         </div>

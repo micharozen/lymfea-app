@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, Loader2, CheckCircle, AlertCircle } from "lu
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatPrice as formatPriceUtil } from "@/lib/formatPrice";
 import PwaHeader from "@/components/pwa/PwaHeader";
 import {
   DropdownMenu,
@@ -224,8 +225,8 @@ const PwaWallet = () => {
     }
   };
 
-  const formatPrice = (amount: number) => {
-    return `${amount.toFixed(2).replace('.', ',')} €`;
+  const formatPriceLocal = (amount: number) => {
+    return formatPriceUtil(amount, 'EUR').replace('.', ',');
   };
 
   const formatTotal = (amount: number) => {
@@ -374,7 +375,7 @@ const PwaWallet = () => {
 
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-medium text-foreground">
-                        {formatPrice(payout.amount)}
+                        {formatPriceLocal(payout.amount)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {payout.date ? format(new Date(payout.date), "MMM dd") : "-"}
