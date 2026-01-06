@@ -201,7 +201,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <StatCard
           title="Ventes totales"
           value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
@@ -216,11 +216,6 @@ export default function Dashboard() {
           value={stats.totalBookings}
           trend={parseFloat(stats.bookingsTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.bookingsTrend))}%`, isPositive: parseFloat(stats.bookingsTrend) > 0 } : undefined}
         />
-        <StatCard
-          title="Sessions totales"
-          value={stats.totalSessions}
-          trend={parseFloat(stats.sessionsTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.sessionsTrend))}%`, isPositive: parseFloat(stats.sessionsTrend) > 0 } : undefined}
-        />
       </div>
 
       {salesData.length > 0 ? (
@@ -229,7 +224,7 @@ export default function Dashboard() {
             <CardTitle className="text-xl font-bold text-foreground">Ventes totales</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={200}>
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
                 <XAxis 
