@@ -464,9 +464,10 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="GBP">GBP</SelectItem>
+                        <SelectItem value="EUR">EUR (€)</SelectItem>
+                        <SelectItem value="USD">USD ($)</SelectItem>
+                        <SelectItem value="GBP">GBP (£)</SelectItem>
+                        <SelectItem value="CHF">CHF</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
