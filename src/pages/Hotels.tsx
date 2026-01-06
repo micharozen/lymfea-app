@@ -45,6 +45,11 @@ interface Trunk {
   image: string | null;
 }
 
+interface HotelStats {
+  bookingsCount: number;
+  totalSales: number;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -63,6 +68,7 @@ interface Hotel {
   updated_at: string;
   concierges?: Concierge[];
   trunks?: Trunk[];
+  stats?: HotelStats;
 }
 
 export default function Hotels() {
@@ -133,7 +139,27 @@ export default function Hotels() {
 
       if (trunksError) throw trunksError;
 
-      // Map concierges and trunks to hotels
+      // Fetch bookings stats per hotel (completed bookings only for sales)
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from("bookings")
+        .select("hotel_id, total_price, status");
+
+      if (bookingsError) throw bookingsError;
+
+      // Calculate stats per hotel
+      const hotelStats: Record<string, HotelStats> = {};
+      (bookingsData || []).forEach((booking) => {
+        if (!hotelStats[booking.hotel_id]) {
+          hotelStats[booking.hotel_id] = { bookingsCount: 0, totalSales: 0 };
+        }
+        hotelStats[booking.hotel_id].bookingsCount += 1;
+        // Only count completed bookings for sales
+        if (booking.status === "completed" && booking.total_price) {
+          hotelStats[booking.hotel_id].totalSales += Number(booking.total_price);
+        }
+      });
+
+      // Map concierges, trunks and stats to hotels
       const hotelsWithData = (hotelsData || []).map((hotel) => {
         const hotelConcierges = (conciergeMappings || [])
           .filter((mapping) => mapping.hotel_id === hotel.id)
@@ -155,6 +181,7 @@ export default function Hotels() {
           ...hotel,
           concierges: hotelConcierges,
           trunks: hotelTrunks,
+          stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
         };
       });
 
@@ -350,10 +377,10 @@ export default function Hotels() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs font-medium">{formatPrice(0, hotel.currency)}</span>
+                      <span className="text-xs font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs text-muted-foreground">0</span>
+                      <span className="text-xs text-muted-foreground">{hotel.stats?.bookingsCount || 0}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
                       <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
