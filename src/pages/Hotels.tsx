@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Pencil, Trash2, MapPin, Users, Package, DollarSign, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
@@ -349,7 +350,7 @@ export default function Hotels() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs font-medium">€0</span>
+                      <span className="text-xs font-medium">{formatPrice(0, hotel.currency)}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2 text-center">
                       <span className="text-xs text-muted-foreground">0</span>
