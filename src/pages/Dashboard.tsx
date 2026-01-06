@@ -171,7 +171,7 @@ export default function Dashboard() {
     
     return {
       name: hotel.name,
-      totalSales: `${totalSales.toFixed(2)} ${hotel.currency || 'EUR'}`,
+      totalSales: `${totalSales.toFixed(2)} €`,
       totalBookings: hotelBookings.length,
       totalSessions: totalSessions,
       totalCancelled: totalCancelled,
