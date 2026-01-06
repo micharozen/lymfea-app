@@ -196,17 +196,30 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     return { totalPrice: p, totalDuration: d };
   }, [cart, treatments]);
 
-  // Update custom fields when cart changes (pre-fill with defaults)
+  // Check if cart contains any "on request" services
+  const hasOnRequestService = useMemo(() => {
+    return cart.some(item => {
+      const treatment = treatments?.find(t => t.id === item.treatmentId);
+      return treatment?.price_on_request === true;
+    });
+  }, [cart, treatments]);
+
+  // Update custom fields when cart changes (pre-fill with defaults) - only for on-request services
   useEffect(() => {
-    if (isAdmin && cart.length > 0) {
+    if (isAdmin && hasOnRequestService && cart.length > 0) {
       if (!customPrice) setCustomPrice(String(totalPrice));
       if (!customDuration) setCustomDuration(String(totalDuration));
     }
-  }, [totalPrice, totalDuration, cart.length, isAdmin]);
+    // Clear custom fields if no on-request services
+    if (!hasOnRequestService) {
+      setCustomPrice("");
+      setCustomDuration("");
+    }
+  }, [totalPrice, totalDuration, cart.length, isAdmin, hasOnRequestService]);
 
-  // Final values: admin uses custom, others use calculated
-  const finalPrice = isAdmin && customPrice ? Number(customPrice) : totalPrice;
-  const finalDuration = isAdmin && customDuration ? Number(customDuration) : totalDuration;
+  // Final values: admin uses custom only for on-request services, others use calculated
+  const finalPrice = isAdmin && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
+  const finalDuration = isAdmin && hasOnRequestService && customDuration ? Number(customDuration) : totalDuration;
 
   const cartDetails = useMemo(() => 
     cart.map(i => ({ ...i, treatment: treatments?.find(x => x.id === i.treatmentId) })).filter(i => i.treatment), 
@@ -674,8 +687,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               
               {/* Compact Footer */}
               <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-2">
-                {/* Admin-only: Custom Price & Duration */}
-                {isAdmin && cart.length > 0 && (
+                {/* Admin-only: Custom Price & Duration - ONLY for On Request services */}
+                {isAdmin && hasOnRequestService && (
                   <div className="grid grid-cols-2 gap-2 pb-2 border-b border-border/50">
                     <div className="space-y-1">
                       <Label className="text-[10px] text-muted-foreground">Prix personnalisé (€)</Label>
