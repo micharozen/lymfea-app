@@ -128,6 +128,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
+  
+  // Admin-only custom price/duration overrides
+  const [customPrice, setCustomPrice] = useState<string>("");
+  const [customDuration, setCustomDuration] = useState<string>("");
 
   useEffect(() => {
     if (selectedDate) setDate(selectedDate);
@@ -192,6 +196,18 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     return { totalPrice: p, totalDuration: d };
   }, [cart, treatments]);
 
+  // Update custom fields when cart changes (pre-fill with defaults)
+  useEffect(() => {
+    if (isAdmin && cart.length > 0) {
+      if (!customPrice) setCustomPrice(String(totalPrice));
+      if (!customDuration) setCustomDuration(String(totalDuration));
+    }
+  }, [totalPrice, totalDuration, cart.length, isAdmin]);
+
+  // Final values: admin uses custom, others use calculated
+  const finalPrice = isAdmin && customPrice ? Number(customPrice) : totalPrice;
+  const finalDuration = isAdmin && customDuration ? Number(customDuration) : totalDuration;
+
   const cartDetails = useMemo(() => 
     cart.map(i => ({ ...i, treatment: treatments?.find(x => x.id === i.treatmentId) })).filter(i => i.treatment), 
     [cart, treatments]
@@ -225,6 +241,18 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     mutationFn: async (d: any) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
       const hd = hairdressers?.find(h => h.id === d.hairdresserId);
+      
+      // Determine status based on role:
+      // - Admin with hairdresser assigned: "confirmed"
+      // - Admin without hairdresser: "pending" (hairdressers notified)
+      // - Concierge/Client: "pending_quote" (waiting for admin review)
+      let status: string;
+      if (d.isAdmin) {
+        status = d.hairdresserId ? "confirmed" : "pending";
+      } else {
+        status = "pending_quote";
+      }
+      
       const { data: booking, error } = await supabase.from("bookings").insert({
         hotel_id: d.hotelId, 
         hotel_name: hotel?.name || "", 
@@ -236,7 +264,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         booking_time: d.time,
         hairdresser_id: d.hairdresserId || null, 
         hairdresser_name: hd ? `${hd.first_name} ${hd.last_name}` : null,
-        status: d.hairdresserId ? "confirmed" : "pending", 
+        status, 
         assigned_at: d.hairdresserId ? new Date().toISOString() : null, 
         total_price: d.totalPrice,
       }).select().single();
@@ -251,14 +279,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       }
       
       try { 
-        if (!d.isAdmin) await supabase.functions.invoke('notify-admin-new-booking', { body: { bookingId: booking.id } }); 
-        await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking.id } }); 
+        if (d.isAdmin) {
+          // Admin flow: notify hairdressers immediately (if not already assigned)
+          if (!d.hairdresserId) {
+            await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking.id } }); 
+          }
+        } else {
+          // Concierge/Client flow: notify admin for quote review
+          await supabase.functions.invoke('notify-admin-new-booking', { body: { bookingId: booking.id } }); 
+        }
       } catch {}
       
       return booking;
     },
-    onSuccess: () => { 
-      toast({ title: "Réservation créée" }); 
+    onSuccess: (_, variables) => { 
+      const message = variables.isAdmin 
+        ? "Réservation créée" 
+        : "Demande de devis envoyée";
+      toast({ title: message }); 
       queryClient.invalidateQueries({ queryKey: ["bookings"] }); 
       handleClose(); 
     },
@@ -292,7 +330,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       time, 
       hairdresserId, 
       treatmentIds: flatIds, 
-      totalPrice, 
+      totalPrice: finalPrice, 
+      totalDuration: finalDuration,
       isAdmin 
     });
   };
@@ -309,7 +348,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setTime(selectedTime || ""); 
     setHairdresserId(""); 
     setCart([]); 
-    setTreatmentFilter("female"); 
+    setTreatmentFilter("female");
+    setCustomPrice("");
+    setCustomDuration("");
     onOpenChange(false); 
   };
 
@@ -632,7 +673,37 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               </div>
               
               {/* Compact Footer */}
-              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
+              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-2">
+                {/* Admin-only: Custom Price & Duration */}
+                {isAdmin && cart.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 pb-2 border-b border-border/50">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Prix personnalisé (€)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={customPrice}
+                        onChange={(e) => setCustomPrice(e.target.value)}
+                        className="h-7 text-xs"
+                        placeholder={String(totalPrice)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Durée personnalisée (min)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="5"
+                        value={customDuration}
+                        onChange={(e) => setCustomDuration(e.target.value)}
+                        className="h-7 text-xs"
+                        placeholder={String(totalDuration)}
+                      />
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center justify-between gap-3">
                   {/* Cart Summary */}
                   <div className="flex-1 min-w-0">
@@ -655,7 +726,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
                   {/* Total + Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-sm">{formatPrice(totalPrice)}</span>
+                    <span className="font-bold text-sm">{formatPrice(finalPrice)}</span>
                     <Button 
                       type="button" 
                       variant="outline"
@@ -671,7 +742,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                       size="sm"
                       className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
                     >
-                      {mutation.isPending ? "..." : "Créer"}
+                      {mutation.isPending ? "..." : isAdmin ? "Créer" : "Demander un devis"}
                     </Button>
                   </div>
                 </div>
