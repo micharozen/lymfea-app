@@ -641,11 +641,20 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                               className="flex items-center justify-between py-1.5 border-b border-border/10 last:border-0"
                             >
                               <div className="flex flex-col flex-1 pr-2 min-w-0">
-                                <span className="font-medium text-foreground text-xs truncate">
-                                  {treatment.name}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-medium text-foreground text-xs truncate">
+                                    {treatment.name}
+                                  </span>
+                                  {treatment.price_on_request && (
+                                    <span className="shrink-0 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 rounded">
+                                      Sur demande
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="text-[10px] text-muted-foreground">
-                                  {formatPrice(treatment.price, 'EUR', { decimals: 0 })} • {treatment.duration} min
+                                  {treatment.price_on_request 
+                                    ? `${treatment.duration} min` 
+                                    : `${formatPrice(treatment.price, 'EUR', { decimals: 0 })} • ${treatment.duration} min`}
                                 </span>
                               </div>
 
