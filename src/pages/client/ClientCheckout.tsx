@@ -9,6 +9,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { formatPrice } from '@/lib/formatPrice';
 
 export default function ClientCheckout() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -307,14 +308,14 @@ export default function ClientCheckout() {
                   {item.name} x{item.quantity}
                 </span>
                 <span className="font-medium">
-                  €{(item.price * item.quantity).toFixed(2)}
+                  {formatPrice(item.price * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
           <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
             <span>Total</span>
-            <span>€{total.toFixed(2)}</span>
+            <span>{formatPrice(total)}</span>
           </div>
         </div>
       </form>

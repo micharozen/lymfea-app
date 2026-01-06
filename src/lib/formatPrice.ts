@@ -9,6 +9,11 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 /**
+ * Currencies that place symbol after amount (European style)
+ */
+const SUFFIX_CURRENCIES = ['EUR', 'CHF'];
+
+/**
  * Format a price with the correct currency symbol placement
  * European format: amount + space + symbol (e.g., "42.00 €")
  * US/UK format: symbol + amount (e.g., "$42.00" or "£42.00")
@@ -45,7 +50,7 @@ export function formatPrice(
   const symbol = CURRENCY_SYMBOLS[currency] || currency;
   
   // European currencies: amount + space + symbol
-  if (currency === 'EUR' || currency === 'CHF') {
+  if (SUFFIX_CURRENCIES.includes(currency)) {
     return `${formattedAmount} ${symbol}`;
   }
   

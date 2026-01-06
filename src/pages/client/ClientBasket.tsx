@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Minus, Plus, Trash2 } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import BookingProgressBar from '@/components/BookingProgressBar';
+import { formatPrice } from '@/lib/formatPrice';
 
 export default function ClientBasket() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -82,7 +83,7 @@ export default function ClientBasket() {
                   {item.category} • {item.duration} min
                 </p>
                 <p className="font-semibold text-foreground">
-                  €{(item.price * item.quantity).toFixed(2)}
+                  {formatPrice(item.price * item.quantity)}
                 </p>
               </div>
               <Button
@@ -125,7 +126,7 @@ export default function ClientBasket() {
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 space-y-3 pb-safe">
         <div className="flex justify-between items-center">
           <span className="font-semibold">{t('basket.subtotal')}</span>
-          <span className="font-bold text-lg">€{total.toFixed(2)}</span>
+          <span className="font-bold text-lg">{formatPrice(total)}</span>
         </div>
         <Button
           onClick={() => navigate(`/client/${hotelId}/datetime`)}

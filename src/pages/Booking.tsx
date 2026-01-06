@@ -31,6 +31,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarIcon, List, Search, ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, FileText, Download, CreditCard, Plus } from "lucide-react";
+import { formatPrice } from "@/lib/formatPrice";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -639,7 +640,7 @@ export default function Booking() {
                                                 <li key={idx} className="flex justify-between gap-2">
                                                   <span>{treatment.name}</span>
                                                   <span className="text-muted-foreground whitespace-nowrap">
-                                                    {tDurationFormatted} • €{treatment.price}
+                                                    {tDurationFormatted} • {formatPrice(treatment.price)}
                                                   </span>
                                                 </li>
                                               );
@@ -651,7 +652,7 @@ export default function Booking() {
                                       {booking.total_price && (
                                         <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
                                           <Euro className="h-3 w-3" />
-                                          <span>Total: €{booking.total_price}</span>
+                                          <span>Total: {formatPrice(booking.total_price)}</span>
                                         </div>
                                       )}
                                     </div>
@@ -744,7 +745,7 @@ export default function Booking() {
                         <span className="truncate block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                        <span className="truncate block leading-none">€{booking.total_price?.toFixed(2) || "0.00"}</span>
+                        <span className="truncate block leading-none">{formatPrice(booking.total_price)}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                         <span className="truncate block leading-none">{booking.hotel_name || "-"}</span>

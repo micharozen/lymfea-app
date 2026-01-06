@@ -14,6 +14,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tool
 import { format, differenceInDays, addDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { formatPrice } from "@/lib/formatPrice";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -171,7 +172,7 @@ export default function Dashboard() {
     
     return {
       name: hotel.name,
-      totalSales: `${totalSales.toFixed(2)} €`,
+      totalSales: formatPrice(totalSales),
       totalBookings: hotelBookings.length,
       totalSessions: totalSessions,
       totalCancelled: totalCancelled,

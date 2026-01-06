@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/formatPrice";
 
 // Success Animation Component
 const PaymentSuccessView = ({ onComplete }: { onComplete: () => void }) => {
@@ -395,7 +396,7 @@ export const PaymentSelectionDrawer = ({
             <div className={`bg-muted/50 rounded-xl p-4 mb-6 ${isPaymentPending ? 'opacity-75' : ''}`}>
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground">Récapitulatif</h4>
-                <span className="text-lg font-bold">{totalPrice.toFixed(2)}€</span>
+                <span className="text-lg font-bold">{formatPrice(totalPrice)}</span>
               </div>
               
               {/* Only show details when not pending */}
@@ -404,17 +405,17 @@ export const PaymentSelectionDrawer = ({
                   {treatments.map((treatment, index) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{treatment.name}</span>
-                      <span className="font-medium">{treatment.price.toFixed(2)}€</span>
+                      <span className="font-medium">{formatPrice(treatment.price)}</span>
                     </div>
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Total HT</span>
-                      <span>{totalHT.toFixed(2)}€</span>
+                      <span>{formatPrice(totalHT)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>TVA ({vatRate}%)</span>
-                      <span>{tvaAmount.toFixed(2)}€</span>
+                      <span>{formatPrice(tvaAmount)}</span>
                     </div>
                   </div>
                 </div>

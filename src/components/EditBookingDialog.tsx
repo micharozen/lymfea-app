@@ -27,6 +27,7 @@ import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
 import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
+import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
@@ -1069,7 +1070,7 @@ export default function EditBookingDialog({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
-                    <p className="font-semibold text-sm">€{totalPrice.toFixed(2)}</p>
+                    <p className="font-semibold text-sm">{formatPrice(totalPrice)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
@@ -1086,12 +1087,12 @@ export default function EditBookingDialog({
                     {bookingTreatments.map((treatment) => (
                       <div key={treatment.id} className="flex items-center justify-between text-sm">
                         <span>{treatment.name}</span>
-                        <span className="font-medium">€{(treatment.price || 0).toFixed(2)}</span>
+                        <span className="font-medium">{formatPrice(treatment.price || 0)}</span>
                       </div>
                     ))}
                     <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                       <span className="font-semibold">Total</span>
-                      <span className="font-semibold">€{bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0).toFixed(2)}</span>
+                      <span className="font-semibold">{formatPrice(bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0))}</span>
                     </div>
                   </div>
                 </div>

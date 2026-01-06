@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface Treatment {
   name: string;
@@ -85,7 +86,7 @@ export const InvoiceSignatureDialog = ({
                     <p className="text-xs text-muted-foreground">{treatment.duration} min</p>
                   </div>
                   <p className="text-sm font-medium text-foreground">
-                    {treatment.price.toFixed(2)}{currency}
+                    {formatPrice(treatment.price, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                   </p>
                 </div>
               ))}
@@ -99,19 +100,19 @@ export const InvoiceSignatureDialog = ({
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
                 <span className="text-sm font-medium text-foreground">
-                  {subtotal.toFixed(2)}{currency}
+                  {formatPrice(subtotal, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">VAT ({vatRate}%)</span>
                 <span className="text-sm font-medium text-foreground">
-                  {vatAmount.toFixed(2)}{currency}
+                  {formatPrice(vatAmount, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                 </span>
               </div>
               <div className="flex items-center justify-between pt-2 border-t border-border">
                 <span className="text-base font-semibold text-foreground">Total</span>
                 <span className="text-base font-semibold text-foreground">
-                  {total.toFixed(2)}{currency}
+                  {formatPrice(total, currency === '€' ? 'EUR' : currency === '$' ? 'USD' : currency === '£' ? 'GBP' : 'EUR')}
                 </span>
               </div>
             </div>

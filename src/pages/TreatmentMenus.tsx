@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatPrice } from "@/lib/formatPrice";
 import { Search, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -260,7 +261,7 @@ export default function TreatmentMenus() {
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <span className="truncate block text-foreground">
-                        {menu.price_on_request ? "Sur demande" : (menu.price ? `${menu.price}€` : "0")}
+                        {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, 'EUR', { decimals: 0 })}
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
