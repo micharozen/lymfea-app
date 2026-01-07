@@ -49,9 +49,15 @@ interface Concierge {
   hotels?: { hotel_id: string }[];
 }
 
+interface Hotel {
+  id: string;
+  name: string;
+}
+
 export default function Concierges() {
   const [concierges, setConcierges] = useState<Concierge[]>([]);
   const [filteredConcierges, setFilteredConcierges] = useState<Concierge[]>([]);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -80,8 +86,23 @@ export default function Concierges() {
     };
     
     fetchUserRole();
+    fetchHotels();
     fetchConcierges();
   }, []);
+
+  const fetchHotels = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("id, name")
+        .order("name");
+      
+      if (error) throw error;
+      setHotels(data || []);
+    } catch (error) {
+      console.error("Error fetching hotels:", error);
+    }
+  };
 
   useEffect(() => {
     filterConcierges();
@@ -138,12 +159,8 @@ export default function Concierges() {
 
   const getHotelName = (hotelId: string | null) => {
     if (!hotelId) return "Non assigné";
-    const hotelMap: Record<string, string> = {
-      "mandarin-london": "Mandarin Oriental Hyde Park, London",
-      "sofitel-paris": "Hôtel Sofitel Paris le Faubourg",
-      "test": "TEST",
-    };
-    return hotelMap[hotelId] || hotelId;
+    const hotel = hotels.find(h => h.id === hotelId);
+    return hotel?.name || hotelId;
   };
 
   const getHotelNames = (hotels?: { hotel_id: string }[]) => {
@@ -217,9 +234,11 @@ export default function Concierges() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les hôtels</SelectItem>
-                <SelectItem value="mandarin-london">Mandarin Oriental</SelectItem>
-                <SelectItem value="sofitel-paris">Hôtel Sofitel</SelectItem>
-                <SelectItem value="test">TEST</SelectItem>
+                {hotels.map((hotel) => (
+                  <SelectItem key={hotel.id} value={hotel.id}>
+                    {hotel.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
