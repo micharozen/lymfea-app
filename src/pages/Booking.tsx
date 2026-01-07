@@ -653,26 +653,45 @@ export default function Booking() {
                                         <span>Durée: {durationFormatted}</span>
                                       </div>
                                       
-                                      {treatments.length > 0 && (
-                                        <div className="space-y-1">
-                                          <div className="text-xs font-medium">Traitements:</div>
-                                          <ul className="text-xs space-y-1">
-                                            {treatments.map((treatment: any, idx: number) => {
-                                              const tHours = Math.floor(treatment.duration / 60);
-                                              const tMinutes = treatment.duration % 60;
-                                              const tDurationFormatted = `${tHours.toString().padStart(2, '0')}h${tMinutes.toString().padStart(2, '0')}`;
-                                              return (
-                                                <li key={idx} className="flex justify-between gap-2">
-                                                  <span>{treatment.name}</span>
-                                                  <span className="text-muted-foreground whitespace-nowrap">
-                                                    {tDurationFormatted} • {formatPrice(treatment.price)}
-                                                  </span>
-                                                </li>
-                                              );
-                                            })}
-                                          </ul>
-                                        </div>
-                                      )}
+                                      {(() => {
+                                        // Check if all treatments have price=0 and duration=0 ("on quote" case)
+                                        const allOnQuote = treatments.length > 0 && treatments.every(
+                                          (t: any) => (!t.price || t.price === 0) && (!t.duration || t.duration === 0)
+                                        );
+
+                                        if (allOnQuote) {
+                                          return (
+                                            <div className="text-xs text-muted-foreground italic">
+                                              Sur devis
+                                            </div>
+                                          );
+                                        }
+
+                                        if (treatments.length > 0) {
+                                          return (
+                                            <div className="space-y-1">
+                                              <div className="text-xs font-medium">Traitements:</div>
+                                              <ul className="text-xs space-y-1">
+                                                {treatments.map((treatment: any, idx: number) => {
+                                                  const tHours = Math.floor((treatment.duration || 0) / 60);
+                                                  const tMinutes = (treatment.duration || 0) % 60;
+                                                  const tDurationFormatted = `${tHours.toString().padStart(2, '0')}h${tMinutes.toString().padStart(2, '0')}`;
+                                                  return (
+                                                    <li key={idx} className="flex justify-between gap-2">
+                                                      <span>{treatment.name}</span>
+                                                      <span className="text-muted-foreground whitespace-nowrap">
+                                                        {tDurationFormatted} • {formatPrice(treatment.price || 0)}
+                                                      </span>
+                                                    </li>
+                                                  );
+                                                })}
+                                              </ul>
+                                            </div>
+                                          );
+                                        }
+
+                                        return null;
+                                      })()}
                                       
                                       <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
                                         <Euro className="h-3 w-3" />
