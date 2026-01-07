@@ -469,8 +469,8 @@ export default function Booking() {
                     style={{ scrollbarGutter: "stable" }}
                   >
                     {/* Header avec les jours - Sticky */}
-                    <div className="sticky top-0 z-10 grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] border-b border-border bg-card">
-                      <div className="p-1 md:p-3 border-r border-border bg-muted/30">
+                    <div className="sticky top-0 z-20 grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] border-b border-border bg-card">
+                      <div className="p-1 md:p-3 border-r border-border bg-muted">
                         <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
                       </div>
                       {weekDays.map((day) => {
@@ -478,8 +478,8 @@ export default function Booking() {
                         return (
                           <div
                             key={day.toISOString()}
-                            className={`p-1 md:p-3 text-center border-r border-border last:border-r-0 ${
-                              isToday ? "bg-primary/5" : "bg-muted/30"
+                            className={`p-1 md:p-3 text-center border-r border-border last:border-r-0 bg-muted ${
+                              isToday ? "ring-1 ring-inset ring-primary/20" : ""
                             }`}
                           >
                             <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">
