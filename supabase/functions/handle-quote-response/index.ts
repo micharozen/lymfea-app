@@ -110,6 +110,64 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
 
+      // Notify admins about the quote acceptance via email
+      if (resend) {
+        try {
+          const { data: admins } = await supabase
+            .from("admins")
+            .select("email, first_name")
+            .eq("status", "active");
+
+          if (admins && admins.length > 0) {
+            for (const admin of admins) {
+              const emailResult = await resend.emails.send({
+                from: "OOM World <booking@oomworld.com>",
+                to: [admin.email],
+                subject: `✅ Devis accepté - Commande #${booking.booking_id}`,
+                html: `
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <meta charset="utf-8">
+                  </head>
+                  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
+                    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px;">
+                      <div style="text-align: center; margin-bottom: 24px;">
+                        <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                      </div>
+                      
+                      <div style="background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                        <h2 style="color: #166534; margin: 0 0 12px 0; font-size: 18px;">✅ Devis accepté par le client</h2>
+                        <p style="color: #15803d; margin: 0; font-size: 14px;">
+                          Le client a accepté le devis pour la commande #${booking.booking_id}. La réservation est maintenant en attente d'assignation d'un coiffeur.
+                        </p>
+                      </div>
+                      
+                      <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px;">
+                        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Client:</strong> ${booking.client_first_name} ${booking.client_last_name}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Téléphone:</strong> ${booking.phone || 'N/A'}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Hôtel:</strong> ${booking.hotel_name || 'N/A'}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Chambre:</strong> ${booking.room_number || 'N/A'}</p>
+                        <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>Prix accepté:</strong> ${booking.total_price}€</p>
+                        <p style="margin: 0; font-size: 14px;"><strong>Date prévue:</strong> ${booking.booking_date} à ${booking.booking_time?.substring(0, 5)}</p>
+                      </div>
+                      
+                      <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 24px;">
+                        OOM World - Luxury Hair Services
+                      </p>
+                    </div>
+                  </body>
+                  </html>
+                `,
+              });
+              console.log(`Admin notified of quote acceptance: ${admin.email}`, emailResult);
+            }
+          }
+        } catch (emailError) {
+          console.error("Error notifying admin of acceptance:", emailError);
+        }
+      }
+
       // Trigger notifications to hairdressers
       try {
         console.log("Triggering push notifications for approved booking:", bookingId);
@@ -118,15 +176,6 @@ const handler = async (req: Request): Promise<Response> => {
         });
       } catch (notifError) {
         console.error("Error triggering hairdresser notifications:", notifError);
-      }
-
-      // Also notify admin about the booking
-      try {
-        await supabase.functions.invoke('notify-admin-new-booking', {
-          body: { bookingId: bookingId }
-        });
-      } catch (adminNotifError) {
-        console.error("Error notifying admin:", adminNotifError);
       }
 
       console.log("Quote approved for booking:", bookingId);
