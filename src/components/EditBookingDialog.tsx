@@ -134,6 +134,8 @@ interface Booking {
   hairdresser_id: string | null;
   hairdresser_name: string | null;
   assigned_at: string | null;
+  total_price?: number | null;
+  duration?: number | null;
   payment_status?: string | null;
   payment_method?: string | null;
   client_signature?: string | null;
@@ -1071,11 +1073,25 @@ export default function EditBookingDialog({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
-                    <p className="font-semibold text-sm">{formatPrice(totalPrice)}</p>
+                    <p className="font-semibold text-sm">
+                      {formatPrice(
+                        booking?.total_price && booking.total_price > 0 ? booking.total_price : totalPrice,
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Durée</p>
-                    <p className="font-semibold text-sm">{bookingTreatments && bookingTreatments.length > 0 ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0) : 0} min</p>
+                    <p className="font-semibold text-sm">
+                      {(() => {
+                        const treatmentsDuration =
+                          bookingTreatments && bookingTreatments.length > 0
+                            ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)
+                            : 0;
+                        const customDuration = (booking as any)?.duration;
+                        const value = customDuration && customDuration > 0 ? customDuration : treatmentsDuration || 60;
+                        return `${value} min`;
+                      })()}
+                    </p>
                   </div>
                 </div>
               </div>
