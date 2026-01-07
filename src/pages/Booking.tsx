@@ -463,49 +463,55 @@ export default function Booking() {
 
               <div className="w-full -mx-2 md:mx-0 px-2 md:px-0 flex-1 flex flex-col min-h-0">
                 <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border flex flex-col h-full overflow-hidden">
-                {/* Header avec les jours - Fixed */}
-                  <div className="grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] border-b border-border bg-card flex-shrink-0">
-                    <div className="p-1 md:p-3 border-r border-border bg-muted/30">
-                      <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
+                  {/* Scroll container (header + grid share the same scrollbar) */}
+                  <div
+                    className="flex-1 overflow-auto"
+                    style={{ scrollbarGutter: "stable" }}
+                  >
+                    {/* Header avec les jours - Sticky */}
+                    <div className="sticky top-0 z-10 grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] border-b border-border bg-card">
+                      <div className="p-1 md:p-3 border-r border-border bg-muted/30">
+                        <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
+                      </div>
+                      {weekDays.map((day) => {
+                        const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            className={`p-1 md:p-3 text-center border-r border-border last:border-r-0 ${
+                              isToday ? "bg-primary/5" : "bg-muted/30"
+                            }`}
+                          >
+                            <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">
+                              {format(day, "EEE", { locale: fr })}
+                            </div>
+                            <div className={`text-sm md:text-xl font-bold ${isToday ? "text-primary" : ""}`}
+                            >
+                              {format(day, "d")}
+                            </div>
+                            <div className="text-[8px] md:text-[10px] text-muted-foreground">
+                              {format(day, "MMM", { locale: fr })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    {weekDays.map((day) => {
-                      const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
-                      return (
-                        <div
-                          key={day.toISOString()}
-                          className={`p-1 md:p-3 text-center border-r border-border last:border-r-0 ${
-                            isToday ? "bg-primary/5" : "bg-muted/30"
-                          }`}
-                        >
-                          <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">
-                            {format(day, "EEE", { locale: fr })}
-                          </div>
-                          <div className={`text-sm md:text-xl font-bold ${isToday ? "text-primary" : ""}`}>
-                            {format(day, "d")}
-                          </div>
-                          <div className="text-[8px] md:text-[10px] text-muted-foreground">
-                            {format(day, "MMM", { locale: fr })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
 
-                {/* Grille avec les créneaux horaires - Scrollable */}
-                  <div className="grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] flex-1 overflow-auto">
-                    {/* Colonne des heures */}
-                    <div className="border-r border-border bg-muted/20 w-[60px] md:w-[80px]">
-                      {hours.map((hour) => (
-                        <div
-                          key={hour}
-                          className="border-b border-border p-1 flex items-start"
-                          style={{ height: `${HOUR_HEIGHT}px` }}
-                        >
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            {hour.toString().padStart(2, '0')}:00
-                          </span>
-                        </div>
-                      ))}
+                    {/* Grille avec les créneaux horaires */}
+                    <div className="grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)]">
+                      {/* Colonne des heures */}
+                      <div className="border-r border-border bg-muted/20 w-[60px] md:w-[80px]">
+                        {hours.map((hour) => (
+                          <div
+                            key={hour}
+                            className="border-b border-border p-1 flex items-start"
+                            style={{ height: `${HOUR_HEIGHT}px` }}
+                          >
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              {hour.toString().padStart(2, '0')}:00
+                            </span>
+                          </div>
+                        ))}
                     </div>
                     
                     {/* Colonnes des jours avec grille et événements positionnés */}
@@ -674,6 +680,7 @@ export default function Booking() {
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
               </div>
