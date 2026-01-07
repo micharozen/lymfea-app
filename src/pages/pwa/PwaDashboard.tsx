@@ -491,17 +491,23 @@ const PwaDashboard = () => {
   };
 
   const calculateTotalPrice = (booking: Booking) => {
+    // Priority: Use booking.total_price if set (admin custom price for "on request" services)
+    if (booking.total_price && booking.total_price > 0) {
+      return booking.total_price;
+    }
+    // Fallback: Calculate from treatments
     if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
-      return booking.total_price || 0;
+      return 0;
     }
     return booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.price || 0), 0);
   };
 
   const calculateTotalDuration = (booking: Booking) => {
     if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
-      return 60; // default
+      return 60; // default fallback
     }
-    return booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0);
+    const duration = booking.booking_treatments.reduce((sum, bt) => sum + (bt.treatment_menus?.duration || 0), 0);
+    return duration > 0 ? duration : 60; // fallback if all are 0
   };
 
 

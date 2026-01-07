@@ -161,7 +161,17 @@ export function getBookingStatusConfig(status: string): StatusConfig {
   };
 }
 
-export function getPaymentStatusConfig(status: string): StatusConfig {
+export function getPaymentStatusConfig(status: string | null | undefined): StatusConfig {
+  // Handle null/undefined - return a "not set" state
+  if (!status) {
+    return {
+      label: '⏳',
+      badgeClass: 'bg-gray-100 text-gray-500',
+      cardClass: 'bg-gray-400 text-white',
+      hexColor: '#9ca3af',
+    };
+  }
+  
   const normalizedStatus = status.toLowerCase() as PaymentStatus;
   return paymentStatusConfig[normalizedStatus] || {
     label: capitalizeFirst(status),
