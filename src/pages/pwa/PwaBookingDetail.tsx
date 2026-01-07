@@ -648,12 +648,14 @@ const PwaBookingDetail = () => {
     );
   }
 
-  // Priority: Use booking.total_price if set (admin custom price), otherwise calculate from treatments
+  // Priority: Use booking values if set (admin custom price/duration), otherwise calculate from treatments
   const treatmentsTotalDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
   const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
   
   // For "on request" bookings, the admin sets custom price/duration directly on the booking
-  const totalDuration = treatmentsTotalDuration > 0 ? treatmentsTotalDuration : 60; // fallback to 60 min
+  const totalDuration = (booking as any).duration && (booking as any).duration > 0 
+    ? (booking as any).duration 
+    : (treatmentsTotalDuration > 0 ? treatmentsTotalDuration : 60);
   const totalPrice = booking.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotalPrice;
   
   const estimatedEarnings = booking.hairdresser_commission 

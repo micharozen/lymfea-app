@@ -679,11 +679,12 @@ export default function EditBookingDialog({
       const fixedDuration = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.duration || 0), 0);
       const totalDuration = fixedDuration + quotedVariableDuration;
 
-      // Update booking with total price and set to waiting_approval
+      // Update booking with total price, duration and set to waiting_approval
       const { error } = await supabase
         .from("bookings")
         .update({
           total_price: totalPrice,
+          duration: totalDuration,
           status: "waiting_approval",
         })
         .eq("id", booking.id);

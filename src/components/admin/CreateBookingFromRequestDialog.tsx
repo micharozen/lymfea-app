@@ -159,6 +159,7 @@ export default function CreateBookingFromRequestDialog({
           status: initialStatus,
           assigned_at: assignedAt,
           total_price: price ? parseFloat(price) : null,
+          duration: duration ? parseInt(duration) : null,
           client_note: request.description,
         })
         .select()
