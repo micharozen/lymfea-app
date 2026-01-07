@@ -85,31 +85,40 @@ export default function Booking() {
         (bookingsData || []).map(async (booking) => {
           const { data: treatments } = await supabase
             .from("booking_treatments")
-            .select(`
+            .select(
+              `
               treatment_id,
               treatment_menus (
                 name,
                 duration,
                 price
               )
-            `)
+            `,
+            )
             .eq("booking_id", booking.id);
 
-          const totalDuration = treatments?.reduce((sum, t: any) => {
-            return sum + (t.treatment_menus?.duration || 0);
-          }, 0) || 0;
-          
-          const totalPrice = treatments?.reduce((sum, t: any) => {
-            return sum + (t.treatment_menus?.price || 0);
-          }, 0) || 0;
+          const treatmentsTotalDuration =
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
+
+          const treatmentsTotalPrice =
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+
+          // Priority: Use custom duration/price stored on booking (e.g. quote/on request),
+          // otherwise fall back to the sum of treatments.
+          const totalDuration = (booking as any).duration && (booking as any).duration > 0
+            ? (booking as any).duration
+            : treatmentsTotalDuration;
+
+          const treatmentsList = treatments?.map((t: any) => t.treatment_menus).filter(Boolean) || [];
 
           return {
             ...booking,
             totalDuration,
-            total_price: totalPrice,
-            treatments: treatments?.map((t: any) => t.treatment_menus).filter(Boolean) || [],
+            treatmentsTotalDuration,
+            treatmentsTotalPrice,
+            treatments: treatmentsList,
           };
-        })
+        }),
       );
 
       return bookingsWithDuration;
@@ -295,17 +304,19 @@ export default function Booking() {
   // Calculate precise position and height for a booking
   const getBookingPosition = (booking: any) => {
     if (!booking.booking_time) return { top: 0, height: HOUR_HEIGHT };
-    
+
     const [hours, minutes] = booking.booking_time.split(':').map(Number);
-    const duration = (booking as any).totalDuration || 60; // default 60 min if no duration
-    
+    const duration = (booking as any).totalDuration && (booking as any).totalDuration > 0
+      ? (booking as any).totalDuration
+      : 60; // default fallback
+
     // Calculate top position in pixels from start of grid
     const totalMinutesFromStart = (hours - START_HOUR) * 60 + minutes;
     const top = (totalMinutesFromStart / 60) * HOUR_HEIGHT;
-    
+
     // Calculate height based on duration
     const height = (duration / 60) * HOUR_HEIGHT;
-    
+
     return { top, height: Math.max(height, 20) }; // minimum 20px height for visibility
   };
 
@@ -550,11 +561,13 @@ export default function Booking() {
                           <TooltipProvider>
                             {dayBookings.map((booking) => {
                               const { top, height } = getBookingPosition(booking);
-                              const duration = (booking as any).totalDuration || 0;
+                              const duration = (booking as any).totalDuration && (booking as any).totalDuration > 0
+                                ? (booking as any).totalDuration
+                                : 60;
                               const treatments = (booking as any).treatments || [];
                               const durationHours = Math.floor(duration / 60);
                               const durationMinutes = duration % 60;
-                              const durationFormatted = durationHours > 0 
+                              const durationFormatted = durationHours > 0
                                 ? (durationMinutes > 0 ? `${durationHours}h${durationMinutes}` : `${durationHours}h`)
                                 : `${durationMinutes}min`;
                               
