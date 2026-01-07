@@ -463,8 +463,8 @@ export default function Booking() {
 
               <div className="w-full -mx-2 md:mx-0 px-2 md:px-0 flex-1 flex flex-col min-h-0">
                 <div className="min-w-[600px] md:min-w-0 w-full bg-card rounded-lg border border-border flex flex-col h-full overflow-hidden">
-                  {/* Header avec les jours - Fixed */}
-                  <div className="grid grid-cols-8 border-b border-border bg-card flex-shrink-0">
+                {/* Header avec les jours - Fixed */}
+                  <div className="grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] border-b border-border bg-card flex-shrink-0">
                     <div className="p-1 md:p-3 border-r border-border bg-muted/30">
                       <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
                     </div>
@@ -491,10 +491,10 @@ export default function Booking() {
                     })}
                   </div>
 
-                  {/* Grille avec les créneaux horaires - Scrollable */}
-                  <div className="grid grid-cols-8 flex-1 overflow-auto">
+                {/* Grille avec les créneaux horaires - Scrollable */}
+                  <div className="grid grid-cols-[60px_repeat(7,1fr)] md:grid-cols-[80px_repeat(7,1fr)] flex-1 overflow-auto">
                     {/* Colonne des heures */}
-                    <div className="border-r border-border bg-muted/20">
+                    <div className="border-r border-border bg-muted/20 w-[60px] md:w-[80px]">
                       {hours.map((hour) => (
                         <div
                           key={hour}
