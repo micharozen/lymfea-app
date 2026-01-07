@@ -503,6 +503,11 @@ const PwaDashboard = () => {
   };
 
   const calculateTotalDuration = (booking: Booking) => {
+    // Priority: Use booking.duration if set (admin custom duration for "on request" services)
+    if ((booking as any).duration && (booking as any).duration > 0) {
+      return (booking as any).duration;
+    }
+    // Fallback: Calculate from treatments
     if (!booking.booking_treatments || booking.booking_treatments.length === 0) {
       return 60; // default fallback
     }
