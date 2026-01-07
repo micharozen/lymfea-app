@@ -223,6 +223,13 @@ export type Database = {
             referencedRelation: "concierges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "concierge_hotels_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
         ]
       }
       concierges: {
