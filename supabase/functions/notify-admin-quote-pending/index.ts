@@ -78,7 +78,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send email to all admins
     const emailPromises = admins.map(async (admin: { email: string; first_name: string }) => {
       try {
-        await resend.emails.send({
+        const emailResult = await resend.emails.send({
           from: "OOM World <booking@oomworld.com>",
           to: [admin.email],
           subject: `Action requise : Devis à valider (Hôtel ${hotelName})`,
@@ -124,8 +124,17 @@ const handler = async (req: Request): Promise<Response> => {
             </html>
           `,
         });
-        console.log(`Email sent to admin: ${admin.email}`);
-        return { success: true, email: admin.email };
+        
+        // Log full Resend response for debugging
+        console.log(`Resend response for ${admin.email}:`, JSON.stringify(emailResult));
+        
+        if (emailResult.error) {
+          console.error(`Resend error for ${admin.email}:`, emailResult.error);
+          return { success: false, email: admin.email, error: emailResult.error };
+        }
+        
+        console.log(`Email sent to admin: ${admin.email} | ID: ${emailResult.data?.id}`);
+        return { success: true, email: admin.email, id: emailResult.data?.id };
       } catch (emailError) {
         console.error(`Failed to send email to ${admin.email}:`, emailError);
         return { success: false, email: admin.email, error: emailError };
