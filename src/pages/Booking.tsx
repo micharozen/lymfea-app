@@ -561,15 +561,21 @@ export default function Booking() {
                           <TooltipProvider>
                             {dayBookings.map((booking) => {
                               const { top, height } = getBookingPosition(booking);
-                              const duration = (booking as any).totalDuration && (booking as any).totalDuration > 0
-                                ? (booking as any).totalDuration
-                                : 60;
+
+                              const duration = (booking as any).duration && (booking as any).duration > 0
+                                ? (booking as any).duration
+                                : ((booking as any).totalDuration && (booking as any).totalDuration > 0
+                                  ? (booking as any).totalDuration
+                                  : 60);
                               const treatments = (booking as any).treatments || [];
                               const durationHours = Math.floor(duration / 60);
                               const durationMinutes = duration % 60;
                               const durationFormatted = durationHours > 0
                                 ? (durationMinutes > 0 ? `${durationHours}h${durationMinutes}` : `${durationHours}h`)
                                 : `${durationMinutes}min`;
+                              const totalPrice = (booking as any).total_price && (booking as any).total_price > 0
+                                ? (booking as any).total_price
+                                : ((booking as any).treatmentsTotalPrice || 0);
                               
                               return (
                                 <Tooltip key={booking.id} delayDuration={300}>
@@ -668,12 +674,10 @@ export default function Booking() {
                                         </div>
                                       )}
                                       
-                                      {booking.total_price && (
-                                        <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
-                                          <Euro className="h-3 w-3" />
-                                          <span>Total: {formatPrice(booking.total_price)}</span>
-                                        </div>
-                                      )}
+                                      <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+                                        <Euro className="h-3 w-3" />
+                                        <span>Total: {formatPrice(totalPrice)}</span>
+                                      </div>
                                     </div>
                                   </TooltipContent>
                                 </Tooltip>

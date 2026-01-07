@@ -1074,9 +1074,15 @@ export default function EditBookingDialog({
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Prix</p>
                     <p className="font-semibold text-sm">
-                      {formatPrice(
-                        booking?.total_price && booking.total_price > 0 ? booking.total_price : totalPrice,
-                      )}
+                      {(() => {
+                        const treatmentsPrice =
+                          bookingTreatments && bookingTreatments.length > 0
+                            ? bookingTreatments.reduce((sum, t) => sum + (t.price || 0), 0)
+                            : 0;
+                        const customPrice = booking?.total_price;
+                        const value = customPrice && customPrice > 0 ? customPrice : treatmentsPrice;
+                        return formatPrice(value);
+                      })()}
                     </p>
                   </div>
                   <div>
@@ -1087,7 +1093,7 @@ export default function EditBookingDialog({
                           bookingTreatments && bookingTreatments.length > 0
                             ? bookingTreatments.reduce((total, t) => total + (t.duration || 0), 0)
                             : 0;
-                        const customDuration = (booking as any)?.duration;
+                        const customDuration = booking?.duration;
                         const value = customDuration && customDuration > 0 ? customDuration : treatmentsDuration || 60;
                         return `${value} min`;
                       })()}
