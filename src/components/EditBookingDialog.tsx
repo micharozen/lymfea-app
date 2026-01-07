@@ -1103,23 +1103,51 @@ export default function EditBookingDialog({
               </div>
 
               {/* Prestations */}
-              {bookingTreatments && bookingTreatments.length > 0 && (
-                <div className="p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-2">Prestations</p>
-                  <div className="space-y-1.5">
-                    {bookingTreatments.map((treatment) => (
-                      <div key={treatment.id} className="flex items-center justify-between text-sm">
-                        <span>{treatment.name}</span>
-                        <span className="font-medium">{formatPrice(treatment.price || 0)}</span>
+              {bookingTreatments && bookingTreatments.length > 0 && (() => {
+                const allOnQuote = bookingTreatments.every(
+                  (t) => (!t.price || t.price === 0) && (!t.duration || t.duration === 0)
+                );
+                const treatmentsTotal = bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0);
+                const displayTotal = booking?.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotal;
+
+                if (allOnQuote) {
+                  return (
+                    <div className="p-3 bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                      <div className="space-y-1.5">
+                        {bookingTreatments.map((treatment) => (
+                          <div key={treatment.id} className="flex items-center justify-between text-sm">
+                            <span>{treatment.name}</span>
+                            <span className="font-medium text-muted-foreground italic">Sur devis</span>
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
+                          <span className="font-semibold">Total</span>
+                          <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                        </div>
                       </div>
-                    ))}
-                    <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
-                      <span className="font-semibold">Total</span>
-                      <span className="font-semibold">{formatPrice(bookingTreatments.reduce((sum, t) => sum + (t?.price || 0), 0))}</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="p-3 bg-muted/30 rounded-lg">
+                    <p className="text-xs text-muted-foreground mb-2">Prestations</p>
+                    <div className="space-y-1.5">
+                      {bookingTreatments.map((treatment) => (
+                        <div key={treatment.id} className="flex items-center justify-between text-sm">
+                          <span>{treatment.name}</span>
+                          <span className="font-medium">{formatPrice(treatment.price || 0)}</span>
+                        </div>
+                      ))}
+                      <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
+                        <span className="font-semibold">Total</span>
+                        <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Coiffeur */}
               <div className="p-3 bg-muted/30 rounded-lg">
