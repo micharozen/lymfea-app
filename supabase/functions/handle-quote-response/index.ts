@@ -218,8 +218,8 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (admins && admins.length > 0) {
             for (const admin of admins) {
-              await resend.emails.send({
-                from: "OOM World <notifications@oom-world.com>",
+              const emailResult = await resend.emails.send({
+                from: "OOM World <booking@oomworld.com>",
                 to: [admin.email],
                 subject: `Devis refusé - Commande #${booking.booking_id}`,
                 html: `
