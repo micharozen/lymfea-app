@@ -147,9 +147,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Quote pending notification sent to ${successCount}/${admins.length} admins`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Notification sent to ${successCount} admin(s)` 
+      JSON.stringify({
+        success: true,
+        message: `Notification sent to ${successCount} admin(s)`,
+        results,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
