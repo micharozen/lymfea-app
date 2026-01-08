@@ -28,8 +28,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AddHotelDialog } from "@/components/AddHotelDialog";
 import { EditHotelDialog } from "@/components/EditHotelDialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HotelQRCode } from "@/components/HotelQRCode";
+import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 
 interface Concierge {
   id: string;
@@ -332,48 +332,10 @@ export default function Hotels() {
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      {hotel.concierges && hotel.concierges.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          {hotel.concierges.slice(0, 2).map((concierge) => (
-                            <div key={concierge.id} className="w-4 h-4 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                              {concierge.profile_image ? (
-                                <img src={concierge.profile_image} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-[6px] font-medium text-muted-foreground">
-                                  {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {hotel.concierges.length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">+{hotel.concierges.length - 2}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-foreground">-</span>
-                      )}
+                      <ConciergesCell concierges={hotel.concierges || []} />
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      {hotel.trunks && hotel.trunks.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          {hotel.trunks.slice(0, 2).map((trunk) => (
-                            <div key={trunk.id} className="w-4 h-4 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                              {trunk.image ? (
-                                <img src={trunk.image} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-[6px] font-medium text-muted-foreground">
-                                  {trunk.trunk_id.substring(0, 2).toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {hotel.trunks.length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">+{hotel.trunks.length - 2}</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-foreground">-</span>
-                      )}
+                      <TrunksCell trunks={hotel.trunks || []} />
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       <Badge 
