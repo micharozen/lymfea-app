@@ -23,6 +23,7 @@ import { Search, Pencil, Trash2, Plus } from "lucide-react";
 import { AddTrunkDialog } from "@/components/AddTrunkDialog";
 import { EditTrunkDialog } from "@/components/EditTrunkDialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { HotelCell } from "@/components/table/EntityCell";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -245,21 +246,7 @@ export default function Trunks() {
                         <span className="truncate block text-foreground">{trunk.trunk_id}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        {(() => {
-                          const hotel = getHotelInfo(trunk.hotel_id);
-                          return hotel ? (
-                            <div className="flex items-center gap-1">
-                              {hotel.image && (
-                                <img
-                                  src={hotel.image}
-                                  alt={hotel.name}
-                                  className="w-4 h-4 rounded object-cover flex-shrink-0"
-                                />
-                              )}
-                              <span className="truncate text-foreground">{hotel.name}</span>
-                            </div>
-                          ) : "-";
-                        })()}
+                        <HotelCell hotel={getHotelInfo(trunk.hotel_id)} />
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">{trunk.hairdresser_name || "-"}</span>

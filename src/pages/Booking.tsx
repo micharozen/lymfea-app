@@ -38,6 +38,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 
 import { StatusBadge } from "@/components/StatusBadge";
+import { HotelCell } from "@/components/table/EntityCell";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { useUserContext } from "@/hooks/useUserContext";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
@@ -796,21 +797,7 @@ export default function Booking() {
                         <span className="truncate block leading-none">{formatPrice(booking.total_price)}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                        {(() => {
-                          const hotel = getHotelInfo(booking.hotel_id);
-                          return hotel ? (
-                            <div className="flex items-center gap-1">
-                              {hotel.image && (
-                                <img
-                                  src={hotel.image}
-                                  alt={hotel.name}
-                                  className="w-4 h-4 rounded object-cover flex-shrink-0"
-                                />
-                              )}
-                              <span className="truncate leading-none">{hotel.name}</span>
-                            </div>
-                          ) : "-";
-                        })()}
+                        <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                         <span className="truncate block leading-none">{booking.hairdresser_name || "-"}</span>
