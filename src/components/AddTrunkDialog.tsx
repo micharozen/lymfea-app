@@ -18,6 +18,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +32,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Upload, ChevronDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const TRUNK_MODELS = [
+  { value: "Edo", label: "Edo" },
+  { value: "Regency", label: "Regency" },
+  { value: "Revolution", label: "Revolution" },
+];
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -200,9 +213,58 @@ export function AddTrunkDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Modèle du trunk</FormLabel>
-                  <FormControl>
-                    <Input placeholder="OOM Trunk V1" {...field} />
-                  </FormControl>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-between font-normal h-9 text-sm hover:bg-background hover:text-foreground",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="truncate">
+                            {field.value || "Sélectionner"}
+                          </span>
+                          <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-48 p-0"
+                      align="start"
+                    >
+                      <ScrollArea className="h-32">
+                        <div className="p-1">
+                          {TRUNK_MODELS.map((model) => {
+                            const isSelected = field.value === model.value;
+                            return (
+                              <button
+                                key={model.value}
+                                type="button"
+                                onClick={() => field.onChange(model.value)}
+                                className={cn(
+                                  "w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm",
+                                  "px-3 py-1.5 text-sm text-popover-foreground transition-colors",
+                                  "hover:bg-foreground/5",
+                                  isSelected && "font-medium"
+                                )}
+                              >
+                                <span className="min-w-0 truncate text-left">{model.label}</span>
+                                {isSelected ? (
+                                  <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
+                                    <Check className="h-3 w-3" strokeWidth={3} />
+                                  </span>
+                                ) : (
+                                  <span className="h-4 w-4" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}
