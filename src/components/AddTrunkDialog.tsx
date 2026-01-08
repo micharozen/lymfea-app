@@ -71,6 +71,7 @@ export function AddTrunkDialog({
 }: AddTrunkDialogProps) {
   const [trunkImage, setTrunkImage] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
+  const [modelPopoverOpen, setModelPopoverOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -213,7 +214,7 @@ export function AddTrunkDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Modèle du trunk</FormLabel>
-                  <Popover>
+                  <Popover open={modelPopoverOpen} onOpenChange={setModelPopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -242,7 +243,10 @@ export function AddTrunkDialog({
                               <button
                                 key={model.value}
                                 type="button"
-                                onClick={() => field.onChange(model.value)}
+                                onClick={() => {
+                                  field.onChange(model.value);
+                                  setModelPopoverOpen(false);
+                                }}
                                 className={cn(
                                   "w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm",
                                   "px-3 py-1.5 text-sm text-popover-foreground transition-colors",
