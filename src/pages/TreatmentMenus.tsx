@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Plus } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -48,6 +48,8 @@ export default function TreatmentMenus() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [menuToEdit, setMenuToEdit] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -107,6 +109,12 @@ export default function TreatmentMenus() {
 
     return matchesSearch && matchesStatus && matchesCategory && matchesHotel;
   });
+
+  const totalPages = Math.ceil((filteredMenus?.length || 0) / itemsPerPage);
+  const paginatedMenus = filteredMenus?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const categories = Array.from(
     new Set(menus?.map((menu) => menu.category).filter(Boolean))
@@ -235,7 +243,7 @@ export default function TreatmentMenus() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMenus?.map((menu) => {
+              {paginatedMenus?.map((menu) => {
                 const hotel = getHotelInfo(menu.hotel_id);
                 return (
                   <TableRow key={menu.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
@@ -330,6 +338,38 @@ export default function TreatmentMenus() {
               })}
             </TableBody>
           </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredMenus?.length || 0)} sur {filteredMenus?.length || 0} prestations
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-2"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {currentPage} sur {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="h-8 px-2"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
