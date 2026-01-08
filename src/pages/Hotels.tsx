@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,52 @@ export default function Hotels() {
   const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    const rowHeight = 40;
+    const tableHeaderHeight = 32;
+    const paginationHeight = 48;
+    const sidebarOffset = 64;
+    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
+    const filtersHeight = filtersRef.current?.offsetHeight || 60;
+    const chromePadding = 32;
+
+    const usedHeight =
+      pageHeaderHeight +
+      filtersHeight +
+      tableHeaderHeight +
+      paginationHeight +
+      sidebarOffset +
+      chromePadding;
+
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+
+    setItemsPerPage(rows);
+  }, []);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
+
+  // Force no scroll on this page
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     fetchHotels();
@@ -246,155 +291,159 @@ export default function Hotels() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Chargement...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             🏨 Hôtels
           </h1>
         </div>
+      </div>
 
-        <div className="mb-6 flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+      <div className="flex-1 px-6 pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+          <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrer par statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="Actif">Actif</SelectItem>
+                <SelectItem value="En attente">En attente</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button 
+              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+              onClick={() => setShowAddDialog(true)}
+              style={{ display: isAdmin ? 'flex' : 'none' }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un hôtel
+            </Button>
           </div>
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="Actif">Actif</SelectItem>
-              <SelectItem value="En attente">En attente</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button 
-            className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-            onClick={() => setShowAddDialog(true)}
-            style={{ display: isAdmin ? 'flex' : 'none' }}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter un hôtel
-          </Button>
-        </div>
-
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table className="text-xs w-full table-fixed">
-            <TableHeader>
-              <TableRow className="bg-muted/20 h-8">
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Localisation</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Ventes</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Rés.</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
-                {isAdmin && (
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedHotels.length === 0 ? (
-                <TableRow className="h-10 max-h-10">
-                  <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                    Aucun hôtel trouvé
-                  </TableCell>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Table className="text-xs w-full table-fixed">
+              <TableHeader>
+                <TableRow className="bg-muted/20 h-8">
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Localisation</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Ventes</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Rés.</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
+                  {isAdmin && (
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
+                  )}
                 </TableRow>
-              ) : (
-                paginatedHotels.map((hotel) => (
-                  <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        {hotel.image ? (
-                          <img
-                            src={hotel.image}
-                            alt={hotel.name}
-                            className="w-6 h-6 rounded object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
-                            {hotel.name.substring(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <span className="truncate font-medium text-foreground">{hotel.name}</span>
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {paginatedHotels.length === 0 ? (
+                  <TableRow className="h-10 max-h-10">
+                    <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
+                      Aucun hôtel trouvé
                     </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">
-                        {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <ConciergesCell concierges={hotel.concierges || []} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <TrunksCell trunks={hotel.trunks || []} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <Badge 
-                        variant={(hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") ? "default" : "secondary"}
-                        className={cn(
-                          "text-[10px] px-2 py-0.5 whitespace-nowrap",
-                          (hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") && "bg-green-500/10 text-green-700",
-                          hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
-                        )}
-                      >
-                        {(hotel.status?.toLowerCase() === "active" || hotel.status?.toLowerCase() === "actif") ? "Actif" : hotel.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
-                    </TableCell>
-                    {isAdmin && (
+                  </TableRow>
+                ) : (
+                  paginatedHotels.map((hotel) => (
+                    <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => setEditHotelId(hotel.id)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => setDeleteHotelId(hotel.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          {hotel.image ? (
+                            <img
+                              src={hotel.image}
+                              alt={hotel.name}
+                              className="w-6 h-6 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
+                              {hotel.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="truncate font-medium text-foreground">{hotel.name}</span>
                         </div>
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">
+                          {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <ConciergesCell concierges={hotel.concierges || []} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <TrunksCell trunks={hotel.trunks || []} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <Badge 
+                          variant={(hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") ? "default" : "secondary"}
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                            (hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") && "bg-green-500/10 text-green-700",
+                            hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
+                          )}
+                        >
+                          {(hotel.status?.toLowerCase() === "active" || hotel.status?.toLowerCase() === "actif") ? "Actif" : hotel.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setEditHotelId(hotel.id)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setDeleteHotelId(hotel.id)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
           <TablePagination
             currentPage={currentPage}
@@ -405,42 +454,42 @@ export default function Hotels() {
             itemName="hôtels"
           />
         </div>
-
-        <AddHotelDialog
-          open={showAddDialog}
-          onOpenChange={setShowAddDialog}
-          onSuccess={fetchHotels}
-        />
-
-        {editHotelId && (
-          <EditHotelDialog
-            open={!!editHotelId}
-            onOpenChange={(open) => !open && setEditHotelId(null)}
-            onSuccess={fetchHotels}
-            hotelId={editHotelId}
-          />
-        )}
-
-        <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && setDeleteHotelId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-              <AlertDialogDescription>
-                Êtes-vous sûr de vouloir supprimer cet hôtel ? Cette action est irréversible.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteHotel}
-                className="bg-foreground text-background hover:bg-foreground/90"
-              >
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
+
+      <AddHotelDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={fetchHotels}
+      />
+
+      {editHotelId && (
+        <EditHotelDialog
+          open={!!editHotelId}
+          onOpenChange={(open) => !open && setEditHotelId(null)}
+          onSuccess={fetchHotels}
+          hotelId={editHotelId}
+        />
+      )}
+
+      <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && setDeleteHotelId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cet hôtel ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteHotel}
+              className="bg-foreground text-background hover:bg-foreground/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

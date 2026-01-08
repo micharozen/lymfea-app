@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
@@ -77,7 +77,52 @@ export default function HairDresser() {
   const [deleteHairDresserId, setDeleteHairDresserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    const rowHeight = 40;
+    const tableHeaderHeight = 32;
+    const paginationHeight = 48;
+    const sidebarOffset = 64;
+    const pageHeaderHeight = headerRef.current?.offsetHeight || 100;
+    const filtersHeight = filtersRef.current?.offsetHeight || 60;
+    const chromePadding = 32;
+
+    const usedHeight =
+      pageHeaderHeight +
+      filtersHeight +
+      tableHeaderHeight +
+      paginationHeight +
+      sidebarOffset +
+      chromePadding;
+
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+
+    setItemsPerPage(rows);
+  }, []);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
+
+  // Force no scroll on this page
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     fetchHairdressers();
@@ -181,10 +226,6 @@ export default function HairDresser() {
     setFilteredHairdressers(filtered);
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
-
   const getHotelsInfo = (hairdresserHotels?: { hotel_id: string }[]) => {
     if (!hairdresserHotels || hairdresserHotels.length === 0) {
       return [];
@@ -205,28 +246,24 @@ export default function HairDresser() {
       beauty: "💅",
     };
 
-    // Check if skills are using the emoji format (men, women, barber, beauty)
     const hasEmojiSkills = skills.some(skill => skillMap[skill]);
     
     if (hasEmojiSkills) {
       return skills.map((skill) => skillMap[skill] || "").filter(Boolean).join(" ");
     }
     
-    // Otherwise, show text skills truncated
     return skills.join(", ");
   };
 
   const getTrunkInfo = (trunkIdOrName: string | null) => {
     if (!trunkIdOrName) return null;
     
-    // If it looks like a UUID, find the trunk by ID
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trunkIdOrName);
     
     if (isUuid) {
       return trunks.find((t) => t.id === trunkIdOrName) || null;
     }
     
-    // If it's a comma-separated list, get first trunk
     if (trunkIdOrName.includes(",")) {
       const firstItem = trunkIdOrName.split(",")[0].trim();
       const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstItem);
@@ -284,27 +321,35 @@ export default function HairDresser() {
     fetchHairdressers();
   };
 
+  const totalPages = Math.ceil(filteredHairdressers.length / itemsPerPage);
+  const paginatedHairdressers = filteredHairdressers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="h-screen bg-background flex items-center justify-center">
         <div className="text-lg">Chargement...</div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="space-y-6">
-        <div>
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+        <div className="mb-4">
           <h1 className="text-3xl font-bold tracking-tight">Coiffeurs</h1>
-          <p className="text-muted-foreground mt-2">
+          <p className="text-muted-foreground mt-1">
             Gérez vos coiffeurs et leurs informations
           </p>
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
+      <div className="flex-1 px-6 pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+          <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Rechercher par nom, email ou téléphone..."
@@ -351,100 +396,98 @@ export default function HairDresser() {
               Ajouter un coiffeur
             </Button>
           </div>
-        </div>
 
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table className="text-xs w-full table-fixed">
-            <TableHeader>
-              <TableRow className="bg-muted/20 h-8">
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Compétences</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredHairdressers.length === 0 ? (
-                <TableRow className="h-10 max-h-10">
-                  <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                    Aucun coiffeur trouvé
-                  </TableCell>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Table className="text-xs w-full table-fixed">
+              <TableHeader>
+                <TableRow className="bg-muted/20 h-8">
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Compétences</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
-              ) : (
-                filteredHairdressers
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((hairdresser) => (
-                  <TableRow key={hairdresser.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <PersonCell person={hairdresser} />
+              </TableHeader>
+              <TableBody>
+                {paginatedHairdressers.length === 0 ? (
+                  <TableRow className="h-10 max-h-10">
+                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
+                      Aucun coiffeur trouvé
                     </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">{hairdresser.email}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">
-                        {hairdresser.country_code} {hairdresser.phone}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <HotelsCell hotels={getHotelsInfo(hairdresser.hairdresser_hotels)} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      {(() => {
-                        const trunk = getTrunkInfo(hairdresser.trunks);
-                        const trunkName = getTrunkNames(hairdresser.trunks);
-                        return trunk ? (
-                          <TrunksCell trunks={[trunk]} displayName={trunkName} />
-                        ) : <span className="text-foreground">-</span>;
-                      })()}
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">{getSkillsDisplay(hairdresser.skills)}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <StatusBadge status={hairdresser.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setSelectedHairDresser(hairdresser);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setDeleteHairDresserId(hairdresser.id);
-                              setIsDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    )}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  paginatedHairdressers.map((hairdresser) => (
+                    <TableRow key={hairdresser.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <PersonCell person={hairdresser} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{hairdresser.email}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">
+                          {hairdresser.country_code} {hairdresser.phone}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <HotelsCell hotels={getHotelsInfo(hairdresser.hairdresser_hotels)} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        {(() => {
+                          const trunk = getTrunkInfo(hairdresser.trunks);
+                          const trunkName = getTrunkNames(hairdresser.trunks);
+                          return trunk ? (
+                            <TrunksCell trunks={[trunk]} displayName={trunkName} />
+                          ) : <span className="text-foreground">-</span>;
+                        })()}
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{getSkillsDisplay(hairdresser.skills)}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <StatusBadge status={hairdresser.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setSelectedHairDresser(hairdresser);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setDeleteHairDresserId(hairdresser.id);
+                                setIsDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
           
           <TablePagination
             currentPage={currentPage}
-            totalPages={Math.ceil(filteredHairdressers.length / itemsPerPage)}
+            totalPages={totalPages}
             totalItems={filteredHairdressers.length}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}

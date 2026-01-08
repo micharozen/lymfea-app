@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,52 @@ export default function Trunks() {
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    const rowHeight = 40;
+    const tableHeaderHeight = 32;
+    const paginationHeight = 48;
+    const sidebarOffset = 64;
+    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
+    const filtersHeight = filtersRef.current?.offsetHeight || 60;
+    const chromePadding = 32;
+
+    const usedHeight =
+      pageHeaderHeight +
+      filtersHeight +
+      tableHeaderHeight +
+      paginationHeight +
+      sidebarOffset +
+      chromePadding;
+
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+
+    setItemsPerPage(rows);
+  }, []);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
+
+  // Force no scroll on this page
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -151,10 +196,18 @@ export default function Trunks() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Chargement...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+        <div className="mb-4 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             🧳 Trunks (Malles)
           </h1>
@@ -165,50 +218,50 @@ export default function Trunks() {
             </Button>
           )}
         </div>
+      </div>
 
-        <div className="bg-card rounded-lg border border-border">
-          <div className="p-4 border-b border-border">
-            <div className="flex gap-4 flex-wrap items-center">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Tous les statuts" />
+      <div className="flex-1 px-6 pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+          <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous les statuts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="maintenance">Maintenance</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {isAdmin && (
+              <Select value={hotelFilter} onValueChange={setHotelFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Tous les hôtels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les statuts</SelectItem>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  {hotels?.map((hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-
-              {isAdmin && (
-                <Select value={hotelFilter} onValueChange={setHotelFilter}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Tous les hôtels" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les hôtels</SelectItem>
-                    {hotels?.map((hotel) => (
-                      <SelectItem key={hotel.id} value={hotel.id}>
-                        {hotel.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="flex-1 min-h-0 overflow-hidden">
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
@@ -223,13 +276,7 @@ export default function Trunks() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                      Chargement...
-                    </TableCell>
-                  </TableRow>
-                ) : paginatedTrunks && paginatedTrunks.length > 0 ? (
+                {paginatedTrunks && paginatedTrunks.length > 0 ? (
                   paginatedTrunks.map((trunk) => (
                     <TableRow key={trunk.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
@@ -303,16 +350,16 @@ export default function Trunks() {
                 )}
               </TableBody>
             </Table>
-
-            <TablePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredTrunks?.length || 0}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              itemName="trunks"
-            />
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredTrunks?.length || 0}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            itemName="trunks"
+          />
         </div>
       </div>
 
