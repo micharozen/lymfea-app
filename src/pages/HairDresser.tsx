@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HotelsCell, TrunksCell } from "@/components/table/EntityCell";
+import { HotelsCell, TrunksCell, PersonCell } from "@/components/table/EntityCell";
 
 interface Hotel {
   id: string;
@@ -379,24 +379,7 @@ export default function HairDresser() {
                   .map((hairdresser) => (
                   <TableRow key={hairdresser.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {hairdresser.profile_image ? (
-                            <img
-                              src={hairdresser.profile_image}
-                              alt="Profile"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              {getInitials(hairdresser.first_name, hairdresser.last_name)}
-                            </span>
-                          )}
-                        </div>
-                        <span className="truncate font-medium text-foreground">
-                          {hairdresser.first_name} {hairdresser.last_name}
-                        </span>
-                      </div>
+                      <PersonCell person={hairdresser} />
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       <span className="truncate block text-foreground">{hairdresser.email}</span>

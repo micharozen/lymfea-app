@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HotelsCell } from "@/components/table/EntityCell";
+import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
 
 interface Concierge {
   id: string;
@@ -297,20 +297,7 @@ export default function Concierges() {
                 paginatedConcierges.map((concierge) => (
                 <TableRow key={concierge.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <div className="flex items-center gap-2 whitespace-nowrap">
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {concierge.profile_image ? (
-                          <img src={concierge.profile_image} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[10px] font-medium text-muted-foreground">
-                            {getInitials(concierge.first_name, concierge.last_name)}
-                          </span>
-                        )}
-                      </div>
-                      <span className="truncate font-medium text-foreground">
-                        {concierge.first_name} {concierge.last_name}
-                      </span>
-                    </div>
+                    <PersonCell person={concierge} />
                   </TableCell>
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                     <span className="truncate block text-foreground">{concierge.email}</span>

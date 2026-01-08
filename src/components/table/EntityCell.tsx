@@ -30,6 +30,54 @@ export function EntityCell({ image, name, fallback, className }: EntityCellProps
   );
 }
 
+interface Person {
+  id?: string;
+  first_name: string;
+  last_name: string;
+  profile_image?: string | null;
+}
+
+interface PersonCellProps {
+  person: Person | null | undefined;
+  className?: string;
+}
+
+export function PersonCell({ person, className }: PersonCellProps) {
+  if (!person) return <span className="text-foreground">-</span>;
+  
+  const name = `${person.first_name} ${person.last_name}`;
+  const initials = `${person.first_name.charAt(0)}${person.last_name.charAt(0)}`.toUpperCase();
+  
+  return (
+    <div className={cn("flex items-center gap-2 whitespace-nowrap", className)}>
+      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+        {person.profile_image ? (
+          <img src={person.profile_image} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[10px] font-medium text-muted-foreground">
+            {initials}
+          </span>
+        )}
+      </div>
+      <span className="truncate font-medium text-foreground">{name}</span>
+    </div>
+  );
+}
+
+interface PersonNameCellProps {
+  firstName: string;
+  lastName: string;
+  className?: string;
+}
+
+export function PersonNameCell({ firstName, lastName, className }: PersonNameCellProps) {
+  return (
+    <span className={cn("truncate block text-foreground", className)}>
+      {firstName} {lastName}
+    </span>
+  );
+}
+
 interface Hotel {
   id: string;
   name: string;
