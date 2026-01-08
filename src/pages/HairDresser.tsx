@@ -183,19 +183,14 @@ export default function HairDresser() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const getHotelNames = (hairdresserHotels?: { hotel_id: string }[]) => {
+  const getHotelsInfo = (hairdresserHotels?: { hotel_id: string }[]) => {
     if (!hairdresserHotels || hairdresserHotels.length === 0) {
-      return "-";
+      return [];
     }
     
-    const names = hairdresserHotels
-      .map((hh) => {
-        const hotel = hotels.find((h) => h.id === hh.hotel_id);
-        return hotel?.name;
-      })
-      .filter(Boolean);
-    
-    return names.length > 0 ? names.join(", ") : "-";
+    return hairdresserHotels
+      .map((hh) => hotels.find((h) => h.id === hh.hotel_id))
+      .filter(Boolean) as Hotel[];
   };
 
   const getSkillsDisplay = (skills: string[]) => {
@@ -391,7 +386,23 @@ export default function HairDresser() {
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[100px] block">{getHotelNames(hairdresser.hairdresser_hotels)}</span>
+                      {(() => {
+                        const hotelsList = getHotelsInfo(hairdresser.hairdresser_hotels);
+                        return hotelsList.length > 0 ? (
+                          <div className="flex items-center gap-1">
+                            {hotelsList[0].image && (
+                              <img
+                                src={hotelsList[0].image}
+                                alt={hotelsList[0].name}
+                                className="w-4 h-4 rounded object-cover flex-shrink-0"
+                              />
+                            )}
+                            <span className="text-xs truncate max-w-[100px]">
+                              {hotelsList.map(h => h.name).join(", ")}
+                            </span>
+                          </div>
+                        ) : "-";
+                      })()}
                     </TableCell>
                     <TableCell className="py-0 px-2">
                       <span className="text-xs truncate max-w-[120px] block">{getTrunkName(hairdresser.trunks)}</span>
