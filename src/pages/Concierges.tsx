@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,16 +98,19 @@ export default function Concierges() {
   }, [computeRows]);
 
   // Force no scroll on this page
+  // Force no scroll on this page only when pagination is needed
   useEffect(() => {
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const prevBodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
+    if (!loading && filteredConcierges.length > itemsPerPage) {
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
+  }, [loading, filteredConcierges.length, itemsPerPage]);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -224,11 +228,11 @@ export default function Concierges() {
     }
   };
 
+  const needsPagination = filteredConcierges.length > itemsPerPage;
   const totalPages = Math.ceil(filteredConcierges.length / itemsPerPage);
-  const paginatedConcierges = filteredConcierges.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedConcierges = needsPagination
+    ? filteredConcierges.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : filteredConcierges;
 
   if (loading) {
     return (
@@ -239,7 +243,7 @@ export default function Concierges() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-4">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
@@ -248,8 +252,8 @@ export default function Concierges() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+        <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -298,7 +302,7 @@ export default function Concierges() {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
@@ -371,14 +375,16 @@ export default function Concierges() {
             </Table>
           </div>
 
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredConcierges.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            itemName="concierges"
-          />
+          {needsPagination && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredConcierges.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              itemName="concierges"
+            />
+          )}
         </div>
       </div>
 

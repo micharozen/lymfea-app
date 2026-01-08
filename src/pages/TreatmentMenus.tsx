@@ -109,17 +109,7 @@ export default function TreatmentMenus() {
     return () => window.removeEventListener("resize", computeRows);
   }, [computeRows]);
 
-  // Force no scroll on this page
-  useEffect(() => {
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const prevBodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
+  // needsPagination computed after filteredMenus is defined below
 
   const { data: menus, refetch } = useQuery({
     queryKey: ["treatment-menus"],
@@ -159,11 +149,25 @@ export default function TreatmentMenus() {
     return matchesSearch && matchesStatus && matchesCategory && matchesHotel;
   });
 
+  const needsPagination = (filteredMenus?.length || 0) > itemsPerPage;
   const totalPages = Math.ceil((filteredMenus?.length || 0) / itemsPerPage);
-  const paginatedMenus = filteredMenus?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedMenus = needsPagination
+    ? filteredMenus?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : filteredMenus;
+
+  // Force no scroll on this page only when pagination is needed
+  useEffect(() => {
+    if (needsPagination) {
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
+  }, [needsPagination]);
 
   const categories = Array.from(
     new Set(menus?.map((menu) => menu.category).filter(Boolean))
@@ -209,7 +213,7 @@ export default function TreatmentMenus() {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
@@ -224,8 +228,8 @@ export default function TreatmentMenus() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+        <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -278,7 +282,7 @@ export default function TreatmentMenus() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
           <Table className="text-xs w-full table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
@@ -391,14 +395,16 @@ export default function TreatmentMenus() {
           </Table>
           </div>
 
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredMenus?.length || 0}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            itemName="prestations"
-          />
+          {needsPagination && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredMenus?.length || 0}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              itemName="prestations"
+            />
+          )}
         </div>
       </div>
 
