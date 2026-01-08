@@ -46,7 +46,6 @@ const TRUNK_MODELS = [
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   trunk_model: z.string().min(1, "Le modèle de trunk est requis"),
-  trunk_id: z.string().min(1, "L'ID du trunk est requis"),
   hotel_id: z.string().optional(),
 });
 
@@ -72,7 +71,6 @@ export function EditTrunkDialog({
     defaultValues: {
       name: "",
       trunk_model: "",
-      trunk_id: "",
       hotel_id: "",
     },
   });
@@ -95,7 +93,6 @@ export function EditTrunkDialog({
       form.reset({
         name: trunk.name || "",
         trunk_model: trunk.trunk_model || "",
-        trunk_id: trunk.trunk_id || "",
         hotel_id: trunk.hotel_id || "",
       });
       setTrunkImage(trunk.image || "");
@@ -143,7 +140,6 @@ export function EditTrunkDialog({
       .update({
         name: values.name,
         trunk_model: values.trunk_model,
-        trunk_id: values.trunk_id,
         hotel_id: values.hotel_id || null,
         hotel_name: selectedHotel?.name || null,
         image: trunkImage || null,
@@ -283,19 +279,6 @@ export function EditTrunkDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="trunk_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ID du trunk</FormLabel>
-                  <FormControl>
-                    <Input placeholder="TRK-001" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <FormField
               control={form.control}
