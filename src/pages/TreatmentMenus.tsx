@@ -266,7 +266,7 @@ export default function TreatmentMenus() {
               </SelectContent>
             </Select>
           </div>
-
+          <div className="flex-1 min-h-0">
           <Table className="text-xs w-full table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
@@ -377,6 +377,7 @@ export default function TreatmentMenus() {
               })}
             </TableBody>
           </Table>
+          </div>
 
           <TablePagination
             currentPage={currentPage}
