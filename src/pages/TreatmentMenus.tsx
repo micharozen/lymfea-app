@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -50,7 +50,9 @@ export default function TreatmentMenus() {
   const [menuToEdit, setMenuToEdit] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  
+  const headerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -72,6 +74,40 @@ export default function TreatmentMenus() {
   }, []);
 
   const isAdmin = userRole === "admin";
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    const rowHeight = 40; // h-10 = 40px
+    const tableHeaderHeight = 32;
+    const paginationHeight = 48;
+    const sidebarOffset = 64;
+    const headerHeight = headerRef.current?.offsetHeight || 120;
+    const contentPadding = 48;
+
+    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+
+    setItemsPerPage(rows);
+  }, []);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
+
+  // Force no scroll on this page
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   const { data: menus, refetch } = useQuery({
     queryKey: ["treatment-menus"],
@@ -161,8 +197,8 @@ export default function TreatmentMenus() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             💆 Menus de soins
@@ -174,9 +210,11 @@ export default function TreatmentMenus() {
             </Button>
           )}
         </div>
+      </div>
 
-        <div className="bg-card rounded-lg border border-border">
-          <div className="p-6 border-b border-border flex flex-wrap gap-4">
+      <div className="flex-1 px-6 pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+          <div className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -229,6 +267,7 @@ export default function TreatmentMenus() {
             </Select>
           </div>
 
+          <div className="flex-1 overflow-auto">
           <Table className="text-xs w-full table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
@@ -339,6 +378,7 @@ export default function TreatmentMenus() {
               })}
             </TableBody>
           </Table>
+          </div>
 
           <TablePagination
             currentPage={currentPage}
