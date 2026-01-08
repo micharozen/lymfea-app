@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { HotelsCell, TrunksCell } from "@/components/table/EntityCell";
 
 interface Hotel {
   id: string;
@@ -406,41 +407,15 @@ export default function HairDresser() {
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      {(() => {
-                        const hotelsList = getHotelsInfo(hairdresser.hairdresser_hotels);
-                        return hotelsList.length > 0 ? (
-                          <div className="flex items-center gap-1">
-                            {hotelsList[0].image && (
-                              <img
-                                src={hotelsList[0].image}
-                                alt={hotelsList[0].name}
-                                className="w-4 h-4 rounded object-cover flex-shrink-0"
-                              />
-                            )}
-                            <span className="truncate text-foreground">
-                              {hotelsList.map(h => h.name).join(", ")}
-                            </span>
-                          </div>
-                        ) : "-";
-                      })()}
+                      <HotelsCell hotels={getHotelsInfo(hairdresser.hairdresser_hotels)} />
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {(() => {
                         const trunk = getTrunkInfo(hairdresser.trunks);
+                        const trunkName = getTrunkNames(hairdresser.trunks);
                         return trunk ? (
-                          <div className="flex items-center gap-1">
-                            {trunk.image && (
-                              <img
-                                src={trunk.image}
-                                alt={trunk.name}
-                                className="w-4 h-4 rounded object-cover flex-shrink-0"
-                              />
-                            )}
-                            <span className="truncate text-foreground">
-                              {getTrunkNames(hairdresser.trunks)}
-                            </span>
-                          </div>
-                        ) : "-";
+                          <TrunksCell trunks={[trunk]} displayName={trunkName} />
+                        ) : <span className="text-foreground">-</span>;
                       })()}
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">

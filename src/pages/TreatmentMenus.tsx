@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AddTreatmentMenuDialog } from "@/components/AddTreatmentMenuDialog";
 import { EditTreatmentMenuDialog } from "@/components/EditTreatmentMenuDialog";
+import { HotelCell } from "@/components/table/EntityCell";
 
 export default function TreatmentMenus() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -280,20 +281,7 @@ export default function TreatmentMenus() {
                       <span className="truncate block text-foreground">{menu.category}</span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      {hotel ? (
-                        <div className="flex items-center gap-1">
-                          {hotel.image && (
-                            <img
-                              src={hotel.image}
-                              alt={hotel.name}
-                              className="w-4 h-4 rounded object-cover flex-shrink-0"
-                            />
-                          )}
-                          <span className="truncate text-foreground">{hotel.name}</span>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
+                      <HotelCell hotel={hotel} />
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <Badge

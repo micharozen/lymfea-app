@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { HotelsCell } from "@/components/table/EntityCell";
 
 interface Concierge {
   id: string;
@@ -320,23 +321,7 @@ export default function Concierges() {
                     </span>
                   </TableCell>
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    {(() => {
-                      const hotelsList = getHotelsInfo(concierge.hotels);
-                      return hotelsList.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          {hotelsList[0].image && (
-                            <img
-                              src={hotelsList[0].image}
-                              alt={hotelsList[0].name}
-                              className="w-4 h-4 rounded object-cover flex-shrink-0"
-                            />
-                          )}
-                          <span className="truncate text-foreground">
-                            {hotelsList.map(h => h.name).join(", ")}
-                          </span>
-                        </div>
-                      ) : "-";
-                    })()}
+                    <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
                   </TableCell>
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                     <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
