@@ -24,6 +24,7 @@ import { AddTrunkDialog } from "@/components/AddTrunkDialog";
 import { EditTrunkDialog } from "@/components/EditTrunkDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
+import { TablePagination } from "@/components/table/TablePagination";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,8 @@ export default function Trunks() {
   const [selectedTrunk, setSelectedTrunk] = useState<any>(null);
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -125,6 +128,12 @@ export default function Trunks() {
 
     return matchesSearch && matchesStatus && matchesHotel;
   });
+
+  const totalPages = Math.ceil((filteredTrunks?.length || 0) / itemsPerPage);
+  const paginatedTrunks = filteredTrunks?.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleEdit = (trunk: any) => {
     setSelectedTrunk(trunk);
@@ -220,8 +229,8 @@ export default function Trunks() {
                       Chargement...
                     </TableCell>
                   </TableRow>
-                ) : filteredTrunks && filteredTrunks.length > 0 ? (
-                  filteredTrunks.map((trunk) => (
+                ) : paginatedTrunks && paginatedTrunks.length > 0 ? (
+                  paginatedTrunks.map((trunk) => (
                     <TableRow key={trunk.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center gap-2 whitespace-nowrap">
@@ -294,6 +303,15 @@ export default function Trunks() {
                 )}
               </TableBody>
             </Table>
+
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTrunks?.length || 0}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              itemName="trunks"
+            />
           </div>
         </div>
       </div>

@@ -14,14 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -31,11 +23,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { cn } from "@/lib/utils";
 import { AddConciergeDialog } from "@/components/AddConciergeDialog";
 import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
+import { TablePagination } from "@/components/table/TablePagination";
 
 interface Concierge {
   id: string;
@@ -342,43 +334,14 @@ export default function Concierges() {
           </Table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="mt-6 flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
-                    className={cn(
-                      currentPage === 1 && "pointer-events-none opacity-50",
-                      "cursor-pointer"
-                    )}
-                  />
-                </PaginationItem>
-                {[...Array(totalPages)].map((_, i) => (
-                  <PaginationItem key={i + 1}>
-                    <PaginationLink
-                      onClick={() => handlePageChange(i + 1)}
-                      isActive={currentPage === i + 1}
-                      className="cursor-pointer"
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
-                    className={cn(
-                      currentPage === totalPages && "pointer-events-none opacity-50",
-                      "cursor-pointer"
-                    )}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
+        <TablePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredConcierges.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          itemName="concierges"
+        />
 
         <AddConciergeDialog
           open={showAddDialog}
