@@ -54,6 +54,37 @@ serve(async (req) => {
       console.error("[CHECKOUT-SUCCESS] Hotel fetch error:", hotelError);
     }
 
+    // Find available trunk for this booking
+    const { data: trunks } = await supabase
+      .from('trunks')
+      .select('id')
+      .eq('hotel_id', metadata?.hotel_id)
+      .eq('status', 'active');
+
+    let trunkId = null;
+    if (trunks && trunks.length > 0) {
+      // Get bookings at this time slot that have trunks assigned
+      const { data: bookingsWithTrunks } = await supabase
+        .from('bookings')
+        .select('trunk_id')
+        .eq('hotel_id', metadata?.hotel_id)
+        .eq('booking_date', metadata?.booking_date)
+        .eq('booking_time', metadata?.booking_time)
+        .not('trunk_id', 'is', null)
+        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+      const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
+      
+      // Find first available trunk
+      for (const trunk of trunks) {
+        if (!usedTrunkIds.has(trunk.id)) {
+          trunkId = trunk.id;
+          break;
+        }
+      }
+    }
+    console.log("[CHECKOUT-SUCCESS] Assigned trunk:", trunkId);
+
     // Créer la réservation
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -68,10 +99,11 @@ serve(async (req) => {
         client_note: metadata?.client_note || null,
         booking_date: metadata?.booking_date,
         booking_time: metadata?.booking_time,
-        status: 'En attente',
+        status: 'pending',
         payment_method: 'card',
         payment_status: 'paid',
         total_price: parseFloat(metadata?.total_price || '0'),
+        trunk_id: trunkId, // Auto-assign trunk
       })
       .select()
       .single();
