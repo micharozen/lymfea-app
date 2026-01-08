@@ -247,7 +247,7 @@ export default function Hotels() {
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
-            🏨 Hotels
+            🏨 Hôtels
           </h1>
         </div>
 
