@@ -214,10 +214,31 @@ export default function HairDresser() {
     return skills.join(", ");
   };
 
-  const getTrunkName = (trunkIdOrName: string | null) => {
-    if (!trunkIdOrName) return "-";
+  const getTrunkInfo = (trunkIdOrName: string | null) => {
+    if (!trunkIdOrName) return null;
     
     // If it looks like a UUID, find the trunk by ID
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trunkIdOrName);
+    
+    if (isUuid) {
+      return trunks.find((t) => t.id === trunkIdOrName) || null;
+    }
+    
+    // If it's a comma-separated list, get first trunk
+    if (trunkIdOrName.includes(",")) {
+      const firstItem = trunkIdOrName.split(",")[0].trim();
+      const isItemUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstItem);
+      if (isItemUuid) {
+        return trunks.find((t) => t.id === firstItem) || null;
+      }
+    }
+    
+    return null;
+  };
+
+  const getTrunkNames = (trunkIdOrName: string | null) => {
+    if (!trunkIdOrName) return "-";
+    
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trunkIdOrName);
     
     if (isUuid) {
@@ -225,7 +246,6 @@ export default function HairDresser() {
       return trunk?.name || "-";
     }
     
-    // If it's a comma-separated list, process each item
     if (trunkIdOrName.includes(",")) {
       const trunkNames = trunkIdOrName.split(",").map((item) => {
         const trimmed = item.trim();
@@ -405,7 +425,23 @@ export default function HairDresser() {
                       })()}
                     </TableCell>
                     <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[120px] block">{getTrunkName(hairdresser.trunks)}</span>
+                      {(() => {
+                        const trunk = getTrunkInfo(hairdresser.trunks);
+                        return trunk ? (
+                          <div className="flex items-center gap-1">
+                            {trunk.image && (
+                              <img
+                                src={trunk.image}
+                                alt={trunk.name}
+                                className="w-4 h-4 rounded object-cover flex-shrink-0"
+                              />
+                            )}
+                            <span className="text-xs truncate max-w-[100px]">
+                              {getTrunkNames(hairdresser.trunks)}
+                            </span>
+                          </div>
+                        ) : "-";
+                      })()}
                     </TableCell>
                     <TableCell className="py-0 px-2">
                       <span className="text-xs truncate max-w-[80px] block">{getSkillsDisplay(hairdresser.skills)}</span>
