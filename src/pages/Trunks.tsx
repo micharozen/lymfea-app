@@ -92,10 +92,9 @@ export default function Trunks() {
     },
   });
 
-  const getHotelName = (hotelId: string | null) => {
-    if (!hotelId || !hotels) return "-";
-    const hotel = hotels.find(h => h.id === hotelId);
-    return hotel?.name || "-";
+  const getHotelInfo = (hotelId: string | null) => {
+    if (!hotelId || !hotels) return null;
+    return hotels.find(h => h.id === hotelId);
   };
 
   const deleteMutation = useMutation({
@@ -241,7 +240,23 @@ export default function Trunks() {
                       </TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_model}</TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_id}</TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">{getHotelName(trunk.hotel_id)}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">
+                        {(() => {
+                          const hotel = getHotelInfo(trunk.hotel_id);
+                          return hotel ? (
+                            <div className="flex items-center gap-1">
+                              {hotel.image && (
+                                <img
+                                  src={hotel.image}
+                                  alt={hotel.name}
+                                  className="w-4 h-4 rounded object-cover"
+                                />
+                              )}
+                              <span>{hotel.name}</span>
+                            </div>
+                          ) : "-";
+                        })()}
+                      </TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2 whitespace-nowrap">
                         {trunk.next_booking

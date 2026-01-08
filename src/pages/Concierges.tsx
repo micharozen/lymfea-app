@@ -158,18 +158,16 @@ export default function Concierges() {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   };
 
-  const getHotelName = (hotelId: string | null) => {
-    if (!hotelId) return "-";
-    const hotel = hotels.find(h => h.id === hotelId);
-    return hotel?.name || "-";
+  const getHotelInfo = (hotelId: string | null) => {
+    if (!hotelId) return null;
+    return hotels.find(h => h.id === hotelId);
   };
 
-  const getHotelNames = (conciergeHotels?: { hotel_id: string }[]) => {
-    if (!conciergeHotels || conciergeHotels.length === 0) return "-";
-    const names = conciergeHotels
-      .map((h) => getHotelName(h.hotel_id))
-      .filter(name => name !== "-");
-    return names.length > 0 ? names.join(", ") : "-";
+  const getHotelsInfo = (conciergeHotels?: { hotel_id: string }[]) => {
+    if (!conciergeHotels || conciergeHotels.length === 0) return [];
+    return conciergeHotels
+      .map((h) => getHotelInfo(h.hotel_id))
+      .filter(Boolean) as Hotel[];
   };
 
   const handleDeleteConcierge = async () => {
@@ -322,7 +320,23 @@ export default function Concierges() {
                     </span>
                   </TableCell>
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <span className="truncate block text-foreground">{getHotelNames(concierge.hotels)}</span>
+                    {(() => {
+                      const hotelsList = getHotelsInfo(concierge.hotels);
+                      return hotelsList.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          {hotelsList[0].image && (
+                            <img
+                              src={hotelsList[0].image}
+                              alt={hotelsList[0].name}
+                              className="w-4 h-4 rounded object-cover flex-shrink-0"
+                            />
+                          )}
+                          <span className="truncate text-foreground">
+                            {hotelsList.map(h => h.name).join(", ")}
+                          </span>
+                        </div>
+                      ) : "-";
+                    })()}
                   </TableCell>
                   <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                     <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />

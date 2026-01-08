@@ -137,10 +137,9 @@ export default function Booking() {
     },
   });
 
-  const getHotelName = (hotelId: string | null) => {
-    if (!hotelId || !hotels) return "-";
-    const hotel = hotels.find(h => h.id === hotelId);
-    return hotel?.name || "-";
+  const getHotelInfo = (hotelId: string | null) => {
+    if (!hotelId || !hotels) return null;
+    return hotels.find(h => h.id === hotelId);
   };
 
   const { data: hairdressers } = useQuery({
@@ -797,7 +796,21 @@ export default function Booking() {
                         <span className="truncate block leading-none">{formatPrice(booking.total_price)}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                        <span className="truncate block leading-none">{getHotelName(booking.hotel_id)}</span>
+                        {(() => {
+                          const hotel = getHotelInfo(booking.hotel_id);
+                          return hotel ? (
+                            <div className="flex items-center gap-1">
+                              {hotel.image && (
+                                <img
+                                  src={hotel.image}
+                                  alt={hotel.name}
+                                  className="w-4 h-4 rounded object-cover flex-shrink-0"
+                                />
+                              )}
+                              <span className="truncate leading-none">{hotel.name}</span>
+                            </div>
+                          ) : "-";
+                        })()}
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                         <span className="truncate block leading-none">{booking.hairdresser_name || "-"}</span>
