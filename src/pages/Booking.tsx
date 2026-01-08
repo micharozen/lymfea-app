@@ -742,18 +742,18 @@ export default function Booking() {
                   <col className="w-[12%]" />  {/* Hair dresser */}
                   <col className="w-[9%]" />   {/* Invoice */}
                 </colgroup>
-                <TableHeader>
+                  <TableHeader>
                   <TableRow className="border-b h-8 bg-muted/20">
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Booking...</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Réservation</TableHead>
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Start t...</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Status</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center">Payment</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client name</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total price</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hair dresser</TableHead>
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Invoice</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Heure</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center">Paiement</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
                   </TableRow>
                 </TableHeader>
 

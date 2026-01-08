@@ -228,7 +228,7 @@ export default function TreatmentMenus() {
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Délai</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Catégorie</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[100px]">Établissement</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hôtel</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Statut</TableHead>
                 {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
               </TableRow>
@@ -279,14 +279,14 @@ export default function TreatmentMenus() {
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <span className="truncate block text-foreground">{menu.category}</span>
                     </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {hotel ? (
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
                           {hotel.image && (
                             <img
                               src={hotel.image}
                               alt={hotel.name}
-                              className="w-4 h-4 rounded object-cover"
+                              className="w-4 h-4 rounded object-cover flex-shrink-0"
                             />
                           )}
                           <span className="truncate text-foreground">{hotel.name}</span>
