@@ -34,10 +34,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ImageIcon, ChevronDown, Package } from "lucide-react";
+import { ImageIcon, Check } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 // Component to display calculated OOM commission
@@ -583,52 +583,60 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-between font-normal"
+                    className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                     disabled={loadingTrunks}
                   >
-                    <span>
+                    <span className="truncate">
                       {loadingTrunks 
                         ? "Chargement..." 
                         : selectedTrunkIds.length === 0
                           ? "Sélectionner des trunks"
-                          : `${selectedTrunkIds.length} trunk(s) sélectionné(s)`}
+                          : allTrunks
+                              .filter((t) => selectedTrunkIds.includes(t.id))
+                              .map((t) => t.name)
+                              .join(", ")}
                     </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
+                    <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0" align="start">
-                  <div className="max-h-80 overflow-y-auto p-3 space-y-2">
-                    {allTrunks.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Aucun trunk disponible
-                      </p>
-                    ) : (
-                      allTrunks.map((trunk) => (
-                        <div
-                          key={trunk.id}
-                          className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded-md transition-colors"
-                        >
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={trunk.image || ""} alt={trunk.name} />
-                            <AvatarFallback className="bg-muted text-xs">
-                              {trunk.name.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <Label htmlFor={`trunk-${trunk.id}`} className="cursor-pointer font-normal block">
-                              {trunk.name}
-                            </Label>
-                            <span className="text-xs text-muted-foreground">{trunk.trunk_id}</span>
-                          </div>
-                          <Checkbox
-                            id={`trunk-${trunk.id}`}
-                            checked={selectedTrunkIds.includes(trunk.id)}
-                            onCheckedChange={(checked) => handleTrunkToggle(trunk.id, !!checked)}
-                          />
-                        </div>
-                      ))
-                    )}
-                  </div>
+                <PopoverContent
+                  className="w-64 p-0"
+                  align="start"
+                  onWheelCapture={(e) => e.stopPropagation()}
+                  onTouchMoveCapture={(e) => e.stopPropagation()}
+                >
+                  <ScrollArea className="h-40 touch-pan-y">
+                    <div className="p-1">
+                      {allTrunks.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Aucun trunk disponible
+                        </p>
+                      ) : (
+                        allTrunks.map((trunk) => {
+                          const isSelected = selectedTrunkIds.includes(trunk.id);
+                          return (
+                            <button
+                              key={trunk.id}
+                              type="button"
+                              onClick={() => handleTrunkToggle(trunk.id, !isSelected)}
+                              className="w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm px-3 py-1.5 text-sm text-popover-foreground transition-colors hover:bg-foreground/5"
+                            >
+                              <span className="min-w-0 truncate text-left">{trunk.name}</span>
+                              {isSelected ? (
+                                <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
+                                  <Check className="h-3 w-3" strokeWidth={3} />
+                                </span>
+                              ) : (
+                                <span className="h-4 w-4" />
+                              )}
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
