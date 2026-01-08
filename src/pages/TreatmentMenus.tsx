@@ -53,6 +53,7 @@ export default function TreatmentMenus() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
   const headerRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -81,10 +82,21 @@ export default function TreatmentMenus() {
     const tableHeaderHeight = 32;
     const paginationHeight = 48;
     const sidebarOffset = 64;
-    const headerHeight = headerRef.current?.offsetHeight || 120;
-    const contentPadding = 48;
 
-    const usedHeight = headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
+    const pageHeaderHeight = headerRef.current?.offsetHeight || 120;
+    const filtersHeight = filtersRef.current?.offsetHeight || 96;
+
+    // outer paddings/margins safety buffer
+    const chromePadding = 32;
+
+    const usedHeight =
+      pageHeaderHeight +
+      filtersHeight +
+      tableHeaderHeight +
+      paginationHeight +
+      sidebarOffset +
+      chromePadding;
+
     const availableForRows = window.innerHeight - usedHeight;
     const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
 
@@ -214,7 +226,7 @@ export default function TreatmentMenus() {
 
       <div className="flex-1 px-6 pb-6 overflow-hidden">
         <div className="bg-card rounded-lg border border-border h-full flex flex-col">
-          <div className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
+          <div ref={filtersRef} className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -266,7 +278,7 @@ export default function TreatmentMenus() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-hidden">
           <Table className="text-xs w-full table-fixed">
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
