@@ -118,3 +118,49 @@ export function TrunksCell({ trunks, displayName, className }: TrunksCellProps) 
     />
   );
 }
+
+interface Concierge {
+  id: string;
+  first_name: string;
+  last_name: string;
+  profile_image?: string | null;
+}
+
+interface ConciergeCellProps {
+  concierge: Concierge | null | undefined;
+  className?: string;
+}
+
+export function ConciergeCell({ concierge, className }: ConciergeCellProps) {
+  if (!concierge) return <span className="text-foreground">-</span>;
+  
+  const name = `${concierge.first_name} ${concierge.last_name}`;
+  
+  return (
+    <EntityCell
+      image={concierge.profile_image}
+      name={name}
+      className={className}
+    />
+  );
+}
+
+interface ConciergesCellProps {
+  concierges: Concierge[];
+  className?: string;
+}
+
+export function ConciergesCell({ concierges, className }: ConciergesCellProps) {
+  if (!concierges || concierges.length === 0) return <span className="text-foreground">-</span>;
+  
+  const firstConcierge = concierges[0];
+  const names = concierges.map(c => `${c.first_name} ${c.last_name}`).join(", ");
+  
+  return (
+    <EntityCell
+      image={firstConcierge.profile_image}
+      name={names}
+      className={className}
+    />
+  );
+}
