@@ -119,6 +119,33 @@ export default function Trunks() {
     },
   });
 
+  // Fetch upcoming bookings for each trunk
+  const { data: upcomingBookings } = useQuery({
+    queryKey: ["trunk-upcoming-bookings"],
+    queryFn: async () => {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from("bookings")
+        .select("trunk_id, booking_date, booking_time")
+        .not("trunk_id", "is", null)
+        .gte("booking_date", today)
+        .not("status", "in", '("cancelled","completed")')
+        .order("booking_date", { ascending: true })
+        .order("booking_time", { ascending: true });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Get the next booking for a trunk
+  const getNextBooking = (trunkId: string) => {
+    if (!upcomingBookings) return null;
+    const booking = upcomingBookings.find(b => b.trunk_id === trunkId);
+    if (!booking) return null;
+    return `${booking.booking_date} ${booking.booking_time}`;
+  };
+
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
@@ -311,9 +338,17 @@ export default function Trunks() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">
-                          {trunk.next_booking
-                            ? new Date(trunk.next_booking).toLocaleString("fr-FR")
-                            : "-"}
+                          {(() => {
+                            const nextBooking = getNextBooking(trunk.id);
+                            if (!nextBooking) return "-";
+                            return new Date(nextBooking).toLocaleString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            });
+                          })()}
                         </span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
