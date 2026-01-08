@@ -277,6 +277,19 @@ const PwaDashboard = () => {
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
     console.log('🏨 Hotel IDs:', hotelIds);
 
+    // Fetch hairdresser's trunk assignments
+    const { data: hairdresserData } = await supabase
+      .from("hairdressers")
+      .select("trunks")
+      .eq("id", hairdresserId)
+      .single();
+    
+    // Parse trunk IDs from hairdresser's trunks field (comma-separated text or single value)
+    const hairdresserTrunkIds: string[] = hairdresserData?.trunks 
+      ? hairdresserData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
+      : [];
+    console.log('🧳 Hairdresser trunk IDs:', hairdresserTrunkIds);
+
     // Fetch hotel images separately (no FK relationship)
     const { data: hotelImages } = await supabase
       .from("hotels")
@@ -316,7 +329,7 @@ const PwaDashboard = () => {
     console.log('👤 My bookings:', myBookingsWithImages?.length || 0);
 
     // 2. Get ONLY pending bookings (not assigned to anyone)
-    const { data: pendingBookings, error: pendingError } = await supabase
+    let pendingQuery = supabase
       .from("bookings")
       .select(`
         *,
@@ -331,11 +344,26 @@ const PwaDashboard = () => {
       .is("hairdresser_id", null)
       .in("status", ["pending"]);
 
+    const { data: pendingBookings, error: pendingError } = await pendingQuery;
+
+    // Filter pending bookings by hairdresser's trunk assignments
+    // Only show bookings where trunk_id matches one of the hairdresser's trunks
+    const filteredPendingBookings = pendingBookings?.filter(b => {
+      // If hairdresser has no trunk assignments, show bookings from their hotels (legacy behavior)
+      if (hairdresserTrunkIds.length === 0) return true;
+      // If booking has no trunk, show it (legacy data)
+      if (!b.trunk_id) return true;
+      // Only show if booking's trunk matches hairdresser's trunk
+      return hairdresserTrunkIds.includes(b.trunk_id);
+    }) || [];
+
+    console.log('🔍 Filtered pending bookings by trunk:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
+
     // Add hotel images to pending bookings
-    const pendingBookingsWithImages = pendingBookings?.map(b => ({
+    const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
       ...b,
       hotels: { image: hotelImageMap.get(b.hotel_id) || null }
-    })) || [];
+    }));
 
     if (pendingError) {
       console.error('❌ Error fetching pending bookings:', pendingError);

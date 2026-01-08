@@ -266,6 +266,36 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         status = "pending_quote";
       }
       
+      // Auto-assign trunk from hotel
+      let trunkId: string | null = null;
+      const { data: trunks } = await supabase
+        .from("trunks")
+        .select("id")
+        .eq("hotel_id", d.hotelId)
+        .eq("status", "active");
+      
+      if (trunks && trunks.length > 0) {
+        // Get bookings at this time slot that have trunks assigned
+        const { data: bookingsWithTrunks } = await supabase
+          .from("bookings")
+          .select("trunk_id")
+          .eq("hotel_id", d.hotelId)
+          .eq("booking_date", d.date)
+          .eq("booking_time", d.time)
+          .not("trunk_id", "is", null)
+          .not("status", "in", '("Annulé","Terminé","cancelled")');
+        
+        const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
+        
+        // Find first available trunk
+        for (const trunk of trunks) {
+          if (!usedTrunkIds.has(trunk.id)) {
+            trunkId = trunk.id;
+            break;
+          }
+        }
+      }
+      
       const { data: booking, error } = await supabase.from("bookings").insert({
         hotel_id: d.hotelId, 
         hotel_name: hotel?.name || "", 
@@ -280,6 +310,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         status, 
         assigned_at: d.hairdresserId ? new Date().toISOString() : null, 
         total_price: d.totalPrice,
+        trunk_id: trunkId,
+        duration: d.totalDuration,
       }).select().single();
       
       if (error) throw error;

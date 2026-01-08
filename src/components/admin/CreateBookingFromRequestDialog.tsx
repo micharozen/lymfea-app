@@ -138,6 +138,37 @@ export default function CreateBookingFromRequestDialog({
       const hairdresser = hairdressers?.find((h) => h.id === hairdresserId);
       const initialStatus = hairdresserId ? "confirmed" : "pending";
       const assignedAt = hairdresserId ? new Date().toISOString() : null;
+      const formattedDate = format(date, "yyyy-MM-dd");
+
+      // Auto-assign trunk from hotel
+      let trunkId: string | null = null;
+      const { data: trunks } = await supabase
+        .from("trunks")
+        .select("id")
+        .eq("hotel_id", request.hotel_id)
+        .eq("status", "active");
+      
+      if (trunks && trunks.length > 0) {
+        // Get bookings at this time slot that have trunks assigned
+        const { data: bookingsWithTrunks } = await supabase
+          .from("bookings")
+          .select("trunk_id")
+          .eq("hotel_id", request.hotel_id)
+          .eq("booking_date", formattedDate)
+          .eq("booking_time", time)
+          .not("trunk_id", "is", null)
+          .not("status", "in", '("Annulé","Terminé","cancelled")');
+        
+        const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
+        
+        // Find first available trunk
+        for (const trunk of trunks) {
+          if (!usedTrunkIds.has(trunk.id)) {
+            trunkId = trunk.id;
+            break;
+          }
+        }
+      }
 
       // Create booking
       const { data: bookingData, error: bookingError } = await supabase
@@ -150,7 +181,7 @@ export default function CreateBookingFromRequestDialog({
           phone: request.client_phone,
           client_email: request.client_email,
           room_number: request.room_number,
-          booking_date: format(date, "yyyy-MM-dd"),
+          booking_date: formattedDate,
           booking_time: time,
           hairdresser_id: hairdresserId || null,
           hairdresser_name: hairdresser
@@ -161,6 +192,7 @@ export default function CreateBookingFromRequestDialog({
           total_price: price ? parseFloat(price) : null,
           duration: duration ? parseInt(duration) : null,
           client_note: request.description,
+          trunk_id: trunkId,
         })
         .select()
         .single();
