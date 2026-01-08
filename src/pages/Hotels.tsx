@@ -284,91 +284,102 @@ export default function Hotels() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table className="text-xs">
+          <Table className="text-xs w-full table-fixed">
             <TableHeader>
-              <TableRow className="h-8 bg-muted/50">
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtel</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Localisation</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Concierges</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Trunks</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Statut</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Ventes</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">Rés.</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold text-center">QR</TableHead>
+              <TableRow className="bg-muted/20 h-8">
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Localisation</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Ventes</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Rés.</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
                 {isAdmin && (
-                  <TableHead className="py-1.5 px-2 text-xs font-semibold text-right">Actions</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
                 )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHotels.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-center py-4 text-muted-foreground text-xs">
+                <TableRow className="h-10 max-h-10">
+                  <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
                     Aucun hôtel trouvé
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredHotels.map((hotel) => (
-                  <TableRow key={hotel.id} className="h-10">
-                    <TableCell className="py-0 px-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6 rounded-md flex-shrink-0">
-                          <AvatarImage src={hotel.image || ""} />
-                          <AvatarFallback className="bg-muted rounded-md text-[10px]">
+                  <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        {hotel.image ? (
+                          <img
+                            src={hotel.image}
+                            alt={hotel.name}
+                            className="w-6 h-6 rounded object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
                             {hotel.name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-xs truncate max-w-[120px]">{hotel.name}</span>
+                          </div>
+                        )}
+                        <span className="truncate font-medium text-foreground">{hotel.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[150px] block">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">
                         {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
                       </span>
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {hotel.concierges && hotel.concierges.length > 0 ? (
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
                           {hotel.concierges.slice(0, 2).map((concierge) => (
-                            <Avatar key={concierge.id} className="h-5 w-5">
-                              <AvatarImage src={concierge.profile_image || ""} />
-                              <AvatarFallback className="bg-muted text-[8px]">
-                                {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div key={concierge.id} className="w-4 h-4 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {concierge.profile_image ? (
+                                <img src={concierge.profile_image} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[6px] font-medium text-muted-foreground">
+                                  {concierge.first_name.charAt(0)}{concierge.last_name.charAt(0)}
+                                </span>
+                              )}
+                            </div>
                           ))}
                           {hotel.concierges.length > 2 && (
                             <span className="text-[10px] text-muted-foreground">+{hotel.concierges.length - 2}</span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
+                        <span className="text-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {hotel.trunks && hotel.trunks.length > 0 ? (
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center gap-1">
                           {hotel.trunks.slice(0, 2).map((trunk) => (
-                            <Avatar key={trunk.id} className="h-5 w-5">
-                              <AvatarImage src={trunk.image || ""} />
-                              <AvatarFallback className="bg-muted text-[8px]">
-                                {trunk.trunk_id.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div key={trunk.id} className="w-4 h-4 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {trunk.image ? (
+                                <img src={trunk.image} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[6px] font-medium text-muted-foreground">
+                                  {trunk.trunk_id.substring(0, 2).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
                           ))}
                           {hotel.trunks.length > 2 && (
                             <span className="text-[10px] text-muted-foreground">+{hotel.trunks.length - 2}</span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
+                        <span className="text-foreground">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       <Badge 
                         variant={(hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") ? "default" : "secondary"}
                         className={cn(
-                          "text-[10px] px-1.5 py-0",
+                          "text-[10px] px-2 py-0.5 whitespace-nowrap",
                           (hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") && "bg-green-500/10 text-green-700",
                           hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
                         )}
@@ -376,17 +387,17 @@ export default function Hotels() {
                         {(hotel.status?.toLowerCase() === "active" || hotel.status?.toLowerCase() === "actif") ? "Actif" : hotel.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
-                      <span className="text-xs text-muted-foreground">{hotel.stats?.bookingsCount || 0}</span>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
                     </TableCell>
-                    <TableCell className="py-0 px-2 text-center">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-0 px-2">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"

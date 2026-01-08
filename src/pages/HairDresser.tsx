@@ -352,23 +352,23 @@ export default function HairDresser() {
         </div>
 
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table className="text-xs">
+          <Table className="text-xs w-full table-fixed">
             <TableHeader>
-              <TableRow className="h-8 bg-muted/50">
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Nom</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Email</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Téléphone</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Hôtels</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Trunk</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Compétences</TableHead>
-                <TableHead className="py-1.5 px-2 text-xs font-semibold">Statut</TableHead>
-                {isAdmin && <TableHead className="py-1.5 px-2 text-xs font-semibold text-right">Actions</TableHead>}
+              <TableRow className="bg-muted/20 h-8">
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunk</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Compétences</TableHead>
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredHairdressers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-10 py-0 px-2 text-center text-muted-foreground text-xs">
+                <TableRow className="h-10 max-h-10">
+                  <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
                     Aucun coiffeur trouvé
                   </TableCell>
                 </TableRow>
@@ -376,9 +376,9 @@ export default function HairDresser() {
                 filteredHairdressers
                   .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                   .map((hairdresser) => (
-                  <TableRow key={hairdresser.id} className="h-10">
-                    <TableCell className="py-0 px-2">
-                      <div className="flex items-center gap-2">
+                  <TableRow key={hairdresser.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <div className="flex items-center gap-2 whitespace-nowrap">
                         <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                           {hairdresser.profile_image ? (
                             <img
@@ -392,20 +392,20 @@ export default function HairDresser() {
                             </span>
                           )}
                         </div>
-                        <span className="font-medium text-xs truncate max-w-[100px]">
+                        <span className="truncate font-medium text-foreground">
                           {hairdresser.first_name} {hairdresser.last_name}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[120px] block">{hairdresser.email}</span>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">{hairdresser.email}</span>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[100px] block">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">
                         {hairdresser.country_code} {hairdresser.phone}
                       </span>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {(() => {
                         const hotelsList = getHotelsInfo(hairdresser.hairdresser_hotels);
                         return hotelsList.length > 0 ? (
@@ -417,14 +417,14 @@ export default function HairDresser() {
                                 className="w-4 h-4 rounded object-cover flex-shrink-0"
                               />
                             )}
-                            <span className="text-xs truncate max-w-[100px]">
+                            <span className="truncate text-foreground">
                               {hotelsList.map(h => h.name).join(", ")}
                             </span>
                           </div>
                         ) : "-";
                       })()}
                     </TableCell>
-                    <TableCell className="py-0 px-2">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       {(() => {
                         const trunk = getTrunkInfo(hairdresser.trunks);
                         return trunk ? (
@@ -436,22 +436,22 @@ export default function HairDresser() {
                                 className="w-4 h-4 rounded object-cover flex-shrink-0"
                               />
                             )}
-                            <span className="text-xs truncate max-w-[100px]">
+                            <span className="truncate text-foreground">
                               {getTrunkNames(hairdresser.trunks)}
                             </span>
                           </div>
                         ) : "-";
                       })()}
                     </TableCell>
-                    <TableCell className="py-0 px-2">
-                      <span className="text-xs truncate max-w-[80px] block">{getSkillsDisplay(hairdresser.skills)}</span>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">{getSkillsDisplay(hairdresser.skills)}</span>
                     </TableCell>
-                    <TableCell className="py-0 px-2">
-                      <StatusBadge status={hairdresser.status} type="entity" />
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <StatusBadge status={hairdresser.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-0 px-2">
-                        <div className="flex justify-end gap-1">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"

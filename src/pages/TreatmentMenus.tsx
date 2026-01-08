@@ -230,7 +230,7 @@ export default function TreatmentMenus() {
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Catégorie</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[100px]">Établissement</TableHead>
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Statut</TableHead>
-                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Actions</TableHead>}
+                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -310,8 +310,8 @@ export default function TreatmentMenus() {
                       </Badge>
                     </TableCell>
                     {isAdmin && (
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <div className="flex items-center justify-center gap-1">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -332,7 +332,7 @@ export default function TreatmentMenus() {
                               setDeleteDialogOpen(true);
                             }}
                           >
-                            <Trash2 className="h-3 w-3 text-destructive" />
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </TableCell>
