@@ -272,7 +272,7 @@ export default function Trunks() {
                 <TableRow className="bg-muted/20 h-8">
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Modèle</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">ID</TableHead>
+                  
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine rés.</TableHead>
@@ -302,9 +302,6 @@ export default function Trunks() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">{trunk.trunk_model}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{trunk.trunk_id}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <HotelCell hotel={getHotelInfo(trunk.hotel_id)} />
@@ -348,7 +345,7 @@ export default function Trunks() {
                   ))
                 ) : (
                   <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-0 px-2 h-10 text-center text-muted-foreground">
                       Aucun trunk trouvé
                     </TableCell>
                   </TableRow>
