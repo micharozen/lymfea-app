@@ -177,16 +177,16 @@ export default function TreatmentMenus() {
   };
 
   const formatDuration = (minutes: number | null) => {
-    if (!minutes) return "0";
+    if (!minutes) return "-";
     return `${minutes}min`;
   };
 
   const formatLeadTime = (minutes: number | null) => {
-    if (!minutes) return "0";
+    if (!minutes) return "-";
     if (minutes >= 60) {
       const hours = Math.floor(minutes / 60);
       const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 ? `${hours}h${remainingMinutes}` : `${hours}hr${hours > 1 ? 's' : ''}`;
+      return remainingMinutes > 0 ? `${hours}h${remainingMinutes}` : `${hours}h`;
     }
     return `${minutes}min`;
   };
