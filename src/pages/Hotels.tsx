@@ -30,6 +30,7 @@ import { AddHotelDialog } from "@/components/AddHotelDialog";
 import { EditHotelDialog } from "@/components/EditHotelDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
+import { TablePagination } from "@/components/table/TablePagination";
 
 interface Concierge {
   id: string;
@@ -81,6 +82,8 @@ export default function Hotels() {
   const [editHotelId, setEditHotelId] = useState<string | null>(null);
   const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchHotels();
@@ -212,7 +215,14 @@ export default function Hotels() {
     }
 
     setFilteredHotels(filtered);
+    setCurrentPage(1);
   };
+
+  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
+  const paginatedHotels = filteredHotels.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleDeleteHotel = async () => {
     if (!deleteHotelId) return;
@@ -301,14 +311,14 @@ export default function Hotels() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredHotels.length === 0 ? (
+              {paginatedHotels.length === 0 ? (
                 <TableRow className="h-10 max-h-10">
                   <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
                     Aucun hôtel trouvé
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredHotels.map((hotel) => (
+                paginatedHotels.map((hotel) => (
                   <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                       <div className="flex items-center gap-2 whitespace-nowrap">
@@ -385,6 +395,15 @@ export default function Hotels() {
               )}
             </TableBody>
           </Table>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredHotels.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            itemName="hôtels"
+          />
         </div>
 
         <AddHotelDialog

@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -36,6 +36,7 @@ import {
 import { AddTreatmentMenuDialog } from "@/components/AddTreatmentMenuDialog";
 import { EditTreatmentMenuDialog } from "@/components/EditTreatmentMenuDialog";
 import { HotelCell } from "@/components/table/EntityCell";
+import { TablePagination } from "@/components/table/TablePagination";
 
 export default function TreatmentMenus() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -339,37 +340,14 @@ export default function TreatmentMenus() {
             </TableBody>
           </Table>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <p className="text-xs text-muted-foreground">
-                Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredMenus?.length || 0)} sur {filteredMenus?.length || 0} prestations
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="h-8 px-2"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {currentPage} sur {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="h-8 px-2"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredMenus?.length || 0}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            itemName="prestations"
+          />
         </div>
       </div>
 
