@@ -199,48 +199,52 @@ export default function Trunks() {
           </div>
 
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="text-xs w-full table-fixed">
               <TableHeader>
-                <TableRow>
-                  <TableHead>Nom</TableHead>
-                  <TableHead>Modèle</TableHead>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Hôtel</TableHead>
-                  <TableHead>Coiffeur</TableHead>
-                  <TableHead>Prochaine réservation</TableHead>
-                  <TableHead>Statut</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                <TableRow className="bg-muted/20 h-8">
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Modèle</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">ID</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine rés.</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
+                  <TableRow className="h-10 max-h-10">
+                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
                       Chargement...
                     </TableCell>
                   </TableRow>
                 ) : filteredTrunks && filteredTrunks.length > 0 ? (
                   filteredTrunks.map((trunk) => (
-                    <TableRow key={trunk.id} className="h-12">
-                      <TableCell className="py-2">
-                        <div className="flex items-center gap-3 whitespace-nowrap">
+                    <TableRow key={trunk.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <div className="flex items-center gap-2 whitespace-nowrap">
                           {trunk.image ? (
                             <img
                               src={trunk.image}
                               alt={trunk.name}
-                              className="h-8 w-8 rounded-md object-cover flex-shrink-0"
+                              className="w-6 h-6 rounded object-cover flex-shrink-0"
                             />
                           ) : (
-                            <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                            <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs">
                               🧳
                             </div>
                           )}
-                          <span className="font-medium">{trunk.name}</span>
+                          <span className="truncate font-medium text-foreground">{trunk.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_model}</TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_id}</TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{trunk.trunk_model}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{trunk.trunk_id}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         {(() => {
                           const hotel = getHotelInfo(trunk.hotel_id);
                           return hotel ? (
@@ -249,41 +253,45 @@ export default function Trunks() {
                                 <img
                                   src={hotel.image}
                                   alt={hotel.name}
-                                  className="w-4 h-4 rounded object-cover"
+                                  className="w-4 h-4 rounded object-cover flex-shrink-0"
                                 />
                               )}
-                              <span>{hotel.name}</span>
+                              <span className="truncate text-foreground">{hotel.name}</span>
                             </div>
                           ) : "-";
                         })()}
                       </TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">{trunk.hairdresser_name || "-"}</TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">
-                        {trunk.next_booking
-                          ? new Date(trunk.next_booking).toLocaleString("fr-FR")
-                          : "-"}
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{trunk.hairdresser_name || "-"}</span>
                       </TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">
-                        <StatusBadge status={trunk.status} type="entity" />
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">
+                          {trunk.next_booking
+                            ? new Date(trunk.next_booking).toLocaleString("fr-FR")
+                            : "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <StatusBadge status={trunk.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
                       {isAdmin && (
-                        <TableCell className="py-2 text-right">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-6 w-6"
                               onClick={() => handleEdit(trunk)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-6 w-6"
                               onClick={() => handleDelete(trunk)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </TableCell>
@@ -291,8 +299,8 @@ export default function Trunks() {
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
+                  <TableRow className="h-10 max-h-10">
+                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
                       Aucun trunk trouvé
                     </TableCell>
                   </TableRow>
