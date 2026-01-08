@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -60,8 +60,53 @@ export default function Concierges() {
   const [editConciergeId, setEditConciergeId] = useState<string | null>(null);
   const [deleteConciergeId, setDeleteConciergeId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const filtersRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit the number of rows so the page never needs scrolling
+  const computeRows = useCallback(() => {
+    const rowHeight = 40;
+    const tableHeaderHeight = 32;
+    const paginationHeight = 48;
+    const sidebarOffset = 64;
+    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
+    const filtersHeight = filtersRef.current?.offsetHeight || 60;
+    const chromePadding = 32;
+
+    const usedHeight =
+      pageHeaderHeight +
+      filtersHeight +
+      tableHeaderHeight +
+      paginationHeight +
+      sidebarOffset +
+      chromePadding;
+
+    const availableForRows = window.innerHeight - usedHeight;
+    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
+
+    setItemsPerPage(rows);
+  }, []);
+
+  useEffect(() => {
+    computeRows();
+    window.addEventListener("resize", computeRows);
+    return () => window.removeEventListener("resize", computeRows);
+  }, [computeRows]);
+
+  // Force no scroll on this page
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -147,10 +192,6 @@ export default function Concierges() {
     setFilteredConcierges(filtered);
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
-
   const getHotelInfo = (hotelId: string | null) => {
     if (!hotelId) return null;
     return hotels.find(h => h.id === hotelId);
@@ -189,30 +230,27 @@ export default function Concierges() {
     currentPage * itemsPerPage
   );
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Chargement...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
             🛎️ Concierges
           </h1>
         </div>
+      </div>
 
-        <div className="mb-6">
-          <div className="flex items-center gap-4">
+      <div className="flex-1 px-6 pb-6 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+          <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -259,125 +297,125 @@ export default function Concierges() {
               </Button>
             )}
           </div>
-        </div>
 
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table className="text-xs w-full table-fixed">
-            <TableHeader>
-              <TableRow className="bg-muted/20 h-8">
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-                {userRole === "admin" && (
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedConcierges.length === 0 ? (
-                <TableRow className="h-10">
-                  <TableCell
-                    colSpan={userRole === "admin" ? 6 : 5}
-                    className="py-0 px-2 h-10 text-center text-muted-foreground"
-                  >
-                    Aucun concierge trouvé
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedConcierges.map((concierge) => (
-                <TableRow key={concierge.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <PersonCell person={concierge} />
-                  </TableCell>
-                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <span className="truncate block text-foreground">{concierge.email}</span>
-                  </TableCell>
-                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <span className="truncate block text-foreground">
-                      {concierge.country_code} {concierge.phone}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
-                  </TableCell>
-                  <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                    <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
-                  </TableCell>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Table className="text-xs w-full table-fixed">
+              <TableHeader>
+                <TableRow className="bg-muted/20 h-8">
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
                   {userRole === "admin" && (
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => setEditConciergeId(concierge.id)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => setDeleteConciergeId(concierge.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
                   )}
                 </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paginatedConcierges.length === 0 ? (
+                  <TableRow className="h-10">
+                    <TableCell
+                      colSpan={userRole === "admin" ? 6 : 5}
+                      className="py-0 px-2 h-10 text-center text-muted-foreground"
+                    >
+                      Aucun concierge trouvé
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedConcierges.map((concierge) => (
+                  <TableRow key={concierge.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <PersonCell person={concierge} />
+                    </TableCell>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">{concierge.email}</span>
+                    </TableCell>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <span className="truncate block text-foreground">
+                        {concierge.country_code} {concierge.phone}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
+                    </TableCell>
+                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                      <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                    </TableCell>
+                    {userRole === "admin" && (
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setEditConciergeId(concierge.id)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setDeleteConciergeId(concierge.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-        <TablePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={filteredConcierges.length}
-          itemsPerPage={itemsPerPage}
-          onPageChange={handlePageChange}
-          itemName="concierges"
-        />
-
-        <AddConciergeDialog
-          open={showAddDialog}
-          onOpenChange={setShowAddDialog}
-          onSuccess={fetchConcierges}
-        />
-
-        {editConciergeId && (
-          <EditConciergeDialog
-            open={!!editConciergeId}
-            onOpenChange={(open) => !open && setEditConciergeId(null)}
-            onSuccess={fetchConcierges}
-            conciergeId={editConciergeId}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredConcierges.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            itemName="concierges"
           />
-        )}
-
-        <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && setDeleteConciergeId(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
-              <AlertDialogDescription>
-                Êtes-vous sûr de vouloir supprimer ce concierge ? Cette action est irréversible.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteConcierge}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        </div>
       </div>
+
+      <AddConciergeDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={fetchConcierges}
+      />
+
+      {editConciergeId && (
+        <EditConciergeDialog
+          open={!!editConciergeId}
+          onOpenChange={(open) => !open && setEditConciergeId(null)}
+          onSuccess={fetchConcierges}
+          conciergeId={editConciergeId}
+        />
+      )}
+
+      <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && setDeleteConciergeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce concierge ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConcierge}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
