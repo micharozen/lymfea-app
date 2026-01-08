@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,17 +113,21 @@ export default function HairDresser() {
     return () => window.removeEventListener("resize", computeRows);
   }, [computeRows]);
 
-  // Force no scroll on this page
+  // Force no scroll on this page only when pagination is needed
+  const needsPagination = filteredHairdressers.length > itemsPerPage;
+  
   useEffect(() => {
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const prevBodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
+    if (!loading && needsPagination) {
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
+  }, [loading, needsPagination]);
 
   useEffect(() => {
     fetchHairdressers();
@@ -322,10 +327,9 @@ export default function HairDresser() {
   };
 
   const totalPages = Math.ceil(filteredHairdressers.length / itemsPerPage);
-  const paginatedHairdressers = filteredHairdressers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedHairdressers = needsPagination
+    ? filteredHairdressers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : filteredHairdressers;
 
   if (loading) {
     return (
@@ -336,7 +340,7 @@ export default function HairDresser() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-4">
           <h1 className="text-3xl font-bold tracking-tight">Coiffeurs</h1>
@@ -346,8 +350,8 @@ export default function HairDresser() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+        <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -397,7 +401,7 @@ export default function HairDresser() {
             </Button>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
@@ -485,14 +489,16 @@ export default function HairDresser() {
             </Table>
           </div>
           
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredHairdressers.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            itemName="coiffeurs"
-          />
+          {needsPagination && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredHairdressers.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              itemName="coiffeurs"
+            />
+          )}
         </div>
       </div>
 

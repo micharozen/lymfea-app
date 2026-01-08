@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -82,17 +83,7 @@ export default function Trunks() {
     return () => window.removeEventListener("resize", computeRows);
   }, [computeRows]);
 
-  // Force no scroll on this page
-  useEffect(() => {
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-    const prevBodyOverflow = document.body.style.overflow;
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      document.body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
+  // needsPagination computed after filteredTrunks is defined below
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -174,11 +165,25 @@ export default function Trunks() {
     return matchesSearch && matchesStatus && matchesHotel;
   });
 
+  const needsPagination = (filteredTrunks?.length || 0) > itemsPerPage;
   const totalPages = Math.ceil((filteredTrunks?.length || 0) / itemsPerPage);
-  const paginatedTrunks = filteredTrunks?.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedTrunks = needsPagination
+    ? filteredTrunks?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    : filteredTrunks;
+
+  // Force no scroll on this page only when pagination is needed
+  useEffect(() => {
+    if (!isLoading && needsPagination) {
+      const prevHtmlOverflow = document.documentElement.style.overflow;
+      const prevBodyOverflow = document.body.style.overflow;
+      document.documentElement.style.overflow = "hidden";
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.documentElement.style.overflow = prevHtmlOverflow;
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
+  }, [isLoading, needsPagination]);
 
   const handleEdit = (trunk: any) => {
     setSelectedTrunk(trunk);
@@ -205,7 +210,7 @@ export default function Trunks() {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
@@ -220,8 +225,8 @@ export default function Trunks() {
         </div>
       </div>
 
-      <div className="flex-1 px-6 pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+        <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -261,7 +266,7 @@ export default function Trunks() {
             )}
           </div>
 
-          <div className="flex-1 min-h-0 overflow-hidden">
+          <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
@@ -352,14 +357,16 @@ export default function Trunks() {
             </Table>
           </div>
 
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredTrunks?.length || 0}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            itemName="trunks"
-          />
+          {needsPagination && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTrunks?.length || 0}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              itemName="trunks"
+            />
+          )}
         </div>
       </div>
 
