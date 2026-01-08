@@ -26,10 +26,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const formSchema = z.object({
   first_name: z.string().min(1, "Le prénom est requis"),
@@ -370,38 +370,52 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                         <Button
                           variant="outline"
                           role="combobox"
-                          className={cn(
-                            "w-full justify-between",
-                            !field.value.length && "text-muted-foreground"
-                          )}
+                          className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                         >
-                          {getSelectedHotelsLabel(field.value)}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          <span className="truncate">
+                            {field.value.length === 0
+                              ? "Sélectionner des hôtels"
+                              : hotels
+                                  .filter((h) => field.value.includes(h.id))
+                                  .map((h) => h.name)
+                                  .join(", ")}
+                          </span>
+                          <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="m6 9 6 6 6-6"/>
+                          </svg>
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <div className="max-h-[300px] overflow-y-auto p-2">
-                        {hotels.map((hotel) => (
-                          <div
-                            key={hotel.id}
-                            className="flex items-center gap-3 p-2 hover:bg-muted rounded-md cursor-pointer transition-colors"
-                            onClick={() => field.onChange(toggleHotel(hotel.id, field.value))}
-                          >
-                            <img
-                              src={hotel.image}
-                              alt={hotel.name}
-                              className="w-10 h-10 rounded object-cover"
-                            />
-                            <span className="flex-1 text-sm">{hotel.name}</span>
-                            <Checkbox
-                              checked={field.value.includes(hotel.id)}
-                              onCheckedChange={() => field.onChange(toggleHotel(hotel.id, field.value))}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        ))}
-                      </div>
+                    <PopoverContent
+                      className="w-64 p-0"
+                      align="start"
+                      onWheelCapture={(e) => e.stopPropagation()}
+                      onTouchMoveCapture={(e) => e.stopPropagation()}
+                    >
+                      <ScrollArea className="h-40 touch-pan-y">
+                        <div className="p-1">
+                          {hotels.map((hotel) => {
+                            const isSelected = field.value.includes(hotel.id);
+                            return (
+                              <button
+                                key={hotel.id}
+                                type="button"
+                                onClick={() => field.onChange(toggleHotel(hotel.id, field.value))}
+                                className="w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm px-3 py-1.5 text-sm text-popover-foreground transition-colors hover:bg-foreground/5"
+                              >
+                                <span className="min-w-0 truncate text-left">{hotel.name}</span>
+                                {isSelected ? (
+                                  <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
+                                    <Check className="h-3 w-3" strokeWidth={3} />
+                                  </span>
+                                ) : (
+                                  <span className="h-4 w-4" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
