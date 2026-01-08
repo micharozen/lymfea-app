@@ -130,12 +130,18 @@ export default function Booking() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name")
+        .select("id, name, image")
         .order("name");
       if (error) throw error;
       return data;
     },
   });
+
+  const getHotelName = (hotelId: string | null) => {
+    if (!hotelId || !hotels) return "-";
+    const hotel = hotels.find(h => h.id === hotelId);
+    return hotel?.name || "-";
+  };
 
   const { data: hairdressers } = useQuery({
     queryKey: ["hairdressers"],
@@ -791,7 +797,7 @@ export default function Booking() {
                         <span className="truncate block leading-none">{formatPrice(booking.total_price)}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                        <span className="truncate block leading-none">{booking.hotel_name || "-"}</span>
+                        <span className="truncate block leading-none">{getHotelName(booking.hotel_id)}</span>
                       </TableCell>
                       <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                         <span className="truncate block leading-none">{booking.hairdresser_name || "-"}</span>

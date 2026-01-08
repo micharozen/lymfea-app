@@ -84,13 +84,19 @@ export default function Trunks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name")
+        .select("id, name, image")
         .order("name");
 
       if (error) throw error;
       return data;
     },
   });
+
+  const getHotelName = (hotelId: string | null) => {
+    if (!hotelId || !hotels) return "-";
+    const hotel = hotels.find(h => h.id === hotelId);
+    return hotel?.name || "-";
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -235,7 +241,7 @@ export default function Trunks() {
                       </TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_model}</TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.trunk_id}</TableCell>
-                      <TableCell className="py-2 whitespace-nowrap">{trunk.hotel_name || "-"}</TableCell>
+                      <TableCell className="py-2 whitespace-nowrap">{getHotelName(trunk.hotel_id)}</TableCell>
                       <TableCell className="py-2 whitespace-nowrap">{trunk.hairdresser_name || "-"}</TableCell>
                       <TableCell className="py-2 whitespace-nowrap">
                         {trunk.next_booking
