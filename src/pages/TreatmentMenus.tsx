@@ -88,7 +88,7 @@ export default function TreatmentMenus() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("*")
+        .select("id, name, image")
         .order("name");
 
       if (error) throw error;

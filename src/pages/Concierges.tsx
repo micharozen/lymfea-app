@@ -52,6 +52,7 @@ interface Concierge {
 interface Hotel {
   id: string;
   name: string;
+  image: string | null;
 }
 
 export default function Concierges() {
@@ -94,7 +95,7 @@ export default function Concierges() {
     try {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name")
+        .select("id, name, image")
         .order("name");
       
       if (error) throw error;
@@ -158,14 +159,17 @@ export default function Concierges() {
   };
 
   const getHotelName = (hotelId: string | null) => {
-    if (!hotelId) return "Non assigné";
+    if (!hotelId) return "-";
     const hotel = hotels.find(h => h.id === hotelId);
-    return hotel?.name || hotelId;
+    return hotel?.name || "-";
   };
 
-  const getHotelNames = (hotels?: { hotel_id: string }[]) => {
-    if (!hotels || hotels.length === 0) return "Non assigné";
-    return hotels.map((h) => getHotelName(h.hotel_id)).join(", ");
+  const getHotelNames = (conciergeHotels?: { hotel_id: string }[]) => {
+    if (!conciergeHotels || conciergeHotels.length === 0) return "-";
+    const names = conciergeHotels
+      .map((h) => getHotelName(h.hotel_id))
+      .filter(name => name !== "-");
+    return names.length > 0 ? names.join(", ") : "-";
   };
 
   const handleDeleteConcierge = async () => {

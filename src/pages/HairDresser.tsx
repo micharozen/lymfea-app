@@ -185,7 +185,7 @@ export default function HairDresser() {
 
   const getHotelNames = (hairdresserHotels?: { hotel_id: string }[]) => {
     if (!hairdresserHotels || hairdresserHotels.length === 0) {
-      return "Non assigné";
+      return "-";
     }
     
     const names = hairdresserHotels
@@ -195,7 +195,7 @@ export default function HairDresser() {
       })
       .filter(Boolean);
     
-    return names.length > 0 ? names.join(", ") : "Non assigné";
+    return names.length > 0 ? names.join(", ") : "-";
   };
 
   const getSkillsDisplay = (skills: string[]) => {
