@@ -1,73 +1,140 @@
-# Welcome to your Lovable project
+# OOM Hotel - Booking Management System
 
-## Project info
+A comprehensive booking management platform for in-hotel beauty and hairdressing services.
 
-**URL**: https://lovable.dev/projects/91091667-857c-4426-9519-5717429ede1e
+## Overview
 
-## How can I edit this code?
+OOM Hotel is a full-stack web application that connects hotel guests with professional hairdressers and beauty service providers. The platform includes:
 
-There are several ways of editing your application.
+- **Admin Dashboard** - Manage bookings, hairdressers, hotels, treatments, and finances
+- **Hairdresser PWA** - Mobile app for service providers to manage their appointments and earnings
+- **Client Booking Flow** - QR code-based booking system for hotel guests
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/91091667-857c-4426-9519-5717429ede1e) and start prompting.
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, shadcn/ui
+- **State Management**: TanStack Query (React Query)
+- **Backend**: Supabase (PostgreSQL, Auth, Edge Functions)
+- **PWA**: vite-plugin-pwa, OneSignal (Push Notifications)
+- **Payments**: Stripe
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18+
+- npm or bun
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
-Follow these steps:
+```bash
+# Clone the repository
+git clone https://github.com/micharozen/oom-hotel.git
+cd oom-hotel
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Install dependencies
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Set up environment variables
+cp .env.example .env
+# Fill in your Supabase and other API keys
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Environment Variables
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Create a `.env` file with the following variables:
+
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_ONESIGNAL_APP_ID=your_onesignal_app_id
+VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_key
+```
+
+### Development
+
+```bash
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Build
 
-**Use GitHub Codespaces**
+```bash
+# Production build
+npm run build
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Preview production build
+npm run preview
+```
 
-## What technologies are used for this project?
+## Project Structure
 
-This project is built with:
+```
+src/
+├── components/     # Reusable UI components
+│   ├── ui/         # shadcn/ui components
+│   ├── pwa/        # PWA-specific components
+│   └── admin/      # Admin dashboard components
+├── pages/          # Page components
+│   ├── pwa/        # Hairdresser PWA pages
+│   ├── client/     # Client booking flow pages
+│   └── ...         # Admin pages
+├── hooks/          # Custom React hooks
+├── contexts/       # React contexts
+├── lib/            # Utility functions
+└── integrations/   # API integrations (Supabase)
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Features
 
-## How can I deploy this project?
+### Admin Dashboard
+- Dashboard with booking statistics and analytics
+- Booking management with status tracking
+- Hairdresser management and performance tracking
+- Hotel partner management with QR codes
+- Treatment menu configuration
+- Financial reports and transactions
+- Trunk (equipment box) management
 
-Simply open [Lovable](https://lovable.dev/projects/91091667-857c-4426-9519-5717429ede1e) and click on Share -> Publish.
+### Hairdresser PWA
+- Mobile-optimized interface
+- Real-time booking notifications
+- Appointment management
+- Earnings and wallet tracking
+- Hotel assignments
+- Stripe Connect integration for payouts
 
-## Can I connect a custom domain to my Lovable project?
+### Client Booking
+- QR code access from hotel rooms
+- Treatment selection with pricing
+- Date/time slot booking
+- Guest information collection
+- Payment processing
+- Booking confirmation and management
 
-Yes, you can!
+## Deployment
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Railway
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Create a new project on [Railway](https://railway.app)
+2. Connect your GitHub repository
+3. Add environment variables in Railway settings
+4. Railway will auto-detect Vite and deploy
+
+### Build Command
+```bash
+npm run build
+```
+
+### Start Command (with serve)
+```bash
+npx serve -s dist -l $PORT
+```
+
+## License
+
+Private - All rights reserved
