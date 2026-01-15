@@ -220,23 +220,43 @@ export default function AddHairDresserDialog({
 
     // Send welcome email with PWA installation instructions
     try {
-      const { error: emailError } = await supabase.functions.invoke('invite-hairdresser', {
-        body: {
-          hairdresserId: hairdresser.id,
-          email: formData.email,
-          firstName: formData.first_name,
-          lastName: formData.last_name,
-          phone: formData.phone,
-          countryCode: formData.country_code,
-          hotelIds: selectedHotels,
-        }
-      });
+      // Get the current session to ensure we have a valid user token
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      if (emailError) {
-        console.error("Error sending welcome email:", emailError);
-        toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+      if (sessionError || !sessionData.session) {
+        console.error("No valid session found:", sessionError);
+        toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé (session expirée)");
       } else {
-        toast.success("Coiffeur ajouté et email de bienvenue envoyé");
+        const accessToken = sessionData.session.access_token;
+        console.log("Session found, access token present:", !!accessToken);
+        console.log("User ID:", sessionData.session.user?.id);
+
+        // Call the Edge Function directly with fetch to have more control
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/invite-hairdresser`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            hairdresserId: hairdresser.id,
+            email: formData.email,
+            firstName: formData.first_name,
+            lastName: formData.last_name,
+            phone: formData.phone,
+            countryCode: formData.country_code,
+            hotelIds: selectedHotels,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error("Error sending welcome email:", response.status, errorData);
+          toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+        } else {
+          toast.success("Coiffeur ajouté et email de bienvenue envoyé");
+        }
       }
     } catch (emailErr) {
       console.error("Error invoking invite-hairdresser:", emailErr);

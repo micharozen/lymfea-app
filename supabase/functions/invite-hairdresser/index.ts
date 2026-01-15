@@ -20,48 +20,73 @@ interface InviteHairdresserRequest {
 }
 
 serve(async (req: Request): Promise<Response> => {
+  console.log("=== invite-hairdresser function called ===");
+  console.log("Method:", req.method);
+
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // Check if RESEND_API_KEY is configured
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not configured!");
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error', details: 'Email service not configured' }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    console.log("RESEND_API_KEY configured:", !!RESEND_API_KEY);
+
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     console.log("Auth header present:", !!authHeader);
-    
+    console.log("Auth header length:", authHeader?.length || 0);
+
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - No auth header' }), 
+        JSON.stringify({ error: 'Unauthorized - No auth header' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Decode user_id from JWT
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    console.log("Token length:", token.length);
+
     let userId: string;
     try {
       const parts = token.split('.');
-      if (parts.length !== 3) throw new Error('Malformed token');
+      console.log("Token parts count:", parts.length);
+      if (parts.length !== 3) throw new Error('Malformed token - expected 3 parts');
       const payload = JSON.parse(atob(parts[1]));
+      console.log("Token payload keys:", Object.keys(payload).join(', '));
+      console.log("Token role:", payload.role);
       userId = payload.sub;
       console.log('Decoded user id:', userId);
-      if (!userId) throw new Error('No sub in token');
+      if (!userId) throw new Error('No sub in token - this may be an anon key, not a user session token');
     } catch (e: any) {
       console.error('Failed to decode token:', e?.message);
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication', details: 'Invalid or malformed token' }), 
+        JSON.stringify({ error: 'Invalid authentication', details: e?.message || 'Invalid or malformed token' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
     // Initialize Supabase admin client
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    console.log("SUPABASE_URL configured:", !!supabaseUrl);
+    console.log("SUPABASE_SERVICE_ROLE_KEY configured:", !!serviceRoleKey);
+
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      supabaseUrl ?? "",
+      serviceRoleKey ?? ""
     );
 
     // Verify admin role
+    console.log("Checking admin role for user:", userId);
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -69,9 +94,11 @@ serve(async (req: Request): Promise<Response> => {
       .eq('role', 'admin')
       .maybeSingle();
 
+    console.log("Role check result:", roles, "Error:", roleError?.message);
+
     if (roleError || !roles) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Admin access required' }), 
+        JSON.stringify({ error: 'Forbidden - Admin access required', details: roleError?.message || 'User does not have admin role' }),
         { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
