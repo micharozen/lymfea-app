@@ -16,7 +16,7 @@ export default function ClientPayment() {
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
   const { bookingDateTime, clientInfo, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
-  const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('room');
+  const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
 

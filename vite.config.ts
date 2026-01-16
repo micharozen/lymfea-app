@@ -20,7 +20,16 @@ export default defineConfig(({ mode }) => ({
       manifest: false, // Use static manifest from public/
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        navigateFallbackDenylist: [
+          /\.js$/,
+          /\.css$/,
+          /\.(?:png|jpg|jpeg|gif|svg|webp|ico)$/,
+          /\.(?:woff|woff2|ttf|eot|otf)$/,
+          /\.(?:json|webmanifest|xml|txt|map)$/,
+          /^\/workbox-/,
+          /OneSignal/,
+        ],
       },
       devOptions: {
         enabled: true
