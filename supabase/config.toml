@@ -1,4 +1,4 @@
-project_id = "xbkvmrqanoqdqvqwldio"
+project_id = "jpvgfxchupfukverhcgt"
 
 [functions.get-hairdresser-earnings]
 verify_jwt = true
@@ -91,4 +91,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.handle-quote-response]
+verify_jwt = false
+
+[functions.invite-hairdresser]
+verify_jwt = false
+
+[functions.invite-concierge]
+verify_jwt = false
+
+[functions.invite-admin]
+verify_jwt = false
+
+[functions.resend-invite]
 verify_jwt = false

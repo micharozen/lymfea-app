@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
+import { useClientFlow } from './context/ClientFlowContext';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
@@ -15,6 +16,7 @@ export default function ClientDateTime() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items } = useBasket();
+  const { setBookingDateTime } = useClientFlow();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
@@ -130,10 +132,10 @@ export default function ClientDateTime() {
       return;
     }
 
-    sessionStorage.setItem('bookingDateTime', JSON.stringify({
+    setBookingDateTime({
       date: selectedDate,
       time: selectedTime,
-    }));
+    });
     
     navigate(`/client/${hotelId}/info`);
   };

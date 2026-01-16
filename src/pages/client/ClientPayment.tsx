@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
-import { useState } from 'react';
+import { useClientFlow } from './context/ClientFlowContext';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import BookingProgressBar from '@/components/BookingProgressBar';
@@ -14,26 +15,30 @@ export default function ClientPayment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
+  const { bookingDateTime, clientInfo, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('room');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
+
+  // Redirect if missing required data
+  useEffect(() => {
+    if (!canProceedToStep('payment')) {
+      navigate(`/client/${hotelId}/basket`);
+    }
+  }, [canProceedToStep, navigate, hotelId]);
 
   // Separate fixed and variable items for display
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
 
   const handlePayment = async () => {
-    const dateTimeStr = sessionStorage.getItem('bookingDateTime');
-    const clientInfoStr = sessionStorage.getItem('clientInfo');
-    
-    if (!dateTimeStr || !clientInfoStr) {
+    // Use context data directly instead of sessionStorage
+    if (!bookingDateTime || !clientInfo) {
       toast.error(t('common:errors.generic'));
       navigate(`/client/${hotelId}/basket`);
       return;
     }
 
-    const dateTime = JSON.parse(dateTimeStr);
-    const clientInfo = JSON.parse(clientInfoStr);
     setIsProcessing(true);
 
     try {
@@ -51,8 +56,8 @@ export default function ClientPayment() {
               note: clientInfo.note || '',
             },
             bookingData: {
-              date: dateTime.date,
-              time: dateTime.time,
+              date: bookingDateTime.date,
+              time: bookingDateTime.time,
             },
             treatmentIds: items.map(item => item.id),
             totalPrice: total,
@@ -62,8 +67,14 @@ export default function ClientPayment() {
         if (error) throw error;
 
         if (data?.url) {
-          // Store session info for later retrieval
-          sessionStorage.setItem('pendingCheckoutSession', data.sessionId);
+          // Validate URL is from trusted Stripe domain before redirect
+          const url = new URL(data.url);
+          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
+          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+            throw new Error('Invalid redirect URL');
+          }
+          // Store session info in context for later retrieval
+          setPendingCheckoutSession(data.sessionId);
           window.location.href = data.url;
         }
       } else {
@@ -80,8 +91,8 @@ export default function ClientPayment() {
               note: clientInfo.note || '',
             },
             bookingData: {
-              date: dateTime.date,
-              time: dateTime.time,
+              date: bookingDateTime.date,
+              time: bookingDateTime.time,
             },
             treatments: items.map(item => ({
               treatmentId: item.id,
@@ -96,13 +107,13 @@ export default function ClientPayment() {
         if (error) throw error;
 
         clearBasket();
-        sessionStorage.removeItem('bookingDateTime');
-        sessionStorage.removeItem('clientInfo');
+        clearFlow();
         navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Payment error:', error);
-      toast.error(error.message || t('common:errors.generic'));
+      const errorMessage = error instanceof Error ? error.message : t('common:errors.generic');
+      toast.error(errorMessage);
     } finally {
       setIsProcessing(false);
     }

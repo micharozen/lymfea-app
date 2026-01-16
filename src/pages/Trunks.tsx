@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
+import { useOverflowControl } from "@/hooks/useOverflowControl";
+import { usePagination } from "@/hooks/usePagination";
 
 export default function Trunks() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,43 +50,9 @@ export default function Trunks() {
   const [selectedTrunk, setSelectedTrunk] = useState<any>(null);
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef<HTMLDivElement>(null);
-
-  // Auto-fit the number of rows so the page never needs scrolling
-  const computeRows = useCallback(() => {
-    const rowHeight = 40;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
-    const filtersHeight = filtersRef.current?.offsetHeight || 60;
-    const chromePadding = 32;
-
-    const usedHeight =
-      pageHeaderHeight +
-      filtersHeight +
-      tableHeaderHeight +
-      paginationHeight +
-      sidebarOffset +
-      chromePadding;
-
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  // needsPagination computed after filteredTrunks is defined below
+  // Use shared hooks
+  const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -185,32 +154,21 @@ export default function Trunks() {
     const matchesSearch =
       trunk.name?.toLowerCase().includes(searchLower) ||
       trunk.trunk_model?.toLowerCase().includes(searchLower);
-    
+
     const matchesStatus = statusFilter === "all" || trunk.status === statusFilter;
     const matchesHotel = hotelFilter === "all" || trunk.hotel_id === hotelFilter;
 
     return matchesSearch && matchesStatus && matchesHotel;
+  }) || [];
+
+  // Use pagination hook
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTrunks, needsPagination } = usePagination({
+    items: filteredTrunks,
+    itemsPerPage,
   });
 
-  const needsPagination = (filteredTrunks?.length || 0) > itemsPerPage;
-  const totalPages = Math.ceil((filteredTrunks?.length || 0) / itemsPerPage);
-  const paginatedTrunks = needsPagination
-    ? filteredTrunks?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredTrunks;
-
-  // Force no scroll on this page only when pagination is needed
-  useEffect(() => {
-    if (!isLoading && needsPagination) {
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-  }, [isLoading, needsPagination]);
+  // Control overflow when pagination is needed
+  useOverflowControl(!isLoading && needsPagination);
 
   const handleEdit = (trunk: any) => {
     setSelectedTrunk(trunk);
@@ -393,7 +351,7 @@ export default function Trunks() {
             <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredTrunks?.length || 0}
+              totalItems={filteredTrunks.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               itemName="trunks"

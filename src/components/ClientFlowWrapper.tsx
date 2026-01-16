@@ -14,6 +14,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useClientSession } from '@/hooks/useClientSession';
+import { ClientFlowProvider } from '@/pages/client/context/ClientFlowContext';
 
 interface ClientFlowWrapperProps {
   children: React.ReactNode;
@@ -35,7 +36,11 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
     }
   }, [hotelId]);
 
-  return <>{children}</>;
+  return (
+    <ClientFlowProvider>
+      <div className="lymfea-client">{children}</div>
+    </ClientFlowProvider>
+  );
 };
 
 export default ClientFlowWrapper;

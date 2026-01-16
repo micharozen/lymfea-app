@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
+import { UserProvider } from "@/contexts/UserContext";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
@@ -143,6 +144,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
+      <UserProvider>
         <TooltipProvider>
         <Sonner />
         <BrowserRouter>
@@ -313,6 +315,7 @@ const App = () => {
         </Suspense>
       </BrowserRouter>
       </TooltipProvider>
+      </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>
   );

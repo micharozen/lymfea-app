@@ -9,11 +9,13 @@ import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import BookingProgressBar from '@/components/BookingProgressBar';
+import { useClientFlow } from './context/ClientFlowContext';
 
 export default function ClientInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
+  const { canProceedToStep, setClientInfo } = useClientFlow();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -39,12 +41,11 @@ export default function ClientInfo() {
   ];
 
   useEffect(() => {
-    const dateTime = sessionStorage.getItem('bookingDateTime');
-    if (!dateTime) {
+    if (!canProceedToStep('info')) {
       toast.error(t('datetime.selectDate'));
       navigate(`/client/${hotelId}/datetime`);
     }
-  }, [hotelId, navigate, t]);
+  }, [hotelId, navigate, t, canProceedToStep]);
 
   const handleContinue = () => {
     if (!formData.firstName || !formData.lastName || !formData.phone || 
@@ -53,7 +54,7 @@ export default function ClientInfo() {
       return;
     }
 
-    sessionStorage.setItem('clientInfo', JSON.stringify(formData));
+    setClientInfo(formData);
     navigate(`/client/${hotelId}/payment`);
   };
 

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -94,9 +95,14 @@ export default function EditHairDresserDialog({
     hairdresser.skills || []
   );
   const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(hairdresser.profile_image);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    url: profileImage,
+    setUrl: setProfileImage,
+    uploading,
+    fileInputRef,
+    handleUpload: handleImageUpload,
+    triggerFileSelect,
+  } = useFileUpload({ initialUrl: hairdresser.profile_image || "" });
   const [formData, setFormData] = useState({
     first_name: hairdresser.first_name,
     last_name: hairdresser.last_name,
@@ -159,46 +165,6 @@ export default function EditHairDresserDialog({
     setTrunks(list);
     // Remove any legacy/unknown trunk values that might still be stored on the hairdresser
     setSelectedTrunks((prev) => prev.filter((id) => list.some((t) => t.id === id)));
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Le fichier doit être une image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      setProfileImage(publicUrl);
-      toast.success("Image téléchargée avec succès");
-    } catch (error) {
-      toast.error("Erreur lors du téléchargement de l'image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -283,7 +249,7 @@ export default function EditHairDresserDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={triggerFileSelect}
                 disabled={uploading}
               >
                 {uploading ? "Téléchargement..." : "Télécharger une image"}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,10 @@ import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
+import { useOverflowControl } from "@/hooks/useOverflowControl";
+import { usePagination } from "@/hooks/usePagination";
+import { useDialogState } from "@/hooks/useDialogState";
 
 interface Concierge {
   id: string;
@@ -57,60 +61,18 @@ export default function Concierges() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editConciergeId, setEditConciergeId] = useState<string | null>(null);
-  const [deleteConciergeId, setDeleteConciergeId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef<HTMLDivElement>(null);
+  // Use shared hooks
+  const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
+  const { isAddOpen, openAdd, closeAdd, editId: editConciergeId, openEdit, closeEdit, deleteId: deleteConciergeId, openDelete, closeDelete } = useDialogState<string>();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedConcierges, needsPagination } = usePagination({
+    items: filteredConcierges,
+    itemsPerPage,
+  });
 
-  // Auto-fit the number of rows so the page never needs scrolling
-  const computeRows = useCallback(() => {
-    const rowHeight = 40;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
-    const filtersHeight = filtersRef.current?.offsetHeight || 60;
-    const chromePadding = 32;
-
-    const usedHeight =
-      pageHeaderHeight +
-      filtersHeight +
-      tableHeaderHeight +
-      paginationHeight +
-      sidebarOffset +
-      chromePadding;
-
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  // Force no scroll on this page
-  // Force no scroll on this page only when pagination is needed
-  useEffect(() => {
-    if (!loading && filteredConcierges.length > itemsPerPage) {
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-  }, [loading, filteredConcierges.length, itemsPerPage]);
+  // Control overflow when pagination is needed
+  useOverflowControl(!loading && needsPagination);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -149,7 +111,6 @@ export default function Concierges() {
 
   useEffect(() => {
     filterConcierges();
-    setCurrentPage(1);
   }, [concierges, searchQuery, hotelFilter, statusFilter]);
 
   const fetchConcierges = async () => {
@@ -220,19 +181,13 @@ export default function Concierges() {
       if (error) throw error;
 
       toast.success("Concierge supprimé avec succès");
-      setDeleteConciergeId(null);
+      closeDelete();
       fetchConcierges();
     } catch (error: any) {
       toast.error("Erreur lors de la suppression du concierge");
       console.error(error);
     }
   };
-
-  const needsPagination = filteredConcierges.length > itemsPerPage;
-  const totalPages = Math.ceil(filteredConcierges.length / itemsPerPage);
-  const paginatedConcierges = needsPagination
-    ? filteredConcierges.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredConcierges;
 
   if (loading) {
     return (
@@ -292,9 +247,9 @@ export default function Concierges() {
             </Select>
 
             {userRole === "admin" && (
-              <Button 
+              <Button
                 className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-                onClick={() => setShowAddDialog(true)}
+                onClick={openAdd}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Ajouter un concierge
@@ -353,7 +308,7 @@ export default function Concierges() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => setEditConciergeId(concierge.id)}
+                            onClick={() => openEdit(concierge.id)}
                           >
                             <Pencil className="h-3 w-3" />
                           </Button>
@@ -361,7 +316,7 @@ export default function Concierges() {
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={() => setDeleteConciergeId(concierge.id)}
+                            onClick={() => openDelete(concierge.id)}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -389,21 +344,21 @@ export default function Concierges() {
       </div>
 
       <AddConciergeDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
+        open={isAddOpen}
+        onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchConcierges}
       />
 
       {editConciergeId && (
         <EditConciergeDialog
           open={!!editConciergeId}
-          onOpenChange={(open) => !open && setEditConciergeId(null)}
+          onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchConcierges}
           conciergeId={editConciergeId}
         />
       )}
 
-      <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && setDeleteConciergeId(null)}>
+      <AlertDialog open={!!deleteConciergeId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>

@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, MapPin, Users, Package, DollarSign, Calendar } from "lucide-react";
+import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,6 +31,10 @@ import { EditHotelDialog } from "@/components/EditHotelDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
+import { useOverflowControl } from "@/hooks/useOverflowControl";
+import { usePagination } from "@/hooks/usePagination";
+import { useDialogState } from "@/hooks/useDialogState";
 
 interface Concierge {
   id: string;
@@ -78,61 +82,18 @@ export default function Hotels() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [editHotelId, setEditHotelId] = useState<string | null>(null);
-  const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef<HTMLDivElement>(null);
+  // Use shared hooks
+  const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
+  const { isAddOpen, openAdd, closeAdd, editId: editHotelId, openEdit, closeEdit, deleteId: deleteHotelId, openDelete, closeDelete } = useDialogState<string>();
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHotels, needsPagination } = usePagination({
+    items: filteredHotels,
+    itemsPerPage,
+  });
 
-  // Auto-fit the number of rows so the page never needs scrolling
-  const computeRows = useCallback(() => {
-    const rowHeight = 40;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const pageHeaderHeight = headerRef.current?.offsetHeight || 80;
-    const filtersHeight = filtersRef.current?.offsetHeight || 60;
-    const chromePadding = 32;
-
-    const usedHeight =
-      pageHeaderHeight +
-      filtersHeight +
-      tableHeaderHeight +
-      paginationHeight +
-      sidebarOffset +
-      chromePadding;
-
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  // Force no scroll on this page only when pagination is needed
-  const needsPagination = filteredHotels.length > itemsPerPage;
-  
-  useEffect(() => {
-    if (!loading && needsPagination) {
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-  }, [loading, needsPagination]);
+  // Control overflow when pagination is needed
+  useOverflowControl(!loading && needsPagination);
 
   useEffect(() => {
     fetchHotels();
@@ -264,13 +225,7 @@ export default function Hotels() {
     }
 
     setFilteredHotels(filtered);
-    setCurrentPage(1);
   };
-
-  const totalPages = Math.ceil(filteredHotels.length / itemsPerPage);
-  const paginatedHotels = needsPagination
-    ? filteredHotels.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredHotels;
 
   const handleDeleteHotel = async () => {
     if (!deleteHotelId) return;
@@ -284,7 +239,7 @@ export default function Hotels() {
       if (error) throw error;
 
       toast.success("Hôtel supprimé avec succès");
-      setDeleteHotelId(null);
+      closeDelete();
       fetchHotels();
     } catch (error: any) {
       toast.error("Erreur lors de la suppression de l'hôtel");
@@ -334,9 +289,9 @@ export default function Hotels() {
               </SelectContent>
             </Select>
 
-            <Button 
+            <Button
               className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={() => setShowAddDialog(true)}
+              onClick={openAdd}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -426,7 +381,7 @@ export default function Hotels() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => setEditHotelId(hotel.id)}
+                              onClick={() => openEdit(hotel.id)}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
@@ -434,7 +389,7 @@ export default function Hotels() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => setDeleteHotelId(hotel.id)}
+                              onClick={() => openDelete(hotel.id)}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -462,21 +417,21 @@ export default function Hotels() {
       </div>
 
       <AddHotelDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
+        open={isAddOpen}
+        onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
       />
 
       {editHotelId && (
         <EditHotelDialog
           open={!!editHotelId}
-          onOpenChange={(open) => !open && setEditHotelId(null)}
+          onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchHotels}
           hotelId={editHotelId}
         />
       )}
 
-      <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && setDeleteHotelId(null)}>
+      <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
+import { useClientFlow } from './context/ClientFlowContext';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
@@ -15,6 +16,7 @@ export default function ClientCheckout() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total } = useBasket();
+  const { setBookingDateTime, setClientInfo } = useClientFlow();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -125,9 +127,21 @@ export default function ClientCheckout() {
       return;
     }
 
-    // Store form data in sessionStorage
-    sessionStorage.setItem('checkoutData', JSON.stringify(formData));
-    
+    // Store form data in context instead of sessionStorage
+    setBookingDateTime({
+      date: formData.date,
+      time: formData.time,
+    });
+
+    setClientInfo({
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phone: formData.phone,
+      countryCode: formData.countryCode,
+      email: formData.email,
+      roomNumber: formData.roomNumber,
+    });
+
     navigate(`/client/${hotelId}/payment`);
   };
 

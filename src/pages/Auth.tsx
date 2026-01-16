@@ -335,7 +335,7 @@ const Auth = () => {
         title: "Demande envoyée",
         description: "Un administrateur vous contactera bientôt",
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error contacting admin:", error);
       toast({
         title: "Erreur",
