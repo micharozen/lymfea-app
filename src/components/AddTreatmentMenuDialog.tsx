@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -32,19 +35,21 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
+const createFormSchema = (t: TFunction) => z.object({
+  name: z.string().min(1, t('errors.validation.nameRequired')),
   description: z.string().optional(),
   duration: z.string().default("0"),
   price: z.string().default("0"),
   lead_time: z.string().default("0"),
-  service_for: z.string().min(1, "Le service pour est requis"),
-  category: z.string().min(1, "La catégorie est requise"),
+  service_for: z.string().min(1, t('errors.validation.serviceForRequired')),
+  category: z.string().min(1, t('errors.validation.categoryRequired')),
   hotel_id: z.string().optional(),
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
   price_on_request: z.boolean().default(false),
 });
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 interface AddTreatmentMenuDialogProps {
   open: boolean;
@@ -57,10 +62,19 @@ export function AddTreatmentMenuDialog({
   onOpenChange,
   onSuccess,
 }: AddTreatmentMenuDialogProps) {
-  const [menuImage, setMenuImage] = useState<string>("");
-  const [isUploading, setIsUploading] = useState(false);
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const {
+    url: menuImage,
+    setUrl: setMenuImage,
+    uploading: isUploading,
+    fileInputRef,
+    handleUpload: handleImageUpload,
+    triggerFileSelect,
+  } = useFileUpload({ path: "treatment-menus/" });
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -92,37 +106,7 @@ export function AddTreatmentMenuDialog({
     },
   });
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `treatment-menus/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
-      setMenuImage(publicUrl);
-      toast.success("Image téléchargée avec succès");
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Erreur lors du téléchargement de l'image");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     const { error } = await supabase.from("treatment_menus").insert({
       name: values.name,
       description: values.description || null,
@@ -171,14 +155,23 @@ export function AddTreatmentMenuDialog({
                   <Upload className="h-8 w-8 text-muted-foreground" />
                 )}
               </div>
-              <div>
-                <Input
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
-                  disabled={isUploading}
-                  className="max-w-[200px]"
+                  className="hidden"
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploading}
+                  onClick={triggerFileSelect}
+                >
+                  {isUploading ? "Téléchargement..." : "Télécharger"}
+                </Button>
               </div>
             </div>
 

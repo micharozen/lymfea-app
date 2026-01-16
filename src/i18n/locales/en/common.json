@@ -21,7 +21,27 @@
     "invalidEmail": "Invalid email address",
     "invalidPhone": "Invalid phone number",
     "notFound": "Not found",
-    "unauthorized": "Unauthorized"
+    "unauthorized": "Unauthorized",
+    "validation": {
+      "nameRequired": "Name is required",
+      "firstNameRequired": "First name is required",
+      "lastNameRequired": "Last name is required",
+      "addressRequired": "Address is required",
+      "cityRequired": "City is required",
+      "countryRequired": "Country is required",
+      "emailInvalid": "Invalid email address",
+      "phoneRequired": "Phone number is required",
+      "hotelRequired": "At least one hotel must be selected",
+      "serviceForRequired": "Service for is required",
+      "categoryRequired": "Category is required",
+      "trunkModelRequired": "Trunk model is required",
+      "commissionExceeds100": "The sum of commissions (hotel + hairdresser) cannot exceed 100%",
+      "tooLong": "Value is too long",
+      "invalidFormat": "Invalid format",
+      "firstNameTooLong": "First name is too long",
+      "lastNameTooLong": "Last name is too long",
+      "phoneTooLong": "Phone number is too long"
+    }
   },
   "toasts": {
     "success": "Success",

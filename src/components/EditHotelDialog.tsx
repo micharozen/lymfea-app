@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -39,17 +42,49 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+const createFormSchema = (t: TFunction) => z.object({
+  name: z.string().min(1, t('errors.validation.nameRequired')),
+  address: z.string().min(1, t('errors.validation.addressRequired')),
+  postal_code: z.string().optional(),
+  city: z.string().min(1, t('errors.validation.cityRequired')),
+  country: z.string().min(1, t('errors.validation.countryRequired')),
+  currency: z.string().default("EUR"),
+  vat: z.string().default("20"),
+  hotel_commission: z.string().default("0"),
+  hairdresser_commission: z.string().default("0"),
+  status: z.string().default("Actif"),
+  timezone: z.string().default("Europe/Paris"),
+}).refine((data) => {
+  const hotelComm = parseFloat(data.hotel_commission) || 0;
+  const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
+  return hotelComm + hairdresserComm <= 100;
+}, {
+  message: t('errors.validation.commissionExceeds100'),
+  path: ["hotel_commission"],
+});
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
+
+interface Trunk {
+  id: string;
+  name: string;
+  hotel_id: string | null;
+  hotel_name: string | null;
+  status: string;
+  trunk_id: string;
+  trunk_model: string;
+}
 
 // Component to display calculated OOM commission
-function OomCommissionDisplay({ control }: { control: Control<any> }) {
+function OomCommissionDisplay({ control }: { control: Control<FormValues> }) {
   const hotelCommission = useWatch({ control, name: "hotel_commission" });
   const hairdresserCommission = useWatch({ control, name: "hairdresser_commission" });
-  
+
   const hotelComm = parseFloat(hotelCommission) || 0;
   const hairdresserComm = parseFloat(hairdresserCommission) || 0;
   const oomCommission = Math.max(0, 100 - hotelComm - hairdresserComm);
   const isInvalid = hotelComm + hairdresserComm > 100;
-  
+
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium">Commission OOM</label>
@@ -64,26 +99,6 @@ function OomCommissionDisplay({ control }: { control: Control<any> }) {
     </div>
   );
 }
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  address: z.string().min(1, "L'adresse est requise"),
-  postal_code: z.string().optional(),
-  city: z.string().min(1, "La ville est requise"),
-  country: z.string().min(1, "Le pays est requis"),
-  currency: z.string().default("EUR"),
-  vat: z.string().default("20"),
-  hotel_commission: z.string().default("0"),
-  hairdresser_commission: z.string().default("0"),
-  status: z.string().default("Actif"),
-  timezone: z.string().default("Europe/Paris"),
-}).refine((data) => {
-  const hotelComm = parseFloat(data.hotel_commission) || 0;
-  const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
-  return hotelComm + hairdresserComm <= 100;
-}, {
-  message: "La somme des commissions (hôtel + coiffeur) ne peut pas dépasser 100%",
-  path: ["hotel_commission"],
-});
 
 interface EditHotelDialogProps {
   open: boolean;
@@ -93,20 +108,38 @@ interface EditHotelDialogProps {
 }
 
 export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: EditHotelDialogProps) {
-  const [hotelImage, setHotelImage] = useState<string>("");
-  const [coverImage, setCoverImage] = useState<string>("");
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
+
   const [loading, setLoading] = useState(true);
   const [currentHotelId, setCurrentHotelId] = useState<string>("");
-  const [uploading, setUploading] = useState(false);
-  const hotelImageRef = useRef<HTMLInputElement>(null);
-  const coverImageRef = useRef<HTMLInputElement>(null);
+
+  const {
+    url: hotelImage,
+    setUrl: setHotelImage,
+    uploading: uploadingHotel,
+    fileInputRef: hotelImageRef,
+    handleUpload: handleHotelImageUpload,
+    triggerFileSelect: triggerHotelImageSelect,
+  } = useFileUpload();
+
+  const {
+    url: coverImage,
+    setUrl: setCoverImage,
+    uploading: uploadingCover,
+    fileInputRef: coverImageRef,
+    handleUpload: handleCoverImageUpload,
+    triggerFileSelect: triggerCoverImageSelect,
+  } = useFileUpload();
+
+  const uploading = uploadingHotel || uploadingCover;
   
   // Trunks state - all trunks and selected IDs
-  const [allTrunks, setAllTrunks] = useState<any[]>([]);
+  const [allTrunks, setAllTrunks] = useState<Trunk[]>([]);
   const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
   const [loadingTrunks, setLoadingTrunks] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -214,7 +247,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       setHotelImage(hotel.image || "");
       setCoverImage(hotel.cover_image || "");
       setCurrentHotelId(hotel.id);
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Erreur lors du chargement de l'hôtel");
       console.error(error);
     } finally {
@@ -222,55 +255,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
     }
   };
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    type: 'hotel' | 'cover'
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error("Le fichier doit être une image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      if (type === 'hotel') {
-        setHotelImage(publicUrl);
-      } else {
-        setCoverImage(publicUrl);
-      }
-      
-      toast.success("Image téléchargée avec succès");
-    } catch (error: any) {
-      toast.error("Erreur lors du téléchargement de l'image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     try {
       const { error } = await supabase
         .from("hotels")
@@ -296,7 +281,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       toast.success("Hôtel modifié avec succès");
       onSuccess();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error) {
       toast.error("Erreur lors de la modification de l'hôtel");
       console.error(error);
     }
@@ -335,14 +320,14 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                     ref={hotelImageRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'hotel')}
+                    onChange={handleHotelImageUpload}
                     className="hidden"
                   />
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => hotelImageRef.current?.click()}
+                    onClick={triggerHotelImageSelect}
                     disabled={uploading}
                   >
                     Upload Image
@@ -363,14 +348,14 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                     ref={coverImageRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'cover')}
+                    onChange={handleCoverImageUpload}
                     className="hidden"
                   />
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => coverImageRef.current?.click()}
+                    onClick={triggerCoverImageSelect}
                     disabled={uploading}
                   >
                     Upload Image

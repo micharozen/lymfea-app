@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch, Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -73,12 +76,12 @@ function OomCommissionDisplay({ control }: { control: Control<any> }) {
   );
 }
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  address: z.string().min(1, "L'adresse est requise"),
+const createFormSchema = (t: TFunction) => z.object({
+  name: z.string().min(1, t('errors.validation.nameRequired')),
+  address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
-  city: z.string().min(1, "La ville est requise"),
-  country: z.string().min(1, "Le pays est requis"),
+  city: z.string().min(1, t('errors.validation.cityRequired')),
+  country: z.string().min(1, t('errors.validation.countryRequired')),
   currency: z.string().default("EUR"),
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
@@ -90,9 +93,11 @@ const formSchema = z.object({
   const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
   return hotelComm + hairdresserComm <= 100;
 }, {
-  message: "La somme des commissions (hôtel + coiffeur) ne peut pas dépasser 100%",
+  message: t('errors.validation.commissionExceeds100'),
   path: ["hotel_commission"],
 });
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 interface AddHotelDialogProps {
   open: boolean;
@@ -101,13 +106,29 @@ interface AddHotelDialogProps {
 }
 
 export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialogProps) {
-  const [hotelImage, setHotelImage] = useState<string>("");
-  const [coverImage, setCoverImage] = useState<string>("");
-  const [uploading, setUploading] = useState(false);
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
+
   const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
-  const hotelImageRef = useRef<HTMLInputElement>(null);
-  const coverImageRef = useRef<HTMLInputElement>(null);
+
+  const {
+    url: hotelImage,
+    uploading: uploadingHotel,
+    fileInputRef: hotelImageRef,
+    handleUpload: handleHotelImageUpload,
+    triggerFileSelect: triggerHotelImageSelect,
+  } = useFileUpload();
+
+  const {
+    url: coverImage,
+    uploading: uploadingCover,
+    fileInputRef: coverImageRef,
+    handleUpload: handleCoverImageUpload,
+    triggerFileSelect: triggerCoverImageSelect,
+  } = useFileUpload();
+
+  const uploading = uploadingHotel || uploadingCover;
 
   useEffect(() => {
     if (open) {
@@ -130,7 +151,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
     setTrunks(data || []);
   };
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -161,55 +182,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
     }
   }, [countryValue, form]);
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    type: 'hotel' | 'cover'
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error("Le fichier doit être une image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      if (type === 'hotel') {
-        setHotelImage(publicUrl);
-      } else {
-        setCoverImage(publicUrl);
-      }
-      
-      toast.success("Image téléchargée avec succès");
-    } catch (error: any) {
-      toast.error("Erreur lors du téléchargement de l'image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     try {
       const { data: insertedHotel, error } = await supabase
         .from("hotels")
@@ -295,14 +268,14 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                     ref={hotelImageRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'hotel')}
+                    onChange={handleHotelImageUpload}
                     className="hidden"
                   />
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => hotelImageRef.current?.click()}
+                    onClick={triggerHotelImageSelect}
                     disabled={uploading}
                   >
                     Upload Image
@@ -323,14 +296,14 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                     ref={coverImageRef}
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'cover')}
+                    onChange={handleCoverImageUpload}
                     className="hidden"
                   />
                   <Button 
                     type="button" 
                     variant="outline" 
                     size="sm"
-                    onClick={() => coverImageRef.current?.click()}
+                    onClick={triggerCoverImageSelect}
                     disabled={uploading}
                   >
                     Upload Image

@@ -21,7 +21,27 @@
     "invalidEmail": "Adresse email invalide",
     "invalidPhone": "Numéro de téléphone invalide",
     "notFound": "Non trouvé",
-    "unauthorized": "Non autorisé"
+    "unauthorized": "Non autorisé",
+    "validation": {
+      "nameRequired": "Le nom est requis",
+      "firstNameRequired": "Le prénom est requis",
+      "lastNameRequired": "Le nom est requis",
+      "addressRequired": "L'adresse est requise",
+      "cityRequired": "La ville est requise",
+      "countryRequired": "Le pays est requis",
+      "emailInvalid": "Email invalide",
+      "phoneRequired": "Le numéro de téléphone est requis",
+      "hotelRequired": "Au moins un hôtel doit être sélectionné",
+      "serviceForRequired": "Le service pour est requis",
+      "categoryRequired": "La catégorie est requise",
+      "trunkModelRequired": "Le modèle de trunk est requis",
+      "commissionExceeds100": "La somme des commissions (hôtel + coiffeur) ne peut pas dépasser 100%",
+      "tooLong": "Valeur trop longue",
+      "invalidFormat": "Format invalide",
+      "firstNameTooLong": "Prénom trop long",
+      "lastNameTooLong": "Nom trop long",
+      "phoneTooLong": "Numéro trop long"
+    }
   },
   "toasts": {
     "success": "Succès",

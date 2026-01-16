@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -43,11 +46,13 @@ const TRUNK_MODELS = [
   { value: "Revolution", label: "Revolution" },
 ];
 
-const formSchema = z.object({
-  name: z.string().min(1, "Le nom est requis"),
-  trunk_model: z.string().min(1, "Le modèle de trunk est requis"),
+const createFormSchema = (t: TFunction) => z.object({
+  name: z.string().min(1, t('errors.validation.nameRequired')),
+  trunk_model: z.string().min(1, t('errors.validation.trunkModelRequired')),
   hotel_id: z.string().optional(),
 });
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 const generateTrunkId = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -69,11 +74,21 @@ export function AddTrunkDialog({
   onOpenChange,
   onSuccess,
 }: AddTrunkDialogProps) {
-  const [trunkImage, setTrunkImage] = useState<string>("");
-  const [isUploading, setIsUploading] = useState(false);
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
+
   const [modelPopoverOpen, setModelPopoverOpen] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const {
+    url: trunkImage,
+    setUrl: setTrunkImage,
+    uploading: isUploading,
+    fileInputRef,
+    handleUpload: handleImageUpload,
+    triggerFileSelect,
+  } = useFileUpload({ path: "trunks/" });
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -95,37 +110,7 @@ export function AddTrunkDialog({
     },
   });
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `trunks/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
-      setTrunkImage(publicUrl);
-      toast.success("Image téléchargée avec succès");
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Erreur lors du téléchargement de l'image");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     // Find hotel name if hotel_id is selected
     const selectedHotel = hotels?.find(h => h.id === values.hotel_id);
 
@@ -179,16 +164,15 @@ export function AddTrunkDialog({
                   variant="outline"
                   size="sm"
                   disabled={isUploading}
-                  onClick={() => document.getElementById("trunk-image-upload")?.click()}
+                  onClick={triggerFileSelect}
                 >
                   Télécharger
                 </Button>
-                <Input
-                  id="trunk-image-upload"
+                <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
-                  disabled={isUploading}
                   className="hidden"
                 />
               </div>

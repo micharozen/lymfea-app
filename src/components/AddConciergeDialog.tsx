@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -31,15 +34,17 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const formSchema = z.object({
-  first_name: z.string().min(1, "Le prénom est requis"),
-  last_name: z.string().min(1, "Le nom est requis"),
-  email: z.string().email("Email invalide"),
-  phone: z.string().min(1, "Le numéro de téléphone est requis"),
+const createFormSchema = (t: TFunction) => z.object({
+  first_name: z.string().min(1, t('errors.validation.firstNameRequired')),
+  last_name: z.string().min(1, t('errors.validation.lastNameRequired')),
+  email: z.string().email(t('errors.validation.emailInvalid')),
+  phone: z.string().min(1, t('errors.validation.phoneRequired')),
   country_code: z.string().default("+33"),
-  hotel_ids: z.array(z.string()).min(1, "Au moins un hôtel doit être sélectionné"),
+  hotel_ids: z.array(z.string()).min(1, t('errors.validation.hotelRequired')),
   profile_image: z.string().optional(),
 });
+
+type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 interface Hotel {
   id: string;
@@ -67,13 +72,22 @@ const countryCodes = [
 ];
 
 export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConciergeDialogProps) {
-  const [profileImage, setProfileImage] = useState<string>("");
-  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [hotels, setHotels] = useState<Hotel[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const [hotelPopoverOpen, setHotelPopoverOpen] = useState(false);
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+
+  const {
+    url: profileImage,
+    setUrl: setProfileImage,
+    uploading,
+    fileInputRef,
+    handleUpload: handleImageUpload,
+    triggerFileSelect,
+  } = useFileUpload();
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       first_name: "",
@@ -107,7 +121,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormValues) => {
     try {
       // Créer d'abord le concierge dans la table
       const { data: concierge, error: conciergeError } = await supabase
@@ -182,46 +196,6 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error("Le fichier doit être une image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError, data } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      setProfileImage(publicUrl);
-      toast.success("Image téléchargée avec succès");
-    } catch (error: any) {
-      toast.error("Erreur lors du téléchargement de l'image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const toggleHotel = (hotelId: string, currentValue: string[]) => {
     const newHotels = currentValue.includes(hotelId)
       ? currentValue.filter((id) => id !== hotelId)
@@ -269,7 +243,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                   type="button" 
                   variant="outline" 
                   size="sm"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={triggerFileSelect}
                   disabled={uploading}
                 >
                   {uploading ? "Téléchargement..." : "Télécharger une image"}

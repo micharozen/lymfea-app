@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { useFileUpload } from "@/hooks/useFileUpload";
 import {
   Dialog,
   DialogContent,
@@ -61,11 +64,11 @@ const SKILLS_OPTIONS = [
   { value: "beauty", label: "💅 Beauté" },
 ];
 
-const formSchema = z.object({
-  first_name: z.string().min(1, "Prénom requis").max(100, "Prénom trop long"),
-  last_name: z.string().min(1, "Nom requis").max(100, "Nom trop long"),
-  email: z.string().email("Email invalide").max(255, "Email trop long"),
-  phone: z.string().min(1, "Téléphone requis").max(20, "Numéro trop long").regex(/^[0-9\s]+$/, "Format invalide"),
+const createFormSchema = (t: TFunction) => z.object({
+  first_name: z.string().min(1, t('errors.validation.firstNameRequired')).max(100, t('errors.validation.firstNameTooLong')),
+  last_name: z.string().min(1, t('errors.validation.lastNameRequired')).max(100, t('errors.validation.lastNameTooLong')),
+  email: z.string().email(t('errors.validation.emailInvalid')).max(255, t('errors.validation.tooLong')),
+  phone: z.string().min(1, t('errors.validation.phoneRequired')).max(20, t('errors.validation.phoneTooLong')).regex(/^[0-9\s]+$/, t('errors.validation.invalidFormat')),
   country_code: z.string(),
   status: z.string(),
 });
@@ -75,14 +78,22 @@ export default function AddHairDresserDialog({
   onOpenChange,
   onSuccess,
 }: AddHairDresserDialogProps) {
+  const { t } = useTranslation('common');
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
+
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    url: profileImage,
+    setUrl: setProfileImage,
+    uploading,
+    fileInputRef,
+    handleUpload: handleImageUpload,
+    triggerFileSelect,
+  } = useFileUpload();
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -125,46 +136,6 @@ export default function AddHairDresserDialog({
     }
 
     setTrunks(data || []);
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Le fichier doit être une image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("L'image ne doit pas dépasser 5MB");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      setProfileImage(publicUrl);
-      toast.success("Image téléchargée avec succès");
-    } catch (error) {
-      toast.error("Erreur lors du téléchargement de l'image");
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -310,7 +281,7 @@ export default function AddHairDresserDialog({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={triggerFileSelect}
               disabled={uploading}
             >
               {uploading ? "..." : "Télécharger une image"}
