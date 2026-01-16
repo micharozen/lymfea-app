@@ -53,3 +53,28 @@ chore(deps): update React to v18.3
 - `api` - API/Supabase changes
 - `i18n` - Translations
 - `deps` - Dependencies
+
+## Slash Commands
+
+### `/general` - Global Commit
+
+When the user writes `/general` in the prompt, create a commit with the `[GLOBAL]` tag prefix.
+
+**Format:**
+
+```text
+[GLOBAL] <type>(<scope>): <description>
+```
+
+**When to use:**
+
+- Changes that affect multiple parts of the codebase
+- Cross-cutting concerns (i18n, status standardization, refactoring)
+- Large-scale updates that touch many files
+
+**Example:**
+
+```text
+[GLOBAL] refactor(status): standardize status values to English lowercase
+[GLOBAL] feat(i18n): internationalize Zod validation messages
+```
