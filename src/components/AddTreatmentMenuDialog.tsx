@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
@@ -171,6 +171,7 @@ export function AddTreatmentMenuDialog({
                   onClick={triggerFileSelect}
                 >
                   {isUploading ? "Téléchargement..." : "Télécharger"}
+                  {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
             </div>
@@ -379,13 +380,13 @@ export function AddTreatmentMenuDialog({
                         <SelectItem value="active">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-green-500" />
-                            Actif
+                            {t('status.active')}
                           </div>
                         </SelectItem>
                         <SelectItem value="inactive">
                           <div className="flex items-center gap-2">
                             <div className="h-2 w-2 rounded-full bg-red-500" />
-                            Inactif
+                            {t('status.inactive')}
                           </div>
                         </SelectItem>
                       </SelectContent>

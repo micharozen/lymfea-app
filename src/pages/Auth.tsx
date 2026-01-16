@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
@@ -288,7 +288,7 @@ const Auth = () => {
         .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (admin && admin.status?.toLowerCase() !== "active" && admin.status !== "Actif") {
+      if (admin && admin.status !== "active") {
         navigate("/update-password", { replace: true });
         return;
       }
@@ -413,6 +413,7 @@ const Auth = () => {
               className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
             >
               {isLoading ? "Chargement..." : "Suivant"}
+              {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </div>
         )}
@@ -450,6 +451,7 @@ const Auth = () => {
                 className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
               >
                 {isLoading ? "Création..." : "Créer le compte"}
+                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
           </div>
@@ -487,7 +489,8 @@ const Auth = () => {
                 disabled={isLoading}
                 className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
               >
-                {isLoading ? "Chargement..." : "Connexion"}
+                {isLoading ? "Connexion..." : "Connexion"}
+                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
           </div>

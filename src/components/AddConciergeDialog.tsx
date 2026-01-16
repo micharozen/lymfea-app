@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const createFormSchema = (t: TFunction) => z.object({
@@ -239,14 +239,15 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                   onChange={handleImageUpload}
                   className="hidden"
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={triggerFileSelect}
                   disabled={uploading}
                 >
                   {uploading ? "Téléchargement..." : "Télécharger une image"}
+                  {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
             </div>

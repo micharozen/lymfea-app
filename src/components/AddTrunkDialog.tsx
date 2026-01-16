@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Upload, ChevronDown, Check } from "lucide-react";
+import { Upload, ChevronDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TRUNK_MODELS = [
@@ -166,7 +166,8 @@ export function AddTrunkDialog({
                   disabled={isUploading}
                   onClick={triggerFileSelect}
                 >
-                  Télécharger
+                  {isUploading ? "Téléchargement..." : "Télécharger"}
+                  {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <input
                   ref={fileInputRef}

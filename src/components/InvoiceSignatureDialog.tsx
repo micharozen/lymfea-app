@@ -8,7 +8,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 
 interface Treatment {
@@ -157,6 +157,7 @@ export const InvoiceSignatureDialog = ({
               className="w-full rounded-full h-12"
             >
               {loading ? "Saving..." : "Save"}
+              {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </div>
         </div>

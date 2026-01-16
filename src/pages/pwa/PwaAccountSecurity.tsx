@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Lock, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const PwaAccountSecurity = () => {
@@ -168,6 +168,7 @@ const PwaAccountSecurity = () => {
           disabled={loading}
         >
           {loading ? t('security.changing') : t('security.changePassword')}
+          {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
         </Button>
       </div>
     </div>

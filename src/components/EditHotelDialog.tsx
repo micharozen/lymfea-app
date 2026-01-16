@@ -37,7 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ImageIcon, Check } from "lucide-react";
+import { ImageIcon, Check, Loader2 } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,7 +52,7 @@ const createFormSchema = (t: TFunction) => z.object({
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
   hairdresser_commission: z.string().default("0"),
-  status: z.string().default("Actif"),
+  status: z.string().default("active"),
   timezone: z.string().default("Europe/Paris"),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -151,7 +151,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
       vat: "20",
       hotel_commission: "0",
       hairdresser_commission: "0",
-      status: "Actif",
+      status: "active",
       timezone: "Europe/Paris",
     },
   });
@@ -240,7 +240,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
         vat: hotel.vat?.toString() || "20",
         hotel_commission: hotel.hotel_commission?.toString() || "0",
         hairdresser_commission: hotel.hairdresser_commission?.toString() || "0",
-        status: hotel.status || "Actif",
+        status: hotel.status || "active",
         timezone: hotel.timezone || "Europe/Paris",
       });
       
@@ -323,14 +323,15 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                     onChange={handleHotelImageUpload}
                     className="hidden"
                   />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={triggerHotelImageSelect}
                     disabled={uploading}
                   >
-                    Upload Image
+                    {uploadingHotel ? "Uploading..." : "Upload Image"}
+                    {uploadingHotel && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                   </Button>
                 </div>
               </div>
@@ -351,14 +352,15 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                     onChange={handleCoverImageUpload}
                     className="hidden"
                   />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={triggerCoverImageSelect}
                     disabled={uploading}
                   >
-                    Upload Image
+                    {uploadingCover ? "Uploading..." : "Upload Image"}
+                    {uploadingCover && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                   </Button>
                 </div>
               </div>
@@ -542,16 +544,16 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Actif">
+                      <SelectItem value="active">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                          Actif
+                          {t('status.active')}
                         </div>
                       </SelectItem>
-                      <SelectItem value="En attente">
+                      <SelectItem value="pending">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-orange-500" />
-                          En attente
+                          {t('status.pending')}
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -572,8 +574,8 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                     disabled={loadingTrunks}
                   >
                     <span className="truncate">
-                      {loadingTrunks 
-                        ? "Chargement..." 
+                      {loadingTrunks
+                        ? "Chargement..."
                         : selectedTrunkIds.length === 0
                           ? "Sélectionner des trunks"
                           : allTrunks
@@ -581,6 +583,7 @@ export function EditHotelDialog({ open, onOpenChange, onSuccess, hotelId }: Edit
                               .map((t) => t.name)
                               .join(", ")}
                     </span>
+                    {loadingTrunks && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                     <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="m6 9 6 6 6-6"/>
                     </svg>

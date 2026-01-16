@@ -284,8 +284,8 @@ export default function Hotels() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="Actif">Actif</SelectItem>
-                <SelectItem value="En attente">En attente</SelectItem>
+                <SelectItem value="active">Actif</SelectItem>
+                <SelectItem value="pending">En attente</SelectItem>
               </SelectContent>
             </Select>
 
@@ -354,15 +354,15 @@ export default function Hotels() {
                         <TrunksCell trunks={hotel.trunks || []} />
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <Badge 
-                          variant={(hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") ? "default" : "secondary"}
+                        <Badge
+                          variant={hotel.status === "active" ? "default" : "secondary"}
                           className={cn(
                             "text-[10px] px-2 py-0.5 whitespace-nowrap",
-                            (hotel.status?.toLowerCase() === "actif" || hotel.status?.toLowerCase() === "active") && "bg-green-500/10 text-green-700",
-                            hotel.status === "En attente" && "bg-orange-500/10 text-orange-700"
+                            hotel.status === "active" && "bg-green-500/10 text-green-700",
+                            hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
                           )}
                         >
-                          {(hotel.status?.toLowerCase() === "active" || hotel.status?.toLowerCase() === "actif") ? "Actif" : hotel.status}
+                          {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">

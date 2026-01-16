@@ -30,7 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -258,14 +258,15 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                   onChange={handleImageUpload}
                   className="hidden"
                 />
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   size="sm"
                   onClick={triggerFileSelect}
                   disabled={uploading}
                 >
                   {uploading ? "Téléchargement..." : "Télécharger une image"}
+                  {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
             </div>

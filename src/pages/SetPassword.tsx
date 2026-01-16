@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Check, X } from "lucide-react";
+import { Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
 import { z } from "zod";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
@@ -283,6 +283,7 @@ const SetPassword = () => {
             disabled={isLoading || !allRequirementsMet || !passwordsMatch}
           >
             {isLoading ? "Création en cours..." : "Créer mon compte"}
+            {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </form>
 

@@ -357,7 +357,7 @@ export default function TreatmentMenus() {
                             "bg-red-500/10 text-red-700 hover:bg-red-500/20"
                         )}
                       >
-                        {menu.status === "active" ? "Actif" : "Inactif"}
+                        {menu.status === "active" ? "Actif" : menu.status === "inactive" ? "Inactif" : menu.status}
                       </Badge>
                     </TableCell>
                     {isAdmin && (

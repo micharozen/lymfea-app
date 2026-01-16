@@ -31,6 +31,7 @@ import {
   ArrowRight,
   X,
   Check,
+  Loader2,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import CreateBookingFromRequestDialog from "./CreateBookingFromRequestDialog";
@@ -362,6 +363,7 @@ export default function TreatmentRequestDetailDialog({
                 >
                   <X className="h-4 w-4 mr-2" />
                   Rejeter
+                  {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <Button
                   variant="outline"
@@ -370,6 +372,7 @@ export default function TreatmentRequestDetailDialog({
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Enregistrer le devis
+                  {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <Button
                   onClick={() => setIsCreateBookingOpen(true)}
@@ -377,6 +380,7 @@ export default function TreatmentRequestDetailDialog({
                 >
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Convertir en réservation
+                  {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </>
             )}

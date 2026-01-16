@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar, Clock, MapPin, Scissors, AlertTriangle, CheckCircle, Phone } from "lucide-react";
+import { Calendar, Clock, MapPin, Scissors, AlertTriangle, CheckCircle, Phone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -251,6 +251,7 @@ const ClientManageBooking = () => {
               disabled={cancelMutation.isPending}
             >
               {cancelMutation.isPending ? "Annulation..." : "Oui, annuler"}
+              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

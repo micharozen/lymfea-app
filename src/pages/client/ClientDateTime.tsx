@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useBasket } from './context/BasketContext';
 import { useClientFlow } from './context/ClientFlowContext';
 import { useState, useMemo, useEffect } from 'react';
@@ -237,7 +237,8 @@ export default function ClientDateTime() {
           className="w-full h-14 text-base rounded-full"
           disabled={!selectedDate || !selectedTime || loadingAvailability}
         >
-          {t('datetime.continue')}
+          {loadingAvailability ? "Chargement..." : t('datetime.continue')}
+          {loadingAvailability && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
         </Button>
       </div>
     </div>

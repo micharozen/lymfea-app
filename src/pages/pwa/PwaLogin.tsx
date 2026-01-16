@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, Check, ChevronsUpDown, AlertCircle } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, AlertCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Command,
@@ -418,7 +418,8 @@ const PwaLogin = () => {
                   : "bg-gray-200 text-gray-400"
               }`}
             >
-              {t('login.continue')}
+              {loading ? "Envoi..." : t('login.continue')}
+              {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </>
         ) : (
@@ -486,7 +487,8 @@ const PwaLogin = () => {
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
               )}
             >
-              {isCodeExpired ? t('login.expired') : t('login.verify')}
+              {loading ? "Vérification..." : isCodeExpired ? t('login.expired') : t('login.verify')}
+              {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </>
         )}

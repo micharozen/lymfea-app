@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -86,6 +87,7 @@ export default function EditHairDresserDialog({
   hairdresser,
   onSuccess,
 }: EditHairDresserDialogProps) {
+  const { t } = useTranslation('common');
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
@@ -253,6 +255,7 @@ export default function EditHairDresserDialog({
                 disabled={uploading}
               >
                 {uploading ? "Téléchargement..." : "Télécharger une image"}
+                {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
           </div>
@@ -502,8 +505,8 @@ export default function EditHairDresserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="inactive">Inactif</SelectItem>
+                <SelectItem value="active">{t('status.active')}</SelectItem>
+                <SelectItem value="inactive">{t('status.inactive')}</SelectItem>
               </SelectContent>
             </Select>
           </div>

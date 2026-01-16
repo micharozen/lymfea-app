@@ -561,15 +561,15 @@ export default function Settings() {
                       <span className="text-sm">{admin.country_code} {admin.phone}</span>
                     </TableCell>
                     <TableCell className="align-middle">
-                      <Badge 
-                        variant={admin.status === "Actif" ? "default" : "secondary"}
+                      <Badge
+                        variant={admin.status === "active" ? "default" : "secondary"}
                         className={cn(
                           "font-medium",
-                          admin.status === "Actif" && "bg-green-500/10 text-green-700 hover:bg-green-500/10",
-                          admin.status === "En attente" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
+                          admin.status === "active" && "bg-green-500/10 text-green-700 hover:bg-green-500/10",
+                          admin.status === "pending" && "bg-orange-500/10 text-orange-700 hover:bg-orange-500/10"
                         )}
                       >
-                        {admin.status}
+                        {admin.status === "active" ? "Actif" : admin.status === "pending" ? "En attente" : admin.status}
                       </Badge>
                     </TableCell>
                     {isAdmin && (
@@ -762,7 +762,7 @@ export default function Settings() {
                 >
                   Annuler
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   className="px-5 bg-foreground text-background hover:bg-foreground/90"
                   disabled={createAdminMutation.isPending || updateAdminMutation.isPending}
@@ -770,6 +770,7 @@ export default function Settings() {
                   {createAdminMutation.isPending || updateAdminMutation.isPending
                     ? "Enregistrement..."
                     : "Suivant"}
+                  {(createAdminMutation.isPending || updateAdminMutation.isPending) && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               </div>
             </form>
@@ -795,6 +796,7 @@ export default function Settings() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteAdminMutation.isPending ? "Suppression..." : "Supprimer"}
+              {deleteAdminMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ImageIcon, Check } from "lucide-react";
+import { ImageIcon, Check, Loader2 } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { suggestTimezoneFromCountry } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -86,7 +86,7 @@ const createFormSchema = (t: TFunction) => z.object({
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
   hairdresser_commission: z.string().default("0"),
-  status: z.string().default("Actif"),
+  status: z.string().default("active"),
   timezone: z.string().default("Europe/Paris"),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -163,7 +163,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
       vat: "20",
       hotel_commission: "0",
       hairdresser_commission: "0",
-      status: "Actif",
+      status: "active",
       timezone: "Europe/Paris",
     },
   });
@@ -271,14 +271,15 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                     onChange={handleHotelImageUpload}
                     className="hidden"
                   />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={triggerHotelImageSelect}
                     disabled={uploading}
                   >
-                    Upload Image
+                    {uploadingHotel ? "Uploading..." : "Upload Image"}
+                    {uploadingHotel && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                   </Button>
                 </div>
               </div>
@@ -299,14 +300,15 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                     onChange={handleCoverImageUpload}
                     className="hidden"
                   />
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
                     onClick={triggerCoverImageSelect}
                     disabled={uploading}
                   >
-                    Upload Image
+                    {uploadingCover ? "Uploading..." : "Upload Image"}
+                    {uploadingCover && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                   </Button>
                 </div>
               </div>
@@ -490,16 +492,16 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Actif">
+                      <SelectItem value="active">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                          Actif
+                          {t('status.active')}
                         </div>
                       </SelectItem>
-                      <SelectItem value="En attente">
+                      <SelectItem value="pending">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-orange-500" />
-                          En attente
+                          {t('status.pending')}
                         </div>
                       </SelectItem>
                     </SelectContent>

@@ -25,7 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2 } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -1024,6 +1024,7 @@ export default function EditBookingDialog({
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
                 {validateQuoteMutation.isPending ? "Envoi..." : "Envoyer le devis"}
+                {validateQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
           </div>
@@ -1278,6 +1279,7 @@ export default function EditBookingDialog({
                   disabled={approveQuoteMutation.isPending}
                 >
                   {approveQuoteMutation.isPending ? "Validation..." : "Marquer accepté"}
+                  {approveQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               ) : (
                 <Button type="button" variant="outline" onClick={handleClose}>
@@ -1690,13 +1692,14 @@ export default function EditBookingDialog({
                     >
                       ← Retour
                     </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={updateMutation.isPending} 
+                    <Button
+                      type="submit"
+                      disabled={updateMutation.isPending}
                       size="sm"
                       className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
                     >
-                      {updateMutation.isPending ? "..." : "Modifier"}
+                      {updateMutation.isPending ? "Modification..." : "Modifier"}
+                      {updateMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                     </Button>
                   </div>
                 </div>
@@ -1754,6 +1757,7 @@ export default function EditBookingDialog({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {cancelMutation.isPending ? "Annulation..." : "Confirmer l'annulation"}
+              {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

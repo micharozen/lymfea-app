@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Euro, Timer, Globe, ChevronDown } from "lucide-react";
+import { CalendarIcon, Euro, Timer, Globe, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -461,6 +461,7 @@ export default function CreateBookingFromRequestDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={createMutation.isPending}>
             {createMutation.isPending ? "Création..." : "Créer la réservation"}
+            {createMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>
       </DialogContent>

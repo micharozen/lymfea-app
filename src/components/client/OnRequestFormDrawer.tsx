@@ -356,16 +356,11 @@ export default function OnRequestFormDrawer({
                 disabled={isSubmitting || !firstName || !phone}
                 className="w-full"
               >
+                {isSubmitting ? "Envoi en cours..." : "Envoyer ma demande"}
                 {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                    Envoi en cours...
-                  </>
+                  <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin ml-2" />
                 ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Envoyer ma demande
-                  </>
+                  <Send className="ml-2 h-4 w-4" />
                 )}
               </Button>
               <Button variant="outline" className="w-full" onClick={handleBackToDetails}>

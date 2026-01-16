@@ -56,16 +56,11 @@ export default function PwaTestNotifications() {
               className="w-full"
               size="lg"
             >
+              {loading ? "Test en cours..." : "Créer une réservation de test"}
               {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Test en cours...
-                </>
+                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
               ) : (
-                <>
-                  <Bell className="w-4 h-4 mr-2" />
-                  Créer une réservation de test
-                </>
+                <Bell className="w-4 h-4 ml-2" />
               )}
             </Button>
 

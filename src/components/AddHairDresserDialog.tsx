@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import * as z from "zod";
 
 const countries = [
@@ -284,7 +285,8 @@ export default function AddHairDresserDialog({
               onClick={triggerFileSelect}
               disabled={uploading}
             >
-              {uploading ? "..." : "Télécharger une image"}
+              {uploading ? "Téléchargement..." : "Télécharger une image"}
+              {uploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             </Button>
           </div>
 

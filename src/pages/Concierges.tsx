@@ -241,7 +241,6 @@ export default function Concierges() {
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
                 <SelectItem value="active">Actif</SelectItem>
-                <SelectItem value="pending">En attente</SelectItem>
                 <SelectItem value="inactive">Inactif</SelectItem>
               </SelectContent>
             </Select>

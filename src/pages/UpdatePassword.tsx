@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
@@ -43,7 +43,7 @@ const UpdatePassword = () => {
       ]);
 
       const mustChangeConcierge = !!concierge?.must_change_password;
-      const mustActivateAdmin = !!admin && admin.status !== "Actif";
+      const mustActivateAdmin = !!admin && admin.status !== "active";
 
       if (!mustChangeConcierge && !mustActivateAdmin) {
         const { role, redirectPath } = await getRoleRedirect(session.user.id);
@@ -213,6 +213,7 @@ const UpdatePassword = () => {
             className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
           >
             {isLoading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
+            {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </div>
       </div>

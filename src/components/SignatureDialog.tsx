@@ -8,6 +8,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface SignatureDialogProps {
   open: boolean;
@@ -82,6 +83,7 @@ export const SignatureDialog = ({
             disabled={isEmpty || loading}
           >
             {loading ? "Validation..." : "Valider"}
+            {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
           </Button>
         </DialogFooter>
       </DialogContent>
