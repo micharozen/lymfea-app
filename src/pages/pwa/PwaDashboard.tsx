@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -475,7 +476,7 @@ const PwaDashboard = () => {
 
       // Trigger email notifications to admins and concierges
       try {
-        await supabase.functions.invoke('notify-booking-confirmed', {
+        await invokeEdgeFunction('notify-booking-confirmed', {
           body: { bookingId }
         });
       } catch (notifError) {

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -280,7 +281,7 @@ export const PaymentSelectionDrawer = ({
     setStep('card-processing');
 
     try {
-      const { data, error } = await supabase.functions.invoke('finalize-payment', {
+      const { data, error } = await invokeEdgeFunction<unknown, { payment_url?: string }>('finalize-payment', {
         body: {
           booking_id: bookingId,
           payment_method: 'card',

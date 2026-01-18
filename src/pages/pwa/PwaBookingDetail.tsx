@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -285,7 +286,7 @@ const PwaBookingDetail = () => {
     try {
       // If this is a room payment flow, call finalize-payment
       if (pendingRoomPayment) {
-        const { data, error } = await supabase.functions.invoke('finalize-payment', {
+        const { data, error } = await invokeEdgeFunction<unknown, { success: boolean; error?: string }>('finalize-payment', {
           body: {
             booking_id: booking.id,
             payment_method: 'room',
@@ -322,13 +323,13 @@ const PwaBookingDetail = () => {
       if (error) throw error;
 
       // Notify concierge of completion with final payment method (non-blocking)
-      supabase.functions.invoke('notify-concierge-completion', {
+      invokeEdgeFunction('notify-concierge-completion', {
         body: { bookingId: booking.id }
       }).catch(err => console.error("Concierge notification error:", err));
 
       // Send rating email to client (non-blocking)
       if (booking.client_email) {
-        supabase.functions.invoke('send-rating-email', {
+        invokeEdgeFunction('send-rating-email', {
           body: { bookingId: booking.id }
         }).catch(err => console.error("Rating email error:", err));
       }
@@ -523,7 +524,7 @@ const PwaBookingDetail = () => {
       // Trigger email notifications to admins and concierges
       try {
         console.log('[Booking] 📧 Sending email notifications...');
-        await supabase.functions.invoke('notify-booking-confirmed', {
+        await invokeEdgeFunction('notify-booking-confirmed', {
           body: { bookingId: booking.id }
         });
         console.log('[Booking] 📧 Email notifications sent');

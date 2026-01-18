@@ -22,6 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -552,7 +553,7 @@ export default function EditBookingDialog({
       if ((result?.wasAssigned || result?.hairdresserChanged) && booking?.id) {
         console.log("Triggering push notification for booking:", booking.id);
         try {
-          const { data, error } = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          const { data, error } = await invokeEdgeFunction('trigger-new-booking-notifications', {
             body: { bookingId: booking.id }
           });
           console.log("Push notification result:", data, error);
@@ -560,12 +561,12 @@ export default function EditBookingDialog({
           console.error("Error sending push notification:", notifError);
         }
       }
-      
+
       // Send push notification if booking was cancelled
       if (result?.wasCancelled && booking?.id) {
         console.log("Triggering cancellation push notification for booking:", booking.id);
         try {
-          const { data, error } = await supabase.functions.invoke('trigger-booking-cancelled-notification', {
+          const { data, error } = await invokeEdgeFunction('trigger-booking-cancelled-notification', {
             body: { bookingId: booking.id }
           });
           console.log("Cancellation push notification result:", data, error);
@@ -632,7 +633,7 @@ export default function EditBookingDialog({
       if (booking?.id) {
         try {
           console.log("Calling handle-booking-cancellation for booking:", booking.id);
-          const { data, error } = await supabase.functions.invoke(
+          const { data, error } = await invokeEdgeFunction(
             "handle-booking-cancellation",
             {
               body: {
@@ -707,8 +708,8 @@ export default function EditBookingDialog({
       }));
 
       // Send quote email to client with breakdown
-      const { error: emailError } = await supabase.functions.invoke('send-quote-email', {
-        body: { 
+      const { error: emailError } = await invokeEdgeFunction('send-quote-email', {
+        body: {
           bookingId: booking.id,
           quotedPrice: totalPrice,
           quotedDuration: totalDuration,
@@ -763,7 +764,7 @@ export default function EditBookingDialog({
       if (error) throw error;
 
       // Trigger notifications for hairdressers
-      await supabase.functions.invoke("trigger-new-booking-notifications", {
+      await invokeEdgeFunction("trigger-new-booking-notifications", {
         body: { bookingId: booking.id },
       });
 
@@ -1206,7 +1207,7 @@ export default function EditBookingDialog({
                               
                               if (wasAssigned || hairdresserChanged) {
                                 try {
-                                  await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
+                                  await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
                                 } catch (e) { console.error(e); }
                               }
                               

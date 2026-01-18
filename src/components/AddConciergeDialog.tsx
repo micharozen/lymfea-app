@@ -5,6 +5,7 @@ import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import {
@@ -152,38 +153,27 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
       if (hotelsError) throw hotelsError;
 
-      // Récupérer le token d'authentification pour l'appel edge function
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.error("Pas de session active");
-        toast.error("Concierge créé mais l'email d'invitation n'a pas pu être envoyé (session invalide)");
-      } else {
-        // Appeler l'edge function pour envoyer l'email d'invitation avec le token
-        const { error: inviteError } = await supabase.functions.invoke(
-          "invite-concierge",
-          {
-            body: {
-              conciergeId: concierge.id,
-              email: values.email,
-              firstName: values.first_name,
-              lastName: values.last_name,
-              phone: values.phone,
-              countryCode: values.country_code,
-              hotelIds: values.hotel_ids,
-            },
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-            },
-          }
-        );
-
-        if (inviteError) {
-          console.error("Erreur lors de l'envoi de l'invitation:", inviteError);
-          toast.error("Concierge créé mais l'email d'invitation n'a pas pu être envoyé");
-        } else {
-          toast.success("Concierge ajouté et invitation envoyée avec succès");
+      // Appeler l'edge function pour envoyer l'email d'invitation
+      const { error: inviteError } = await invokeEdgeFunction(
+        "invite-concierge",
+        {
+          body: {
+            conciergeId: concierge.id,
+            email: values.email,
+            firstName: values.first_name,
+            lastName: values.last_name,
+            phone: values.phone,
+            countryCode: values.country_code,
+            hotelIds: values.hotel_ids,
+          },
         }
+      );
+
+      if (inviteError) {
+        console.error("Erreur lors de l'envoi de l'invitation:", inviteError);
+        toast.error("Concierge créé mais l'email d'invitation n'a pas pu être envoyé");
+      } else {
+        toast.success("Concierge ajouté et invitation envoyée avec succès");
       }
 
       form.reset();

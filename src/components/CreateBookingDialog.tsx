@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -323,15 +324,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         if (te) throw te;
       }
       
-      try { 
+      try {
         if (d.isAdmin) {
           // Admin flow: notify hairdressers immediately (if not already assigned)
           if (!d.hairdresserId) {
-            await supabase.functions.invoke('trigger-new-booking-notifications', { body: { bookingId: booking.id } }); 
+            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
           }
         } else {
           // Concierge/Client flow: notify admin for quote review
-          await supabase.functions.invoke('notify-admin-new-booking', { body: { bookingId: booking.id } }); 
+          await invokeEdgeFunction('notify-admin-new-booking', { body: { bookingId: booking.id } });
         }
       } catch {}
       
