@@ -99,15 +99,14 @@ export default function ClientWelcome() {
                <img src={oomLogo} alt="OOM" className="h-14 w-14 mb-8" />
              </a>
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
-                Service en chambre exclusif
+                {t('welcome.exclusiveService')}
             </h3>
             <h1 className="font-serif text-4xl md:text-5xl leading-tight mb-4 text-white">
-                L'art de la coiffure <br/>
-                <span className="italic text-gold-200">chez {hotel?.name}</span>
+                {t('welcome.artOfHairdressing')} <br/>
+                <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
             </h1>
             <p className="text-gray-300 text-sm font-light leading-relaxed mb-6 max-w-sm">
-                L'excellence de la haute coiffure, dans l'intimité de votre chambre. 
-                Nos experts coiffeurs et barbiers se déplacent dans votre suite.
+                {t('welcome.luxuryDescription')}
             </p>
         </div>
 
@@ -115,12 +114,12 @@ export default function ClientWelcome() {
         {treatments.length > 0 && (
           <div className="mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between px-6 mb-4">
-              <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">Nos Prestations</h4>
+              <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">{t('welcome.ourServices')}</h4>
               <button 
                 onClick={() => navigate(`/client/${hotelId}/menu`)}
                 className="text-xs text-gold-400 hover:text-gold-300"
               >
-                Voir tout
+                {t('welcome.seeAll')}
               </button>
             </div>
             <div className="flex gap-4 overflow-x-auto px-6 no-scrollbar pb-2">
@@ -141,7 +140,7 @@ export default function ClientWelcome() {
                   </div>
                   <h5 className="text-[10px] font-medium text-white/90 truncate mb-0.5">{treatment.name}</h5>
                   <p className="text-[10px] text-gold-400/80 font-light">
-                    {treatment.price_on_request ? "Sur devis" : formatPrice(treatment.price, 'EUR', { decimals: 0 })}
+                    {treatment.price_on_request ? t('welcome.onQuote') : formatPrice(treatment.price, 'EUR', { decimals: 0 })}
                   </p>
                 </div>
               ))}
@@ -155,7 +154,7 @@ export default function ClientWelcome() {
                 onClick={() => navigate(`/client/${hotelId}/menu`)}
                 className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300"
             >
-                RÉSERVER UNE SÉANCE
+                {t('welcome.bookSession')}
             </Button>
             
             <div className="flex flex-col items-center gap-4 py-4 border-y border-white/5">
@@ -174,8 +173,8 @@ export default function ClientWelcome() {
                   </span>
                 </div>
                 <p className="text-[9px] text-white/30 text-center uppercase tracking-widest leading-relaxed">
-                  Disponible 7j/7 • 07:00 — 22:00 <br/>
-                  Équipement professionnel complet inclus
+                  {t('welcome.availability')} <br/>
+                  {t('welcome.equipmentIncluded')}
                 </p>
             </div>
 
@@ -184,7 +183,7 @@ export default function ClientWelcome() {
                 onClick={() => navigate(`/client/${hotelId}/info`)} 
                 className="w-full text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2"
             >
-                Comment ça marche ?
+                {t('welcome.howItWorks')}
             </Button>
         </div>
       </div>

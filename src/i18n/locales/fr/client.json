@@ -3,7 +3,19 @@
     "beautyRoomService": "Beauty Room Service",
     "description": "Soins de beauté professionnels livrés dans votre chambre. Sélectionnez vos services et réservez votre moment parfait.",
     "womensMenu": "Menu Femmes",
-    "mensMenu": "Menu Hommes"
+    "mensMenu": "Menu Hommes",
+    "exclusiveService": "SERVICE EN CHAMBRE EXCLUSIF",
+    "artOfHairdressing": "L'art de la coiffure",
+    "at": "chez",
+    "luxuryDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
+    "officialPartners": "Partenaires officiels",
+    "ourServices": "Nos Prestations",
+    "seeAll": "Voir tout",
+    "onQuote": "Sur devis",
+    "bookSession": "RÉSERVER UNE SÉANCE",
+    "availability": "Disponible 7j/7 • 07:00 — 22:00",
+    "equipmentIncluded": "Équipement professionnel complet inclus",
+    "howItWorks": "Comment ça marche ?"
   },
   "menu": {
     "title": "Menu",
