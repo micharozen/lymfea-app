@@ -94,7 +94,8 @@
     "unassigned": "Réservation remise en attente",
     "accepted": "Réservation acceptée !",
     "declined": "Réservation refusée",
-    "treatmentDeleted": "Traitement supprimé"
+    "treatmentDeleted": "Traitement supprimé",
+    "yourEarnings": "Vos honoraires"
   },
   "hotels": {
     "title": "Mes Hôtels",
@@ -119,6 +120,7 @@
     "pushDisabled": "Notifications push désactivées",
     "pushBlocked": "Notifications bloquées. Activez-les dans les réglages de votre navigateur.",
     "pushUnavailable": "Service de notifications non disponible. Rechargez la page.",
+    "pushUnavailableIOS": "Sur iOS, ajoutez l'app à l'écran d'accueil pour activer les notifications.",
     "pushBlockedSettings": "Notifications bloquées. Allez dans Réglages > Safari > Notifications pour les activer.",
     "pushDenied": "Notifications refusées. Activez-les dans les réglages.",
     "pushError": "Impossible d'activer les notifications",

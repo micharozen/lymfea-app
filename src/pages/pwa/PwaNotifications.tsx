@@ -234,11 +234,20 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       if (!isOneSignalReady()) {
         const diagnostics = getOneSignalDiagnostics();
         console.log('[PwaNotifications] OneSignal diagnostics:', diagnostics);
-        
+
         if (diagnostics.notificationPermission === 'denied') {
           toast.error(t('notifications.pushBlocked'));
         } else {
-          toast.error(t('notifications.pushUnavailable'));
+          // Check if iOS and not installed as PWA
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || (window.navigator as any).standalone;
+
+          if (isIOS && !isStandalone) {
+            toast.error(t('notifications.pushUnavailableIOS'));
+          } else {
+            toast.error(t('notifications.pushUnavailable'));
+          }
         }
         setPushLoading(false);
         return;

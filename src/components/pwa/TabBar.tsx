@@ -21,7 +21,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 w-full"
+      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md bg-black/30 border-t border-white/10 w-full"
     >
       <div className="flex items-center justify-around pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
         <button 
@@ -29,10 +29,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"
         >
           <Home
-            className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-foreground" : "text-muted-foreground"}`} 
+            className={`w-6 h-6 transition-colors ${isActive("/pwa/dashboard") ? "text-white" : "text-white/50"}`} 
             strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
           />
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-foreground font-semibold" : "text-muted-foreground font-medium"}`}>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
             {t('tabs.home')}
           </span>
         </button>
@@ -41,10 +41,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"
         >
           <Wallet 
-            className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-foreground" : "text-muted-foreground"}`} 
+            className={`w-6 h-6 transition-colors ${isActive("/pwa/wallet") ? "text-white" : "text-white/50"}`} 
             strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
           />
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-foreground font-semibold" : "text-muted-foreground font-medium"}`}>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
             Wallet
           </span>
         </button>
@@ -54,16 +54,16 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
         >
           <div className="relative">
             <Bell 
-              className={`w-6 h-6 transition-colors ${isActive("/pwa/notifications") ? "text-foreground" : "text-muted-foreground"}`} 
+              className={`w-6 h-6 transition-colors ${isActive("/pwa/notifications") ? "text-white" : "text-white/50"}`} 
               strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
             />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </div>
-          <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-foreground font-semibold" : "text-muted-foreground font-medium"}`}>
+          <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
             {t('tabs.notifications')}
           </span>
         </button>

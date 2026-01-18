@@ -60,7 +60,16 @@
     "email": "Email",
     "phone": "Téléphone",
     "roomNumber": "Numéro de chambre",
-    "continue": "Continuer vers le paiement"
+    "continue": "Continuer vers le paiement",
+    "errors": {
+      "firstNameRequired": "Le prénom est requis",
+      "lastNameRequired": "Le nom est requis",
+      "emailRequired": "L'email est requis",
+      "emailInvalid": "Format d'email invalide",
+      "phoneRequired": "Le téléphone est requis",
+      "phoneInvalid": "Numéro de téléphone invalide",
+      "roomRequired": "Le numéro de chambre est requis"
+    }
   },
   "checkout": {
     "title": "Récapitulatif",

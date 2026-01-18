@@ -204,38 +204,14 @@ export default function ClientPayment() {
         {!hasPriceOnRequest && (
           <div className="space-y-3">
             <h2 className="font-semibold text-base">{t('payment.paymentMethod')}</h2>
-            
-            {/* Room Payment Option */}
-            <button
-              onClick={() => setSelectedMethod('room')}
-              className={cn(
-                "w-full p-4 rounded-xl border-2 transition-all text-left",
-                selectedMethod === 'room' 
-                  ? "border-primary bg-primary/5" 
-                  : "border-border hover:border-primary/50"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "w-10 h-10 rounded-full flex items-center justify-center",
-                  selectedMethod === 'room' ? "bg-primary text-primary-foreground" : "bg-muted"
-                )}>
-                  <Building className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-medium">{t('payment.addToRoom')}</p>
-                  <p className="text-sm text-muted-foreground">{t('payment.addToRoomDesc')}</p>
-                </div>
-              </div>
-            </button>
 
-            {/* Card Payment Option */}
+            {/* Card Payment Option - Now first */}
             <button
               onClick={() => setSelectedMethod('card')}
               className={cn(
                 "w-full p-4 rounded-xl border-2 transition-all text-left",
-                selectedMethod === 'card' 
-                  ? "border-primary bg-primary/5" 
+                selectedMethod === 'card'
+                  ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50"
               )}
             >
@@ -249,6 +225,30 @@ export default function ClientPayment() {
                 <div>
                   <p className="font-medium">{t('payment.payNow')}</p>
                   <p className="text-sm text-muted-foreground">{t('payment.payNowDesc')}</p>
+                </div>
+              </div>
+            </button>
+
+            {/* Room Payment Option - Now second */}
+            <button
+              onClick={() => setSelectedMethod('room')}
+              className={cn(
+                "w-full p-4 rounded-xl border-2 transition-all text-left",
+                selectedMethod === 'room'
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/50"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center",
+                  selectedMethod === 'room' ? "bg-primary text-primary-foreground" : "bg-muted"
+                )}>
+                  <Building className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-medium">{t('payment.addToRoom')}</p>
+                  <p className="text-sm text-muted-foreground">{t('payment.addToRoomDesc')}</p>
                 </div>
               </div>
             </button>

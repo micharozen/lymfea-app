@@ -757,7 +757,7 @@ const PwaBookingDetail = () => {
           {estimatedEarnings > 0 && (
             <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
               <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
-              <span className="text-xs text-green-600 dark:text-green-500 font-medium">Votre gain</span>
+              <span className="text-xs text-green-600 dark:text-green-500 font-medium">{t('bookingDetail.yourEarnings')}</span>
               <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
                 {estimatedEarnings}€
               </span>

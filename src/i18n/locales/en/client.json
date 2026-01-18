@@ -60,7 +60,16 @@
     "email": "Email",
     "phone": "Phone",
     "roomNumber": "Room Number",
-    "continue": "Continue to Payment"
+    "continue": "Continue to Payment",
+    "errors": {
+      "firstNameRequired": "First name is required",
+      "lastNameRequired": "Last name is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email format",
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Invalid phone number",
+      "roomRequired": "Room number is required"
+    }
   },
   "checkout": {
     "title": "Summary",

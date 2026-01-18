@@ -64,8 +64,13 @@ const PwaWallet = () => {
 
       if (error) {
         console.error('Error fetching earnings:', error);
-        toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
-        throw error;
+        // Return empty data instead of showing error toast (handles "no profile" case gracefully)
+        return {
+          total: 0,
+          payouts: [],
+          stripeAccountId: null,
+          stripeOnboardingCompleted: false,
+        };
       }
 
       return {
