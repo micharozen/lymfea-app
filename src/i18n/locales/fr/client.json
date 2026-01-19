@@ -3,17 +3,33 @@
     "beautyRoomService": "Beauty Room Service",
     "description": "Soins de beauté professionnels livrés dans votre chambre. Sélectionnez vos services et réservez votre moment parfait.",
     "womensMenu": "Menu Femmes",
-    "mensMenu": "Menu Hommes"
+    "mensMenu": "Menu Hommes",
+    "exclusiveService": "SERVICE EN CHAMBRE EXCLUSIF",
+    "artOfHairdressing": "L'art de la coiffure",
+    "at": "chez",
+    "luxuryDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
+    "officialPartners": "Partenaires officiels",
+    "ourServices": "Nos Prestations",
+    "seeAll": "Voir tout",
+    "onQuote": "Sur devis",
+    "bookSession": "RÉSERVER UNE SÉANCE",
+    "availability": "Disponible 7j/7 • 07:00 — 22:00",
+    "equipmentIncluded": "Équipement professionnel complet inclus",
+    "howItWorks": "Comment ça marche ?",
+    "ourExperts": "NOS EXPERTS",
+    "expertHairdresser": "Expert Coiffeur"
   },
   "menu": {
     "title": "Menu",
     "add": "Ajouter",
     "added": "Ajouté",
     "viewBasket": "Voir le panier",
+    "bookTreatment": "Réserver le soin",
     "item": "article",
     "items": "articles",
     "duration": "{{duration}} min",
     "noTreatments": "Aucun soin disponible",
+    "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
     "categories": {
       "hair": "Coiffure",
       "nails": "Ongles",
@@ -45,22 +61,40 @@
   },
   "datetime": {
     "title": "Choisir Date & Heure",
+    "headline": "Quand souhaitez-vous votre séance ?",
+    "stepLabel": "ÉTAPE 1 SUR 3",
     "selectDate": "Sélectionnez une date",
     "selectTime": "Sélectionnez une heure",
-    "noSlots": "Aucun créneau disponible",
-    "continue": "Continuer",
+    "selectDateFirst": "Choisissez d'abord votre date ci-dessus",
+    "noSlots": "Cette date est complète",
+    "tryAnotherDate": "Veuillez essayer une autre date",
+    "continue": "CONTINUER",
     "morning": "Matin",
     "afternoon": "Après-midi",
-    "evening": "Soir"
+    "evening": "Soir",
+    "available": "disponibles"
   },
   "info": {
     "title": "Vos Informations",
+    "headline": "Parlez-nous de vous",
+    "stepLabel": "ÉTAPE 2 SUR 3",
     "firstName": "Prénom",
     "lastName": "Nom",
     "email": "Email",
     "phone": "Téléphone",
     "roomNumber": "Numéro de chambre",
-    "continue": "Continuer vers le paiement"
+    "note": "Note (optionnel)",
+    "notePlaceholder": "Demandes spéciales ou informations...",
+    "continue": "CONTINUER",
+    "errors": {
+      "firstNameRequired": "Le prénom est requis",
+      "lastNameRequired": "Le nom est requis",
+      "emailRequired": "L'email est requis",
+      "emailInvalid": "Format d'email invalide",
+      "phoneRequired": "Le téléphone est requis",
+      "phoneInvalid": "Numéro de téléphone invalide",
+      "roomRequired": "Le numéro de chambre est requis"
+    }
   },
   "checkout": {
     "title": "Récapitulatif",
@@ -75,6 +109,8 @@
   },
   "payment": {
     "title": "Paiement",
+    "headline": "Finalisez votre réservation",
+    "stepLabel": "ÉTAPE 3 SUR 3",
     "orderSummary": "Récapitulatif",
     "paymentMethod": "Mode de paiement",
     "addToRoom": "Ajouter à la chambre",

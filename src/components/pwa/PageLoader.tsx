@@ -1,4 +1,4 @@
-import PwaHeader from "./PwaHeader";
+import PwaHeader from "./Header";
 
 interface PwaPageLoaderProps {
   title?: string;

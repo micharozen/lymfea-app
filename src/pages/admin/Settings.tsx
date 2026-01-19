@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -248,28 +249,14 @@ export default function Settings() {
 
       if (insertError) throw insertError;
 
-      // Then, call the backend function to invite the admin (requires an active session)
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        return {
-          invited: false,
-          inviteErrorMessage: "Session invalide. Connectez-vous puis renvoyez l’invitation.",
-        };
-      }
-
-      const { error: inviteError } = await supabase.functions.invoke(
+      // Call the backend function to invite the admin
+      const { error: inviteError } = await invokeEdgeFunction(
         "invite-admin",
         {
           body: {
             email: data.email,
             firstName: data.firstName,
             lastName: data.lastName,
-          },
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
           },
         },
       );
@@ -280,7 +267,7 @@ export default function Settings() {
           invited: false,
           inviteErrorMessage:
             inviteError.message ||
-            "Admin créé mais l’email d’invitation n’a pas pu être envoyé.",
+            "Admin créé mais l'email d'invitation n'a pas pu être envoyé.",
         };
       }
 
@@ -359,10 +346,10 @@ export default function Settings() {
   const deleteAdminMutation = useMutation({
     mutationFn: async (id: string) => {
       // Call edge function to delete both admin record and auth user
-      const { error } = await supabase.functions.invoke('delete-admin', {
+      const { error } = await invokeEdgeFunction('delete-admin', {
         body: { adminId: id }
       });
-      
+
       if (error) throw error;
     },
     onSuccess: () => {

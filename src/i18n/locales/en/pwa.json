@@ -94,7 +94,8 @@
     "unassigned": "Booking put back on hold",
     "accepted": "Booking accepted!",
     "declined": "Booking declined",
-    "treatmentDeleted": "Treatment deleted"
+    "treatmentDeleted": "Treatment deleted",
+    "yourEarnings": "Your earnings"
   },
   "hotels": {
     "title": "My Hotels",
@@ -119,6 +120,7 @@
     "pushDisabled": "Push notifications disabled",
     "pushBlocked": "Notifications blocked. Enable them in your browser settings.",
     "pushUnavailable": "Notification service unavailable. Reload the page.",
+    "pushUnavailableIOS": "On iOS, add the app to your home screen to enable notifications.",
     "pushBlockedSettings": "Notifications blocked. Go to Settings > Safari > Notifications to enable them.",
     "pushDenied": "Notifications denied. Enable them in settings.",
     "pushError": "Unable to enable notifications",

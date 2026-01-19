@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -214,7 +215,7 @@ export default function CreateBookingFromRequestDialog({
 
       // Send notifications
       try {
-        await supabase.functions.invoke("trigger-new-booking-notifications", {
+        await invokeEdgeFunction("trigger-new-booking-notifications", {
           body: { bookingId: bookingData.id },
         });
       } catch (notifError) {
@@ -224,7 +225,7 @@ export default function CreateBookingFromRequestDialog({
       // Send confirmation email to client
       if (request.client_email) {
         try {
-          await supabase.functions.invoke("send-booking-confirmation", {
+          await invokeEdgeFunction("send-booking-confirmation", {
             body: { bookingId: bookingData.id },
           });
         } catch (emailError) {

@@ -1,3 +1,12 @@
+/**
+ * COMMENTED OUT - Page panier supprimée du flow client
+ * Le flow va maintenant directement de Menu → DateTime
+ * Conservé pour référence future si besoin de réactiver
+ *
+ * Date: 2026-01-18
+ */
+
+/*
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -48,7 +57,6 @@ export default function ClientBasket() {
 
   return (
     <div className="min-h-screen bg-background pb-36">
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
@@ -63,7 +71,6 @@ export default function ClientBasket() {
         <BookingProgressBar currentStep={1} totalSteps={4} />
       </div>
 
-      {/* Items List */}
       <div className="divide-y divide-border">
         {items.map(item => (
           <div key={item.id} className="p-4">
@@ -96,7 +103,6 @@ export default function ClientBasket() {
               </Button>
             </div>
 
-            {/* Quantity Controls */}
             <div className="flex items-center gap-1 bg-muted rounded-full p-1 w-fit">
               <Button
                 variant="ghost"
@@ -122,7 +128,6 @@ export default function ClientBasket() {
         ))}
       </div>
 
-      {/* Fixed Bottom */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 space-y-3 pb-safe">
         <div className="flex justify-between items-center">
           <span className="font-semibold">{t('basket.subtotal')}</span>
@@ -138,4 +143,10 @@ export default function ClientBasket() {
       </div>
     </div>
   );
+}
+*/
+
+// Placeholder export to prevent import errors
+export default function ClientBasket() {
+  return null;
 }

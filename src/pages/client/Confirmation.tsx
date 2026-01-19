@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
-export default function ClientConfirmation() {
+export default function Confirmation() {
   const { hotelId, bookingId } = useParams<{ hotelId: string; bookingId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');

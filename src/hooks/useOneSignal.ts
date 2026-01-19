@@ -103,6 +103,7 @@ export const useOneSignal = () => {
       const allowedDomains = [
         'oom-clone-genesis.lovable.app',
         'localhost',
+        'app.oomworld.com',
       ];
       const currentHost = window.location.hostname;
       const isAllowedDomain = allowedDomains.some(domain => currentHost.includes(domain));

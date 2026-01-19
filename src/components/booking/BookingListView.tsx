@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   Table,
   TableBody,
@@ -61,7 +62,7 @@ export function BookingListView({
       return;
     }
 
-    const { data, error } = await supabase.functions.invoke("generate-invoice", {
+    const { data, error } = await invokeEdgeFunction<unknown, { html: string; bookingId: string }>("generate-invoice", {
       body: { bookingId: booking.id },
     });
 

@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
-import PwaHeader from "@/components/pwa/PwaHeader";
-import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+import PwaHeader from "@/components/pwa/Header";
+import PwaPageLoader from "@/components/pwa/PageLoader";
 
 interface Notification {
   id: string;
@@ -234,11 +234,20 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       if (!isOneSignalReady()) {
         const diagnostics = getOneSignalDiagnostics();
         console.log('[PwaNotifications] OneSignal diagnostics:', diagnostics);
-        
+
         if (diagnostics.notificationPermission === 'denied') {
           toast.error(t('notifications.pushBlocked'));
         } else {
-          toast.error(t('notifications.pushUnavailable'));
+          // Check if iOS and not installed as PWA
+          const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || (window.navigator as any).standalone;
+
+          if (isIOS && !isStandalone) {
+            toast.error(t('notifications.pushUnavailableIOS'));
+          } else {
+            toast.error(t('notifications.pushUnavailable'));
+          }
         }
         setPushLoading(false);
         return;

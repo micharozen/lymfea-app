@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { ChevronDown, ChevronRight, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatPrice as formatPriceUtil } from "@/lib/formatPrice";
-import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaHeader from "@/components/pwa/Header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,21 +58,26 @@ const PwaWallet = () => {
   const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
     queryFn: async (): Promise<EarningsData> => {
-      const { data, error } = await supabase.functions.invoke('get-hairdresser-earnings', {
+      const { data, error } = await invokeEdgeFunction<{ period: string }, EarningsData>('get-hairdresser-earnings', {
         body: { period },
       });
 
       if (error) {
         console.error('Error fetching earnings:', error);
-        toast.error(t('wallet.errorFetching', 'Error fetching earnings'));
-        throw error;
+        // Return empty data instead of showing error toast (handles "no profile" case gracefully)
+        return {
+          total: 0,
+          payouts: [],
+          stripeAccountId: null,
+          stripeOnboardingCompleted: false,
+        };
       }
 
       return {
-        total: data.total || 0,
-        payouts: data.payouts || [],
-        stripeAccountId: data.stripeAccountId,
-        stripeOnboardingCompleted: data.stripeOnboardingCompleted || false,
+        total: data?.total || 0,
+        payouts: data?.payouts || [],
+        stripeAccountId: data?.stripeAccountId ?? null,
+        stripeOnboardingCompleted: data?.stripeOnboardingCompleted || false,
       };
     },
     staleTime: 0,
@@ -89,7 +95,7 @@ const PwaWallet = () => {
       if (earnings?.stripeAccountId && earnings?.stripeOnboardingCompleted) {
         setLoadingStripeUrl(true);
         try {
-          const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
+          const { data, error } = await invokeEdgeFunction<unknown, { url?: string }>('generate-stripe-login-link', {
             body: {},
           });
           if (!error && data?.url) {
@@ -117,16 +123,16 @@ const PwaWallet = () => {
     if (earnings?.stripeAccountId) {
       setLoadingStripeUrl(true);
       try {
-        const { data, error } = await supabase.functions.invoke('generate-stripe-login-link', {
+        const { data, error } = await invokeEdgeFunction<unknown, { url?: string }>('generate-stripe-login-link', {
           body: {},
         });
-        
+
         if (error) {
           console.error('Error generating Stripe login link:', error);
           toast.error(t('wallet.errorOpeningStripe', 'Error opening Stripe dashboard'));
           return;
         }
-        
+
         if (data?.url) {
           setStripeUrl(data.url);
           // Create a temporary anchor and click it to open in new window
@@ -153,7 +159,7 @@ const PwaWallet = () => {
     setConnectingStripe(true);
     try {
       // Step 1: Create connected account
-      const { data: accountData, error: accountError } = await supabase.functions.invoke('create-connect-account');
+      const { data: accountData, error: accountError } = await invokeEdgeFunction<unknown, { stripeAccountId?: string }>('create-connect-account');
 
       if (accountError) {
         console.error('Error creating Stripe account:', accountError);
@@ -167,7 +173,7 @@ const PwaWallet = () => {
       }
 
       // Step 2: Generate onboarding link
-      const { data: linkData, error: linkError } = await supabase.functions.invoke('generate-onboarding-link');
+      const { data: linkData, error: linkError } = await invokeEdgeFunction<unknown, { url?: string }>('generate-onboarding-link');
 
       if (linkError) {
         console.error('Error generating onboarding link:', linkError);
@@ -192,7 +198,7 @@ const PwaWallet = () => {
   const handleCompleteOnboarding = async () => {
     setConnectingStripe(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-onboarding-link');
+      const { data, error } = await invokeEdgeFunction<unknown, { url?: string }>('generate-onboarding-link');
 
       if (error) {
         console.error('Error generating onboarding link:', error);

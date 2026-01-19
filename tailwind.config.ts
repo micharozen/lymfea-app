@@ -69,9 +69,22 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        gold: {
+          50: '#F9F5E6',
+          100: '#F0E8C4',
+          200: '#E4D393',
+          300: '#D7BE63',
+          400: '#D4AF37',
+          500: '#B08D1E',
+          600: '#866B17',
+          700: '#644F11',
+          800: '#46370C',
+          900: '#2A2107',
+        },
       },
       fontFamily: {
         'kormelink': ['Kormelink', 'serif'],
+        'serif': ['Kormelink', 'serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

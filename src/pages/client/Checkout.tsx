@@ -4,15 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft } from 'lucide-react';
-import { useBasket } from './context/BasketContext';
-import { useClientFlow } from './context/ClientFlowContext';
+import { useBasket } from './context/CartContext';
+import { useClientFlow } from './context/FlowContext';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/formatPrice';
 
-export default function ClientCheckout() {
+export default function Checkout() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total } = useBasket();
@@ -153,7 +153,7 @@ export default function ClientCheckout() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/basket`)}
+            onClick={() => navigate(`/client/${hotelId}/cart`)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

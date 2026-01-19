@@ -1,18 +1,18 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import { useBasket } from './context/BasketContext';
-import { useClientFlow } from './context/ClientFlowContext';
+import { ArrowLeft, Loader2, Calendar, Clock } from 'lucide-react';
+import { useBasket } from './context/CartContext';
+import { useClientFlow } from './context/FlowContext';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
-import BookingProgressBar from '@/components/BookingProgressBar';
+import { cn } from '@/lib/utils';
+import TimePeriodSelector from '@/components/client/TimePeriodSelector';
 
-export default function ClientDateTime() {
+export default function Schedule() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items } = useBasket();
@@ -30,23 +30,23 @@ export default function ClientDateTime() {
   const dateOptions = useMemo(() => {
     const dates = [];
     const today = new Date();
-    
+
     for (let i = 0; i < 14; i++) {
       const date = addDays(today, i);
       let label = format(date, 'd MMM', { locale });
-      
+
       if (i === 0) label = t('common:dates.today');
       else if (i === 1) label = t('common:dates.tomorrow');
-      
+
       dates.push({
         value: format(date, 'yyyy-MM-dd'),
         label,
-        dayLabel: format(date, 'EEE', { locale }),
+        dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
         fullLabel: format(date, 'd MMM', { locale }),
         isSpecial: i === 0 || i === 1,
       });
     }
-    
+
     return dates;
   }, [locale, t]);
 
@@ -57,7 +57,7 @@ export default function ClientDateTime() {
     const todayStr = format(now, 'yyyy-MM-dd');
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    
+
     for (let hour = 6; hour < 23; hour++) {
       for (let minute = 0; minute < 60; minute += 10) {
         // Skip past times if selected date is today
@@ -66,15 +66,16 @@ export default function ClientDateTime() {
             continue;
           }
         }
-        
+
         const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
         const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
         const period = hour >= 12 ? 'PM' : 'AM';
         const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
-        
+
         slots.push({
           value: time24,
           label: time12,
+          hour,
         });
       }
     }
@@ -94,14 +95,14 @@ export default function ClientDateTime() {
         });
 
         if (error) throw error;
-        
+
         const slots = data?.availableSlots || [];
         setAvailableSlots(slots);
-        
+
         if (slots.length === 0 && data) {
           setNoHairdressers(true);
         }
-        
+
         if (selectedTime && !slots.includes(selectedTime)) {
           setSelectedTime('');
         }
@@ -136,49 +137,76 @@ export default function ClientDateTime() {
       date: selectedDate,
       time: selectedTime,
     });
-    
-    navigate(`/client/${hotelId}/info`);
+
+    navigate(`/client/${hotelId}/guest-info`);
   };
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="relative min-h-[100dvh] w-full bg-black pb-safe">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border pt-safe">
+      <div className="sticky top-0 z-10 bg-black/95 backdrop-blur-sm border-b border-white/10 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/basket`)}
+            onClick={() => navigate(`/client/${hotelId}/treatments`)}
+            className="text-white hover:bg-white/10"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-semibold">{t('datetime.title')}</h1>
+          <h1 className="text-lg font-light text-white">{t('datetime.title')}</h1>
         </div>
-        <BookingProgressBar currentStep={2} totalSteps={4} />
+        {/* Progress bar */}
+        <div className="w-full bg-white/10 h-0.5">
+          <div
+            className="bg-gold-400 h-full transition-all duration-500"
+            style={{ width: '33.33%' }}
+          />
+        </div>
       </div>
 
-      <div className="px-6 py-4 space-y-6">
+      <div className="px-6 py-6 space-y-8">
+        {/* Page headline */}
+        <div className="animate-fade-in">
+          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
+            {t('datetime.stepLabel')}
+          </h3>
+          <h2 className="font-serif text-2xl text-white leading-tight">
+            {t('datetime.headline')}
+          </h2>
+        </div>
+
         {/* Date Selection */}
-        <div className="space-y-3">
-          <Label className="text-base font-semibold">{t('checkout.dateTime').split('&')[0].trim()}</Label>
+        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <h4 className="text-xs uppercase tracking-widest text-white/60 font-medium">
+            {t('checkout.dateTime').split('&')[0].trim()}
+          </h4>
           <div className="relative">
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
               {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial }) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setSelectedDate(value)}
-                  className={`flex-shrink-0 snap-start px-4 py-3 rounded-2xl border-2 transition-all min-w-[80px] ${
+                  className={cn(
+                    "flex-shrink-0 snap-start px-5 py-4 rounded-lg border transition-all duration-200 min-w-[90px]",
                     selectedDate === value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-background border-border active:border-primary/50'
-                  }`}
+                      ? "border-gold-400 bg-gold-400/10"
+                      : "border-white/20 bg-white/5 hover:border-white/40"
+                  )}
                 >
                   <div className="text-center">
-                    <div className="text-xs font-medium opacity-70 uppercase">
-                      {isSpecial ? '' : dayLabel}
-                    </div>
-                    <div className="text-sm font-semibold whitespace-nowrap">
+                    {!isSpecial && (
+                      <div className="text-[10px] text-white/50 mb-1 tracking-wider">
+                        {dayLabel}
+                      </div>
+                    )}
+                    <div className={cn(
+                      "text-sm whitespace-nowrap",
+                      selectedDate === value
+                        ? "text-gold-400 font-medium"
+                        : "text-white font-light"
+                    )}>
                       {isSpecial ? label : fullLabel}
                     </div>
                   </div>
@@ -189,56 +217,52 @@ export default function ClientDateTime() {
         </div>
 
         {/* Time Selection */}
-        <div className="space-y-3">
-          <Label className="text-base font-semibold">
+        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <h4 className="text-xs uppercase tracking-widest text-white/60 font-medium">
             {t('checkout.dateTime').split('&')[1]?.trim() || 'Time'}
-            {loadingAvailability && (
-              <span className="ml-2 text-xs text-muted-foreground">({t('common:loading')})</span>
-            )}
-          </Label>
+          </h4>
+
           {!selectedDate ? (
-            <p className="text-sm text-muted-foreground">{t('datetime.selectDate')}</p>
-          ) : noHairdressers ? (
-            <div className="bg-muted/50 border border-border rounded-2xl p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-2">
-                {t('datetime.noSlots')}
-              </p>
+            <div className="text-center py-12">
+              <Calendar className="w-12 h-12 text-white/20 mx-auto mb-4" />
+              <p className="text-white/40 text-sm">{t('datetime.selectDateFirst')}</p>
+            </div>
+          ) : loadingAvailability ? (
+            <div className="flex justify-center py-12">
+              <div className="w-10 h-10 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : noHairdressers || availableSlots.length === 0 ? (
+            <div className="text-center py-12 border border-white/10 rounded-lg bg-white/5">
+              <Clock className="w-12 h-12 text-white/20 mx-auto mb-4" />
+              <p className="text-white/60 text-sm mb-2">{t('datetime.noSlots')}</p>
+              <p className="text-white/40 text-xs">{t('datetime.tryAnotherDate')}</p>
             </div>
           ) : (
-            <div className="relative">
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory -mx-4 px-4">
-                {timeSlots
-                  .filter(({ value }) => availableSlots.includes(value))
-                  .map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setSelectedTime(value)}
-                      disabled={loadingAvailability}
-                      className={`flex-shrink-0 snap-start px-5 py-3 rounded-2xl border-2 transition-all font-medium text-sm ${
-                        selectedTime === value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-border active:border-primary/50'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-              </div>
-            </div>
+            <TimePeriodSelector
+              availableSlots={availableSlots}
+              selectedTime={selectedTime}
+              onSelectTime={setSelectedTime}
+              allTimeSlots={timeSlots}
+            />
           )}
         </div>
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent pb-safe">
         <Button
           onClick={handleContinue}
-          className="w-full h-14 text-base rounded-full"
           disabled={!selectedDate || !selectedTime || loadingAvailability}
+          className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
         >
-          {loadingAvailability ? "Chargement..." : t('datetime.continue')}
-          {loadingAvailability && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+          {loadingAvailability ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('common:loading')}
+            </>
+          ) : (
+            t('datetime.continue')
+          )}
         </Button>
       </div>
     </div>

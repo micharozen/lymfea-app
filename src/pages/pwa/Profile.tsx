@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import PwaHeader from "@/components/pwa/PwaHeader";
-import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+import PwaHeader from "@/components/pwa/Header";
+import PwaPageLoader from "@/components/pwa/PageLoader";
 
 interface Hairdresser {
   id: string;

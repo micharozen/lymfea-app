@@ -54,8 +54,8 @@ export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect
     );
   }
 
-  // Mobile-friendly pill style for client pages (dark background)
-  if (variant === 'client' || variant === 'pill') {
+  // Mobile-friendly pill style (dark background)
+  if (variant === 'pill') {
     return (
       <div className={`flex items-center gap-0.5 bg-white/20 backdrop-blur-sm rounded-full p-1 ${className}`}>
         {languages.map((lang) => (
@@ -70,6 +70,31 @@ export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect
           >
             {lang.shortLabel}
           </button>
+        ))}
+      </div>
+    );
+  }
+
+  // Luxury minimalist text style for client pages
+  if (variant === 'client') {
+    return (
+      <div className={`flex items-center gap-3 ${className}`}>
+        {languages.map((lang, index) => (
+          <div key={lang.code} className="flex items-center">
+            <button
+              onClick={() => changeLanguage(lang.code)}
+              className={`text-xs tracking-[0.2em] transition-all duration-300 ${
+                i18n.language === lang.code
+                  ? 'text-gold-400 font-medium scale-105'
+                  : 'text-white/40 hover:text-white/80 font-light'
+              }`}
+            >
+              {lang.shortLabel}
+            </button>
+            {index < languages.length - 1 && (
+              <span className="text-white/20 text-[10px] ml-3 font-light select-none">|</span>
+            )}
+          </div>
         ))}
       </div>
     );

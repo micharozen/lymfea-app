@@ -121,3 +121,7 @@ export const useBasket = () => {
   }
   return context;
 };
+
+// Aliases for new naming convention
+export { BasketProvider as CartProvider };
+export { useBasket as useCart };
