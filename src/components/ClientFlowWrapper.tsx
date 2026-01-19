@@ -14,7 +14,7 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useClientSession } from '@/hooks/useClientSession';
-import { ClientFlowProvider } from '@/pages/client/context/ClientFlowContext';
+import { ClientFlowProvider } from '@/pages/client/context/FlowContext';
 
 interface ClientFlowWrapperProps {
   children: React.ReactNode;

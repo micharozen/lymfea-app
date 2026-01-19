@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -473,6 +473,12 @@ const Auth = () => {
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 autoFocus
               />
+              <Link
+                to="/forgot-password"
+                className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Mot de passe oublié ?
+              </Link>
             </div>
 
             <div className="flex gap-3">

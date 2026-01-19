@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { oneSignalSubscribe, oneSignalUnsubscribe, isOneSignalSubscribed, isOneSignalReady, getOneSignalDiagnostics } from "@/hooks/useOneSignal";
-import PwaHeader from "@/components/pwa/PwaHeader";
-import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+import PwaHeader from "@/components/pwa/Header";
+import PwaPageLoader from "@/components/pwa/PageLoader";
 
 interface Notification {
   id: string;

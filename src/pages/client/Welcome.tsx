@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
 import welcomeBg from '@/assets/welcome-bg-couple.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
@@ -19,7 +20,7 @@ interface Treatment {
   price_on_request: boolean | null;
 }
 
-export default function ClientWelcome() {
+export default function Welcome() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
@@ -110,13 +111,16 @@ export default function ClientWelcome() {
             </p>
         </div>
 
+        {/* Our Experts Section */}
+        <PractitionerCarousel hotelId={hotelId!} />
+
         {/* 3. Visual Service Menu (Preview) */}
         {treatments.length > 0 && (
           <div className="mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between px-6 mb-4">
               <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">{t('welcome.ourServices')}</h4>
               <button 
-                onClick={() => navigate(`/client/${hotelId}/menu`)}
+                onClick={() => navigate(`/client/${hotelId}/treatments`)}
                 className="text-xs text-gold-400 hover:text-gold-300"
               >
                 {t('welcome.seeAll')}
@@ -126,7 +130,7 @@ export default function ClientWelcome() {
               {treatments.map((treatment) => (
                 <div 
                   key={treatment.id}
-                  onClick={() => navigate(`/client/${hotelId}/menu`)}
+                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
                   className="flex-shrink-0 w-32 group cursor-pointer"
                 >
                   <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-white/5 ring-1 ring-white/10 group-hover:ring-gold-400/50 transition-all">
@@ -151,7 +155,7 @@ export default function ClientWelcome() {
         {/* 4. Call to Action & Social Proof */}
         <div className="px-6 pb-10 space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
-                onClick={() => navigate(`/client/${hotelId}/menu`)}
+                onClick={() => navigate(`/client/${hotelId}/treatments`)}
                 className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300"
             >
                 {t('welcome.bookSession')}

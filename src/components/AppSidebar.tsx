@@ -48,21 +48,21 @@ const conciergeMenuItems = [
 ];
 
 const adminSubMenuItems = [
-  { title: "Réservations", url: "/admin/booking", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
+  { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
+  { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
   { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
-  { title: "Menus de soins", url: "/admin/treatment-menus", emoji: "📓" },
+  { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
-  { title: "Produits OOM", url: "/admin/oom-products", emoji: "💈" },
-  { title: "Commandes", url: "/admin/oom-orders", emoji: "🚚" },
+  { title: "Produits OOM", url: "/admin/products", emoji: "💈" },
+  { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
 ];
 
 const conciergeSubMenuItems = [
-  { title: "Réservations", url: "/admin/booking", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/admin/hair-dresser", emoji: "💇‍♂️" },
-  { title: "Menus de soins", url: "/admin/treatment-menus", emoji: "📓" },
+  { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
+  { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
+  { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Transactions & Solde", url: "/admin/transactions", emoji: "💰" },
 ];

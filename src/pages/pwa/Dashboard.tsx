@@ -12,7 +12,7 @@ import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
-import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
 
 interface Hairdresser {

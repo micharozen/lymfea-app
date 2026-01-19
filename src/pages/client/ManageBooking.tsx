@@ -20,7 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import oomLogo from "@/assets/oom-logo.svg";
 
-const ClientManageBooking = () => {
+const ManageBooking = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -295,4 +295,4 @@ const ClientManageBooking = () => {
   );
 };
 
-export default ClientManageBooking;
+export default ManageBooking;

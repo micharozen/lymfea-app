@@ -12,56 +12,68 @@ import { UserProvider } from "@/contexts/UserContext";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
-import { BasketProvider } from "./pages/client/context/BasketContext";
+import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 
 // Lazy load all page components for code splitting
-const PwaLayout = lazy(() => import("./components/pwa/PwaLayout"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Booking = lazy(() => import("./pages/Booking"));
-const HairDresser = lazy(() => import("./pages/HairDresser"));
-const Hotels = lazy(() => import("./pages/Hotels"));
-const TreatmentMenus = lazy(() => import("./pages/TreatmentMenus"));
-const Trunks = lazy(() => import("./pages/Trunks"));
-const Concierges = lazy(() => import("./pages/Concierges"));
-const OomProducts = lazy(() => import("./pages/OomProducts"));
-const OomOrders = lazy(() => import("./pages/OomOrders"));
-const Finance = lazy(() => import("./pages/Finance"));
-const ConciergeTransactions = lazy(() => import("./pages/ConciergeTransactions"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Profile = lazy(() => import("./pages/Profile"));
-const Auth = lazy(() => import("./pages/Auth"));
-const SetPassword = lazy(() => import("./pages/SetPassword"));
-const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const PwaLogin = lazy(() => import("./pages/pwa/PwaLogin"));
-const PwaDashboard = lazy(() => import("./pages/pwa/PwaDashboard"));
-const PwaBookings = lazy(() => import("./pages/pwa/PwaBookings"));
-const PwaBookingDetail = lazy(() => import("./pages/pwa/PwaBookingDetail"));
-const PwaProfile = lazy(() => import("./pages/pwa/PwaProfile"));
-const PwaAccountSecurity = lazy(() => import("./pages/pwa/PwaAccountSecurity"));
-const PwaHotels = lazy(() => import("./pages/pwa/PwaHotels"));
-const PwaSplash = lazy(() => import("./pages/pwa/PwaSplash"));
-const PwaWelcome = lazy(() => import("./pages/pwa/PwaWelcome"));
-const PwaOnboarding = lazy(() => import("./pages/pwa/PwaOnboarding"));
-const PwaNotifications = lazy(() => import("./pages/pwa/PwaNotifications"));
-const PwaInstall = lazy(() => import("./pages/pwa/PwaInstall"));
-const PwaTestNotifications = lazy(() => import("./pages/pwa/PwaTestNotifications"));
-const PwaWallet = lazy(() => import("./pages/pwa/PwaWallet"));
-const PwaStripeCallback = lazy(() => import("./pages/pwa/PwaStripeCallback"));
 
+// PWA Layout Component
+const PwaLayout = lazy(() => import("./components/pwa/Layout"));
+
+// Admin Pages
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Bookings = lazy(() => import("./pages/admin/Bookings"));
+const Hairdressers = lazy(() => import("./pages/admin/Hairdressers"));
+const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
+const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
+const Trunks = lazy(() => import("./pages/admin/Trunks"));
+const Concierges = lazy(() => import("./pages/admin/Concierges"));
+const Products = lazy(() => import("./pages/admin/Products"));
+const Orders = lazy(() => import("./pages/admin/Orders"));
+const Finance = lazy(() => import("./pages/admin/Finance"));
+const Transactions = lazy(() => import("./pages/admin/Transactions"));
+const Settings = lazy(() => import("./pages/admin/Settings"));
+const AdminProfile = lazy(() => import("./pages/admin/Profile"));
+
+// Auth Pages
+const Login = lazy(() => import("./pages/auth/Login"));
+const SetPassword = lazy(() => import("./pages/auth/SetPassword"));
+const UpdatePassword = lazy(() => import("./pages/auth/UpdatePassword"));
+const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
+
+// Shared Pages
+const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
-const ClientWelcome = lazy(() => import("./pages/client/ClientWelcome"));
-const ClientMenu = lazy(() => import("./pages/client/ClientMenu"));
-const ClientBasket = lazy(() => import("./pages/client/ClientBasket"));
-const ClientCheckout = lazy(() => import("./pages/client/ClientCheckout"));
-const ClientDateTime = lazy(() => import("./pages/client/ClientDateTime"));
-const ClientInfo = lazy(() => import("./pages/client/ClientInfo"));
-const ClientPayment = lazy(() => import("./pages/client/ClientPayment"));
-const ClientConfirmation = lazy(() => import("./pages/client/ClientConfirmation"));
-const ClientManageBooking = lazy(() => import("./pages/client/ClientManageBooking"));
 const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
+
+// PWA Pages
+const PwaLogin = lazy(() => import("./pages/pwa/Login"));
+const PwaDashboard = lazy(() => import("./pages/pwa/Dashboard"));
+const PwaBookings = lazy(() => import("./pages/pwa/Bookings"));
+const PwaBookingDetail = lazy(() => import("./pages/pwa/BookingDetail"));
+const PwaProfile = lazy(() => import("./pages/pwa/Profile"));
+const PwaAccountSecurity = lazy(() => import("./pages/pwa/AccountSecurity"));
+const PwaHotels = lazy(() => import("./pages/pwa/Hotels"));
+const PwaSplash = lazy(() => import("./pages/pwa/Splash"));
+const PwaWelcome = lazy(() => import("./pages/pwa/Welcome"));
+const PwaOnboarding = lazy(() => import("./pages/pwa/Onboarding"));
+const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
+const PwaInstall = lazy(() => import("./pages/pwa/Install"));
+const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
+const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
+const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
+
+// Client Pages
+const Welcome = lazy(() => import("./pages/client/Welcome"));
+const ClientTreatments = lazy(() => import("./pages/client/Treatments"));
+const Cart = lazy(() => import("./pages/client/Cart"));
+const Checkout = lazy(() => import("./pages/client/Checkout"));
+const Schedule = lazy(() => import("./pages/client/Schedule"));
+const GuestInfo = lazy(() => import("./pages/client/GuestInfo"));
+const Payment = lazy(() => import("./pages/client/Payment"));
+const Confirmation = lazy(() => import("./pages/client/Confirmation"));
+const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -156,27 +168,28 @@ const App = () => {
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
             <Route path="/client/:hotelId" element={
               <ClientFlowWrapper>
-                <ClientWelcome />
+                <Welcome />
               </ClientFlowWrapper>
             } />
             <Route path="/client/:hotelId/*" element={
               <ClientFlowWrapper>
-                <BasketProvider hotelId={window.location.pathname.split('/')[2]}>
+                <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                   <Routes>
-                    <Route path="/menu" element={<ClientMenu />} />
-                    <Route path="/basket" element={<ClientBasket />} />
-                    <Route path="/datetime" element={<ClientDateTime />} />
-                    <Route path="/info" element={<ClientInfo />} />
-                    <Route path="/payment" element={<ClientPayment />} />
-                    <Route path="/checkout" element={<ClientCheckout />} />
-                    <Route path="/confirmation/:bookingId?" element={<ClientConfirmation />} />
+                    <Route path="/treatments" element={<ClientTreatments />} />
+                    {/* Cart page removed from flow - direct navigation to schedule */}
+                    {/* <Route path="/cart" element={<Cart />} /> */}
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/guest-info" element={<GuestInfo />} />
+                    <Route path="/payment" element={<Payment />} />
+                    <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
                   </Routes>
-                </BasketProvider>
+                </CartProvider>
               </ClientFlowWrapper>
             } />
-            
+
             {/* Client Booking Management (Public) */}
-            <Route path="/booking/manage/:bookingId" element={<ClientManageBooking />} />
+            <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
             
             {/* Rating Page (Public) */}
             <Route path="/rate/:token" element={<RateHairdresser />} />
@@ -184,22 +197,23 @@ const App = () => {
             {/* Quote Response Page (Public) */}
             <Route path="/quote-response" element={<QuoteResponse />} />
             
-            {/* Admin Auth Routes */}
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/login" element={<Auth />} />
+            {/* Auth Routes */}
+            <Route path="/auth" element={<Login />} />
+            <Route path="/login" element={<Login />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/update-password" element={<UpdatePassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             
             {/* Legacy route redirects to admin routes */}
-            <Route path="/booking" element={<Navigate to="/admin/booking" replace />} />
+            <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />
             <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/hair-dresser" element={<Navigate to="/admin/hair-dresser" replace />} />
+            <Route path="/hair-dresser" element={<Navigate to="/admin/hairdressers" replace />} />
             <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
-            <Route path="/treatment-menus" element={<Navigate to="/admin/treatment-menus" replace />} />
+            <Route path="/treatment-menus" element={<Navigate to="/admin/treatments" replace />} />
             <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
             <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
-            <Route path="/oom-products" element={<Navigate to="/admin/oom-products" replace />} />
-            <Route path="/oom-orders" element={<Navigate to="/admin/oom-orders" replace />} />
+            <Route path="/oom-products" element={<Navigate to="/admin/products" replace />} />
+            <Route path="/oom-orders" element={<Navigate to="/admin/orders" replace />} />
             <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
             <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
             <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
@@ -290,18 +304,18 @@ const App = () => {
                           <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/booking" element={<Booking />} />
-                            <Route path="/hair-dresser" element={<HairDresser />} />
-                            <Route path="/hotels" element={<Hotels />} />
-                            <Route path="/treatment-menus" element={<TreatmentMenus />} />
+                            <Route path="/bookings" element={<Bookings />} />
+                            <Route path="/hairdressers" element={<Hairdressers />} />
+                            <Route path="/hotels" element={<AdminHotels />} />
+                            <Route path="/treatments" element={<AdminTreatments />} />
                             <Route path="/trunks" element={<Trunks />} />
                             <Route path="/concierges" element={<Concierges />} />
-                            <Route path="/oom-products" element={<OomProducts />} />
-                            <Route path="/oom-orders" element={<OomOrders />} />
+                            <Route path="/products" element={<Products />} />
+                            <Route path="/orders" element={<Orders />} />
                             <Route path="/finance" element={<Finance />} />
-                            <Route path="/transactions" element={<ConciergeTransactions />} />
+                            <Route path="/transactions" element={<Transactions />} />
                             <Route path="/settings" element={<Settings />} />
-                            <Route path="/profile" element={<Profile />} />
+                            <Route path="/profile" element={<AdminProfile />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </main>

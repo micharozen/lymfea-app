@@ -15,17 +15,21 @@
     "bookSession": "BOOK A SESSION",
     "availability": "Available 7/7 • 07:00 — 22:00",
     "equipmentIncluded": "Full professional equipment included",
-    "howItWorks": "How it works?"
+    "howItWorks": "How it works?",
+    "ourExperts": "OUR EXPERTS",
+    "expertHairdresser": "Expert Hairdresser"
   },
   "menu": {
     "title": "Menu",
     "add": "Add",
     "added": "Added",
     "viewBasket": "View Basket",
+    "bookTreatment": "Book treatment",
     "item": "item",
     "items": "items",
     "duration": "{{duration}} min",
     "noTreatments": "No treatments available",
+    "inRoomDisclaimer": "Service performed in the privacy of your room.",
     "categories": {
       "hair": "Hair",
       "nails": "Nails",
@@ -57,22 +61,31 @@
   },
   "datetime": {
     "title": "Select Date & Time",
+    "headline": "When would you like your session?",
+    "stepLabel": "STEP 1 OF 3",
     "selectDate": "Select a date",
     "selectTime": "Select a time",
-    "noSlots": "No available slots",
-    "continue": "Continue",
+    "selectDateFirst": "First, choose your date above",
+    "noSlots": "This date is fully booked",
+    "tryAnotherDate": "Please try selecting a different date",
+    "continue": "CONTINUE",
     "morning": "Morning",
     "afternoon": "Afternoon",
-    "evening": "Evening"
+    "evening": "Evening",
+    "available": "available"
   },
   "info": {
     "title": "Your Information",
+    "headline": "Tell us about yourself",
+    "stepLabel": "STEP 2 OF 3",
     "firstName": "First Name",
     "lastName": "Last Name",
     "email": "Email",
     "phone": "Phone",
     "roomNumber": "Room Number",
-    "continue": "Continue to Payment",
+    "note": "Note (optional)",
+    "notePlaceholder": "Any special requests or information...",
+    "continue": "CONTINUE",
     "errors": {
       "firstNameRequired": "First name is required",
       "lastNameRequired": "Last name is required",
@@ -96,6 +109,8 @@
   },
   "payment": {
     "title": "Payment",
+    "headline": "Complete your booking",
+    "stepLabel": "STEP 3 OF 3",
     "orderSummary": "Order Summary",
     "paymentMethod": "Payment Method",
     "addToRoom": "Add to Room",

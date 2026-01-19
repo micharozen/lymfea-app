@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatPrice as formatPriceUtil } from "@/lib/formatPrice";
-import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaHeader from "@/components/pwa/Header";
 import {
   DropdownMenu,
   DropdownMenuContent,

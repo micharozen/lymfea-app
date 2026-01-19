@@ -10,9 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
-import PwaHeader from "@/components/pwa/PwaHeader";
+import PwaHeader from "@/components/pwa/Header";
 import { Skeleton } from "@/components/ui/skeleton";
-import PwaPageLoader from "@/components/pwa/PwaPageLoader";
+import PwaPageLoader from "@/components/pwa/PageLoader";
 import {
   Drawer,
   DrawerClose,
