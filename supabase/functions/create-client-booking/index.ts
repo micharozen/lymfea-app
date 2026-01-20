@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name')
+      .select('name, venue_type')
       .eq('id', hotelId)
       .single();
 
@@ -178,9 +178,21 @@ serve(async (req) => {
       console.error('Hotel lookup error:', hotelError);
       return new Response(
         JSON.stringify({ success: false, error: 'Hotel not found' }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 404,
+        }
+      );
+    }
+
+    // Coworking spaces don't support room payment
+    if (paymentMethod === 'room' && hotel.venue_type === 'coworking') {
+      console.error('Room payment not available for coworking');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Room payment is not available for coworking spaces' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
         }
       );
     }

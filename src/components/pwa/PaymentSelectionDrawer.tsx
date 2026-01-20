@@ -170,6 +170,7 @@ interface PaymentSelectionDrawerProps {
   totalPrice: number;
   treatments: Treatment[];
   vatRate: number;
+  venueType?: 'hotel' | 'coworking' | null;
   onSignatureRequired: () => void;
   onPaymentComplete: () => void;
 }
@@ -184,9 +185,12 @@ export const PaymentSelectionDrawer = ({
   totalPrice,
   treatments,
   vatRate,
+  venueType,
   onSignatureRequired,
   onPaymentComplete,
 }: PaymentSelectionDrawerProps) => {
+  // Coworking spaces don't support room payment
+  const supportsRoomPayment = venueType !== 'coworking';
   const { t } = useTranslation('pwa');
   const [step, setStep] = useState<PaymentStep>('selection');
   const [processing, setProcessing] = useState(false);
@@ -445,20 +449,22 @@ export const PaymentSelectionDrawer = ({
                   </div>
                 </button>
 
-                {/* Room Payment Button */}
-                <button
-                  onClick={handleRoomPayment}
-                  disabled={processing}
-                  className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-amber-700 hover:to-amber-600 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Hotel className="w-7 h-7" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <p className="font-bold text-lg">🏨 Ajouter à la Chambre</p>
-                    <p className="text-sm text-white/80">Le client signe, l'hôtel débite</p>
-                  </div>
-                </button>
+                {/* Room Payment Button - Only for hotels */}
+                {supportsRoomPayment && (
+                  <button
+                    onClick={handleRoomPayment}
+                    disabled={processing}
+                    className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-amber-700 hover:to-amber-600 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                      <Hotel className="w-7 h-7" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-lg">🏨 Ajouter à la Chambre</p>
+                      <p className="text-sm text-white/80">Le client signe, l'hôtel débite</p>
+                    </div>
+                  </button>
+                )}
               </div>
             )}
 

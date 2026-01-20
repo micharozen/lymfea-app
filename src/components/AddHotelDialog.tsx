@@ -40,7 +40,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ImageIcon, Check, Loader2 } from "lucide-react";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
-import { suggestTimezoneFromCountry } from "@/lib/timezones";
+import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Trunk {
@@ -78,6 +78,7 @@ function OomCommissionDisplay({ control }: { control: Control<any> }) {
 
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
+  venue_type: z.enum(['hotel', 'coworking']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
   city: z.string().min(1, t('errors.validation.cityRequired')),
@@ -114,6 +115,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
 
   const {
     url: hotelImage,
+    setUrl: setHotelImage,
     uploading: uploadingHotel,
     fileInputRef: hotelImageRef,
     handleUpload: handleHotelImageUpload,
@@ -122,6 +124,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
 
   const {
     url: coverImage,
+    setUrl: setCoverImage,
     uploading: uploadingCover,
     fileInputRef: coverImageRef,
     handleUpload: handleCoverImageUpload,
@@ -155,6 +158,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      venue_type: "hotel",
       address: "",
       postal_code: "",
       city: "",
@@ -168,16 +172,27 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
     },
   });
 
-  // Watch country field and auto-suggest timezone
+  // Watch venue_type for label changes
+  const venueTypeValue = useWatch({ control: form.control, name: "venue_type" });
+
+  // Watch country field and auto-suggest timezone, currency, VAT
   const countryValue = useWatch({ control: form.control, name: "country" });
-  
+
   useEffect(() => {
     if (countryValue) {
-      const suggestedTimezone = suggestTimezoneFromCountry(countryValue);
-      const currentTimezone = form.getValues("timezone");
-      // Only auto-suggest if timezone hasn't been manually changed from default
-      if (currentTimezone === "Europe/Paris" || !currentTimezone) {
-        form.setValue("timezone", suggestedTimezone);
+      const defaults = getCountryDefaults(countryValue);
+      if (defaults) {
+        const current = form.getValues();
+        // Only auto-suggest if values are still at defaults
+        if (current.timezone === "Europe/Paris" || !current.timezone) {
+          form.setValue("timezone", defaults.timezone);
+        }
+        if (current.currency === "EUR") {
+          form.setValue("currency", defaults.currency);
+        }
+        if (current.vat === "20") {
+          form.setValue("vat", defaults.vat.toString());
+        }
       }
     }
   }, [countryValue, form]);
@@ -188,6 +203,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
         .from("hotels")
         .insert({
           name: values.name,
+          venue_type: values.venue_type,
           address: values.address,
           postal_code: values.postal_code || null,
           city: values.city,
@@ -249,7 +265,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Add hotel</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Add venue</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -314,19 +330,51 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
               </div>
             </div>
 
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Hotel name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="venue_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Venue type</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="hotel">
+                          <div className="flex items-center gap-2">
+                            <span>🏨</span>
+                            Hotel
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="coworking">
+                          <div className="flex items-center gap-2">
+                            <span>🏢</span>
+                            Coworking
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{venueTypeValue === 'coworking' ? 'Coworking name' : 'Hotel name'}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}
@@ -402,6 +450,7 @@ export function AddHotelDialog({ open, onOpenChange, onSuccess }: AddHotelDialog
                         <SelectItem value="USD">USD ($)</SelectItem>
                         <SelectItem value="GBP">GBP (£)</SelectItem>
                         <SelectItem value="CHF">CHF</SelectItem>
+                        <SelectItem value="AED">AED (د.إ)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

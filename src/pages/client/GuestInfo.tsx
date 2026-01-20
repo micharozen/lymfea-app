@@ -12,6 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
 import {
   Form,
   FormControl,
@@ -68,6 +70,26 @@ export default function GuestInfo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
+  const [venueType, setVenueType] = useState<VenueType | null>(null);
+
+  // Get venue-specific terminology
+  const { locationNumberLabel } = useVenueTerms(venueType);
+
+  // Fetch venue type
+  useEffect(() => {
+    const fetchVenueType = async () => {
+      if (!hotelId) return;
+      const { data } = await supabase
+        .from('hotels')
+        .select('venue_type')
+        .eq('id', hotelId)
+        .single();
+      if (data?.venue_type) {
+        setVenueType(data.venue_type as VenueType);
+      }
+    };
+    fetchVenueType();
+  }, [hotelId]);
 
   const schema = useMemo(() => createClientInfoSchema(t), [t]);
 
@@ -283,13 +305,13 @@ export default function GuestInfo() {
               )}
             />
 
-            {/* Room number */}
+            {/* Room/Workspace number */}
             <FormField
               control={form.control}
               name="roomNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={darkLabelStyles}>{t('info.roomNumber')}</FormLabel>
+                  <FormLabel className={darkLabelStyles}>{locationNumberLabel}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}

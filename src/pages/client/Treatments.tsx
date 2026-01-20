@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
+import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 
 interface Treatment {
   id: string;
@@ -59,17 +60,32 @@ export default function Treatments() {
       // Use secure function for public treatment data
       const { data, error } = await supabase
         .rpc('get_public_treatments', { _hotel_id: hotelId });
-      
+
       if (error) throw error;
-      
+
       // Filter by service_for client-side since the function returns all treatments for the hotel
-      const filtered = (data || []).filter((t: any) => 
+      const filtered = (data || []).filter((t: any) =>
         t.service_for === serviceFor || t.service_for === 'All'
       );
-      
+
       return filtered as Treatment[];
     },
   });
+
+  const { data: venueType } = useQuery({
+    queryKey: ['venue-type', hotelId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('hotels')
+        .select('venue_type')
+        .eq('id', hotelId)
+        .single();
+      return (data?.venue_type as VenueType) || null;
+    },
+    enabled: !!hotelId,
+  });
+
+  const venueTerms = useVenueTerms(venueType);
 
   // Define category order priority
   const categoryOrder = ['Blowout', 'Brushing', 'Haircut', 'Hair cut', 'Coloration', 'Nail', 'Nails'];
@@ -205,7 +221,7 @@ export default function Treatments() {
       <div className="px-4 py-3 bg-white/5 flex items-center justify-center gap-2 border-b border-white/5">
           <Sparkles className="w-3 h-3 text-gold-400" />
           <p className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium text-center">
-            {t('menu.inRoomDisclaimer')}
+            {venueTerms.disclaimer}
           </p>
       </div>
 

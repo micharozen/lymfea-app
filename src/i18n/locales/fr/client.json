@@ -134,5 +134,24 @@
     "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails."
   },
   "hotelNotFound": "Hôtel non trouvé",
-  "checkQrCode": "Veuillez vérifier votre code QR"
+  "checkQrCode": "Veuillez vérifier votre code QR",
+  "venueNotFound": "Lieu non trouvé",
+  "venue": {
+    "hotel": "Hôtel",
+    "coworking": "Espace de coworking",
+    "room": "Chambre",
+    "workspace": "Espace de travail",
+    "roomNumber": "Numéro de chambre",
+    "workspaceNumber": "Numéro d'espace",
+    "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
+    "inWorkspaceDisclaimer": "Prestation réalisée à votre espace de travail.",
+    "addToRoom": "Ajouter à la chambre",
+    "addToRoomDesc": "Ajouté à votre note de chambre",
+    "addToWorkspace": "Ajouter au compte",
+    "addToWorkspaceDesc": "Ajouté à votre compte",
+    "exclusiveRoomService": "SERVICE EN CHAMBRE EXCLUSIF",
+    "exclusiveWorkspaceService": "SERVICE EXCLUSIF",
+    "roomServiceDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
+    "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous."
+  }
 }
