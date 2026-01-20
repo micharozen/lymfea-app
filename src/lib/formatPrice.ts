@@ -6,6 +6,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: '$',
   GBP: '£',
   CHF: 'CHF',
+  AED: 'AED',
 };
 
 /**

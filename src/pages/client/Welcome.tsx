@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
-import welcomeBg from '@/assets/welcome-bg-couple.jpg';
+import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
+import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
+import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 
 interface Treatment {
   id: string;
@@ -42,13 +44,29 @@ export default function Welcome() {
     queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_public_treatments', { _hotel_id: hotelId });
-      
+
       if (error) throw error;
       // Take first 4-5 treatments for preview
       return (data || []).slice(0, 5) as Treatment[];
     },
     enabled: !!hotelId,
   });
+
+  const { data: venueType } = useQuery({
+    queryKey: ['venue-type', hotelId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('hotels')
+        .select('venue_type')
+        .eq('id', hotelId)
+        .single();
+      return (data?.venue_type as VenueType) || null;
+    },
+    enabled: !!hotelId,
+  });
+
+  const venueTerms = useVenueTerms(venueType);
+  const backgroundImage = venueType === 'coworking' ? welcomeBgCoworking : welcomeBgHotel;
 
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
@@ -78,9 +96,9 @@ export default function Welcome() {
       
       {/* 1. Immersive Background */}
       <div className="absolute inset-0 z-0">
-        <img 
-            src={welcomeBg} 
-            className="h-full w-full object-cover brightness-[0.5] scale-105 animate-[pulse_10s_infinite_alternate]" 
+        <img
+            src={backgroundImage}
+            className="h-full w-full object-cover brightness-[0.5] scale-105 animate-[pulse_10s_infinite_alternate]"
             alt="Ambiance" 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/40" />
@@ -100,14 +118,14 @@ export default function Welcome() {
                <img src={oomLogo} alt="OOM" className="h-14 w-14 mb-8" />
              </a>
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
-                {t('welcome.exclusiveService')}
+                {venueTerms.exclusiveServiceLabel}
             </h3>
             <h1 className="font-serif text-4xl md:text-5xl leading-tight mb-4 text-white">
                 {t('welcome.artOfHairdressing')} <br/>
                 <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
             </h1>
             <p className="text-gray-300 text-sm font-light leading-relaxed mb-6 max-w-sm">
-                {t('welcome.luxuryDescription')}
+                {venueTerms.serviceDescription}
             </p>
         </div>
 

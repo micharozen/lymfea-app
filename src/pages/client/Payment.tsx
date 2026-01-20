@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
+import { useVenueTerms } from '@/hooks/useVenueTerms';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +18,32 @@ export default function Payment() {
   const { bookingDateTime, clientInfo, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [venueType, setVenueType] = useState<'hotel' | 'coworking' | null>(null);
   const { t } = useTranslation('client');
+  const venueTerms = useVenueTerms(venueType);
+
+  // Coworking spaces don't support room payment
+  const supportsRoomPayment = venueTerms.supportsRoomPayment;
+
+  // Fetch venue type
+  useEffect(() => {
+    const fetchVenueType = async () => {
+      if (!hotelId) return;
+      const { data } = await supabase
+        .from('hotels')
+        .select('venue_type')
+        .eq('id', hotelId)
+        .single();
+      if (data?.venue_type) {
+        setVenueType(data.venue_type as 'hotel' | 'coworking');
+        // If coworking, default to card payment
+        if (data.venue_type === 'coworking') {
+          setSelectedMethod('card');
+        }
+      }
+    };
+    fetchVenueType();
+  }, [hotelId]);
 
   // Redirect if missing required data
   useEffect(() => {
@@ -254,33 +280,35 @@ export default function Payment() {
               </div>
             </button>
 
-            {/* Room Payment Option */}
-            <button
-              type="button"
-              onClick={() => setSelectedMethod('room')}
-              className={cn(
-                "w-full p-4 rounded-lg border transition-all duration-200 text-left",
-                selectedMethod === 'room'
-                  ? "border-gold-400 bg-gold-400/10"
-                  : "border-white/20 bg-white/5 hover:border-white/40"
-              )}
-            >
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center transition-all",
-                  selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
-                )}>
-                  <Building className="h-5 w-5" />
+            {/* Room Payment Option - Only for hotels */}
+            {supportsRoomPayment && (
+              <button
+                type="button"
+                onClick={() => setSelectedMethod('room')}
+                className={cn(
+                  "w-full p-4 rounded-lg border transition-all duration-200 text-left",
+                  selectedMethod === 'room'
+                    ? "border-gold-400 bg-gold-400/10"
+                    : "border-white/20 bg-white/5 hover:border-white/40"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                    selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
+                  )}>
+                    <Building className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className={cn(
+                      "font-medium",
+                      selectedMethod === 'room' ? "text-gold-400" : "text-white"
+                    )}>{venueTerms.addToLocationLabel}</p>
+                    <p className="text-sm text-white/50">{venueTerms.addToLocationDesc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className={cn(
-                    "font-medium",
-                    selectedMethod === 'room' ? "text-gold-400" : "text-white"
-                  )}>{t('payment.addToRoom')}</p>
-                  <p className="text-sm text-white/50">{t('payment.addToRoomDesc')}</p>
-                </div>
-              </div>
-            </button>
+              </button>
+            )}
           </div>
         )}
       </div>

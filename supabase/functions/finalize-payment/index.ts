@@ -138,6 +138,11 @@ serve(async (req) => {
       throw new Error(`Hotel not found: ${booking.hotel_id}`);
     }
 
+    // Coworking spaces don't support room payment
+    if (payment_method === 'room' && hotel.venue_type === 'coworking') {
+      throw new Error("Room payment is not available for coworking spaces");
+    }
+
     // Get currency for Stripe operations (lowercase)
     const currency = (hotel.currency || 'EUR').toLowerCase();
 

@@ -134,5 +134,24 @@
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details."
   },
   "hotelNotFound": "Hotel not found",
-  "checkQrCode": "Please check your QR code"
+  "checkQrCode": "Please check your QR code",
+  "venueNotFound": "Location not found",
+  "venue": {
+    "hotel": "Hotel",
+    "coworking": "Coworking Space",
+    "room": "Room",
+    "workspace": "Workspace",
+    "roomNumber": "Room Number",
+    "workspaceNumber": "Workspace Number",
+    "inRoomDisclaimer": "Service performed in the privacy of your room.",
+    "inWorkspaceDisclaimer": "Service performed at your workspace.",
+    "addToRoom": "Add to Room",
+    "addToRoomDesc": "Charge will be added to your room bill",
+    "addToWorkspace": "Add to Workspace",
+    "addToWorkspaceDesc": "Charge will be added to your account",
+    "exclusiveRoomService": "EXCLUSIVE ROOM SERVICE",
+    "exclusiveWorkspaceService": "EXCLUSIVE WORKSPACE SERVICE",
+    "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
+    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you."
+  }
 }

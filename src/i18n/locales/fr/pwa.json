@@ -52,6 +52,8 @@
     "client": "Client",
     "hotel": "Hôtel",
     "room": "Chambre",
+    "venue": "Lieu",
+    "workspace": "Espace de travail",
     "date": "Date",
     "time": "Heure",
     "treatments": "Soins",
@@ -100,6 +102,12 @@
   "hotels": {
     "title": "Mes Hôtels",
     "noHotels": "Aucun hôtel assigné",
+    "address": "Adresse",
+    "city": "Ville"
+  },
+  "venues": {
+    "title": "Mes Lieux",
+    "noVenues": "Aucun lieu assigné",
     "address": "Adresse",
     "city": "Ville"
   },
@@ -198,6 +206,7 @@
     "home": "Accueil",
     "bookings": "Réservations",
     "hotels": "Hôtels",
+    "venues": "Lieux",
     "notifications": "Notifications",
     "profile": "Profil"
   },

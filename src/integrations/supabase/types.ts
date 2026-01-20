@@ -545,6 +545,7 @@ export type Database = {
           timezone: string | null
           updated_at: string
           vat: number | null
+          venue_type: 'hotel' | 'coworking' | null
         }
         Insert: {
           address?: string | null
@@ -564,6 +565,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           vat?: number | null
+          venue_type?: 'hotel' | 'coworking' | null
         }
         Update: {
           address?: string | null
@@ -583,6 +585,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           vat?: number | null
+          venue_type?: 'hotel' | 'coworking' | null
         }
         Relationships: []
       }

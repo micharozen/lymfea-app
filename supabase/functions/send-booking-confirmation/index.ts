@@ -33,7 +33,8 @@ function generateBookingConfirmationHtml({
   totalPrice,
   currency,
   siteUrl,
-  isQuotePending
+  isQuotePending,
+  venueType = 'hotel'
 }: {
   bookingId: string;
   bookingNumber: string;
@@ -47,7 +48,11 @@ function generateBookingConfirmationHtml({
   currency: string;
   siteUrl: string;
   isQuotePending: boolean;
+  venueType?: 'hotel' | 'coworking';
 }) {
+  // Get venue-specific terminology
+  const locationLabel = venueType === 'coworking' ? 'Workspace' : 'Room';
+  const venueLabel = venueType === 'coworking' ? 'Location' : 'Hotel';
   // Build treatments list with proper handling for on-quote items
   const safeCurrency = (currency || 'EUR').toUpperCase();
   const treatmentsList = treatments.map(t => {
@@ -124,8 +129,8 @@ function generateBookingConfirmationHtml({
                   <td style="padding:6px 0;font-weight:500;">#${bookingNumber}</td>
                 </tr>
                 <tr>
-                  <td style="padding:6px 0;color:#6b7280;">Hotel</td>
-                  <td style="padding:6px 0;font-weight:500;">${hotelName}${roomNumber ? ` · Room ${roomNumber}` : ''}</td>
+                  <td style="padding:6px 0;color:#6b7280;">${venueLabel}</td>
+                  <td style="padding:6px 0;font-weight:500;">${hotelName}${roomNumber ? ` · ${locationLabel} ${roomNumber}` : ''}</td>
                 </tr>
               </table>
               
@@ -197,7 +202,8 @@ serve(async (req) => {
       totalPrice,
       currency,
       siteUrl: siteUrlFromBody,
-      isQuotePending = false
+      isQuotePending = false,
+      venueType = 'hotel'
     } = await req.json();
 
     console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending);
@@ -243,6 +249,7 @@ serve(async (req) => {
       currency: normalizedCurrency,
       siteUrl,
       isQuotePending,
+      venueType,
     });
 
     const subjectPrefix = isQuotePending ? 'Quote Request' : 'Booking Confirmed';
