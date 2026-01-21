@@ -188,10 +188,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8 flex items-center gap-2">
             🏠 Accueil
           </h1>
           <div className="flex items-center justify-between mb-2">
@@ -202,7 +202,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         <StatCard
           title="Ventes totales"
           value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}

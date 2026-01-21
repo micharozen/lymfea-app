@@ -281,15 +281,15 @@ export default function Hotels() {
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
             📍 Lieux
           </h1>
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative flex-1 max-w-sm">
@@ -318,13 +318,14 @@ export default function Hotels() {
               onClick={openAdd}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un lieu
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter un lieu</span>
             </Button>
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <Table className="text-xs w-full table-fixed">
+            <div className="overflow-x-auto h-full">
+            <Table className="text-xs w-full table-fixed min-w-[800px]">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
@@ -463,6 +464,7 @@ export default function Hotels() {
                 </TableBody>
               )}
             </Table>
+            </div>
           </div>
 
           {needsPagination && (

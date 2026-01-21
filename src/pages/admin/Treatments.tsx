@@ -191,23 +191,23 @@ export default function TreatmentMenus() {
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
+        <div className="mb-4 md:mb-6 flex items-center justify-between">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
             💆 Menus de soins
           </h1>
           {isAdmin && (
             <Button onClick={openAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter une prestation
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter une prestation</span>
             </Button>
           )}
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
-          <div ref={filtersRef} className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
+          <div ref={filtersRef} className="p-4 md:p-6 border-b border-border flex flex-wrap gap-3 md:gap-4 flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -260,7 +260,8 @@ export default function TreatmentMenus() {
             </Select>
           </div>
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-          <Table className="text-xs w-full table-fixed">
+            <div className="overflow-x-auto h-full">
+            <Table className="text-xs w-full table-fixed min-w-[700px]">
             <TableHeader>
               <TableRow className="bg-muted/20 h-8">
                 <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">
@@ -397,6 +398,7 @@ export default function TreatmentMenus() {
               </TableBody>
             )}
           </Table>
+            </div>
           </div>
 
           {needsPagination && (

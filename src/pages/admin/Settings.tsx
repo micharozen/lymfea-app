@@ -455,20 +455,20 @@ export default function Settings() {
 
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8 flex items-center gap-2">
             ⚙️ Paramètres & Accès
           </h1>
         </div>
 
 
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Admin</h2>
-          
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-64">
+        <div className="mb-4 md:mb-6">
+          <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-foreground mb-4">Admin</h2>
+
+          <div className="flex flex-wrap items-center gap-4 mb-6">
+            <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Rechercher"
@@ -477,19 +477,19 @@ export default function Settings() {
             </div>
 
             {isAdmin && (
-              <Button 
-                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+              <Button
+                className="md:ml-auto bg-foreground text-background hover:bg-foreground/90"
                 onClick={handleOpenAddDialog}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un admin
+                <Plus className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Ajouter un admin</span>
               </Button>
             )}
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
+        <div className="rounded-lg border border-border bg-card overflow-hidden overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">
