@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { getCurrencySymbol } from "@/lib/formatPrice";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
@@ -43,7 +44,7 @@ const createFormSchema = (t: TFunction) => z.object({
   lead_time: z.string().default("0"),
   service_for: z.string().min(1, t('errors.validation.serviceForRequired')),
   category: z.string().min(1, t('errors.validation.categoryRequired')),
-  hotel_id: z.string().optional(),
+  hotel_id: z.string().min(1, t('errors.validation.hotelRequired')),
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
   price_on_request: z.boolean().default(false),
@@ -92,13 +93,14 @@ export function AddTreatmentMenuDialog({
   });
 
   const priceOnRequest = useWatch({ control: form.control, name: "price_on_request" });
+  const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("*")
+        .select("id, name, currency")
         .order("name");
 
       if (error) throw error;
@@ -106,7 +108,14 @@ export function AddTreatmentMenuDialog({
     },
   });
 
+  const selectedHotel = hotels?.find(h => h.id === selectedHotelId);
+  const currency = selectedHotel?.currency || 'EUR';
+  const currencySymbol = getCurrencySymbol(currency);
+
   const onSubmit = async (values: FormValues) => {
+    const selectedHotelForSubmit = hotels?.find(h => h.id === values.hotel_id);
+    const currencyForSubmit = selectedHotelForSubmit?.currency || 'EUR';
+
     const { error } = await supabase.from("treatment_menus").insert({
       name: values.name,
       description: values.description || null,
@@ -115,7 +124,8 @@ export function AddTreatmentMenuDialog({
       lead_time: parseInt(values.lead_time),
       service_for: values.service_for,
       category: values.category,
-      hotel_id: values.hotel_id || null,
+      hotel_id: values.hotel_id,
+      currency: currencyForSubmit,
       image: menuImage || null,
       status: values.status,
       sort_order: parseInt(values.sort_order),
@@ -175,6 +185,31 @@ export function AddTreatmentMenuDialog({
                 </Button>
               </div>
             </div>
+
+            <FormField
+              control={form.control}
+              name="hotel_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hôtel *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un hôtel" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {hotels?.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -260,13 +295,13 @@ export function AddTreatmentMenuDialog({
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Prix (€)</FormLabel>
+                    <FormLabel className="text-sm whitespace-nowrap">Prix ({currencySymbol})</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field} 
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
                         disabled={priceOnRequest}
                         className={priceOnRequest ? "bg-muted text-muted-foreground" : ""}
                       />
@@ -313,55 +348,28 @@ export function AddTreatmentMenuDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="service_for"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Service pour *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Male">👨 Male</SelectItem>
-                        <SelectItem value="Female">👩 Female</SelectItem>
-                        <SelectItem value="All">👥 All</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="hotel_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hôtel</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner un hôtel" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {hotels?.map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="service_for"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Service pour *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Male">👨 Male</SelectItem>
+                      <SelectItem value="Female">👩 Female</SelectItem>
+                      <SelectItem value="All">👥 All</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-3 gap-4">
               <FormField

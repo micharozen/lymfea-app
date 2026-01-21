@@ -322,14 +322,14 @@ export default function Checkout() {
                   {item.name} x{item.quantity}
                 </span>
                 <span className="font-medium">
-                  {formatPrice(item.price * item.quantity)}
+                  {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
                 </span>
               </div>
             ))}
           </div>
           <div className="flex justify-between text-lg font-semibold pt-2 border-t border-border">
             <span>Total</span>
-            <span>{formatPrice(total)}</span>
+            <span>{formatPrice(total, items[0]?.currency || 'EUR')}</span>
           </div>
         </div>
       </form>

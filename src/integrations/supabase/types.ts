@@ -766,6 +766,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          currency: string | null
           description: string | null
           duration: number | null
           hotel_id: string | null
@@ -783,6 +784,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          currency?: string | null
           description?: string | null
           duration?: number | null
           hotel_id?: string | null
@@ -800,6 +802,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          currency?: string | null
           description?: string | null
           duration?: number | null
           hotel_id?: string | null

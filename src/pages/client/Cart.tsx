@@ -90,7 +90,7 @@ export default function ClientBasket() {
                   {item.category} • {item.duration} min
                 </p>
                 <p className="font-semibold text-foreground">
-                  {formatPrice(item.price * item.quantity)}
+                  {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
                 </p>
               </div>
               <Button
@@ -131,7 +131,7 @@ export default function ClientBasket() {
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4 space-y-3 pb-safe">
         <div className="flex justify-between items-center">
           <span className="font-semibold">{t('basket.subtotal')}</span>
-          <span className="font-bold text-lg">{formatPrice(total)}</span>
+          <span className="font-bold text-lg">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
         </div>
         <Button
           onClick={() => navigate(`/client/${hotelId}/datetime`)}
