@@ -195,26 +195,8 @@ export default function Treatments() {
               {hotel?.name}
             </h1>
 
-            <div className="relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(`/client/${hotelId}/basket`)}
-                className="text-white hover:bg-white/10 hover:text-gold-400 transition-colors relative"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {itemCount > 0 && (
-                  <Badge
-                    key={bounceKey}
-                    className={`absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center bg-gold-400 text-black font-bold text-xs border-none ${
-                      bounceKey > 0 ? 'animate-[bounce_0.5s_ease-in-out]' : ''
-                    }`}
-                  >
-                    {itemCount}
-                  </Badge>
-              )}
-            </Button>
-          </div>
+            {/* Spacer to balance header */}
+            <div className="w-10" />
           </div>
         </div>
       </div>
