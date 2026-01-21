@@ -5,7 +5,7 @@
     "menu": "Menu",
     "bookings": "Bookings",
     "hairdressers": "Hairdressers",
-    "hotels": "Hotels",
+    "hotels": "Venues",
     "treatments": "Treatment Menus",
     "boxes": "Boxes",
     "concierges": "Concierges",
@@ -53,10 +53,10 @@
     }
   },
   "hotels": {
-    "title": "Hotels",
-    "add": "Add Hotel",
-    "edit": "Edit Hotel",
-    "noHotels": "No hotels",
+    "title": "Venues",
+    "add": "Add Venue",
+    "edit": "Edit Venue",
+    "noHotels": "No venues",
     "name": "Name",
     "address": "Address",
     "city": "City",
@@ -65,7 +65,10 @@
     "status": "Status",
     "commission": "Commission",
     "qrCode": "QR Code",
-    "coverImage": "Cover Image"
+    "coverImage": "Cover Image",
+    "venueType": "Venue Type",
+    "hotel": "Hotel",
+    "coworking": "Coworking"
   },
   "hairdressers": {
     "title": "Hairdressers",
