@@ -460,7 +460,11 @@ export default function Hotels() {
                             </span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <ConciergesCell concierges={hotel.concierges || []} />
+                            {hotel.venue_type === "hotel" ? (
+                              <ConciergesCell concierges={hotel.concierges || []} />
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <TrunksCell trunks={hotel.trunks || []} />
