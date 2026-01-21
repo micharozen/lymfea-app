@@ -21,6 +21,7 @@ interface Treatment {
   image: string | null;
   category: string;
   price_on_request: boolean | null;
+  currency: string | null;
 }
 
 export default function Treatments() {
