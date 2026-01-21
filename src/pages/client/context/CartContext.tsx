@@ -35,12 +35,12 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
   const storageKey = `basket_${hotelId}`;
   
   const [items, setItems] = useState<BasketItem[]>(() => {
-    const stored = localStorage.getItem(storageKey);
+    const stored = sessionStorage.getItem(storageKey);
     return stored ? JSON.parse(stored) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(items));
+    sessionStorage.setItem(storageKey, JSON.stringify(items));
   }, [items, storageKey]);
 
   const addItem = (item: Omit<BasketItem, 'quantity' | 'note'>) => {
@@ -77,7 +77,7 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
 
   const clearBasket = () => {
     setItems([]);
-    localStorage.removeItem(storageKey);
+    sessionStorage.removeItem(storageKey);
   };
 
   // Total of all items (fixed price items only for display)
