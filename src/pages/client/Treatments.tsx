@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +24,8 @@ interface Treatment {
 }
 
 export default function Treatments() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  // Extract hotelId from URL directly (useParams doesn't work in nested Routes)
+  const hotelId = window.location.pathname.split('/')[2];
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const gender = searchParams.get('gender') || 'women';
@@ -51,6 +52,7 @@ export default function Treatments() {
       if (error) throw error;
       return data?.[0] || null;
     },
+    enabled: !!hotelId,
   });
 
   const { data: treatments = [], isLoading: isTreatmentsLoading } = useQuery({
@@ -70,6 +72,7 @@ export default function Treatments() {
 
       return filtered as Treatment[];
     },
+    enabled: !!hotelId,
   });
 
   const { data: venueType } = useQuery({
@@ -112,6 +115,7 @@ export default function Treatments() {
       id: treatment.id,
       name: treatment.name,
       price: Number(treatment.price) || 0,
+      currency: treatment.currency || 'EUR',
       duration: treatment.duration || 0,
       image: treatment.image || undefined,
       category: treatment.category,
@@ -267,7 +271,7 @@ export default function Treatments() {
                         ) : (
                             <div className="flex items-baseline gap-2">
                                 <span className="text-lg font-light text-gold-200">
-                                    {formatPrice(treatment.price, 'EUR', { decimals: 0 })}
+                                    {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                                 </span>
                                 {treatment.duration && (
                                     <span className="text-white/30 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>

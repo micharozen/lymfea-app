@@ -162,7 +162,7 @@ export default function Welcome() {
                   </div>
                   <h5 className="text-[10px] font-medium text-white/90 truncate mb-0.5">{treatment.name}</h5>
                   <p className="text-[10px] text-gold-400/80 font-light">
-                    {treatment.price_on_request ? t('welcome.onQuote') : formatPrice(treatment.price, 'EUR', { decimals: 0 })}
+                    {treatment.price_on_request ? t('welcome.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                   </p>
                 </div>
               ))}

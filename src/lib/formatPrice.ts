@@ -17,7 +17,7 @@ const SUFFIX_CURRENCIES = ['EUR', 'CHF'];
 /**
  * Format a price with the correct currency symbol placement
  * European format: amount + space + symbol (e.g., "42.00 €")
- * US/UK format: symbol + amount (e.g., "$42.00" or "£42.00")
+ * US/UK/AED format: symbol + space + amount (e.g., "$ 42.00" or "AED 42.00")
  * 
  * @param amount - The price amount (number or string)
  * @param currency - The currency code (EUR, USD, GBP, CHF). Defaults to EUR.
@@ -55,8 +55,8 @@ export function formatPrice(
     return `${formattedAmount} ${symbol}`;
   }
   
-  // USD/GBP: symbol + amount
-  return `${symbol}${formattedAmount}`;
+  // USD/GBP/AED: symbol + space + amount
+  return `${symbol} ${formattedAmount}`;
 }
 
 /**

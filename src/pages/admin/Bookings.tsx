@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
+import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
@@ -11,6 +12,7 @@ import {
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
+  type BookingWithTreatments,
 } from "@/hooks/booking";
 
 import {
@@ -30,9 +32,11 @@ export default function Booking() {
   // UI state
   const [view, setView] = useState<"calendar" | "list">("calendar");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
+  const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
   // Invoice state
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -113,8 +117,18 @@ export default function Booking() {
   };
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
-    setSelectedBooking(booking);
-    setIsEditDialogOpen(true);
+    if (booking) {
+      setViewedBooking(booking);
+      setIsDetailDialogOpen(true);
+    }
+  };
+
+  const handleEditFromDetail = () => {
+    if (viewedBooking) {
+      setSelectedBooking(viewedBooking);
+      setIsDetailDialogOpen(false);
+      setIsEditDialogOpen(true);
+    }
   };
 
   const handleInvoicePreview = (html: string, bookingId: number, isRoomPayment: boolean) => {
@@ -207,6 +221,14 @@ export default function Booking() {
         onOpenChange={setIsCreateDialogOpen}
         selectedDate={selectedDate}
         selectedTime={selectedTime}
+      />
+
+      <BookingDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        booking={viewedBooking}
+        hotel={viewedBooking ? getHotelInfo(viewedBooking.hotel_id) : null}
+        onEdit={handleEditFromDetail}
       />
 
       <EditBookingDialog

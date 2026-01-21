@@ -4,6 +4,7 @@ export interface BasketItem {
   id: string;
   name: string;
   price: number;
+  currency?: string;
   duration: number;
   quantity: number;
   note?: string;

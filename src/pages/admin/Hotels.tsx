@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,10 +31,15 @@ import { EditHotelDialog } from "@/components/EditHotelDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { HotelDetailDialog } from "@/components/admin/details/HotelDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface Concierge {
   id: string;
@@ -86,11 +91,35 @@ export default function Hotels() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, editId: editHotelId, openEdit, closeEdit, deleteId: deleteHotelId, openDelete, closeDelete } = useDialogState<string>();
+  const {
+    isAddOpen, openAdd, closeAdd,
+    viewId: viewHotelId, openView, closeView,
+    editId: editHotelId, openEdit, closeEdit,
+    deleteId: deleteHotelId, openDelete, closeDelete
+  } = useDialogState<string>();
+  const { sortConfig, toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+
+  // Apply sorting to filtered hotels
+  const sortedHotels = useMemo(() => {
+    return sortItems(filteredHotels, (hotel, column) => {
+      switch (column) {
+        case "name": return hotel.name;
+        case "city": return hotel.city;
+        case "status": return hotel.status;
+        case "sales": return hotel.stats?.totalSales || 0;
+        case "bookings": return hotel.stats?.bookingsCount || 0;
+        default: return null;
+      }
+    });
+  }, [filteredHotels, sortItems]);
+
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHotels, needsPagination } = usePagination({
-    items: filteredHotels,
+    items: sortedHotels,
     itemsPerPage,
   });
+
+  // Find the hotel being viewed
+  const viewedHotel = viewHotelId ? hotels.find(h => h.id === viewHotelId) || null : null;
 
   // Control overflow when pagination is needed
   useOverflowControl(!loading && needsPagination);
@@ -247,13 +276,7 @@ export default function Hotels() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    );
-  }
+  const columnCount = isAdmin ? 9 : 8;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
@@ -303,29 +326,48 @@ export default function Hotels() {
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Localisation</TableHead>
+                  <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                    Hôtel
+                  </SortableTableHead>
+                  <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
+                    Localisation
+                  </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Ventes</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Rés.</TableHead>
+                  <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                    Statut
+                  </SortableTableHead>
+                  <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
+                    Ventes
+                  </SortableTableHead>
+                  <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right">
+                    Rés.
+                  </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
                   {isAdmin && (
                     <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {paginatedHotels.length === 0 ? (
-                  <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                      Aucun hôtel trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedHotels.map((hotel) => (
-                    <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+              {loading ? (
+                <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+              ) : paginatedHotels.length === 0 ? (
+                <TableEmptyState
+                  colSpan={columnCount}
+                  icon={Building2}
+                  message="Aucun hôtel trouvé"
+                  description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                  actionLabel={isAdmin ? "Ajouter un hôtel" : undefined}
+                  onAction={isAdmin ? openAdd : undefined}
+                />
+              ) : (
+                <TableBody>
+                  {paginatedHotels.map((hotel) => (
+                    <TableRow
+                      key={hotel.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                      onClick={() => openView(hotel.id)}
+                    >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center gap-2 whitespace-nowrap">
                           {hotel.image ? (
@@ -381,7 +423,10 @@ export default function Hotels() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => openEdit(hotel.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(hotel.id);
+                              }}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
@@ -389,7 +434,10 @@ export default function Hotels() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => openDelete(hotel.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDelete(hotel.id);
+                              }}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -397,9 +445,9 @@ export default function Hotels() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
+                  ))}
+                </TableBody>
+              )}
             </Table>
           </div>
 
@@ -420,6 +468,18 @@ export default function Hotels() {
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
+      />
+
+      <HotelDetailDialog
+        open={!!viewHotelId}
+        onOpenChange={(open) => !open && closeView()}
+        hotel={viewedHotel}
+        onEdit={() => {
+          if (viewHotelId) {
+            closeView();
+            openEdit(viewHotelId);
+          }
+        }}
       />
 
       {editHotelId && (

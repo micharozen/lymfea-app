@@ -325,7 +325,7 @@ export default function TreatmentMenus() {
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                       <span className="truncate block text-foreground">
-                        {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, 'EUR', { decimals: 0 })}
+                        {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, menu.currency || 'EUR', { decimals: 0 })}
                       </span>
                     </TableCell>
                     <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">

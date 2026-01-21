@@ -288,7 +288,7 @@ const Auth = () => {
         .eq("user_id", data.user.id)
         .maybeSingle();
 
-      if (admin && admin.status !== "active") {
+      if (admin && admin.status !== "Actif") {
         navigate("/update-password", { replace: true });
         return;
       }

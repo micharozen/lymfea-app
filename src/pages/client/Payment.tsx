@@ -210,7 +210,7 @@ export default function Payment() {
                     {item.name} <span className="text-white/40">x{item.quantity}</span>
                   </span>
                   <span className="text-white font-light">
-                    {formatPrice(item.price * item.quantity)}
+                    {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
                   </span>
                 </div>
               ))}
@@ -236,11 +236,11 @@ export default function Payment() {
             <span className="text-white/60 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
             {hasPriceOnRequest ? (
               <div className="text-right">
-                <span className="text-white text-lg font-light">{formatPrice(fixedTotal)}</span>
+                <span className="text-white text-lg font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
                 <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
               </div>
             ) : (
-              <span className="text-gold-400 text-xl font-serif">{formatPrice(total)}</span>
+              <span className="text-gold-400 text-xl font-serif">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
             )}
           </div>
         </div>
