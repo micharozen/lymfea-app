@@ -105,8 +105,8 @@ export function BookingFilters({
           onClick={() => onViewChange("calendar")}
           className={`rounded-none border-0 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
         >
-          <CalendarIcon className="h-4 w-4 mr-1" />
-          Calendrier
+          <CalendarIcon className="h-4 w-4 md:mr-1" />
+          <span className="hidden md:inline">Calendrier</span>
         </Button>
         <Button
           variant="ghost"
@@ -114,8 +114,8 @@ export function BookingFilters({
           onClick={() => onViewChange("list")}
           className={`rounded-none border-0 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
         >
-          <List className="h-4 w-4 mr-1" />
-          Liste
+          <List className="h-4 w-4 md:mr-1" />
+          <span className="hidden md:inline">Liste</span>
         </Button>
       </div>
     </div>

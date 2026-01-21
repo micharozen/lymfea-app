@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
@@ -300,6 +300,11 @@ const App = () => {
                     <div className="flex min-h-screen w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col">
+                        {/* Mobile header with menu trigger */}
+                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40">
+                          <SidebarTrigger className="mr-2" />
+                          <span className="font-semibold">OOM Admin</span>
+                        </header>
                         <main className="flex-1">
                           <Routes>
                             <Route path="/" element={<Dashboard />} />

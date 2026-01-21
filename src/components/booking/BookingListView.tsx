@@ -73,8 +73,8 @@ export function BookingListView({
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-hidden bg-card">
-        <Table className="text-xs w-full table-fixed h-full">
+      <div className="flex-1 overflow-hidden overflow-x-auto bg-card">
+        <Table className="text-xs w-full table-fixed h-full min-w-[900px]">
           <colgroup>
             <col className="w-[7%]" />
             <col className="w-[10%]" />

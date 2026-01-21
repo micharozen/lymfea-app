@@ -11,6 +11,13 @@ import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 
+// Optimize Supabase image URLs for thumbnails
+const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): string | null => {
+  if (!url || !url.includes('supabase.co/storage')) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}width=${width}&quality=${quality}`;
+};
+
 interface Treatment {
   id: string;
   name: string;
@@ -153,7 +160,12 @@ export default function Welcome() {
                 >
                   <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-white/5 ring-1 ring-white/10 group-hover:ring-gold-400/50 transition-all">
                     {treatment.image ? (
-                      <img src={treatment.image} alt={treatment.name} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110" />
+                      <img
+                        src={getOptimizedImageUrl(treatment.image, 256) || ''}
+                        alt={treatment.name}
+                        loading="eager"
+                        className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center p-4">
                         <img src={oomLogo} className="w-full opacity-20" alt="" />

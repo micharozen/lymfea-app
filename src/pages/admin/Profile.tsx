@@ -180,11 +180,11 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-4xl">
-          <h1 className="text-3xl font-bold text-foreground mb-8">Profil</h1>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
           <Card className="border border-border bg-card shadow-sm">
-            <CardContent className="p-8">
+            <CardContent className="p-4 md:p-8">
               <p className="text-muted-foreground">Chargement...</p>
             </CardContent>
           </Card>
@@ -194,14 +194,14 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-4xl">
-        <h1 className="text-3xl font-bold text-foreground mb-8">Profil</h1>
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
 
         <Card className="border border-border bg-card shadow-sm">
-          <CardContent className="p-8">
+          <CardContent className="p-4 md:p-8">
             {/* Photo de profil */}
-            <div className="flex items-center gap-6 mb-8">
+            <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
               <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                 {profileImage ? (
                   <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
@@ -228,7 +228,7 @@ export default function Profile() {
             </div>
 
             {/* Informations utilisateur */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
               <div>
                 <Label htmlFor="firstName" className="text-sm text-muted-foreground mb-1.5 block">
                   Prénom

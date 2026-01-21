@@ -12,6 +12,14 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 
+// Optimize Supabase image URLs for thumbnails
+const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): string | null => {
+  if (!url || !url.includes('supabase.co/storage')) return url;
+  // Supabase image transformation API
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}width=${width}&quality=${quality}`;
+};
+
 interface Treatment {
   id: string;
   name: string;
@@ -267,8 +275,11 @@ export default function Treatments() {
                         <div className="w-24 h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
-                                    src={treatment.image}
+                                    src={getOptimizedImageUrl(treatment.image, 192) || ''}
                                     alt={treatment.name}
+                                    loading="lazy"
+                                    width={96}
+                                    height={96}
                                     className="w-full h-full object-cover grayscale-[0.3] group-active:grayscale-0 transition-all duration-500"
                                 />
                             ) : (
@@ -342,7 +353,10 @@ export default function Treatments() {
                                 </div>
                             ) : (
                                 <Button
-                                    onClick={() => handleAddToBasket(treatment)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToBasket(treatment);
+                                    }}
                                     className="rounded-none px-6 h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
@@ -414,8 +428,11 @@ export default function Treatments() {
                         <div className="w-24 h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
-                                    src={treatment.image}
+                                    src={getOptimizedImageUrl(treatment.image, 192) || ''}
                                     alt={treatment.name}
+                                    loading="lazy"
+                                    width={96}
+                                    height={96}
                                     className="w-full h-full object-cover grayscale-[0.3] group-active:grayscale-0 transition-all duration-500"
                                 />
                             ) : (
@@ -489,7 +506,10 @@ export default function Treatments() {
                                 </div>
                             ) : (
                                 <Button
-                                    onClick={() => handleAddToBasket(treatment)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddToBasket(treatment);
+                                    }}
                                     className="rounded-none px-6 h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
