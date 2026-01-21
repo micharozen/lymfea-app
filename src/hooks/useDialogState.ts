@@ -6,6 +6,12 @@ interface UseDialogStateReturn<T = string> {
   openAdd: () => void;
   closeAdd: () => void;
 
+  // View dialog (read-only detail view)
+  viewId: T | null;
+  openView: (id: T) => void;
+  closeView: () => void;
+  isViewOpen: boolean;
+
   // Edit dialog
   editId: T | null;
   openEdit: (id: T) => void;
@@ -21,11 +27,15 @@ interface UseDialogStateReturn<T = string> {
 
 export function useDialogState<T = string>(): UseDialogStateReturn<T> {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [viewId, setViewId] = useState<T | null>(null);
   const [editId, setEditId] = useState<T | null>(null);
   const [deleteId, setDeleteId] = useState<T | null>(null);
 
   const openAdd = useCallback(() => setIsAddOpen(true), []);
   const closeAdd = useCallback(() => setIsAddOpen(false), []);
+
+  const openView = useCallback((id: T) => setViewId(id), []);
+  const closeView = useCallback(() => setViewId(null), []);
 
   const openEdit = useCallback((id: T) => setEditId(id), []);
   const closeEdit = useCallback(() => setEditId(null), []);
@@ -37,6 +47,10 @@ export function useDialogState<T = string>(): UseDialogStateReturn<T> {
     isAddOpen,
     openAdd,
     closeAdd,
+    viewId,
+    openView,
+    closeView,
+    isViewOpen: viewId !== null,
     editId,
     openEdit,
     closeEdit,
