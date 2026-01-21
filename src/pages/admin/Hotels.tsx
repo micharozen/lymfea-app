@@ -74,6 +74,7 @@ interface Hotel {
   hotel_commission: number;
   hairdresser_commission: number;
   status: string;
+  venue_type: 'hotel' | 'coworking' | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
@@ -229,7 +230,7 @@ export default function Hotels() {
 
       setHotels(hotelsWithData);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error("Erreur lors du chargement des lieux");
       console.error(error);
     } finally {
       setLoading(false);
@@ -267,23 +268,23 @@ export default function Hotels() {
 
       if (error) throw error;
 
-      toast.success("Hôtel supprimé avec succès");
+      toast.success("Lieu supprimé avec succès");
       closeDelete();
       fetchHotels();
     } catch (error: any) {
-      toast.error("Erreur lors de la suppression de l'hôtel");
+      toast.error("Erreur lors de la suppression du lieu");
       console.error(error);
     }
   };
 
-  const columnCount = isAdmin ? 9 : 8;
+  const columnCount = isAdmin ? 10 : 9;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
         <div className="mb-4">
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            🏨 Hôtels
+            📍 Lieux
           </h1>
         </div>
       </div>
@@ -318,7 +319,7 @@ export default function Hotels() {
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter un hôtel
+              Ajouter un lieu
             </Button>
           </div>
 
@@ -327,8 +328,9 @@ export default function Hotels() {
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
-                    Hôtel
+                    Lieu
                   </SortableTableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
                   <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
                     Localisation
                   </SortableTableHead>
@@ -355,9 +357,9 @@ export default function Hotels() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Building2}
-                  message="Aucun hôtel trouvé"
+                  message="Aucun lieu trouvé"
                   description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter un hôtel" : undefined}
+                  actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
                   onAction={isAdmin ? openAdd : undefined}
                 />
               ) : (
@@ -383,6 +385,18 @@ export default function Hotels() {
                           )}
                           <span className="truncate font-medium text-foreground">{hotel.name}</span>
                         </div>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                            hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
+                            hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
+                          )}
+                        >
+                          {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : "-"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">
@@ -458,7 +472,7 @@ export default function Hotels() {
               totalItems={filteredHotels.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="hôtels"
+              itemName="lieux"
             />
           )}
         </div>
@@ -496,7 +510,7 @@ export default function Hotels() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet hôtel ? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

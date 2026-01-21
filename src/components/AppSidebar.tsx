@@ -50,7 +50,7 @@ const conciergeMenuItems = [
 const adminSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
-  { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
+  { title: "Lieux", url: "/admin/hotels", emoji: "📍" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },

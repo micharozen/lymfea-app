@@ -5,7 +5,7 @@
     "menu": "Menu",
     "bookings": "Réservations",
     "hairdressers": "Coiffeurs",
-    "hotels": "Hôtels",
+    "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
     "concierges": "Concierges",
@@ -53,10 +53,10 @@
     }
   },
   "hotels": {
-    "title": "Hôtels",
-    "add": "Ajouter un Hôtel",
-    "edit": "Modifier Hôtel",
-    "noHotels": "Aucun hôtel",
+    "title": "Lieux",
+    "add": "Ajouter un Lieu",
+    "edit": "Modifier Lieu",
+    "noHotels": "Aucun lieu",
     "name": "Nom",
     "address": "Adresse",
     "city": "Ville",
@@ -65,7 +65,10 @@
     "status": "Statut",
     "commission": "Commission",
     "qrCode": "Code QR",
-    "coverImage": "Image de couverture"
+    "coverImage": "Image de couverture",
+    "venueType": "Type de lieu",
+    "hotel": "Hôtel",
+    "coworking": "Coworking"
   },
   "hairdressers": {
     "title": "Coiffeurs",
