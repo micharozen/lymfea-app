@@ -46,6 +46,8 @@ import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { TreatmentCard } from "@/components/table/cards/TreatmentCard";
 
 export default function TreatmentMenus() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +60,7 @@ export default function TreatmentMenus() {
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { isAddOpen, openAdd, closeAdd, viewId: viewMenuId, openView, closeView, editId: editMenuId, openEdit, closeEdit, deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -260,145 +263,197 @@ export default function TreatmentMenus() {
             </Select>
           </div>
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <div className="overflow-x-auto h-full">
-            <Table className="text-xs w-full table-fixed min-w-[700px]">
-            <TableHeader>
-              <TableRow className="bg-muted/20 h-8">
-                <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">
-                  Prestation
-                </SortableTableHead>
-                <SortableTableHead column="duration" sortDirection={getSortDirection("duration")} onSort={toggleSort} align="center" className="w-[70px]">
-                  Duree
-                </SortableTableHead>
-                <SortableTableHead column="price" sortDirection={getSortDirection("price")} onSort={toggleSort} align="center" className="w-[60px]">
-                  Tarif
-                </SortableTableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
-                <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
-                  Categorie
-                </SortableTableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
-                <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
-                  Statut
-                </SortableTableHead>
-                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            {isLoading ? (
-              <TableSkeleton rows={itemsPerPage} columns={columnCount} />
-            ) : paginatedMenus.length === 0 ? (
-              <TableEmptyState
-                colSpan={columnCount}
-                icon={Scissors}
-                message="Aucune prestation trouvee"
-                description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
-                onAction={isAdmin ? openAdd : undefined}
-              />
-            ) : (
-              <TableBody>
-                {paginatedMenus.map((menu) => {
-                  const hotel = getHotelInfo(menu.hotel_id);
-                  return (
-                    <TableRow
-                      key={menu.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                      onClick={() => openView(menu.id)}
-                    >
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          {menu.image ? (
-                            <img
-                              src={menu.image}
-                              alt={menu.name}
-                              className="w-6 h-6 rounded object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
-                              💆
-                            </div>
-                          )}
-                          <span className="truncate font-medium text-foreground">{menu.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <span className="truncate block text-foreground">
-                          {menu.price_on_request ? "Sur demande" : formatDuration(menu.duration)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <span className="truncate block text-foreground">
-                          {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, menu.currency || 'EUR', { decimals: 0 })}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <span className="text-xs">
-                          {menu.service_for === "Male"
-                            ? "👨"
-                            : menu.service_for === "Female"
-                            ? "👩"
-                            : "👥"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <span className="truncate block text-foreground">{menu.category}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <HotelCell hotel={hotel} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                        <Badge
-                          variant={menu.status === "active" ? "default" : "secondary"}
-                          className={cn(
-                            "text-[10px] px-2 py-0.5",
-                            menu.status === "active" &&
-                              "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                            menu.status === "inactive" &&
-                              "bg-red-500/10 text-red-700 hover:bg-red-500/20"
-                          )}
-                        >
-                          {menu.status === "active" ? "Actif" : menu.status === "inactive" ? "Inactif" : menu.status}
-                        </Badge>
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(menu.id);
-                              }}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDelete(menu.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+            {/* Mobile: Card View */}
+            {isMobile ? (
+              <div className="p-4 space-y-3 overflow-y-auto h-full">
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: itemsPerPage }).map((_, i) => (
+                      <div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-lg bg-muted" />
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                            <div className="h-3 bg-muted rounded w-1/2" />
                           </div>
-                        </TableCell>
-                      )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : paginatedMenus.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Scissors className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Aucune prestation trouvee</p>
+                    {(searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
+                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
+                    )}
+                    {isAdmin && (
+                      <Button onClick={openAdd} className="mt-4">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter une prestation
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  paginatedMenus.map((menu) => (
+                    <TreatmentCard
+                      key={menu.id}
+                      treatment={menu}
+                      hotel={getHotelInfo(menu.hotel_id)}
+                      isAdmin={isAdmin}
+                      onView={() => openView(menu.id)}
+                      onEdit={() => openEdit(menu.id)}
+                      onDelete={() => openDelete(menu.id)}
+                    />
+                  ))
+                )}
+              </div>
+            ) : (
+              /* Desktop: Table View */
+              <div className="overflow-x-auto h-full">
+                <Table className="text-xs w-full table-fixed min-w-[700px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/20 h-8">
+                      <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">
+                        Prestation
+                      </SortableTableHead>
+                      <SortableTableHead column="duration" sortDirection={getSortDirection("duration")} onSort={toggleSort} align="center" className="w-[70px]">
+                        Duree
+                      </SortableTableHead>
+                      <SortableTableHead column="price" sortDirection={getSortDirection("price")} onSort={toggleSort} align="center" className="w-[60px]">
+                        Tarif
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
+                      <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
+                        Categorie
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
+                        Statut
+                      </SortableTableHead>
+                      {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
                     </TableRow>
-                  );
-                })}
-              </TableBody>
+                  </TableHeader>
+                  {isLoading ? (
+                    <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+                  ) : paginatedMenus.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={columnCount}
+                      icon={Scissors}
+                      message="Aucune prestation trouvee"
+                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                      actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
+                      onAction={isAdmin ? openAdd : undefined}
+                    />
+                  ) : (
+                    <TableBody>
+                      {paginatedMenus.map((menu) => {
+                        const hotel = getHotelInfo(menu.hotel_id);
+                        return (
+                          <TableRow
+                            key={menu.id}
+                            className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                            onClick={() => openView(menu.id)}
+                          >
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                {menu.image ? (
+                                  <img
+                                    src={menu.image}
+                                    alt={menu.name}
+                                    className="w-6 h-6 rounded object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
+                                    💆
+                                  </div>
+                                )}
+                                <span className="truncate font-medium text-foreground">{menu.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">
+                                {menu.price_on_request ? "Sur demande" : formatDuration(menu.duration)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">
+                                {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, menu.currency || 'EUR', { decimals: 0 })}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="text-xs">
+                                {menu.service_for === "Male"
+                                  ? "👨"
+                                  : menu.service_for === "Female"
+                                  ? "👩"
+                                  : "👥"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">{menu.category}</span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <HotelCell hotel={hotel} />
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <Badge
+                                variant={menu.status === "active" ? "default" : "secondary"}
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5",
+                                  menu.status === "active" &&
+                                    "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                                  menu.status === "inactive" &&
+                                    "bg-red-500/10 text-red-700 hover:bg-red-500/20"
+                                )}
+                              >
+                                {menu.status === "active" ? "Actif" : menu.status === "inactive" ? "Inactif" : menu.status}
+                              </Badge>
+                            </TableCell>
+                            {isAdmin && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEdit(menu.id);
+                                    }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openDelete(menu.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  )}
+                </Table>
+              </div>
             )}
-          </Table>
-            </div>
           </div>
 
           {needsPagination && (

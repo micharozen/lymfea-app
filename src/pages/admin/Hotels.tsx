@@ -40,6 +40,8 @@ import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { HotelCard } from "@/components/table/cards/HotelCard";
 
 interface Concierge {
   id: string;
@@ -99,6 +101,7 @@ export default function Hotels() {
     deleteId: deleteHotelId, openDelete, closeDelete
   } = useDialogState<string>();
   const { sortConfig, toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const isMobile = useIsMobile();
 
   // Apply sorting to filtered hotels
   const sortedHotels = useMemo(() => {
@@ -324,147 +327,200 @@ export default function Hotels() {
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <div className="overflow-x-auto h-full">
-            <Table className="text-xs w-full table-fixed min-w-[800px]">
-              <TableHeader>
-                <TableRow className="bg-muted/20 h-8">
-                  <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
-                    Lieu
-                  </SortableTableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
-                  <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
-                    Localisation
-                  </SortableTableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                  <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
-                    Statut
-                  </SortableTableHead>
-                  <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
-                    Ventes
-                  </SortableTableHead>
-                  <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right">
-                    Rés.
-                  </SortableTableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
-                  {isAdmin && (
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              {loading ? (
-                <TableSkeleton rows={itemsPerPage} columns={columnCount} />
-              ) : paginatedHotels.length === 0 ? (
-                <TableEmptyState
-                  colSpan={columnCount}
-                  icon={Building2}
-                  message="Aucun lieu trouvé"
-                  description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
-                  onAction={isAdmin ? openAdd : undefined}
-                />
-              ) : (
-                <TableBody>
-                  {paginatedHotels.map((hotel) => (
-                    <TableRow
-                      key={hotel.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                      onClick={() => openView(hotel.id)}
-                    >
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          {hotel.image ? (
-                            <img
-                              src={hotel.image}
-                              alt={hotel.name}
-                              className="w-6 h-6 rounded object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
-                              {hotel.name.substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="truncate font-medium text-foreground">{hotel.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 whitespace-nowrap",
-                            hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
-                            hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
-                          )}
-                        >
-                          {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : "-"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">
-                          {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <ConciergesCell concierges={hotel.concierges || []} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <TrunksCell trunks={hotel.trunks || []} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <Badge
-                          variant={hotel.status === "active" ? "default" : "secondary"}
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 whitespace-nowrap",
-                            hotel.status === "active" && "bg-green-500/10 text-green-700",
-                            hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
-                          )}
-                        >
-                          {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEdit(hotel.id);
-                              }}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDelete(hotel.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+            {/* Mobile: Card View */}
+            {isMobile ? (
+              <div className="p-4 space-y-3 overflow-y-auto h-full">
+                {loading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: itemsPerPage }).map((_, i) => (
+                      <div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-lg bg-muted" />
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                            <div className="h-3 bg-muted rounded w-1/2" />
                           </div>
-                        </TableCell>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : paginatedHotels.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Aucun lieu trouve</p>
+                    {(searchQuery || statusFilter !== "all") && (
+                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
+                    )}
+                    {isAdmin && (
+                      <Button onClick={openAdd} className="mt-4">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter un lieu
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  paginatedHotels.map((hotel) => (
+                    <HotelCard
+                      key={hotel.id}
+                      hotel={hotel}
+                      isAdmin={isAdmin}
+                      onView={() => openView(hotel.id)}
+                      onEdit={() => openEdit(hotel.id)}
+                      onDelete={() => openDelete(hotel.id)}
+                    />
+                  ))
+                )}
+              </div>
+            ) : (
+              /* Desktop: Table View */
+              <div className="overflow-x-auto h-full">
+                <Table className="text-xs w-full table-fixed min-w-[800px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/20 h-8">
+                      <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                        Lieu
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
+                      <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
+                        Localisation
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                      <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                        Statut
+                      </SortableTableHead>
+                      <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
+                        Ventes
+                      </SortableTableHead>
+                      <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right">
+                        Res.
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
+                      {isAdmin && (
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
                       )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              )}
-            </Table>
-            </div>
+                  </TableHeader>
+                  {loading ? (
+                    <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+                  ) : paginatedHotels.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={columnCount}
+                      icon={Building2}
+                      message="Aucun lieu trouve"
+                      description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                      actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
+                      onAction={isAdmin ? openAdd : undefined}
+                    />
+                  ) : (
+                    <TableBody>
+                      {paginatedHotels.map((hotel) => (
+                        <TableRow
+                          key={hotel.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                          onClick={() => openView(hotel.id)}
+                        >
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              {hotel.image ? (
+                                <img
+                                  src={hotel.image}
+                                  alt={hotel.name}
+                                  className="w-6 h-6 rounded object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
+                                  {hotel.name.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="truncate font-medium text-foreground">{hotel.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                                hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
+                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
+                              )}
+                            >
+                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : "-"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground">
+                              {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <ConciergesCell concierges={hotel.concierges || []} />
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <TrunksCell trunks={hotel.trunks || []} />
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <Badge
+                              variant={hotel.status === "active" ? "default" : "secondary"}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                                hotel.status === "active" && "bg-green-500/10 text-green-700",
+                                hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
+                              )}
+                            >
+                              {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                          </TableCell>
+                          {isAdmin && (
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEdit(hotel.id);
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDelete(hotel.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  )}
+                </Table>
+              </div>
+            )}
           </div>
 
           {needsPagination && (
