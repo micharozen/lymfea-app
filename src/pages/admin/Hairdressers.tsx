@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -28,13 +28,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import AddHairDresserDialog from "@/components/AddHairDresserDialog";
 import EditHairDresserDialog from "@/components/EditHairDresserDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, TrunksCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { HairdresserDetailDialog } from "@/components/admin/details/HairdresserDetailDialog";
+import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
+import { useOverflowControl } from "@/hooks/useOverflowControl";
+import { usePagination } from "@/hooks/usePagination";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface Hotel {
   id: string;
@@ -71,63 +80,12 @@ export default function HairDresser() {
   const [searchQuery, setSearchQuery] = useState("");
   const [hotelFilter, setHotelFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedHairDresser, setSelectedHairDresser] = useState<HairDresser | null>(null);
-  const [deleteHairDresserId, setDeleteHairDresserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef<HTMLDivElement>(null);
-
-  // Auto-fit the number of rows so the page never needs scrolling
-  const computeRows = useCallback(() => {
-    const rowHeight = 40;
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-    const pageHeaderHeight = headerRef.current?.offsetHeight || 100;
-    const filtersHeight = filtersRef.current?.offsetHeight || 60;
-    const chromePadding = 32;
-
-    const usedHeight =
-      pageHeaderHeight +
-      filtersHeight +
-      tableHeaderHeight +
-      paginationHeight +
-      sidebarOffset +
-      chromePadding;
-
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  // Force no scroll on this page only when pagination is needed
-  const needsPagination = filteredHairdressers.length > itemsPerPage;
-  
-  useEffect(() => {
-    if (!loading && needsPagination) {
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-  }, [loading, needsPagination]);
+  // Use shared hooks
+  const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
+  const { isAddOpen, openAdd, closeAdd, viewId: viewHairdresserId, openView, closeView, editId: editHairdresserId, openEdit, closeEdit, deleteId: deleteHairdresserId, openDelete, closeDelete } = useDialogState<string>();
+  const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
   useEffect(() => {
     fetchHairdressers();
@@ -231,6 +189,33 @@ export default function HairDresser() {
     setFilteredHairdressers(filtered);
   };
 
+  // Sort hairdressers
+  const sortedHairdressers = useMemo(() => {
+    return sortItems(filteredHairdressers, (hd, column) => {
+      switch (column) {
+        case "name": return `${hd.first_name} ${hd.last_name}`;
+        case "email": return hd.email;
+        case "status": return hd.status;
+        default: return null;
+      }
+    });
+  }, [filteredHairdressers, sortItems]);
+
+  // Use pagination hook
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHairdressers, needsPagination } = usePagination({
+    items: sortedHairdressers,
+    itemsPerPage,
+  });
+
+  // Control overflow when pagination is needed
+  useOverflowControl(!loading && needsPagination);
+
+  // Get viewed/edited hairdresser
+  const viewedHairdresser = viewHairdresserId ? hairdressers.find(h => h.id === viewHairdresserId) || null : null;
+  const editedHairdresser = editHairdresserId ? hairdressers.find(h => h.id === editHairdresserId) || null : null;
+
+  const columnCount = isAdmin ? 8 : 7;
+
   const getHotelsInfo = (hairdresserHotels?: { hotel_id: string }[]) => {
     if (!hairdresserHotels || hairdresserHotels.length === 0) {
       return [];
@@ -308,36 +293,22 @@ export default function HairDresser() {
   };
 
   const handleDelete = async () => {
-    if (!deleteHairDresserId) return;
+    if (!deleteHairdresserId) return;
 
     const { error } = await supabase
       .from("hairdressers")
       .delete()
-      .eq("id", deleteHairDresserId);
+      .eq("id", deleteHairdresserId);
 
     if (error) {
       toast.error("Erreur lors de la suppression");
       return;
     }
 
-    toast.success("Coiffeur supprimé avec succès");
-    setIsDeleteDialogOpen(false);
-    setDeleteHairDresserId(null);
+    toast.success("Coiffeur supprime avec succes");
+    closeDelete();
     fetchHairdressers();
   };
-
-  const totalPages = Math.ceil(filteredHairdressers.length / itemsPerPage);
-  const paginatedHairdressers = needsPagination
-    ? filteredHairdressers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredHairdressers;
-
-  if (loading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <div className="text-lg">Chargement...</div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
@@ -391,40 +362,56 @@ export default function HairDresser() {
               </SelectContent>
             </Select>
 
-            <Button
-              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={() => setIsAddDialogOpen(true)}
-              style={{ display: isAdmin ? 'flex' : 'none' }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un coiffeur
-            </Button>
+            {isAdmin && (
+              <Button
+                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+                onClick={openAdd}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un coiffeur
+              </Button>
+            )}
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <Table className="text-xs w-full table-fixed">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                    Nom
+                  </SortableTableHead>
+                  <SortableTableHead column="email" sortDirection={getSortDirection("email")} onSort={toggleSort}>
+                    Email
+                  </SortableTableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Telephone</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Compétences</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Competences</TableHead>
+                  <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                    Statut
+                  </SortableTableHead>
                   {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {paginatedHairdressers.length === 0 ? (
-                  <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={8} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                      Aucun coiffeur trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedHairdressers.map((hairdresser) => (
-                    <TableRow key={hairdresser.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+              {loading ? (
+                <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+              ) : paginatedHairdressers.length === 0 ? (
+                <TableEmptyState
+                  colSpan={columnCount}
+                  icon={Users}
+                  message="Aucun coiffeur trouve"
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                  actionLabel={isAdmin ? "Ajouter un coiffeur" : undefined}
+                  onAction={isAdmin ? openAdd : undefined}
+                />
+              ) : (
+                <TableBody>
+                  {paginatedHairdressers.map((hairdresser) => (
+                    <TableRow
+                      key={hairdresser.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                      onClick={() => openView(hairdresser.id)}
+                    >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <PersonCell person={hairdresser} />
                       </TableCell>
@@ -461,9 +448,9 @@ export default function HairDresser() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => {
-                                setSelectedHairDresser(hairdresser);
-                                setIsEditDialogOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(hairdresser.id);
                               }}
                             >
                               <Pencil className="h-3 w-3" />
@@ -472,9 +459,9 @@ export default function HairDresser() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => {
-                                setDeleteHairDresserId(hairdresser.id);
-                                setIsDeleteDialogOpen(true);
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDelete(hairdresser.id);
                               }}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -483,9 +470,9 @@ export default function HairDresser() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
+                  ))}
+                </TableBody>
+              )}
             </Table>
           </div>
           
@@ -503,26 +490,26 @@ export default function HairDresser() {
       </div>
 
       <AddHairDresserDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        open={isAddOpen}
+        onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHairdressers}
       />
 
-      {selectedHairDresser && (
+      {editedHairdresser && (
         <EditHairDresserDialog
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          hairdresser={selectedHairDresser}
+          open={!!editHairdresserId}
+          onOpenChange={(open) => !open && closeEdit()}
+          hairdresser={editedHairdresser}
           onSuccess={fetchHairdressers}
         />
       )}
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={!!deleteHairdresserId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogTitle>Etes-vous sur ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Le coiffeur sera définitivement supprimé.
+              Cette action est irreversible. Le coiffeur sera definitivement supprime.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -531,6 +518,20 @@ export default function HairDresser() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HairdresserDetailDialog
+        open={!!viewHairdresserId}
+        onOpenChange={(open) => !open && closeView()}
+        hairdresser={viewedHairdresser}
+        hotels={hotels}
+        trunks={trunks}
+        onEdit={() => {
+          if (viewHairdresserId) {
+            closeView();
+            openEdit(viewHairdresserId);
+          }
+        }}
+      />
     </div>
   );
 }
