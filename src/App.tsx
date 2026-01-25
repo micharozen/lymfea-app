@@ -14,6 +14,8 @@ import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
 import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
 
 // Lazy load all page components for code splitting
 
@@ -92,6 +94,17 @@ const PageLoader = () => (
   </div>
 );
 
+// Client-specific loader with black background to prevent white flash
+const ClientPageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-black">
+    <img
+      src="/images/oom-logo-email-white.png"
+      alt="OOM"
+      className="h-16 animate-pulse"
+    />
+  </div>
+);
+
 const App = () => {
   // Initialize OneSignal for push notifications
   useOneSignal();
@@ -167,25 +180,33 @@ const App = () => {
             
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
             <Route path="/client/:hotelId" element={
-              <ClientFlowWrapper>
-                <Welcome />
-              </ClientFlowWrapper>
+              <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
+                <Suspense fallback={<ClientPageLoader />}>
+                  <ClientFlowWrapper>
+                    <Welcome />
+                  </ClientFlowWrapper>
+                </Suspense>
+              </ErrorBoundary>
             } />
             <Route path="/client/:hotelId/*" element={
-              <ClientFlowWrapper>
-                <CartProvider hotelId={window.location.pathname.split('/')[2]}>
-                  <Routes>
-                    <Route path="/treatments" element={<ClientTreatments />} />
-                    {/* Cart page removed from flow - direct navigation to schedule */}
-                    {/* <Route path="/cart" element={<Cart />} /> */}
-                    <Route path="/schedule" element={<Schedule />} />
-                    <Route path="/guest-info" element={<GuestInfo />} />
-                    <Route path="/payment" element={<Payment />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
-                  </Routes>
-                </CartProvider>
-              </ClientFlowWrapper>
+              <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
+                <Suspense fallback={<ClientPageLoader />}>
+                  <ClientFlowWrapper>
+                    <CartProvider hotelId={window.location.pathname.split('/')[2]}>
+                      <Routes>
+                        <Route path="/treatments" element={<ClientTreatments />} />
+                        {/* Cart page removed from flow - direct navigation to schedule */}
+                        {/* <Route path="/cart" element={<Cart />} /> */}
+                        <Route path="/schedule" element={<Schedule />} />
+                        <Route path="/guest-info" element={<GuestInfo />} />
+                        <Route path="/payment" element={<Payment />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                      </Routes>
+                    </CartProvider>
+                  </ClientFlowWrapper>
+                </Suspense>
+              </ErrorBoundary>
             } />
 
             {/* Client Booking Management (Public) */}

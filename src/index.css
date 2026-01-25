@@ -8,10 +8,12 @@ All colors MUST be HSL.
 
 @font-face {
   font-family: 'Kormelink';
-  src: url('/fonts/WT_Kormelink_Roman_DESK_1.1.ttf') format('truetype');
+  /* WOFF2 for modern browsers (smaller), TTF fallback */
+  src: url('/fonts/Kormelink.woff2') format('woff2'),
+       url('/fonts/WT_Kormelink_Roman_DESK_1.1.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: block; /* Changed from swap to block to prevent FOUT */
+  font-display: swap; /* Show fallback font immediately, swap when loaded */
 }
 
 @layer base {

@@ -28,6 +28,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProgressBar } from '@/components/client/ProgressBar';
 
 const createClientInfoSchema = (t: TFunction) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
@@ -144,13 +145,7 @@ export default function GuestInfo() {
           </Button>
           <h1 className="text-lg font-light text-white">{t('info.title')}</h1>
         </div>
-        {/* Progress bar */}
-        <div className="w-full bg-white/10 h-0.5">
-          <div
-            className="bg-gold-400 h-full transition-all duration-500"
-            style={{ width: '66.66%' }}
-          />
-        </div>
+        <ProgressBar currentStep="guest-info" />
       </div>
 
       <Form {...form}>

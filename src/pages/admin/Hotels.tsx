@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AddHotelDialog } from "@/components/AddHotelDialog";
-import { EditHotelDialog } from "@/components/EditHotelDialog";
+import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -540,10 +539,11 @@ export default function Hotels() {
         </div>
       </div>
 
-      <AddHotelDialog
+      <VenueWizardDialog
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
+        mode="add"
       />
 
       <HotelDetailDialog
@@ -559,10 +559,11 @@ export default function Hotels() {
       />
 
       {editHotelId && (
-        <EditHotelDialog
+        <VenueWizardDialog
           open={!!editHotelId}
           onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchHotels}
+          mode="edit"
           hotelId={editHotelId}
         />
       )}

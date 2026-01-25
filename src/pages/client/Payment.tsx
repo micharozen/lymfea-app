@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
+import { ProgressBar } from '@/components/client/ProgressBar';
 
 export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -160,13 +161,7 @@ export default function Payment() {
           </Button>
           <h1 className="text-lg font-light text-white">{t('payment.title')}</h1>
         </div>
-        {/* Progress bar */}
-        <div className="w-full bg-white/10 h-0.5">
-          <div
-            className="bg-gold-400 h-full transition-all duration-500"
-            style={{ width: '100%' }}
-          />
-        </div>
+        <ProgressBar currentStep="payment" />
       </div>
 
       <div className="px-6 py-6 space-y-8 pb-32">

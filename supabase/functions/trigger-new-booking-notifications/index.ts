@@ -139,6 +139,9 @@ serve(async (req) => {
                   url: `/pwa/booking/${booking.id}`,
                 },
               },
+              headers: {
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
             }
           );
 
