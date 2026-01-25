@@ -8,6 +8,7 @@ import { ArrowLeft, ShoppingBag, Minus, Plus, Sparkles, ChevronDown } from 'luci
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
+import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -59,6 +60,8 @@ export default function Treatments() {
       return data?.[0] || null;
     },
     enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - hotel info rarely changes
+    gcTime: 30 * 60 * 1000,    // 30 minutes cache
   });
 
   const { data: allTreatments = [], isLoading: isTreatmentsLoading } = useQuery({
@@ -72,6 +75,8 @@ export default function Treatments() {
       return (data || []) as (Treatment & { service_for: string })[];
     },
     enabled: !!hotelId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - treatments change occasionally
+    gcTime: 15 * 60 * 1000,   // 15 minutes cache
   });
 
   // Group treatments by gender
@@ -96,6 +101,8 @@ export default function Treatments() {
       return (data?.venue_type as VenueType) || null;
     },
     enabled: !!hotelId,
+    staleTime: 30 * 60 * 1000, // 30 minutes - venue type never changes mid-session
+    gcTime: 60 * 60 * 1000,    // 1 hour cache
   });
 
   const venueTerms = useVenueTerms(venueType);
@@ -171,11 +178,7 @@ export default function Treatments() {
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <TreatmentsSkeleton />;
   }
 
   return (

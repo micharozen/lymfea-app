@@ -14,6 +14,8 @@
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useClientSession } from '@/hooks/useClientSession';
+import { useClientPrefetch } from '@/hooks/useClientPrefetch';
+import { PageTransition } from '@/components/client/PageTransition';
 import { ClientFlowProvider } from '@/pages/client/context/FlowContext';
 
 interface ClientFlowWrapperProps {
@@ -24,12 +26,15 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
   const { hotelId } = useParams<{ hotelId: string }>();
   const { getSession, initSession } = useClientSession();
 
+  // Prefetch data for the next page in the booking flow
+  useClientPrefetch();
+
   useEffect(() => {
     if (!hotelId) return;
 
     // Check if we already have a session for this hotel
     const existingSession = getSession();
-    
+
     // Only initialize if no session exists or it's for a different hotel
     if (!existingSession || existingSession.hotelId !== hotelId) {
       initSession(hotelId);
@@ -38,7 +43,9 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
 
   return (
     <ClientFlowProvider>
-      <div className="lymfea-client">{children}</div>
+      <PageTransition>
+        <div className="lymfea-client">{children}</div>
+      </PageTransition>
     </ClientFlowProvider>
   );
 };

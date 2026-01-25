@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AddHotelDialog } from "@/components/AddHotelDialog";
-import { EditHotelDialog } from "@/components/EditHotelDialog";
+import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -62,6 +61,14 @@ interface HotelStats {
   totalSales: number;
 }
 
+interface DeploymentSchedule {
+  schedule_type: 'always_open' | 'specific_days' | 'one_time';
+  days_of_week: number[] | null;
+  recurring_start_date: string | null;
+  recurring_end_date: string | null;
+  specific_dates: string[] | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -77,11 +84,14 @@ interface Hotel {
   hairdresser_commission: number;
   status: string;
   venue_type: 'hotel' | 'coworking' | null;
+  opening_time: string | null;
+  closing_time: string | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
   trunks?: Trunk[];
   stats?: HotelStats;
+  deployment_schedule?: DeploymentSchedule;
 }
 
 export default function Hotels() {
@@ -192,6 +202,25 @@ export default function Hotels() {
 
       if (bookingsError) throw bookingsError;
 
+      // Fetch deployment schedules
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("venue_deployment_schedules")
+        .select("*");
+
+      if (schedulesError) throw schedulesError;
+
+      // Create a map of hotel_id to deployment schedule
+      const hotelSchedules: Record<string, DeploymentSchedule> = {};
+      (schedulesData || []).forEach((schedule) => {
+        hotelSchedules[schedule.hotel_id] = {
+          schedule_type: schedule.schedule_type,
+          days_of_week: schedule.days_of_week,
+          recurring_start_date: schedule.recurring_start_date,
+          recurring_end_date: schedule.recurring_end_date,
+          specific_dates: schedule.specific_dates,
+        };
+      });
+
       // Calculate stats per hotel
       const hotelStats: Record<string, HotelStats> = {};
       (bookingsData || []).forEach((booking) => {
@@ -228,6 +257,7 @@ export default function Hotels() {
           concierges: hotelConcierges,
           trunks: hotelTrunks,
           stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
+          deployment_schedule: hotelSchedules[hotel.id],
         };
       });
 
@@ -540,10 +570,11 @@ export default function Hotels() {
         </div>
       </div>
 
-      <AddHotelDialog
+      <VenueWizardDialog
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
+        mode="add"
       />
 
       <HotelDetailDialog
@@ -559,10 +590,11 @@ export default function Hotels() {
       />
 
       {editHotelId && (
-        <EditHotelDialog
+        <VenueWizardDialog
           open={!!editHotelId}
           onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchHotels}
+          mode="edit"
           hotelId={editHotelId}
         />
       )}

@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
+import { WelcomeSkeleton } from '@/components/client/skeletons/WelcomeSkeleton';
 import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
 import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
@@ -39,11 +40,13 @@ export default function Welcome() {
     queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
-      
+
       if (error) throw error;
       return data?.[0] || null;
     },
     enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - hotel info rarely changes
+    gcTime: 30 * 60 * 1000,    // 30 minutes cache
   });
 
   const { data: treatments = [], isLoading: isTreatmentsLoading } = useQuery({
@@ -57,6 +60,8 @@ export default function Welcome() {
       return (data || []).slice(0, 5) as Treatment[];
     },
     enabled: !!hotelId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - treatments change occasionally
+    gcTime: 15 * 60 * 1000,   // 15 minutes cache
   });
 
   const { data: venueType } = useQuery({
@@ -70,6 +75,8 @@ export default function Welcome() {
       return (data?.venue_type as VenueType) || null;
     },
     enabled: !!hotelId,
+    staleTime: 30 * 60 * 1000, // 30 minutes - venue type never changes mid-session
+    gcTime: 60 * 60 * 1000,    // 1 hour cache
   });
 
   const venueTerms = useVenueTerms(venueType);
@@ -78,13 +85,7 @@ export default function Welcome() {
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gold-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        </div>
-      </div>
-    );
+    return <WelcomeSkeleton />;
   }
 
   if (!hotel) {
@@ -163,7 +164,8 @@ export default function Welcome() {
                       <img
                         src={getOptimizedImageUrl(treatment.image, 256) || ''}
                         alt={treatment.name}
-                        loading="eager"
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
                       />
                     ) : (

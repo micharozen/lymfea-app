@@ -25,6 +25,50 @@ serve(async (req) => {
 
     console.log(`Checking availability for hotel ${hotelId} on ${date}`);
 
+    // Check if venue is deployed on this date
+    const { data: isVenueAvailable, error: scheduleError } = await supabase
+      .rpc('is_venue_available_on_date', {
+        _hotel_id: hotelId,
+        _check_date: date
+      });
+
+    if (scheduleError) {
+      console.error('Error checking venue schedule:', scheduleError);
+    }
+
+    // If venue is not deployed on this date, return no slots
+    if (isVenueAvailable === false) {
+      console.log(`Venue ${hotelId} is not deployed on ${date}`);
+      return new Response(
+        JSON.stringify({
+          availableSlots: [],
+          reason: 'venue_not_deployed'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get hotel opening/closing hours
+    const { data: hotelData, error: hotelError } = await supabase
+      .from('hotels')
+      .select('opening_time, closing_time')
+      .eq('id', hotelId)
+      .single();
+
+    if (hotelError) {
+      console.error('Error fetching hotel:', hotelError);
+    }
+
+    // Parse hours, defaulting to 06:00 and 23:00 if not set
+    const openingHour = hotelData?.opening_time
+      ? parseInt(hotelData.opening_time.split(':')[0], 10)
+      : 6;
+    const closingHour = hotelData?.closing_time
+      ? parseInt(hotelData.closing_time.split(':')[0], 10)
+      : 23;
+
+    console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00`);
+
     // Get the maximum lead_time from selected treatments (if provided)
     let maxLeadTime = 0;
     if (treatmentIds && treatmentIds.length > 0) {
@@ -100,9 +144,10 @@ serve(async (req) => {
 
     // Get all bookings for this hotel on this date (for trunk capacity check)
     // Exclude cancelled/terminated bookings
+    // Include duration for overlap checking
     const { data: allHotelBookings, error: allBookingsError } = await supabase
       .from('bookings')
-      .select('booking_time, hairdresser_id, status, trunk_id')
+      .select('booking_time, hairdresser_id, status, trunk_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
       .not('status', 'in', '("Annulé","Terminé","cancelled")');
@@ -114,14 +159,36 @@ serve(async (req) => {
 
     console.log(`Found ${allHotelBookings?.length || 0} active bookings for hotel on ${date}`);
 
-    // Generate all time slots (6AM to 11PM every 30 minutes)
+    // Helper function to convert time string to minutes
+    const timeToMinutes = (time: string): number => {
+      const [hours, minutes] = time.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    // Function to check if a slot is blocked by an existing booking (considering duration)
+    const isSlotBlockedByBooking = (
+      slotTime: string,
+      bookingTime: string,
+      bookingDuration: number
+    ): boolean => {
+      const slotMinutes = timeToMinutes(slotTime);
+      const bookingStartMinutes = timeToMinutes(bookingTime);
+      const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30);
+
+      // The slot is blocked if it falls during the booking duration
+      return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
+    };
+
+    // Generate time slots based on venue opening hours (every 30 minutes)
     const timeSlots = [];
-    for (let hour = 6; hour < 23; hour++) {
-      for (let minute of [0, 30]) {
+    for (let hour = openingHour; hour < closingHour; hour++) {
+      for (const minute of [0, 30]) {
         const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
         timeSlots.push(time24);
       }
     }
+
+    console.log(`Generated ${timeSlots.length} time slots from ${openingHour}:00 to ${closingHour}:00`);
 
     // Calculate the earliest bookable time based on lead_time
     const now = new Date();
@@ -149,11 +216,13 @@ serve(async (req) => {
         return false;
       }
 
-      // Get bookings at this slot
-      const bookingsAtSlot = (allHotelBookings || []).filter(b => b.booking_time === slot);
+      // Get bookings that block this slot (considering duration overlap)
+      const bookingsBlockingSlot = (allHotelBookings || []).filter((b: any) =>
+        isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30)
+      );
 
-      // TRUNK CAPACITY CHECK: Count active bookings at this slot
-      const activeBookingsCount = bookingsAtSlot.length;
+      // TRUNK CAPACITY CHECK: Count bookings blocking this slot
+      const activeBookingsCount = bookingsBlockingSlot.length;
       if (activeBookingsCount >= totalTrunks) {
         // All trunks are occupied at this time
         return false;
@@ -161,9 +230,9 @@ serve(async (req) => {
 
       // HAIRDRESSER CHECK: At least one hairdresser must be free
       const busyHairdressers = new Set(
-        bookingsAtSlot
-          .filter(b => b.hairdresser_id !== null)
-          .map(b => b.hairdresser_id)
+        bookingsBlockingSlot
+          .filter((b: any) => b.hairdresser_id !== null)
+          .map((b: any) => b.hairdresser_id)
       );
 
       const availableHairdresserCount = hairdresserIds.length - busyHairdressers.size;
