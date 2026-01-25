@@ -11,7 +11,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CalendarIcon, Loader2, X, Repeat } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -26,6 +33,7 @@ interface VenueScheduleData {
   recurring_start_date: string | null;
   recurring_end_date: string | null;
   specific_dates: string[] | null;
+  recurrence_interval: number;
 }
 
 interface VenueDeploymentScheduleFormProps {
@@ -42,6 +50,13 @@ const DAYS_OF_WEEK = [
   { value: 0, label: "Dim" },
 ];
 
+const RECURRENCE_OPTIONS = [
+  { value: 1, label: "Chaque semaine" },
+  { value: 2, label: "Toutes les 2 semaines" },
+  { value: 3, label: "Toutes les 3 semaines" },
+  { value: 4, label: "Toutes les 4 semaines" },
+];
+
 export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentScheduleFormProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,6 +69,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
   const [recurringStartDate, setRecurringStartDate] = useState<Date | undefined>(undefined);
   const [recurringEndDate, setRecurringEndDate] = useState<Date | undefined>(undefined);
   const [specificDates, setSpecificDates] = useState<Date[]>([]);
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
 
   useEffect(() => {
     loadSchedule();
@@ -73,6 +89,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
       if (data) {
         setScheduleData(data);
         setIsAlwaysOpen(data.schedule_type === "always_open");
+        setRecurrenceInterval(data.recurrence_interval || 1);
 
         if (data.schedule_type === "specific_days") {
           setScheduleType("specific_days");
@@ -103,6 +120,7 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
         recurring_start_date: null,
         recurring_end_date: null,
         specific_dates: null,
+        recurrence_interval: isAlwaysOpen ? 1 : (scheduleType === "specific_days" ? recurrenceInterval : 1),
       };
 
       if (!isAlwaysOpen) {
@@ -258,6 +276,34 @@ export function VenueDeploymentScheduleForm({ hotelId }: VenueDeploymentSchedule
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Recurrence Interval */}
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-1.5">
+                  <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                  Fréquence de récurrence
+                </Label>
+                <Select
+                  value={recurrenceInterval.toString()}
+                  onValueChange={(value) => setRecurrenceInterval(parseInt(value, 10))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Chaque semaine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RECURRENCE_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value.toString()}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {recurrenceInterval > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Le lieu sera disponible toutes les {recurrenceInterval} semaines, à partir de la date de début.
+                  </p>
+                )}
               </div>
 
               {/* Start date */}

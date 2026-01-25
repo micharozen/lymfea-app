@@ -94,6 +94,7 @@ export function VenueWizardDialog({
     recurringStartDate: undefined,
     recurringEndDate: undefined,
     specificDates: [],
+    recurrenceInterval: 1,
   });
 
   const {
@@ -154,6 +155,7 @@ export function VenueWizardDialog({
           recurringStartDate: undefined,
           recurringEndDate: undefined,
           specificDates: [],
+          recurrenceInterval: 1,
         });
         setExistingScheduleId(null);
       }
@@ -236,6 +238,7 @@ export function VenueWizardDialog({
           recurringStartDate: schedule.recurring_start_date ? new Date(schedule.recurring_start_date) : undefined,
           recurringEndDate: schedule.recurring_end_date ? new Date(schedule.recurring_end_date) : undefined,
           specificDates: (schedule.specific_dates || []).map((d: string) => new Date(d)),
+          recurrenceInterval: schedule.recurrence_interval || 1,
         });
       }
     } catch (error) {
@@ -447,6 +450,11 @@ export function VenueWizardDialog({
         : deploymentState.scheduleType === "one_time"
           ? deploymentState.specificDates.map(d => format(d, "yyyy-MM-dd"))
           : null,
+      recurrence_interval: deploymentState.isAlwaysOpen
+        ? 1
+        : deploymentState.scheduleType === "specific_days"
+          ? deploymentState.recurrenceInterval
+          : 1,
     };
 
     if (existingScheduleId) {

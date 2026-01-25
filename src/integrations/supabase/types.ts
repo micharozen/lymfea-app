@@ -1001,6 +1001,7 @@ export type Database = {
           recurring_start_date: string | null
           recurring_end_date: string | null
           specific_dates: string[] | null
+          recurrence_interval: number
           created_at: string
           updated_at: string
         }
@@ -1012,6 +1013,7 @@ export type Database = {
           recurring_start_date?: string | null
           recurring_end_date?: string | null
           specific_dates?: string[] | null
+          recurrence_interval?: number
           created_at?: string
           updated_at?: string
         }
@@ -1023,6 +1025,7 @@ export type Database = {
           recurring_start_date?: string | null
           recurring_end_date?: string | null
           specific_dates?: string[] | null
+          recurrence_interval?: number
           created_at?: string
           updated_at?: string
         }
@@ -1089,6 +1092,9 @@ export type Database = {
           closing_time: string | null
           schedule_type: string | null
           days_of_week: number[] | null
+          recurrence_interval: number | null
+          recurring_start_date: string | null
+          recurring_end_date: string | null
         }[]
       }
       get_public_hotels: {

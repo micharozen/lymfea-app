@@ -45,6 +45,13 @@ const DAYS_OF_WEEK = [
   { value: 0, label: "Dim" },
 ];
 
+const RECURRENCE_OPTIONS = [
+  { value: 1, label: "Chaque semaine" },
+  { value: 2, label: "Toutes les 2 semaines" },
+  { value: 3, label: "Toutes les 3 semaines" },
+  { value: 4, label: "Toutes les 4 semaines" },
+];
+
 // Generate time options from 00:00 to 23:30 in 30-minute increments
 const generateTimeOptions = () => {
   const options = [];
@@ -76,6 +83,7 @@ export interface DeploymentScheduleState {
   recurringStartDate: Date | undefined;
   recurringEndDate: Date | undefined;
   specificDates: Date[];
+  recurrenceInterval: number;
 }
 
 interface VenueDeploymentStepProps {
@@ -92,6 +100,7 @@ export function VenueDeploymentStep({ form, state, onChange }: VenueDeploymentSt
     recurringStartDate,
     recurringEndDate,
     specificDates,
+    recurrenceInterval,
   } = state;
 
   const updateState = (updates: Partial<DeploymentScheduleState>) => {
@@ -263,6 +272,34 @@ export function VenueDeploymentStep({ form, state, onChange }: VenueDeploymentSt
                   </div>
                   {selectedDays.length === 0 && (
                     <p className="text-xs text-destructive">Sélectionnez au moins un jour</p>
+                  )}
+                </div>
+
+                {/* Recurrence Interval */}
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-1.5">
+                    <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                    Fréquence de récurrence
+                  </Label>
+                  <Select
+                    value={recurrenceInterval.toString()}
+                    onValueChange={(value) => updateState({ recurrenceInterval: parseInt(value, 10) })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Chaque semaine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RECURRENCE_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {recurrenceInterval > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      Le lieu sera disponible toutes les {recurrenceInterval} semaines, à partir de la date de début.
+                    </p>
                   )}
                 </div>
 

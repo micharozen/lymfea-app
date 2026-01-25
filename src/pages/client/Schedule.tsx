@@ -85,6 +85,12 @@ export default function Schedule() {
 
   // Generate date options filtered by venue deployment schedule
   const dateOptions = useMemo(() => {
+    // Don't generate dates until availableDates is loaded
+    // This prevents showing all dates when the RPC call fails or is pending
+    if (!availableDates) {
+      return [];
+    }
+
     const dates = [];
     const today = new Date();
 
@@ -93,7 +99,7 @@ export default function Schedule() {
       const dateStr = format(date, 'yyyy-MM-dd');
 
       // Skip dates not in the venue's deployment schedule
-      if (availableDates && !availableDates.has(dateStr)) {
+      if (!availableDates.has(dateStr)) {
         continue;
       }
 
@@ -243,7 +249,7 @@ export default function Schedule() {
             {t('checkout.dateTime').split('&')[0].trim()}
           </h4>
           <div className="relative">
-            {loadingAvailableDates ? (
+            {(loadingAvailableDates || !availableDates) ? (
               <div className="flex justify-center py-8">
                 <ClientSpinner size="md" />
               </div>
