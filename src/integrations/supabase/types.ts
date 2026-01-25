@@ -530,6 +530,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          closing_time: string | null
           country: string | null
           country_code: string | null
           cover_image: string | null
@@ -540,6 +541,7 @@ export type Database = {
           id: string
           image: string | null
           name: string
+          opening_time: string | null
           postal_code: string | null
           status: string | null
           timezone: string | null
@@ -550,6 +552,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          closing_time?: string | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -560,6 +563,7 @@ export type Database = {
           id?: string
           image?: string | null
           name: string
+          opening_time?: string | null
           postal_code?: string | null
           status?: string | null
           timezone?: string | null
@@ -570,6 +574,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          closing_time?: string | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -580,6 +585,7 @@ export type Database = {
           id?: string
           image?: string | null
           name?: string
+          opening_time?: string | null
           postal_code?: string | null
           status?: string | null
           timezone?: string | null
@@ -986,6 +992,50 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_deployment_schedules: {
+        Row: {
+          id: string
+          hotel_id: string
+          schedule_type: Database["public"]["Enums"]["schedule_type"]
+          days_of_week: number[] | null
+          recurring_start_date: string | null
+          recurring_end_date: string | null
+          specific_dates: string[] | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          days_of_week?: number[] | null
+          recurring_start_date?: string | null
+          recurring_end_date?: string | null
+          specific_dates?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          days_of_week?: number[] | null
+          recurring_start_date?: string | null
+          recurring_end_date?: string | null
+          specific_dates?: string[] | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_deployment_schedules_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: true
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1035,6 +1085,10 @@ export type Database = {
           name: string
           status: string
           vat: number
+          opening_time: string | null
+          closing_time: string | null
+          schedule_type: string | null
+          days_of_week: number[] | null
         }[]
       }
       get_public_hotels: {
@@ -1088,9 +1142,25 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_venue_available_on_date: {
+        Args: {
+          _hotel_id: string
+          _check_date: string
+        }
+        Returns: boolean
+      }
+      get_venue_available_dates: {
+        Args: {
+          _hotel_id: string
+          _start_date: string
+          _end_date: string
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "concierge" | "hairdresser"
+      schedule_type: "always_open" | "specific_days" | "one_time"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1219,6 +1289,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user", "concierge", "hairdresser"],
+      schedule_type: ["always_open", "specific_days", "one_time"],
     },
   },
 } as const

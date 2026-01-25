@@ -11,6 +11,10 @@ import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import TimePeriodSelector from '@/components/client/TimePeriodSelector';
+import { ScheduleSkeleton } from '@/components/client/skeletons/ScheduleSkeleton';
+import { ProgressBar } from '@/components/client/ProgressBar';
+import { ClientSpinner } from '@/components/client/ClientSpinner';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Schedule() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -26,20 +30,80 @@ export default function Schedule() {
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noHairdressers, setNoHairdressers] = useState(false);
 
-  // Generate date options (next 14 days)
+  // Fetch venue opening/closing hours and schedule info
+  const { data: venueData } = useQuery({
+    queryKey: ['venue-data', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
+
+      if (error) throw error;
+      const hotel = data?.[0];
+
+      // Parse hours, default to 6AM-11PM if not set
+      const openingHour = hotel?.opening_time
+        ? parseInt(hotel.opening_time.split(':')[0], 10)
+        : 6;
+      const closingHour = hotel?.closing_time
+        ? parseInt(hotel.closing_time.split(':')[0], 10)
+        : 23;
+
+      // Determine max days based on schedule
+      // If recurring schedule with less than 5 days/week, extend to 90 days
+      const isRecurring = hotel?.schedule_type === 'specific_days';
+      const daysPerWeek = hotel?.days_of_week?.length ?? 7;
+      const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
+
+      return { openingHour, closingHour, maxDaysAhead };
+    },
+    enabled: !!hotelId,
+    staleTime: 30 * 60 * 1000, // 30 minutes - opening hours rarely change
+    gcTime: 60 * 60 * 1000,    // 1 hour cache
+  });
+
+  // Fetch available dates based on venue deployment schedule
+  const maxDaysAhead = venueData?.maxDaysAhead ?? 14;
+  const { data: availableDates, isLoading: loadingAvailableDates } = useQuery({
+    queryKey: ['venue-available-dates', hotelId, maxDaysAhead],
+    queryFn: async () => {
+      const today = new Date();
+      const endDate = addDays(today, maxDaysAhead);
+
+      const { data, error } = await supabase.rpc('get_venue_available_dates', {
+        _hotel_id: hotelId,
+        _start_date: format(today, 'yyyy-MM-dd'),
+        _end_date: format(endDate, 'yyyy-MM-dd'),
+      });
+
+      if (error) throw error;
+      return new Set(data || []);
+    },
+    enabled: !!hotelId && !!venueData,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000,   // 30 minutes cache
+  });
+
+  // Generate date options filtered by venue deployment schedule
   const dateOptions = useMemo(() => {
     const dates = [];
     const today = new Date();
 
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < maxDaysAhead; i++) {
       const date = addDays(today, i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+
+      // Skip dates not in the venue's deployment schedule
+      if (availableDates && !availableDates.has(dateStr)) {
+        continue;
+      }
+
       let label = format(date, 'd MMM', { locale });
 
       if (i === 0) label = t('common:dates.today');
       else if (i === 1) label = t('common:dates.tomorrow');
 
       dates.push({
-        value: format(date, 'yyyy-MM-dd'),
+        value: dateStr,
         label,
         dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
         fullLabel: format(date, 'd MMM', { locale }),
@@ -48,9 +112,9 @@ export default function Schedule() {
     }
 
     return dates;
-  }, [locale, t]);
+  }, [locale, t, availableDates, maxDaysAhead]);
 
-  // Generate time slots (6AM to 11PM every 10 minutes), filtering out past times for today
+  // Generate time slots based on venue hours, filtering out past times for today
   const timeSlots = useMemo(() => {
     const slots = [];
     const now = new Date();
@@ -58,7 +122,10 @@ export default function Schedule() {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    for (let hour = 6; hour < 23; hour++) {
+    const openingHour = venueData?.openingHour ?? 6;
+    const closingHour = venueData?.closingHour ?? 23;
+
+    for (let hour = openingHour; hour < closingHour; hour++) {
       for (let minute = 0; minute < 60; minute += 10) {
         // Skip past times if selected date is today
         if (selectedDate === todayStr) {
@@ -80,7 +147,7 @@ export default function Schedule() {
       }
     }
     return slots;
-  }, [selectedDate]);
+  }, [selectedDate, venueData]);
 
   // Fetch available slots when date changes
   useEffect(() => {
@@ -156,13 +223,7 @@ export default function Schedule() {
           </Button>
           <h1 className="text-lg font-light text-white">{t('datetime.title')}</h1>
         </div>
-        {/* Progress bar */}
-        <div className="w-full bg-white/10 h-0.5">
-          <div
-            className="bg-gold-400 h-full transition-all duration-500"
-            style={{ width: '33.33%' }}
-          />
-        </div>
+        <ProgressBar currentStep="schedule" />
       </div>
 
       <div className="px-6 py-6 space-y-8">
@@ -182,37 +243,49 @@ export default function Schedule() {
             {t('checkout.dateTime').split('&')[0].trim()}
           </h4>
           <div className="relative">
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
-              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setSelectedDate(value)}
-                  className={cn(
-                    "flex-shrink-0 snap-start px-5 py-4 rounded-lg border transition-all duration-200 min-w-[90px]",
-                    selectedDate === value
-                      ? "border-gold-400 bg-gold-400/10"
-                      : "border-white/20 bg-white/5 hover:border-white/40"
-                  )}
-                >
-                  <div className="text-center">
-                    {!isSpecial && (
-                      <div className="text-[10px] text-white/50 mb-1 tracking-wider">
-                        {dayLabel}
-                      </div>
-                    )}
-                    <div className={cn(
-                      "text-sm whitespace-nowrap",
+            {loadingAvailableDates ? (
+              <div className="flex justify-center py-8">
+                <ClientSpinner size="md" />
+              </div>
+            ) : dateOptions.length === 0 ? (
+              <div className="text-center py-8 border border-white/10 rounded-lg bg-white/5">
+                <Calendar className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                <p className="text-white/60 text-sm mb-2">{t('datetime.noDatesAvailable') || 'Aucune date disponible'}</p>
+                <p className="text-white/40 text-xs">{t('datetime.contactVenue') || 'Veuillez contacter le lieu'}</p>
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+                {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSelectedDate(value)}
+                    className={cn(
+                      "flex-shrink-0 snap-start px-5 py-4 rounded-lg border transition-all duration-200 min-w-[90px]",
                       selectedDate === value
-                        ? "text-gold-400 font-medium"
-                        : "text-white font-light"
-                    )}>
-                      {isSpecial ? label : fullLabel}
+                        ? "border-gold-400 bg-gold-400/10"
+                        : "border-white/20 bg-white/5 hover:border-white/40"
+                    )}
+                  >
+                    <div className="text-center">
+                      {!isSpecial && (
+                        <div className="text-[10px] text-white/50 mb-1 tracking-wider">
+                          {dayLabel}
+                        </div>
+                      )}
+                      <div className={cn(
+                        "text-sm whitespace-nowrap",
+                        selectedDate === value
+                          ? "text-gold-400 font-medium"
+                          : "text-white font-light"
+                      )}>
+                        {isSpecial ? label : fullLabel}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -229,7 +302,7 @@ export default function Schedule() {
             </div>
           ) : loadingAvailability ? (
             <div className="flex justify-center py-12">
-              <div className="w-10 h-10 border-2 border-gold-400 border-t-transparent rounded-full animate-spin" />
+              <ClientSpinner size="md" />
             </div>
           ) : noHairdressers || availableSlots.length === 0 ? (
             <div className="text-center py-12 border border-white/10 rounded-lg bg-white/5">
