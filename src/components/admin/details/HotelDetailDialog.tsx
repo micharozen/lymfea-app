@@ -110,6 +110,7 @@ interface Hotel {
   venue_type?: 'hotel' | 'coworking' | null;
   opening_time?: string | null;
   closing_time?: string | null;
+  auto_validate_bookings?: boolean | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
@@ -174,6 +175,14 @@ export function HotelDetailDialog({
                     )}
                   >
                     {hotel.venue_type === "hotel" ? "Hotel" : "Coworking"}
+                  </Badge>
+                )}
+                {hotel.auto_validate_bookings && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-emerald-500/10 text-emerald-700 border-emerald-200"
+                  >
+                    Auto-validation
                   </Badge>
                 )}
               </div>

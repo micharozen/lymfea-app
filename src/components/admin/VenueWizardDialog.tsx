@@ -45,6 +45,7 @@ const createFormSchema = (t: TFunction) => z.object({
   timezone: z.string().default("Europe/Paris"),
   opening_time: z.string().default("06:00"),
   closing_time: z.string().default("23:00"),
+  auto_validate_bookings: z.boolean().default(false),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
   const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
@@ -132,6 +133,7 @@ export function VenueWizardDialog({
       timezone: "Europe/Paris",
       opening_time: "06:00",
       closing_time: "23:00",
+      auto_validate_bookings: false,
     },
   });
 
@@ -206,6 +208,7 @@ export function VenueWizardDialog({
           timezone: hotel.timezone || "Europe/Paris",
           opening_time: hotel.opening_time?.substring(0, 5) || "06:00",
           closing_time: hotel.closing_time?.substring(0, 5) || "23:00",
+          auto_validate_bookings: hotel.auto_validate_bookings || false,
         });
 
         setHotelImage(hotel.image || "");
@@ -341,6 +344,7 @@ export function VenueWizardDialog({
             timezone: values.timezone,
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
+            auto_validate_bookings: values.auto_validate_bookings,
           })
           .select('id')
           .single();
@@ -382,6 +386,7 @@ export function VenueWizardDialog({
             timezone: values.timezone,
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
+            auto_validate_bookings: values.auto_validate_bookings,
           })
           .eq("id", hotelId);
 

@@ -36,7 +36,9 @@ import {
   Percent,
   Package,
   Clock,
+  Settings,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -542,6 +544,32 @@ export function VenueGeneralInfoStep({
 
           <OomCommissionDisplay control={form.control} />
         </div>
+      </div>
+
+      {/* Section: Paramètres */}
+      <div>
+        <SectionHeader icon={Settings} title="Paramètres de réservation" />
+
+        <FormField
+          control={form.control}
+          name="auto_validate_bookings"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Auto-validation des réservations</FormLabel>
+                <p className="text-sm text-muted-foreground">
+                  Si activé et qu'un seul coiffeur est assigné au lieu, les réservations seront automatiquement confirmées sans validation manuelle.
+                </p>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       </div>
     </div>
   );
