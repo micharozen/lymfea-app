@@ -30,14 +30,14 @@ export default function Confirmation() {
   // Show loading while fetching booking status
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center space-y-6">
         {/* Success Checkmark */}
         <div className="flex justify-center mb-8">
@@ -55,11 +55,11 @@ export default function Confirmation() {
         
         {/* Success Message */}
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-white">
             {isQuotePending ? t('confirmation.quotePendingTitle') : t('confirmation.title')}
           </h1>
           
-          <p className="text-muted-foreground leading-relaxed px-4">
+          <p className="text-white/70 leading-relaxed px-4">
             {isQuotePending 
               ? t('confirmation.quotePendingMessage')
               : t('confirmation.message')

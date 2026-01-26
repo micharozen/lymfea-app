@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
 import { WelcomeSkeleton } from '@/components/client/skeletons/WelcomeSkeleton';
+import { VideoDialog } from '@/components/client/VideoDialog';
 import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
 import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
@@ -34,6 +36,7 @@ export default function Welcome() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
+  const [videoOpen, setVideoOpen] = useState(false);
 
   const { data: hotel, isLoading: isHotelLoading } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -137,15 +140,12 @@ export default function Welcome() {
             </p>
         </div>
 
-        {/* Our Experts Section */}
-        <PractitionerCarousel hotelId={hotelId!} />
-
-        {/* 3. Visual Service Menu (Preview) */}
+        {/* Visual Service Menu (Preview) */}
         {treatments.length > 0 && (
           <div className="mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between px-6 mb-4">
               <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">{t('welcome.ourServices')}</h4>
-              <button 
+              <button
                 onClick={() => navigate(`/client/${hotelId}/treatments`)}
                 className="text-xs text-gold-400 hover:text-gold-300"
               >
@@ -154,7 +154,7 @@ export default function Welcome() {
             </div>
             <div className="flex gap-4 overflow-x-auto px-6 no-scrollbar pb-2">
               {treatments.map((treatment) => (
-                <div 
+                <div
                   key={treatment.id}
                   onClick={() => navigate(`/client/${hotelId}/treatments`)}
                   className="flex-shrink-0 w-32 group cursor-pointer"
@@ -184,6 +184,9 @@ export default function Welcome() {
           </div>
         )}
 
+        {/* Our Experts Section */}
+        <PractitionerCarousel hotelId={hotelId!} />
+
         {/* 4. Call to Action & Social Proof */}
         <div className="px-6 pb-10 space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <Button 
@@ -209,20 +212,27 @@ export default function Welcome() {
                   </span>
                 </div>
                 <p className="text-[9px] text-white/30 text-center uppercase tracking-widest leading-relaxed">
-                  {t('welcome.availability')} <br/>
+                  {/* {t('welcome.availability')} <br/> */}
                   {t('welcome.equipmentIncluded')}
                 </p>
             </div>
 
-             <Button 
-                variant="ghost" 
-                onClick={() => navigate(`/client/${hotelId}/info`)} 
+             <Button
+                variant="ghost"
+                onClick={() => setVideoOpen(true)}
                 className="w-full text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2"
             >
                 {t('welcome.howItWorks')}
             </Button>
         </div>
       </div>
+
+      <VideoDialog
+        open={videoOpen}
+        onOpenChange={setVideoOpen}
+        videoId={venueType === 'coworking' ? 'u8HxuKPgtco' : 'Lw0gv5VjqY8'}
+        hotelId={hotelId!}
+      />
     </div>
   );
 }
