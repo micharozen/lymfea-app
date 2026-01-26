@@ -529,6 +529,7 @@ export type Database = {
       hotels: {
         Row: {
           address: string | null
+          auto_validate_bookings: boolean | null
           city: string | null
           closing_time: string | null
           country: string | null
@@ -551,6 +552,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auto_validate_bookings?: boolean | null
           city?: string | null
           closing_time?: string | null
           country?: string | null
@@ -573,6 +575,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auto_validate_bookings?: boolean | null
           city?: string | null
           closing_time?: string | null
           country?: string | null
