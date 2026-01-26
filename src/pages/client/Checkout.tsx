@@ -33,7 +33,7 @@ export default function Checkout() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
-  // Fetch venue data to determine max days ahead
+  // Fetch venue data to determine max days ahead and venue type
   const { data: venueData } = useQuery({
     queryKey: ['venue-data', hotelId],
     queryFn: async () => {
@@ -48,13 +48,14 @@ export default function Checkout() {
       const daysPerWeek = hotel?.days_of_week?.length ?? 7;
       const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
 
-      return { maxDaysAhead };
+      return { maxDaysAhead, venueType: hotel?.venue_type };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
   });
 
   const maxDaysAhead = venueData?.maxDaysAhead ?? 14;
+  const isCoworking = venueData?.venueType === 'coworking';
 
   const countryCodes = [
     { code: '+33', country: 'France' },
@@ -140,8 +141,11 @@ export default function Checkout() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.firstName || !formData.lastName || !formData.phone || 
-        !formData.email || !formData.roomNumber || !formData.date || !formData.time) {
+    const requiredFields = !formData.firstName || !formData.lastName || !formData.phone ||
+        !formData.email || !formData.date || !formData.time;
+    const roomNumberRequired = !isCoworking && !formData.roomNumber;
+
+    if (requiredFields || roomNumberRequired) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -255,16 +259,19 @@ export default function Checkout() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="roomNumber">Room Number</Label>
-            <Input
-              id="roomNumber"
-              value={formData.roomNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
-              placeholder="102"
-              required
-            />
-          </div>
+          {/* Room number - hidden for coworking */}
+          {!isCoworking && (
+            <div className="space-y-2">
+              <Label htmlFor="roomNumber">Room Number</Label>
+              <Input
+                id="roomNumber"
+                value={formData.roomNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
+                placeholder="102"
+                required
+              />
+            </div>
+          )}
         </div>
 
         {/* Booking Date & Time */}

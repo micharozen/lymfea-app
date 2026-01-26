@@ -30,7 +30,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProgressBar } from '@/components/client/ProgressBar';
 
-const createClientInfoSchema = (t: TFunction) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
   email: z.string()
@@ -40,7 +40,7 @@ const createClientInfoSchema = (t: TFunction) => z.object({
     .min(1, t('info.errors.phoneRequired'))
     .min(6, t('info.errors.phoneInvalid')),
   countryCode: z.string(),
-  roomNumber: z.string().min(1, t('info.errors.roomRequired')),
+  roomNumber: isCoworking ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')),
   note: z.string().optional(),
 });
 
@@ -92,7 +92,8 @@ export default function GuestInfo() {
     fetchVenueType();
   }, [hotelId]);
 
-  const schema = useMemo(() => createClientInfoSchema(t), [t]);
+  const isCoworking = venueType === 'coworking';
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -300,24 +301,26 @@ export default function GuestInfo() {
               )}
             />
 
-            {/* Room/Workspace number */}
-            <FormField
-              control={form.control}
-              name="roomNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={darkLabelStyles}>{locationNumberLabel}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="102"
-                      className={darkInputStyles}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-400 text-xs" />
-                </FormItem>
-              )}
-            />
+            {/* Room number - hidden for coworking */}
+            {!isCoworking && (
+              <FormField
+                control={form.control}
+                name="roomNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className={darkLabelStyles}>{locationNumberLabel}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="102"
+                        className={darkInputStyles}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Note */}
             <FormField
