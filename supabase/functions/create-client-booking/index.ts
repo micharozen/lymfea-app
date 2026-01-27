@@ -219,11 +219,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate that all treatment IDs exist and check for price_on_request
+    // Validate that all treatment IDs exist and check for price_on_request and duration
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request')
+      .select('id, price_on_request, duration')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -256,6 +256,16 @@ serve(async (req) => {
     const bookingStatus = hasPriceOnRequest ? 'quote_pending' : 'pending';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest);
 
+    // Calculate total duration from treatments (considering quantities)
+    let totalDuration = 0;
+    for (const treatment of treatments) {
+      const treatmentData = validTreatments?.find(t => t.id === treatment.treatmentId);
+      if (treatmentData?.duration) {
+        totalDuration += treatmentData.duration * treatment.quantity;
+      }
+    }
+    console.log('Total booking duration:', totalDuration, 'minutes');
+
     // Create booking with trunk_id assigned
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -276,6 +286,7 @@ serve(async (req) => {
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'room' ? 'charged_to_room' : 'pending',
         total_price: hasPriceOnRequest ? 0 : totalPrice,
+        duration: totalDuration > 0 ? totalDuration : null,
       })
       .select()
       .single();
