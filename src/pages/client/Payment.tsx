@@ -6,12 +6,13 @@ import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 
 export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -41,6 +42,16 @@ export default function Payment() {
 
   // Coworking spaces don't support room payment
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
+  const { trackPageView } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
+
+  // Track page view once
+  useEffect(() => {
+    if (!hasTrackedPageView.current) {
+      hasTrackedPageView.current = true;
+      trackPageView('payment');
+    }
+  }, [trackPageView]);
 
   // Set default payment method based on venue type
   useEffect(() => {

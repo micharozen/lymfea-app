@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Loader2, ChevronDown } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import {
   Form,
   FormControl,
@@ -91,6 +92,16 @@ export default function GuestInfo() {
 
   // Get venue-specific terminology
   const { locationNumberLabel } = useVenueTerms(venueType);
+  const { trackPageView } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
+
+  // Track page view once
+  useEffect(() => {
+    if (!hasTrackedPageView.current) {
+      hasTrackedPageView.current = true;
+      trackPageView('guest_info');
+    }
+  }, [trackPageView]);
 
   const isCoworking = venueType === 'coworking';
   const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);

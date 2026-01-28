@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Calendar, Clock } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -15,6 +15,7 @@ import { ScheduleSkeleton } from '@/components/client/skeletons/ScheduleSkeleton
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { ClientSpinner } from '@/components/client/ClientSpinner';
 import { useQuery } from '@tanstack/react-query';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 
 export default function Schedule() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -29,6 +30,16 @@ export default function Schedule() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noHairdressers, setNoHairdressers] = useState(false);
+  const { trackPageView, trackAction } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
+
+  // Track page view once
+  useEffect(() => {
+    if (!hasTrackedPageView.current) {
+      hasTrackedPageView.current = true;
+      trackPageView('schedule');
+    }
+  }, [trackPageView]);
 
   // Fetch venue opening/closing hours and schedule info
   const { data: venueData } = useQuery({
@@ -190,6 +201,11 @@ export default function Schedule() {
     fetchAvailability();
   }, [selectedDate, hotelId, t]);
 
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+    trackAction('select_time_slot', { date: selectedDate, time });
+  };
+
   const handleContinue = () => {
     if (!selectedDate) {
       toast.error(t('datetime.selectDate'));
@@ -320,7 +336,7 @@ export default function Schedule() {
             <TimePeriodSelector
               availableSlots={availableSlots}
               selectedTime={selectedTime}
-              onSelectTime={setSelectedTime}
+              onSelectTime={handleTimeSelect}
               allTimeSlots={timeSlots}
             />
           )}

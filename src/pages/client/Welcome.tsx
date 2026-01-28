@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
@@ -72,6 +73,14 @@ export default function Welcome() {
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const backgroundImage = venueType === 'coworking' ? welcomeBgCoworking : welcomeBgHotel;
+  const { trackPageView } = useClientAnalytics(hotelId);
+
+  // Track page view
+  useEffect(() => {
+    if (hotel?.name) {
+      trackPageView('welcome', { hotelName: hotel.name });
+    }
+  }, [hotel?.name, trackPageView]);
 
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
