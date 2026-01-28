@@ -2,27 +2,33 @@
 
 ## Nom des fichiers de migration
 
-Les fichiers de migration SQL doivent être créés directement dans `supabase/migrations/` avec le format suivant:
+Les fichiers de migration SQL doivent être créés directement dans `supabase/migrations/` avec le format **standard Supabase**:
 
 ```
-HH:MM_DD_MM_YY_brancheName.sql
+YYYYMMDDHHMM00_description.sql
 ```
 
 ### Règles:
-- **HH:MM**: Heure et minutes (ex: 14:30)
-- **DD**: Jour sur 2 chiffres (ex: 25)
+- **YYYY**: Année sur 4 chiffres (ex: 2026)
 - **MM**: Mois sur 2 chiffres (ex: 01)
-- **YY**: Année sur 2 chiffres (ex: 26)
-- **brancheName**: Nom de la branche Git actuelle (remplacer `/` par `-`)
+- **DD**: Jour sur 2 chiffres (ex: 25)
+- **HH**: Heure sur 2 chiffres (ex: 14)
+- **MM**: Minutes sur 2 chiffres (ex: 30)
+- **00**: Secondes (toujours 00)
+- **description**: Description courte en kebab-case
 
 ### Exemple:
-Si on est le 25 janvier 2026 à 12:30 sur la branche `feature/venue-opening-hours`:
+Si on est le 25 janvier 2026 à 12:30:
 ```
-supabase/migrations/12:30_25_01_26_feature-venue-opening-hours.sql
+supabase/migrations/20260125123000_add-venue-opening-hours.sql
 ```
 
 ### Commande:
 ```bash
-BRANCH=$(git branch --show-current | tr '/' '-')
-touch "supabase/migrations/$(date +%H:%M_%d_%m_%y)_${BRANCH}.sql"
+touch "supabase/migrations/$(date +%Y%m%d%H%M00)_description.sql"
 ```
+
+### Pourquoi ce format?
+- C'est le format standard attendu par Supabase CLI
+- Le tri alphabétique = tri chronologique (important pour l'ordre d'exécution)
+- Évite les erreurs "migration history mismatch" lors des changements de branche
