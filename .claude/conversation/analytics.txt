@@ -1,0 +1,377 @@
+Excellente initiative ! Pour tracker le parcours client, je te propose une solution intégrée à Supabase qui te donnera des données directement exploitables dans le dashboard admin.
+
+## Approche recommandée
+
+**Solution hybride :**
+1. **Table Supabase `client_analytics`** pour les données internes (dashboard admin)
+2. **Hook `useClientAnalytics`** pour tracker les événements côté React
+3. **Dashboard analytics** dans l'admin pour visualiser le funnel
+
+---
+
+## 1. Schema de la table analytics
+
+Commençons par créer la migration :
+
+```sql
+-- supabase/migrations/XXXXXX_create_client_analytics.sql
+
+-- Table pour tracker les événements du parcours client
+CREATE TABLE client_analytics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Identification
+  session_id UUID NOT NULL,  -- Identifiant unique de session visiteur
+  hotel_id UUID REFERENCES hotels(id) ON DELETE CASCADE,
+  
+  -- Événement
+  event_type TEXT NOT NULL,  -- 'page_view', 'action', 'conversion'
+  event_name TEXT NOT NULL,  -- 'welcome', 'treatments', 'add_to_cart', etc.
+  
+  -- Contexte
+  page_path TEXT,
+  referrer TEXT,
+  
+  -- Données additionnelles (flexible)
+  metadata JSONB DEFAULT '{}',
+  
+  -- Device info
+  user_agent TEXT,
+  device_type TEXT,  -- 'mobile', 'tablet', 'desktop'
+  
+  -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour les requêtes fréquentes
+CREATE INDEX idx_analytics_hotel_id ON client_analytics(hotel_id);
+CREATE INDEX idx_analytics_session_id ON client_analytics(session_id);
+CREATE INDEX idx_analytics_created_at ON client_analytics(created_at DESC);
+CREATE INDEX idx_analytics_event ON client_analytics(event_type, event_name);
+
+-- Pas de RLS pour permettre les inserts anonymes (clients non authentifiés)
+ALTER TABLE client_analytics ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Tout le monde peut insérer (tracking anonyme)
+CREATE POLICY "Allow anonymous inserts" ON client_analytics
+  FOR INSERT WITH CHECK (true);
+
+-- Policy: Seuls les admins peuvent lire
+CREATE POLICY "Admins can read analytics" ON client_analytics
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM user_roles 
+      WHERE user_id = auth.uid() 
+      AND role IN ('admin', 'concierge')
+    )
+  );
+
+-- Vue agrégée pour le funnel
+CREATE OR REPLACE VIEW client_funnel_stats AS
+SELECT 
+  hotel_id,
+  DATE(created_at) as date,
+  event_name,
+  COUNT(DISTINCT session_id) as unique_visitors,
+  COUNT(*) as total_events
+FROM client_analytics
+WHERE event_type = 'page_view'
+GROUP BY hotel_id, DATE(created_at), event_name;
+```
+
+---
+
+## 2. Hook `useClientAnalytics`
+
+```typescript
+// src/hooks/useClientAnalytics.ts
+
+import { useCallback, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface TrackEventParams {
+  eventType: 'page_view' | 'action' | 'conversion';
+  eventName: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Génère ou récupère un session ID unique
+const getSessionId = (): string => {
+  const key = 'oom_analytics_session';
+  let sessionId = sessionStorage.getItem(key);
+  
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    sessionStorage.setItem(key, sessionId);
+  }
+  
+  return sessionId;
+};
+
+// Détecte le type d'appareil
+const getDeviceType = (): 'mobile' | 'tablet' | 'desktop' => {
+  const ua = navigator.userAgent;
+  if (/tablet|ipad|playbook|silk/i.test(ua)) return 'tablet';
+  if (/mobile|iphone|ipod|android|blackberry|opera mini|iemobile/i.test(ua)) return 'mobile';
+  return 'desktop';
+};
+
+export const useClientAnalytics = (hotelId: string | undefined) => {
+  const sessionId = useRef(getSessionId());
+  const lastTrackedPage = useRef<string | null>(null);
+
+  const track = useCallback(async ({ eventType, eventName, metadata = {} }: TrackEventParams) => {
+    if (!hotelId) return;
+
+    try {
+      await supabase.from('client_analytics').insert({
+        session_id: sessionId.current,
+        hotel_id: hotelId,
+        event_type: eventType,
+        event_name: eventName,
+        page_path: window.location.pathname,
+        referrer: document.referrer || null,
+        metadata,
+        user_agent: navigator.userAgent,
+        device_type: getDeviceType(),
+      });
+    } catch (error) {
+      // Silently fail - analytics shouldn't break the app
+      console.warn('Analytics tracking failed:', error);
+    }
+  }, [hotelId]);
+
+  // Track page view (avec déduplication)
+  const trackPageView = useCallback((pageName: string, metadata?: Record<string, unknown>) => {
+    const pageKey = `${pageName}-${window.location.pathname}`;
+    
+    if (lastTrackedPage.current !== pageKey) {
+      lastTrackedPage.current = pageKey;
+      track({ eventType: 'page_view', eventName: pageName, metadata });
+    }
+  }, [track]);
+
+  // Track action (clic, ajout panier, etc.)
+  const trackAction = useCallback((actionName: string, metadata?: Record<string, unknown>) => {
+    track({ eventType: 'action', eventName: actionName, metadata });
+  }, [track]);
+
+  // Track conversion (booking créé, paiement, etc.)
+  const trackConversion = useCallback((conversionName: string, metadata?: Record<string, unknown>) => {
+    track({ eventType: 'conversion', eventName: conversionName, metadata });
+  }, [track]);
+
+  return {
+    trackPageView,
+    trackAction,
+    trackConversion,
+    sessionId: sessionId.current,
+  };
+};
+```
+
+---
+
+## 3. Intégration dans les pages client
+
+Modifie chaque page du flow client pour tracker les vues :
+
+```typescript
+// src/pages/client/Welcome.tsx (exemple)
+
+import { useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+
+const Welcome = () => {
+  const { hotelId } = useParams();
+  const { trackPageView } = useClientAnalytics(hotelId);
+
+  useEffect(() => {
+    trackPageView('welcome');
+  }, [trackPageView]);
+
+  // ... reste du composant
+};
+```
+
+### Mapping des pages pour le funnel :
+
+| Page | `eventName` |
+|------|-------------|
+| Welcome | `welcome` |
+| Treatments | `treatments` |
+| Schedule | `schedule` |
+| Guest Info | `guest_info` |
+| Payment | `payment` |
+| Checkout | `checkout` |
+| Confirmation | `confirmation` |
+
+### Actions à tracker :
+
+```typescript
+// Dans Treatments.tsx - quand on ajoute au panier
+trackAction('add_to_cart', { 
+  treatmentId: treatment.id, 
+  price: treatment.price 
+});
+
+// Dans Schedule.tsx - sélection créneau
+trackAction('select_time_slot', { 
+  date: selectedDate, 
+  time: selectedTime 
+});
+
+// Dans Confirmation.tsx - booking créé
+trackConversion('booking_completed', { 
+  bookingId, 
+  totalAmount 
+});
+```
+
+---
+
+## 4. Provider pour centraliser (optionnel mais recommandé)
+
+```typescript
+// src/pages/client/context/AnalyticsContext.tsx
+
+import { createContext, useContext, ReactNode } from 'react';
+import { useParams } from 'react-router-dom';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+
+type AnalyticsContextType = ReturnType<typeof useClientAnalytics>;
+
+const AnalyticsContext = createContext<AnalyticsContextType | null>(null);
+
+export const AnalyticsProvider = ({ children }: { children: ReactNode }) => {
+  const { hotelId } = useParams();
+  const analytics = useClientAnalytics(hotelId);
+
+  return (
+    <AnalyticsContext.Provider value={analytics}>
+      {children}
+    </AnalyticsContext.Provider>
+  );
+};
+
+export const useAnalytics = () => {
+  const context = useContext(AnalyticsContext);
+  if (!context) {
+    throw new Error('useAnalytics must be used within AnalyticsProvider');
+  }
+  return context;
+};
+```
+
+Puis wrap le `ClientFlowWrapper` avec ce provider.
+
+---
+
+## 5. Fonctions RPC pour le dashboard admin
+
+```sql
+-- Funnel par hôtel sur une période
+CREATE OR REPLACE FUNCTION get_client_funnel(
+  p_hotel_id UUID,
+  p_start_date DATE DEFAULT CURRENT_DATE - INTERVAL '30 days',
+  p_end_date DATE DEFAULT CURRENT_DATE
+)
+RETURNS TABLE (
+  step_name TEXT,
+  step_order INT,
+  unique_visitors BIGINT,
+  drop_off_rate NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  steps TEXT[] := ARRAY['welcome', 'treatments', 'schedule', 'guest_info', 'payment', 'checkout', 'confirmation'];
+  prev_count BIGINT := 0;
+BEGIN
+  FOR i IN 1..array_length(steps, 1) LOOP
+    SELECT COUNT(DISTINCT session_id) INTO prev_count
+    FROM client_analytics
+    WHERE hotel_id = p_hotel_id
+      AND event_type = 'page_view'
+      AND event_name = steps[i]
+      AND created_at::date BETWEEN p_start_date AND p_end_date;
+    
+    RETURN QUERY
+    SELECT 
+      steps[i],
+      i,
+      prev_count,
+      CASE 
+        WHEN i = 1 THEN 0
+        ELSE ROUND((1 - (prev_count::numeric / NULLIF(LAG(prev_count) OVER (), 0))) * 100, 2)
+      END;
+  END LOOP;
+END;
+$$;
+
+-- Stats globales par hôtel
+CREATE OR REPLACE FUNCTION get_hotel_analytics_summary(
+  p_hotel_id UUID,
+  p_days INT DEFAULT 30
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_build_object(
+    'total_visitors', COUNT(DISTINCT session_id),
+    'total_page_views', COUNT(*) FILTER (WHERE event_type = 'page_view'),
+    'total_conversions', COUNT(*) FILTER (WHERE event_type = 'conversion'),
+    'conversion_rate', ROUND(
+      COUNT(*) FILTER (WHERE event_type = 'conversion')::numeric / 
+      NULLIF(COUNT(DISTINCT session_id), 0) * 100, 2
+    ),
+    'device_breakdown', (
+      SELECT json_object_agg(device_type, cnt)
+      FROM (
+        SELECT device_type, COUNT(DISTINCT session_id) as cnt
+        FROM client_analytics
+        WHERE hotel_id = p_hotel_id
+          AND created_at > NOW() - (p_days || ' days')::interval
+        GROUP BY device_type
+      ) d
+    ),
+    'daily_visitors', (
+      SELECT json_agg(row_to_json(t))
+      FROM (
+        SELECT DATE(created_at) as date, COUNT(DISTINCT session_id) as visitors
+        FROM client_analytics
+        WHERE hotel_id = p_hotel_id
+          AND created_at > NOW() - (p_days || ' days')::interval
+        GROUP BY DATE(created_at)
+        ORDER BY date
+      ) t
+    )
+  ) INTO result
+  FROM client_analytics
+  WHERE hotel_id = p_hotel_id
+    AND created_at > NOW() - (p_days || ' days')::interval;
+  
+  RETURN result;
+END;
+$$;
+```
+
+---
+
+## 6. Prochaines étapes
+
+1. **Phase 1** : Créer la migration et le hook (ce que j'ai détaillé)
+2. **Phase 2** : Intégrer le tracking dans toutes les pages client
+3. **Phase 3** : Créer une page admin `/admin/analytics` avec :
+   - Graphique du funnel (visualisation entonnoir)
+   - Courbe des visiteurs par jour
+   - Breakdown par device
+   - Filtre par hôtel et période
+
+Tu veux que je détaille la partie frontend du dashboard analytics, ou que je commence par te fournir le fichier de migration complet à exécuter ?
