@@ -40,7 +40,9 @@
       "invalidFormat": "Format invalide",
       "firstNameTooLong": "Prénom trop long",
       "lastNameTooLong": "Nom trop long",
-      "phoneTooLong": "Numéro trop long"
+      "phoneTooLong": "Numéro trop long",
+      "dateRequired": "La date est requise",
+      "timeRequired": "L'heure est requise"
     }
   },
   "toasts": {

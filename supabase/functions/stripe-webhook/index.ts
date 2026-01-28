@@ -42,7 +42,28 @@ serve(async (req) => {
         console.log(`[STRIPE-WEBHOOK] Processing paid checkout session: ${session.id}`);
         
         const metadata = session.metadata;
-        
+
+        // Handle payment link completions - update existing booking
+        if (metadata?.source === 'payment_link' && metadata?.booking_id) {
+          console.log(`[STRIPE-WEBHOOK] Payment link completed for booking: ${metadata.booking_id}`);
+
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+              payment_status: 'paid',
+              stripe_invoice_url: session.id
+            })
+            .eq('id', metadata.booking_id);
+
+          if (updateError) {
+            console.error('[STRIPE-WEBHOOK] Failed to update booking payment status:', updateError);
+            throw updateError;
+          }
+
+          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as paid via payment link`);
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
         if (!metadata?.hotel_id) {
           console.error("[STRIPE-WEBHOOK] Missing hotel_id in metadata");
           return new Response(JSON.stringify({ received: true }), { status: 200 });

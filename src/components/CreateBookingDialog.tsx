@@ -1,8 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useTranslation } from "react-i18next";
+import { TFunction } from "i18next";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -23,9 +38,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
+import { useUserContext } from "@/hooks/useUserContext";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, ChevronDown, Plus, Minus, Globe, Loader2 } from "lucide-react";
+import { CalendarIcon, ChevronDown, Plus, Minus, Globe, Loader2, Send, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -103,6 +121,21 @@ const formatPhoneNumber = (value: string, countryCode: string): string => {
   }
 };
 
+// Zod schema for Step 1 (Info) fields
+const createFormSchema = (t: TFunction) => z.object({
+  hotelId: z.string().min(1, t('errors.validation.hotelRequired')),
+  hairdresserId: z.string().default(""),
+  date: z.date({ required_error: t('errors.validation.dateRequired') }),
+  time: z.string().min(1, t('errors.validation.timeRequired')),
+  clientFirstName: z.string().min(1, t('errors.validation.firstNameRequired')),
+  clientLastName: z.string().min(1, t('errors.validation.lastNameRequired')),
+  phone: z.string().min(1, t('errors.validation.phoneRequired')),
+  countryCode: z.string().default("+33"),
+  roomNumber: z.string().default(""),
+});
+
+type BookingFormValues = z.infer<ReturnType<typeof createFormSchema>>;
+
 interface CartItem { treatmentId: string; quantity: number; }
 
 interface CreateBookingDialogProps {
@@ -114,29 +147,61 @@ interface CreateBookingDialogProps {
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"info" | "prestations">("info");
-  const [hotelId, setHotelId] = useState("");
-  const [clientFirstName, setClientFirstName] = useState("");
-  const [clientLastName, setClientLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [countryCode, setCountryCode] = useState("+33");
-  const [roomNumber, setRoomNumber] = useState("");
-  const [date, setDate] = useState<Date | undefined>(selectedDate);
-  const [time, setTime] = useState(selectedTime || "");
-  const [hairdresserId, setHairdresserId] = useState("");
+  const { isConcierge } = useUserContext();
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
+
+  // Zod + react-hook-form
+  const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const form = useForm<BookingFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      hotelId: "",
+      hairdresserId: "",
+      date: selectedDate,
+      time: selectedTime || "",
+      clientFirstName: "",
+      clientLastName: "",
+      phone: "",
+      countryCode: "+33",
+      roomNumber: "",
+    },
+  });
+
+  // Watch form values needed outside the form
+  const hotelId = form.watch("hotelId");
+  const date = form.watch("date");
+  const time = form.watch("time");
+  const countryCode = form.watch("countryCode");
+  const clientFirstName = form.watch("clientFirstName");
+  const clientLastName = form.watch("clientLastName");
+  const phone = form.watch("phone");
+  const roomNumber = form.watch("roomNumber");
+  const hairdresserId = form.watch("hairdresserId");
+
+  // Payment link state for step 3
+  const [createdBooking, setCreatedBooking] = useState<{
+    id: string;
+    booking_id: number;
+    hotel_name: string;
+  } | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
-  
+
+  // Confirmation dialog for unsaved changes
+  const [showConfirmClose, setShowConfirmClose] = useState(false);
+  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+
   // Admin-only custom price/duration overrides
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
 
   useEffect(() => {
-    if (selectedDate) setDate(selectedDate);
-    if (selectedTime) setTime(selectedTime);
+    if (selectedDate) form.setValue("date", selectedDate);
+    if (selectedTime) form.setValue("time", selectedTime);
   }, [selectedDate, selectedTime]);
 
   const { data: userRole } = useQuery({
@@ -338,286 +403,376 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       
       return booking;
     },
-    onSuccess: (_, variables) => { 
-      const message = variables.isAdmin 
-        ? "Réservation créée" 
+    onSuccess: (data, variables) => {
+      const message = variables.isAdmin
+        ? "Réservation créée"
         : "Demande de devis envoyée";
-      toast({ title: message }); 
-      queryClient.invalidateQueries({ queryKey: ["bookings"] }); 
-      handleClose(); 
+      toast({ title: message });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+
+      // Transition to step 3 for payment link
+      if (data) {
+        setCreatedBooking({
+          id: data.id,
+          booking_id: data.booking_id,
+          hotel_name: data.hotel_name || '',
+        });
+        setActiveTab("payment");
+      } else {
+        handleClose();
+      }
     },
     onError: () => { 
       toast({ title: "Erreur", variant: "destructive" }); 
     },
   });
 
-  const validateInfo = () => {
-    if (!hotelId || !clientFirstName || !clientLastName || !phone || !date || !time) { 
-      toast({ title: "Champs requis", description: "Veuillez remplir tous les champs obligatoires.", variant: "destructive" }); 
-      return false; 
-    }
-    return true;
+  const validateInfo = async () => {
+    const result = await form.trigger([
+      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
+    ]);
+    return result;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cart.length) { 
-      toast({ title: "Sélectionnez une prestation", variant: "destructive" }); 
-      return; 
+    if (!cart.length) {
+      toast({ title: "Sélectionnez une prestation", variant: "destructive" });
+      return;
     }
-    mutation.mutate({ 
-      hotelId, 
-      clientFirstName, 
-      clientLastName, 
-      phone, 
-      countryCode, 
-      roomNumber, 
-      date: date ? format(date, "yyyy-MM-dd") : "", 
-      time, 
-      hairdresserId, 
-      treatmentIds: flatIds, 
-      totalPrice: finalPrice, 
+    const values = form.getValues();
+    mutation.mutate({
+      hotelId: values.hotelId,
+      clientFirstName: values.clientFirstName,
+      clientLastName: values.clientLastName,
+      phone: values.phone,
+      countryCode: values.countryCode,
+      roomNumber: values.roomNumber,
+      date: values.date ? format(values.date, "yyyy-MM-dd") : "",
+      time: values.time,
+      hairdresserId: values.hairdresserId,
+      treatmentIds: flatIds,
+      totalPrice: finalPrice,
       totalDuration: finalDuration,
-      isAdmin 
+      isAdmin
     });
   };
-  
-  const handleClose = () => { 
-    setActiveTab("info"); 
-    setHotelId(""); 
-    setClientFirstName(""); 
-    setClientLastName(""); 
-    setPhone(""); 
-    setCountryCode("+33"); 
-    setRoomNumber(""); 
-    setDate(selectedDate); 
-    setTime(selectedTime || ""); 
-    setHairdresserId(""); 
-    setCart([]); 
+
+  const hasUnsavedChanges = () => {
+    if (activeTab === "payment") return false;
+    return form.formState.isDirty || cart.length > 0;
+  };
+
+  const handleRequestClose = () => {
+    if (hasUnsavedChanges()) {
+      setShowConfirmClose(true);
+    } else {
+      handleClose();
+    }
+  };
+
+  const handleClose = () => {
+    setShowConfirmClose(false);
+    setActiveTab("info");
+    form.reset({
+      hotelId: "",
+      hairdresserId: "",
+      date: selectedDate,
+      time: selectedTime || "",
+      clientFirstName: "",
+      clientLastName: "",
+      phone: "",
+      countryCode: "+33",
+      roomNumber: "",
+    });
+    setCart([]);
     setTreatmentFilter("female");
     setCustomPrice("");
     setCustomDuration("");
-    onOpenChange(false); 
+    setCreatedBooking(null);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
+    <>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
+      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden" onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}>
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             Nouvelle réservation
           </DialogTitle>
+          <BookingWizardStepper
+            currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+          />
         </DialogHeader>
 
+        <Form {...form}>
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations")} className="flex-1 flex flex-col min-h-0">
-              <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "payment")} className="flex-1 flex flex-col min-h-0">
+              <TabsContent value="info" className="flex-1 px-4 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
                 <div className={cn("grid gap-2", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Hôtel *</Label>
-                    <Select value={hotelId} onValueChange={setHotelId}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Sélectionner un hôtel" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {hotels?.map((hotel) => (
-                          <SelectItem key={hotel.id} value={hotel.id}>
-                            {hotel.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="hotelId"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Hôtel *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Sélectionner un hôtel" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {hotels?.map((hotel) => (
+                              <SelectItem key={hotel.id} value={hotel.id}>
+                                {hotel.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
 
                   {isAdmin && (
-                    <div className="space-y-1">
-                      <Label className="text-xs">Coiffeur / Prestataire</Label>
-                      <Select
-                        value={hairdresserId || "none"}
-                        onValueChange={(value) => setHairdresserId(value === "none" ? "" : value)}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Sélectionner un coiffeur" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border shadow-lg">
-                          <SelectItem value="none">Aucun coiffeur</SelectItem>
-                          {hairdressers?.map((hairdresser) => (
-                            <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                              {hairdresser.first_name} {hairdresser.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <FormField
+                      control={form.control}
+                      name="hairdresserId"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel className="text-xs">Coiffeur / Prestataire</FormLabel>
+                          <Select
+                            value={field.value || "none"}
+                            onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Sélectionner un coiffeur" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="bg-background border shadow-lg">
+                              <SelectItem value="none">Aucun coiffeur</SelectItem>
+                              {hairdressers?.map((hairdresser) => (
+                                <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                                  {hairdresser.first_name} {hairdresser.last_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Date *</Label>
-                    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
-                            !date && "text-muted-foreground"
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Date *</FormLabel>
+                        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value ? format(field.value, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(selectedDate) => {
+                                field.onChange(selectedDate);
+                                setCalendarOpen(false);
+                              }}
+                              initialFocus
+                              className="pointer-events-auto"
+                              locale={fr}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="time"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Heure *</FormLabel>
+                        <div className="flex gap-1 items-center">
+                          <Popover open={hourOpen} onOpenChange={setHourOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
+                                {field.value.split(':')[0] || "HH"}
+                                <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                              <ScrollArea className="h-40 touch-pan-y">
+                                <div>
+                                  {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
+                                    <button
+                                      key={h}
+                                      type="button"
+                                      onClick={() => {
+                                        field.onChange(`${h}:${field.value.split(':')[1] || '00'}`);
+                                        setHourOpen(false);
+                                      }}
+                                      className={cn(
+                                        "w-full px-3 py-1.5 text-sm text-center",
+                                        field.value.split(':')[0] === h && "bg-muted"
+                                      )}
+                                    >
+                                      {h}
+                                    </button>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </PopoverContent>
+                          </Popover>
+                          <span className="flex items-center text-muted-foreground">:</span>
+                          <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
+                                {field.value.split(':')[1] || "MM"}
+                                <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
+                              <ScrollArea className="h-40 touch-pan-y">
+                                <div>
+                                  {['00', '10', '20', '30', '40', '50'].map(m => (
+                                    <button
+                                      key={m}
+                                      type="button"
+                                      onClick={() => {
+                                        field.onChange(`${field.value.split(':')[0] || '09'}:${m}`);
+                                        setMinuteOpen(false);
+                                      }}
+                                      className={cn(
+                                        "w-full px-3 py-1.5 text-sm text-center",
+                                        field.value.split(':')[1] === m && "bg-muted"
+                                      )}
+                                    >
+                                      {m}
+                                    </button>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            </PopoverContent>
+                          </Popover>
+                          {hotelId && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
+                              <Globe className="h-3 w-3 shrink-0" />
+                              {getCurrentOffset(hotelTimezone)}
+                            </span>
                           )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date ? format(date, "dd/MM/yyyy", { locale: fr }) : <span>Sélectionner</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={(selectedDate) => {
-                            setDate(selectedDate);
-                            setCalendarOpen(false);
-                          }}
-                          initialFocus
-                          className="pointer-events-auto"
-                          locale={fr}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs">Heure *</Label>
-                    <div className="flex gap-1 items-center">
-                      <Popover open={hourOpen} onOpenChange={setHourOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {time.split(':')[0] || "HH"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                                <button
-                                  key={h}
-                                  type="button"
-                                  onClick={() => {
-                                    setTime(`${h}:${time.split(':')[1] || '00'}`);
-                                    setHourOpen(false);
-                                  }}
-                                  className={cn(
-                                    "w-full px-3 py-1.5 text-sm text-center",
-                                    time.split(':')[0] === h && "bg-muted"
-                                  )}
-                                >
-                                  {h}
-                                </button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                      <span className="flex items-center text-muted-foreground">:</span>
-                      <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
-                            {time.split(':')[1] || "MM"}
-                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[68px] p-0 pointer-events-auto" align="start" onWheelCapture={(e) => e.stopPropagation()} onTouchMoveCapture={(e) => e.stopPropagation()}>
-                          <ScrollArea className="h-40 touch-pan-y">
-                            <div>
-                              {['00', '10', '20', '30', '40', '50'].map(m => (
-                                <button
-                                  key={m}
-                                  type="button"
-                                  onClick={() => {
-                                    setTime(`${time.split(':')[0] || '09'}:${m}`);
-                                    setMinuteOpen(false);
-                                  }}
-                                  className={cn(
-                                    "w-full px-3 py-1.5 text-sm text-center",
-                                    time.split(':')[1] === m && "bg-muted"
-                                  )}
-                                >
-                                  {m}
-                                </button>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                      {hotelId && (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
-                          <Globe className="h-3 w-3 shrink-0" />
-                          {getCurrentOffset(hotelTimezone)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                        </div>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Prénom *</Label>
-                    <Input
-                      value={clientFirstName}
-                      onChange={(e) => setClientFirstName(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="clientFirstName"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Prénom *</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="space-y-1">
-                    <Label className="text-xs">Nom *</Label>
-                    <Input
-                      value={clientLastName}
-                      onChange={(e) => setClientLastName(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="clientLastName"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Nom *</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-9" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Phone number *</Label>
-                    <PhoneNumberField
-                      value={phone}
-                      onChange={(val) => {
-                        const formatted = formatPhoneNumber(val, countryCode);
-                        setPhone(formatted);
-                      }}
-                      countryCode={countryCode}
-                      setCountryCode={setCountryCode}
-                      countries={countries}
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Phone number *</FormLabel>
+                        <FormControl>
+                          <PhoneNumberField
+                            value={field.value}
+                            onChange={(val) => {
+                              const formatted = formatPhoneNumber(val, countryCode);
+                              field.onChange(formatted);
+                            }}
+                            countryCode={countryCode}
+                            setCountryCode={(code) => form.setValue("countryCode", code)}
+                            countries={countries}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="space-y-1">
-                    <Label className="text-xs">Room number</Label>
-                    <Input
-                      value={roomNumber}
-                      onChange={(e) => setRoomNumber(e.target.value)}
-                      className="h-9"
-                      placeholder="1002"
-                    />
-                  </div>
+                  <FormField
+                    control={form.control}
+                    name="roomNumber"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel className="text-xs">Room number</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-9" placeholder="1002" />
+                        </FormControl>
+                        <FormMessage className="text-xs" />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-between gap-3 pt-3 mt-3 border-t shrink-0">
+                <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
                   <Button type="button" variant="outline" onClick={handleClose}>
                     Annuler
                   </Button>
-                  <Button type="button" onClick={() => { if (validateInfo()) setActiveTab("prestations"); }}>
+                  <Button type="button" onClick={async () => { if (await validateInfo()) setActiveTab("prestations"); }}>
                     Suivant
                   </Button>
                 </div>
               </TabsContent>
 
-            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
+            <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-4 pt-1 data-[state=inactive]:hidden max-h-[60vh]">
               {/* Menu Tabs */}
-              <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
+              <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-3">
                 {(["female", "male"] as const).map(f => (
                   <button
                     key={f}
@@ -728,7 +883,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
               </div>
               
               {/* Compact Footer */}
-              <div className="shrink-0 border-t border-border bg-background pt-2 mt-2 space-y-2">
+              <div className="shrink-0 border-t border-border bg-background pt-3 mt-3 space-y-3">
                 {/* Admin-only: Custom Price & Duration - ONLY for On Request services */}
                 {isAdmin && hasOnRequestService && (
                   <div className="grid grid-cols-2 gap-2 pb-2 border-b border-border/50">
@@ -804,9 +959,89 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                 </div>
               </div>
             </TabsContent>
+
+            {/* Step 3: Payment Link */}
+            <TabsContent value="payment" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden">
+              {createdBooking && (
+                <div className="flex flex-col items-center justify-center flex-1 gap-6 py-6">
+                  <div className="flex flex-col items-center gap-3">
+                    <CheckCircle2 className="h-12 w-12 text-green-500" />
+                    <h3 className="text-lg font-semibold">Réservation créée</h3>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Réservation #{createdBooking.booking_id} pour {clientFirstName} {clientLastName}
+                    </p>
+                    <p className="text-sm font-medium">{formatPrice(finalPrice)}</p>
+                  </div>
+
+                  <div className="flex flex-col gap-2 w-full max-w-xs">
+                    <Button
+                      type="button"
+                      onClick={() => setIsPaymentLinkDialogOpen(true)}
+                      className="bg-foreground text-background hover:bg-foreground/90"
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Envoyer lien de paiement
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleClose}
+                    >
+                      Fermer
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </form>
+        </Form>
       </DialogContent>
     </Dialog>
+
+    {createdBooking && (
+      <SendPaymentLinkDialog
+        open={isPaymentLinkDialogOpen}
+        onOpenChange={setIsPaymentLinkDialogOpen}
+        booking={{
+          id: createdBooking.id,
+          booking_id: createdBooking.booking_id,
+          client_first_name: clientFirstName,
+          client_last_name: clientLastName,
+          phone: `${countryCode} ${phone}`,
+          room_number: roomNumber || undefined,
+          booking_date: date ? format(date, "yyyy-MM-dd") : "",
+          booking_time: time,
+          total_price: finalPrice,
+          hotel_name: createdBooking.hotel_name,
+          treatments: cartDetails.map(item => ({
+            name: item.treatment?.name || 'Service',
+            price: (item.treatment?.price || 0) * item.quantity,
+          })),
+        }}
+        onSuccess={() => {
+          setIsPaymentLinkDialogOpen(false);
+          handleClose();
+        }}
+      />
+    )}
+
+    <AlertDialog open={showConfirmClose} onOpenChange={setShowConfirmClose}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Abandonner la réservation ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Les informations saisies seront perdues. Êtes-vous sûr de vouloir quitter ?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Continuer la saisie</AlertDialogCancel>
+          <AlertDialogAction onClick={handleClose} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Abandonner
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

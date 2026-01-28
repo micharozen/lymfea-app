@@ -48,6 +48,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
+const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
 
 // PWA Pages
 const PwaLogin = lazy(() => import("./pages/pwa/Login"));
@@ -211,7 +212,10 @@ const App = () => {
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
-            
+
+            {/* Payment Link Confirmation (Public) */}
+            <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />
+
             {/* Rating Page (Public) */}
             <Route path="/rate/:token" element={<RateHairdresser />} />
             

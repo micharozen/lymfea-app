@@ -133,6 +133,13 @@
     "quotePendingTitle": "Demande de devis envoyée",
     "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails."
   },
+  "paymentConfirmation": {
+    "label": "Confirmation de paiement",
+    "title": "Merci pour votre",
+    "titleHighlight": "paiement",
+    "message": "Votre réservation est maintenant confirmée. Vous recevrez un email avec tous les détails.",
+    "discoverServices": "DÉCOUVRIR NOS SERVICES"
+  },
   "hotelNotFound": "Hôtel non trouvé",
   "checkQrCode": "Veuillez vérifier votre code QR",
   "venueNotFound": "Lieu non trouvé",
