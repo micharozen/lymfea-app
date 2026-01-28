@@ -46,7 +46,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Fetch booking with related data
+    // Fetch booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
@@ -64,19 +64,27 @@ serve(async (req) => {
         status,
         payment_method,
         hotel_id,
-        hotels!inner (
-          id,
-          name,
-          currency,
-          timezone
-        )
+        hotel_name
       `)
       .eq('id', bookingId)
       .single();
 
     if (bookingError || !booking) {
       console.error("[SEND-PAYMENT-LINK] Booking fetch error:", bookingError);
-      throw new Error("Booking not found");
+      throw new Error(`Booking not found: ${bookingError?.message || 'unknown error'}`);
+    }
+
+    // Fetch hotel for currency info
+    let hotelCurrency = 'eur';
+    if (booking.hotel_id) {
+      const { data: hotel } = await supabase
+        .from('hotels')
+        .select('currency')
+        .eq('id', booking.hotel_id)
+        .single();
+      if (hotel?.currency) {
+        hotelCurrency = hotel.currency.toLowerCase();
+      }
     }
 
     // Validate booking can receive payment link
@@ -116,8 +124,7 @@ serve(async (req) => {
     const verifiedTotalPrice = treatments.reduce((sum, t) => sum + t.price, 0);
     const totalPrice = verifiedTotalPrice > 0 ? verifiedTotalPrice : booking.total_price;
 
-    const hotel = booking.hotels as { id: string; name: string; currency: string; timezone: string };
-    const currency = hotel.currency?.toLowerCase() || 'eur';
+    const currency = hotelCurrency;
     const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
 
     // Determine email and phone
@@ -182,7 +189,7 @@ serve(async (req) => {
     // Prepare template data
     const templateData: PaymentLinkTemplateData = {
       clientName: `${booking.client_first_name} ${booking.client_last_name}`,
-      hotelName: hotel.name,
+      hotelName: booking.hotel_name || 'Hotel',
       roomNumber: booking.room_number || '-',
       bookingDate: formattedDate,
       bookingTime: booking.booking_time,

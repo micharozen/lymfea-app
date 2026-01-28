@@ -50,7 +50,7 @@ export function BookingDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -67,10 +67,41 @@ export function BookingDetailDialog({
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2 pr-10">
+              {onSendPaymentLink &&
+               booking.payment_status !== 'paid' &&
+               booking.payment_status !== 'charged_to_room' &&
+               booking.status !== 'cancelled' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onSendPaymentLink();
+                  }}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Envoyer lien paiement
+                </Button>
+              )}
+              {onEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onEdit();
+                  }}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Modifier
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-5 mt-2">
+        <div className="space-y-5 mt-2 overflow-y-auto flex-1">
           {/* Client Info */}
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
@@ -227,6 +258,29 @@ export function BookingDetailDialog({
             </div>
           </div>
 
+          {/* Payment link status */}
+          {booking.payment_link_sent_at && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Send className="h-4 w-4" />
+                  Lien de paiement
+                </h3>
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 rounded-lg p-3">
+                  <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                    Envoyé le {format(new Date(booking.payment_link_sent_at), "dd/MM/yyyy à HH:mm", { locale: fr })}
+                  </p>
+                  {booking.payment_link_channels && booking.payment_link_channels.length > 0 && (
+                    <p className="text-sm text-green-600 dark:text-green-500 mt-1">
+                      Via {booking.payment_link_channels.map(c => c === 'email' ? 'Email' : 'WhatsApp').join(' et ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Cancellation reason */}
           {booking.status === "cancelled" && booking.cancellation_reason && (
             <>
@@ -251,38 +305,10 @@ export function BookingDetailDialog({
           </div>
         </div>
 
-        <DialogFooter className="mt-4 gap-2">
+        <DialogFooter className="mt-4 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fermer
           </Button>
-          {onSendPaymentLink &&
-           booking.payment_status !== 'paid' &&
-           booking.payment_status !== 'charged_to_room' &&
-           booking.payment_method === 'card' &&
-           booking.status !== 'cancelled' && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-                onSendPaymentLink();
-              }}
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Envoyer lien paiement
-            </Button>
-          )}
-          {onEdit && (
-            <Button
-              onClick={() => {
-                onOpenChange(false);
-                onEdit();
-              }}
-              className="bg-foreground text-background hover:bg-foreground/90"
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Modifier
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

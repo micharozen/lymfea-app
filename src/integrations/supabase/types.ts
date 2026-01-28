@@ -112,6 +112,10 @@ export type Database = {
           hotel_id: string
           hotel_name: string | null
           id: string
+          payment_link_channels: string[] | null
+          payment_link_language: string | null
+          payment_link_sent_at: string | null
+          payment_link_url: string | null
           payment_method: string | null
           payment_status: string | null
           phone: string
@@ -143,6 +147,10 @@ export type Database = {
           hotel_id: string
           hotel_name?: string | null
           id?: string
+          payment_link_channels?: string[] | null
+          payment_link_language?: string | null
+          payment_link_sent_at?: string | null
+          payment_link_url?: string | null
           payment_method?: string | null
           payment_status?: string | null
           phone: string
@@ -174,6 +182,10 @@ export type Database = {
           hotel_id?: string
           hotel_name?: string | null
           id?: string
+          payment_link_channels?: string[] | null
+          payment_link_language?: string | null
+          payment_link_sent_at?: string | null
+          payment_link_url?: string | null
           payment_method?: string | null
           payment_status?: string | null
           phone?: string
