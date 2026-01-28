@@ -133,6 +133,13 @@
     "quotePendingTitle": "Quote Request Sent",
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details."
   },
+  "paymentConfirmation": {
+    "label": "Payment Confirmation",
+    "title": "Thank you for your",
+    "titleHighlight": "payment",
+    "message": "Your booking is now confirmed. You will receive an email with all the details.",
+    "discoverServices": "DISCOVER OUR SERVICES"
+  },
   "hotelNotFound": "Hotel not found",
   "checkQrCode": "Please check your QR code",
   "venueNotFound": "Location not found",
