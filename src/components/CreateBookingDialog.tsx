@@ -23,6 +23,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
+import { useUserContext } from "@/hooks/useUserContext";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon, ChevronDown, Plus, Minus, Globe, Loader2 } from "lucide-react";
@@ -114,7 +116,16 @@ interface CreateBookingDialogProps {
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
+  const { isConcierge } = useUserContext();
   const [activeTab, setActiveTab] = useState<"info" | "prestations">("info");
+
+  // Payment link state for concierge flow
+  const [showPaymentLinkDialog, setShowPaymentLinkDialog] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<{
+    id: string;
+    booking_id: number;
+    hotel_name: string;
+  } | null>(null);
   const [hotelId, setHotelId] = useState("");
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
@@ -338,13 +349,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       
       return booking;
     },
-    onSuccess: (_, variables) => { 
-      const message = variables.isAdmin 
-        ? "Réservation créée" 
+    onSuccess: (data, variables) => {
+      const message = variables.isAdmin
+        ? "Réservation créée"
         : "Demande de devis envoyée";
-      toast({ title: message }); 
-      queryClient.invalidateQueries({ queryKey: ["bookings"] }); 
-      handleClose(); 
+      toast({ title: message });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+
+      // For concierge, show payment link dialog instead of closing immediately
+      if (isConcierge && data) {
+        setCreatedBooking({
+          id: data.id,
+          booking_id: data.booking_id,
+          hotel_name: data.hotel_name || '',
+        });
+        setShowPaymentLinkDialog(true);
+      } else {
+        handleClose();
+      }
     },
     onError: () => { 
       toast({ title: "Erreur", variant: "destructive" }); 
@@ -382,25 +404,28 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     });
   };
   
-  const handleClose = () => { 
-    setActiveTab("info"); 
-    setHotelId(""); 
-    setClientFirstName(""); 
-    setClientLastName(""); 
-    setPhone(""); 
-    setCountryCode("+33"); 
-    setRoomNumber(""); 
-    setDate(selectedDate); 
-    setTime(selectedTime || ""); 
-    setHairdresserId(""); 
-    setCart([]); 
+  const handleClose = () => {
+    setActiveTab("info");
+    setHotelId("");
+    setClientFirstName("");
+    setClientLastName("");
+    setPhone("");
+    setCountryCode("+33");
+    setRoomNumber("");
+    setDate(selectedDate);
+    setTime(selectedTime || "");
+    setHairdresserId("");
+    setCart([]);
     setTreatmentFilter("female");
     setCustomPrice("");
     setCustomDuration("");
-    onOpenChange(false); 
+    setShowPaymentLinkDialog(false);
+    setCreatedBooking(null);
+    onOpenChange(false);
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden">
         <DialogHeader className="px-4 py-3 border-b shrink-0">
@@ -808,5 +833,37 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Payment Link Dialog for concierge after booking creation */}
+    {createdBooking && (
+      <SendPaymentLinkDialog
+        open={showPaymentLinkDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleClose();
+          }
+        }}
+        booking={{
+          id: createdBooking.id,
+          booking_id: createdBooking.booking_id,
+          client_first_name: clientFirstName,
+          client_last_name: clientLastName,
+          phone: `${countryCode} ${phone}`,
+          room_number: roomNumber || undefined,
+          booking_date: date ? format(date, "yyyy-MM-dd") : "",
+          booking_time: time,
+          total_price: finalPrice,
+          hotel_name: createdBooking.hotel_name,
+          treatments: cartDetails.map(item => ({
+            name: item.treatment?.name || 'Service',
+            price: (item.treatment?.price || 0) * item.quantity,
+          })),
+        }}
+        onSuccess={() => {
+          handleClose();
+        }}
+      />
+    )}
+    </>
   );
 }

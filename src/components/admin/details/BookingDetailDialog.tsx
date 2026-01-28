@@ -25,6 +25,7 @@ import {
   FileText,
   Pencil,
   Timer,
+  Send,
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
@@ -34,6 +35,7 @@ interface BookingDetailDialogProps {
   booking: BookingWithTreatments | null;
   hotel: Hotel | null;
   onEdit?: () => void;
+  onSendPaymentLink?: () => void;
 }
 
 export function BookingDetailDialog({
@@ -42,6 +44,7 @@ export function BookingDetailDialog({
   booking,
   hotel,
   onEdit,
+  onSendPaymentLink,
 }: BookingDetailDialogProps) {
   if (!booking) return null;
 
@@ -252,6 +255,22 @@ export function BookingDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fermer
           </Button>
+          {onSendPaymentLink &&
+           booking.payment_status !== 'paid' &&
+           booking.payment_status !== 'charged_to_room' &&
+           booking.payment_method === 'card' &&
+           booking.status !== 'cancelled' && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                onSendPaymentLink();
+              }}
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Envoyer lien paiement
+            </Button>
+          )}
           {onEdit && (
             <Button
               onClick={() => {

@@ -20,6 +20,7 @@ import {
   BookingCalendarView,
   BookingListView,
   InvoicePreviewDialog,
+  SendPaymentLinkDialog,
 } from "@/components/booking";
 
 export default function Booking() {
@@ -43,6 +44,10 @@ export default function Booking() {
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
+
+  // Payment link state
+  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [paymentLinkBooking, setPaymentLinkBooking] = useState<BookingWithTreatments | null>(null);
 
   // Filters
   const {
@@ -143,6 +148,13 @@ export default function Booking() {
     setCurrentPage(1);
   };
 
+  const handleSendPaymentLink = () => {
+    if (viewedBooking) {
+      setPaymentLinkBooking(viewedBooking);
+      setIsPaymentLinkDialogOpen(true);
+    }
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
@@ -229,6 +241,7 @@ export default function Booking() {
         booking={viewedBooking}
         hotel={viewedBooking ? getHotelInfo(viewedBooking.hotel_id) : null}
         onEdit={handleEditFromDetail}
+        onSendPaymentLink={handleSendPaymentLink}
       />
 
       <EditBookingDialog
@@ -244,6 +257,27 @@ export default function Booking() {
         bookingId={invoiceBookingId}
         isRoomPayment={invoiceIsRoomPayment}
       />
+
+      {paymentLinkBooking && (
+        <SendPaymentLinkDialog
+          open={isPaymentLinkDialogOpen}
+          onOpenChange={setIsPaymentLinkDialogOpen}
+          booking={{
+            id: paymentLinkBooking.id,
+            booking_id: paymentLinkBooking.booking_id,
+            client_first_name: paymentLinkBooking.client_first_name,
+            client_last_name: paymentLinkBooking.client_last_name,
+            client_email: paymentLinkBooking.client_email,
+            phone: paymentLinkBooking.phone,
+            room_number: paymentLinkBooking.room_number,
+            booking_date: paymentLinkBooking.booking_date,
+            booking_time: paymentLinkBooking.booking_time,
+            total_price: paymentLinkBooking.total_price,
+            hotel_name: paymentLinkBooking.hotel_name,
+            treatments: paymentLinkBooking.treatments,
+          }}
+        />
+      )}
     </div>
   );
 }

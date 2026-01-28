@@ -26,7 +26,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2 } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -43,6 +43,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -185,6 +186,9 @@ export default function EditBookingDialog({
   // Quote pending states
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteDuration, setQuoteDuration] = useState<string>("");
+
+  // Payment link dialog state
+  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   
 
   // Pre-fill form when booking changes
@@ -1291,8 +1295,8 @@ export default function EditBookingDialog({
               {!showAssignHairdresser && (
                 <div className="flex gap-2">
                   {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="destructive"
                       onClick={() => setShowDeleteDialog(true)}
                       className="gap-2"
@@ -1301,8 +1305,22 @@ export default function EditBookingDialog({
                       Annuler
                     </Button>
                   )}
-                  <Button 
-                    type="button" 
+                  {booking?.payment_status !== 'paid' &&
+                   booking?.payment_status !== 'charged_to_room' &&
+                   booking?.payment_method === 'card' &&
+                   booking?.status !== 'cancelled' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsPaymentLinkDialogOpen(true)}
+                      className="gap-2"
+                    >
+                      <Send className="h-4 w-4" />
+                      Lien paiement
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
                     onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
                   >
                     Modifier
@@ -1763,6 +1781,30 @@ export default function EditBookingDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {booking && (
+        <SendPaymentLinkDialog
+          open={isPaymentLinkDialogOpen}
+          onOpenChange={setIsPaymentLinkDialogOpen}
+          booking={{
+            id: booking.id,
+            booking_id: booking.booking_id,
+            client_first_name: booking.client_first_name,
+            client_last_name: booking.client_last_name,
+            client_email: undefined,
+            phone: booking.phone,
+            room_number: booking.room_number || undefined,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
+            total_price: booking.total_price || 0,
+            hotel_name: booking.hotel_name || undefined,
+            treatments: bookingTreatments?.map(t => ({
+              name: t.name || 'Service',
+              price: t.price || 0,
+            })) || [],
+          }}
+        />
+      )}
 
     </Dialog>
   );
