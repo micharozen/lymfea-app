@@ -17,6 +17,7 @@ import { useClientSession } from '@/hooks/useClientSession';
 import { useClientPrefetch } from '@/hooks/useClientPrefetch';
 import { PageTransition } from '@/components/client/PageTransition';
 import { ClientFlowProvider } from '@/pages/client/context/FlowContext';
+import { AnalyticsProvider } from '@/pages/client/context/AnalyticsContext';
 
 interface ClientFlowWrapperProps {
   children: React.ReactNode;
@@ -42,11 +43,13 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
   }, [hotelId]);
 
   return (
-    <ClientFlowProvider>
-      <PageTransition>
-        <div className="lymfea-client">{children}</div>
-      </PageTransition>
-    </ClientFlowProvider>
+    <AnalyticsProvider hotelId={hotelId}>
+      <ClientFlowProvider>
+        <PageTransition>
+          <div className="lymfea-client">{children}</div>
+        </PageTransition>
+      </ClientFlowProvider>
+    </AnalyticsProvider>
   );
 };
 

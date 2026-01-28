@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ShoppingBag, Minus, Plus, Sparkles, ChevronDown } from 'lucide-react';
 import { useBasket } from './context/CartContext';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 
 // Optimize Supabase image URLs for thumbnails
 const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): string | null => {
@@ -106,6 +107,16 @@ export default function Treatments() {
   });
 
   const venueTerms = useVenueTerms(venueType);
+  const { trackPageView, trackAction } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
+
+  // Track page view once
+  useEffect(() => {
+    if (!hasTrackedPageView.current) {
+      hasTrackedPageView.current = true;
+      trackPageView('treatments');
+    }
+  }, [trackPageView]);
 
   // Define category order priority
   const categoryOrder = ['Blowout', 'Brushing', 'Haircut', 'Hair cut', 'Coloration', 'Nail', 'Nails'];
@@ -144,6 +155,14 @@ export default function Treatments() {
   }, [categoriesByGender.women.length, categoriesByGender.men.length]);
 
   const handleAddToBasket = (treatment: Treatment) => {
+    // Track add to cart action
+    trackAction('add_to_cart', {
+      treatmentId: treatment.id,
+      treatmentName: treatment.name,
+      price: treatment.price,
+      category: treatment.category,
+    });
+
     // Add to basket - including price_on_request items for mixed cart logic
     addItem({
       id: treatment.id,
@@ -155,11 +174,11 @@ export default function Treatments() {
       category: treatment.category,
       isPriceOnRequest: treatment.price_on_request || false,
     });
-    
+
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
-    
+
     setBounceKey(prev => prev + 1);
   };
 

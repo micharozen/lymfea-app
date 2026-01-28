@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -548,7 +548,7 @@ export type Database = {
           timezone: string | null
           updated_at: string
           vat: number | null
-          venue_type: 'hotel' | 'coworking' | null
+          venue_type: string | null
         }
         Insert: {
           address?: string | null
@@ -571,7 +571,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           vat?: number | null
-          venue_type?: 'hotel' | 'coworking' | null
+          venue_type?: string | null
         }
         Update: {
           address?: string | null
@@ -594,7 +594,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           vat?: number | null
-          venue_type?: 'hotel' | 'coworking' | null
+          venue_type?: string | null
         }
         Relationships: []
       }
@@ -836,91 +836,6 @@ export type Database = {
           },
         ]
       }
-      treatment_requests: {
-        Row: {
-          admin_notes: string | null
-          client_email: string | null
-          client_first_name: string
-          client_last_name: string | null
-          client_phone: string
-          converted_booking_id: string | null
-          created_at: string
-          description: string | null
-          hotel_id: string
-          id: string
-          preferred_date: string | null
-          preferred_time: string | null
-          quoted_duration: number | null
-          quoted_price: number | null
-          room_number: string | null
-          status: string
-          treatment_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          admin_notes?: string | null
-          client_email?: string | null
-          client_first_name: string
-          client_last_name?: string | null
-          client_phone: string
-          converted_booking_id?: string | null
-          created_at?: string
-          description?: string | null
-          hotel_id: string
-          id?: string
-          preferred_date?: string | null
-          preferred_time?: string | null
-          quoted_duration?: number | null
-          quoted_price?: number | null
-          room_number?: string | null
-          status?: string
-          treatment_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          admin_notes?: string | null
-          client_email?: string | null
-          client_first_name?: string
-          client_last_name?: string | null
-          client_phone?: string
-          converted_booking_id?: string | null
-          created_at?: string
-          description?: string | null
-          hotel_id?: string
-          id?: string
-          preferred_date?: string | null
-          preferred_time?: string | null
-          quoted_duration?: number | null
-          quoted_price?: number | null
-          room_number?: string | null
-          status?: string
-          treatment_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "treatment_requests_converted_booking_id_fkey"
-            columns: ["converted_booking_id"]
-            isOneToOne: false
-            referencedRelation: "bookings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "treatment_requests_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "hotels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "treatment_requests_treatment_id_fkey"
-            columns: ["treatment_id"]
-            isOneToOne: false
-            referencedRelation: "treatment_menus"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       trunks: {
         Row: {
           created_at: string
@@ -997,40 +912,40 @@ export type Database = {
       }
       venue_deployment_schedules: {
         Row: {
-          id: string
-          hotel_id: string
-          schedule_type: Database["public"]["Enums"]["schedule_type"]
+          created_at: string | null
           days_of_week: number[] | null
-          recurring_start_date: string | null
-          recurring_end_date: string | null
-          specific_dates: string[] | null
+          hotel_id: string
+          id: string
           recurrence_interval: number
-          created_at: string
-          updated_at: string
+          recurring_end_date: string | null
+          recurring_start_date: string | null
+          schedule_type: Database["public"]["Enums"]["schedule_type"]
+          specific_dates: string[] | null
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          hotel_id: string
-          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          created_at?: string | null
           days_of_week?: number[] | null
-          recurring_start_date?: string | null
-          recurring_end_date?: string | null
-          specific_dates?: string[] | null
+          hotel_id: string
+          id?: string
           recurrence_interval?: number
-          created_at?: string
-          updated_at?: string
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          specific_dates?: string[] | null
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          hotel_id?: string
-          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          created_at?: string | null
           days_of_week?: number[] | null
-          recurring_start_date?: string | null
-          recurring_end_date?: string | null
-          specific_dates?: string[] | null
+          hotel_id?: string
+          id?: string
           recurrence_interval?: number
-          created_at?: string
-          updated_at?: string
+          recurring_end_date?: string | null
+          recurring_start_date?: string | null
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          specific_dates?: string[] | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -1039,7 +954,7 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "hotels"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
     }
@@ -1079,25 +994,35 @@ export type Database = {
         }[]
       }
       get_hairdresser_id: { Args: { _user_id: string }; Returns: string }
+      get_public_hairdressers: {
+        Args: { _hotel_id: string }
+        Returns: {
+          first_name: string
+          id: string
+          profile_image: string
+          skills: string[]
+        }[]
+      }
       get_public_hotel_by_id: {
         Args: { _hotel_id: string }
         Returns: {
           city: string
+          closing_time: string
           country: string
           cover_image: string
           currency: string
+          days_of_week: number[]
           id: string
           image: string
           name: string
+          opening_time: string
+          recurrence_interval: number
+          recurring_end_date: string
+          recurring_start_date: string
+          schedule_type: string
           status: string
           vat: number
-          opening_time: string | null
-          closing_time: string | null
-          schedule_type: string | null
-          days_of_week: number[] | null
-          recurrence_interval: number | null
-          recurring_start_date: string | null
-          recurring_end_date: string | null
+          venue_type: string
         }[]
       }
       get_public_hotels: {
@@ -1117,6 +1042,7 @@ export type Database = {
         Args: { _hotel_id: string }
         Returns: {
           category: string
+          currency: string
           description: string
           duration: number
           id: string
@@ -1130,6 +1056,10 @@ export type Database = {
         }[]
       }
       get_user_timezone: { Args: { _user_id: string }; Returns: string }
+      get_venue_available_dates: {
+        Args: { _end_date: string; _hotel_id: string; _start_date: string }
+        Returns: string[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1137,6 +1067,9 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_venue_available_on_date:
+        | { Args: { _check_date: string; _hotel_id: string }; Returns: boolean }
+        | { Args: { _check_date: string; _hotel_id: string }; Returns: boolean }
       unassign_booking: {
         Args: { _booking_id: string; _hairdresser_id: string }
         Returns: Json
@@ -1150,21 +1083,6 @@ export type Database = {
           _hotel_id: string
         }
         Returns: boolean
-      }
-      is_venue_available_on_date: {
-        Args: {
-          _hotel_id: string
-          _check_date: string
-        }
-        Returns: boolean
-      }
-      get_venue_available_dates: {
-        Args: {
-          _hotel_id: string
-          _start_date: string
-          _end_date: string
-        }
-        Returns: string[]
       }
     }
     Enums: {

@@ -4,11 +4,23 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useEffect, useRef } from 'react';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 
 export default function Confirmation() {
   const { hotelId, bookingId } = useParams<{ hotelId: string; bookingId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
+  const { trackConversion } = useClientAnalytics(hotelId);
+  const hasTrackedConversion = useRef(false);
+
+  // Track conversion once when booking is confirmed
+  useEffect(() => {
+    if (bookingId && !hasTrackedConversion.current) {
+      hasTrackedConversion.current = true;
+      trackConversion('booking_completed', { bookingId });
+    }
+  }, [bookingId, trackConversion]);
 
   // Fetch booking to check if it's a quote
   const { data: booking, isLoading } = useQuery({
