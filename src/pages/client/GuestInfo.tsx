@@ -4,6 +4,7 @@ import { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -72,7 +73,22 @@ export default function GuestInfo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
-  const [venueType, setVenueType] = useState<VenueType | null>(null);
+
+  // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
+  const { data: hotel } = useQuery({
+    queryKey: ['public-hotel', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
+      if (error) throw error;
+      return data?.[0] || null;
+    },
+    enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const venueType = hotel?.venue_type as VenueType | null;
 
   // Get venue-specific terminology
   const { locationNumberLabel } = useVenueTerms(venueType);
@@ -86,22 +102,6 @@ export default function GuestInfo() {
       trackPageView('guest_info');
     }
   }, [trackPageView]);
-
-  // Fetch venue type
-  useEffect(() => {
-    const fetchVenueType = async () => {
-      if (!hotelId) return;
-      const { data } = await supabase
-        .from('hotels')
-        .select('venue_type')
-        .eq('id', hotelId)
-        .single();
-      if (data?.venue_type) {
-        setVenueType(data.venue_type as VenueType);
-      }
-    };
-    fetchVenueType();
-  }, [hotelId]);
 
   const isCoworking = venueType === 'coworking';
   const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);

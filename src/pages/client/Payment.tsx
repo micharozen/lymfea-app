@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
-import { useVenueTerms } from '@/hooks/useVenueTerms';
+import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,8 +21,23 @@ export default function Payment() {
   const { bookingDateTime, clientInfo, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [venueType, setVenueType] = useState<'hotel' | 'coworking' | null>(null);
   const { t } = useTranslation('client');
+
+  // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
+  const { data: hotel } = useQuery({
+    queryKey: ['public-hotel', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
+      if (error) throw error;
+      return data?.[0] || null;
+    },
+    enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
 
   // Coworking spaces don't support room payment
@@ -37,25 +53,12 @@ export default function Payment() {
     }
   }, [trackPageView]);
 
-  // Fetch venue type
+  // Set default payment method based on venue type
   useEffect(() => {
-    const fetchVenueType = async () => {
-      if (!hotelId) return;
-      const { data } = await supabase
-        .from('hotels')
-        .select('venue_type')
-        .eq('id', hotelId)
-        .single();
-      if (data?.venue_type) {
-        setVenueType(data.venue_type as 'hotel' | 'coworking');
-        // If coworking, default to card payment
-        if (data.venue_type === 'coworking') {
-          setSelectedMethod('card');
-        }
-      }
-    };
-    fetchVenueType();
-  }, [hotelId]);
+    if (venueType === 'coworking') {
+      setSelectedMethod('card');
+    }
+  }, [venueType]);
 
   // Redirect if missing required data
   useEffect(() => {

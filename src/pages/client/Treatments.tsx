@@ -91,21 +91,9 @@ export default function Treatments() {
   // Expanded gender section state - default to women
   const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
 
-  const { data: venueType } = useQuery({
-    queryKey: ['venue-type', hotelId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('hotels')
-        .select('venue_type')
-        .eq('id', hotelId)
-        .single();
-      return (data?.venue_type as VenueType) || null;
-    },
-    enabled: !!hotelId,
-    staleTime: 30 * 60 * 1000, // 30 minutes - venue type never changes mid-session
-    gcTime: 60 * 60 * 1000,    // 1 hour cache
-  });
-
+  // venue_type is now included in the RPC response (get_public_hotel_by_id)
+  // No need for a separate query that could fail due to RLS policies
+  const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
