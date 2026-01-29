@@ -5,9 +5,12 @@ import { Resend } from 'https://esm.sh/resend@4.0.0';
 import {
   getPaymentLinkEmailSubject,
   getPaymentLinkEmailHtml,
-  getPaymentLinkWhatsAppMessage,
   PaymentLinkTemplateData
 } from '../_shared/payment-link-templates.ts';
+import {
+  sendWhatsAppTemplate,
+  buildPaymentLinkTemplateMessage,
+} from '../_shared/whatsapp-meta.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +67,8 @@ serve(async (req) => {
         status,
         payment_method,
         hotel_id,
-        hotel_name
+        hotel_name,
+        hairdresser_name
       `)
       .eq('id', bookingId)
       .single();
@@ -222,47 +226,33 @@ serve(async (req) => {
       }
     }
 
-    // Send WhatsApp if requested
+    // Send WhatsApp if requested (via Meta WhatsApp Business API)
     if (channels.includes('whatsapp') && phone) {
       try {
-        const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-        const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-        const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER');
+        const treatmentsList = treatments.map(t => `• ${t.name}`).join('\n');
 
-        if (!accountSid || !authToken || !twilioPhone) {
-          throw new Error('Twilio credentials not configured');
-        }
+        const hairdresserName = booking.hairdresser_name || (language === 'fr' ? 'Votre professionnel OOM' : 'Your OOM professional');
+        const template = buildPaymentLinkTemplateMessage(
+          language,
+          templateData.clientName,
+          hairdresserName,
+          templateData.hotelName,
+          templateData.bookingDate,
+          templateData.bookingTime,
+          templateData.bookingNumber,
+          treatmentsList,
+          `${totalPrice}${currencySymbol}`,
+          paymentLink.url
+        );
 
-        const message = getPaymentLinkWhatsAppMessage(language, templateData);
-
-        // Format phone for WhatsApp
         const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
-        const fromWhatsApp = `whatsapp:${twilioPhone}`;
-        const toWhatsApp = `whatsapp:${formattedPhone}`;
+        const whatsappResult = await sendWhatsAppTemplate(formattedPhone, template);
 
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-
-        const formData = new URLSearchParams();
-        formData.append('From', fromWhatsApp);
-        formData.append('To', toWhatsApp);
-        formData.append('Body', message);
-
-        const response = await fetch(twilioUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Basic ' + btoa(`${accountSid}:${authToken}`),
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Twilio error: ${errorText}`);
+        if (!whatsappResult.success) {
+          throw new Error(whatsappResult.error || 'Failed to send WhatsApp');
         }
 
-        const twilioResult = await response.json();
-        console.log("[SEND-PAYMENT-LINK] WhatsApp sent:", twilioResult.sid);
+        console.log("[SEND-PAYMENT-LINK] WhatsApp sent via Meta:", whatsappResult.messageId);
         results.whatsapp = true;
       } catch (whatsappError) {
         console.error("[SEND-PAYMENT-LINK] WhatsApp error:", whatsappError);

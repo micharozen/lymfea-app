@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
+import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
@@ -114,6 +115,7 @@ const PwaBookingDetail = () => {
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [showProposeAlternativeDialog, setShowProposeAlternativeDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
@@ -885,6 +887,16 @@ const PwaBookingDetail = () => {
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
+                      <div className="border-t my-2" />
+                      <DrawerClose asChild>
+                        <button
+                          onClick={() => setShowProposeAlternativeDialog(true)}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
+                        >
+                          <Clock className="w-4 h-4 text-orange-500" />
+                          <span className="text-sm font-medium">Proposer un autre créneau</span>
+                        </button>
+                      </DrawerClose>
                     </div>
                   </DrawerContent>
                 </Drawer>
@@ -1031,6 +1043,24 @@ const PwaBookingDetail = () => {
         bookingId={booking.id}
         hotelId={booking.hotel_id}
         onTreatmentsAdded={fetchBookingDetail}
+      />
+
+      {/* Propose Alternative Dialog */}
+      <ProposeAlternativeDialog
+        open={showProposeAlternativeDialog}
+        onOpenChange={setShowProposeAlternativeDialog}
+        booking={{
+          id: booking.id,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          phone: booking.phone,
+        }}
+        onProposalSent={() => {
+          fetchBookingDetail();
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+        }}
       />
 
       {/* Signature Dialog */}
