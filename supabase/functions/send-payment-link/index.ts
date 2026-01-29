@@ -67,7 +67,8 @@ serve(async (req) => {
         status,
         payment_method,
         hotel_id,
-        hotel_name
+        hotel_name,
+        hairdresser_name
       `)
       .eq('id', bookingId)
       .single();
@@ -230,10 +231,11 @@ serve(async (req) => {
       try {
         const treatmentsList = treatments.map(t => `• ${t.name}`).join('\n');
 
+        const hairdresserName = booking.hairdresser_name || (language === 'fr' ? 'Votre professionnel OOM' : 'Your OOM professional');
         const template = buildPaymentLinkTemplateMessage(
           language,
           templateData.clientName,
-          templateData.roomNumber,
+          hairdresserName,
           templateData.hotelName,
           templateData.bookingDate,
           templateData.bookingTime,

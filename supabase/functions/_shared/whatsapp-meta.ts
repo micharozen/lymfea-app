@@ -339,13 +339,13 @@ export function buildSlotAcceptedMessage(
 export function buildPaymentLinkTemplateMessage(
   language: 'fr' | 'en',
   clientName: string,
-  roomNumber: string,
+  hairdresserName: string,
   hotelName: string,
   bookingDate: string,
   bookingTime: string,
   bookingNumber: string | number,
   treatments: string,
-  totalPrice: string,
+  totalPriceWithCurrency: string,
   paymentUrl: string
 ): WhatsAppTemplateMessage {
   return {
@@ -355,15 +355,17 @@ export function buildPaymentLinkTemplateMessage(
       {
         type: 'body',
         parameters: [
-          { type: 'text', text: clientName },           // {{1}}
-          { type: 'text', text: roomNumber },           // {{2}}
-          { type: 'text', text: hotelName },            // {{3}}
-          { type: 'text', text: bookingDate },          // {{4}}
-          { type: 'text', text: bookingTime },          // {{5}}
-          { type: 'text', text: String(bookingNumber) }, // {{6}}
-          { type: 'text', text: treatments },           // {{7}}
-          { type: 'text', text: totalPrice },           // {{8}}
-          { type: 'text', text: paymentUrl },           // {{9}}
+          { type: 'text', text: clientName },              // {{1}} nom complet
+          { type: 'text', text: clientName },              // {{2}} nom complet (dupliqué)
+          { type: 'text', text: hairdresserName },         // {{3}}
+          { type: 'text', text: hotelName },               // {{4}}
+          { type: 'text', text: bookingDate },             // {{5}}
+          { type: 'text', text: bookingTime },             // {{6}}
+          { type: 'text', text: String(bookingNumber) },   // {{7}}
+          { type: 'text', text: treatments },              // {{8}}
+          { type: 'text', text: totalPriceWithCurrency },  // {{9}} ex: "160€"
+          { type: 'text', text: totalPriceWithCurrency },  // {{10}} dupliqué
+          { type: 'text', text: paymentUrl },              // {{11}}
         ],
       },
     ],
