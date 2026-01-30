@@ -661,8 +661,11 @@ const PwaBookingDetail = () => {
     : (treatmentsTotalDuration > 0 ? treatmentsTotalDuration : 60);
   const totalPrice = booking.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotalPrice;
   
-  const estimatedEarnings = booking.hairdresser_commission 
-    ? Math.round(totalPrice * (booking.hairdresser_commission / 100) * 100) / 100
+  // Calculate earnings on HT (before VAT), matching finalize-payment logic
+  const vatRate = booking.hotel_vat || 20;
+  const totalHT = totalPrice / (1 + vatRate / 100);
+  const estimatedEarnings = booking.hairdresser_commission
+    ? Math.round(totalHT * (booking.hairdresser_commission / 100) * 100) / 100
     : 0;
 
   return (

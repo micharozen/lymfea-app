@@ -229,7 +229,7 @@ serve(async (req) => {
     // Send WhatsApp if requested (via Meta WhatsApp Business API)
     if (channels.includes('whatsapp') && phone) {
       try {
-        const treatmentsList = treatments.map(t => `• ${t.name}`).join('\n');
+        const treatmentsList = treatments.map(t => t.name).join(', ');
 
         const hairdresserName = booking.hairdresser_name || (language === 'fr' ? 'Votre professionnel OOM' : 'Your OOM professional');
         const template = buildPaymentLinkTemplateMessage(

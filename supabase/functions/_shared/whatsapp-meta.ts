@@ -338,6 +338,9 @@ export function buildSlotAcceptedMessage(
 }
 
 // Build the payment link template message
+// Template expects exactly 9 parameters:
+// {{1}} Nom client, {{2}} Nom praticien, {{3}} Nom hôtel, {{4}} Date, {{5}} Heure,
+// {{6}} N° réservation, {{7}} Service(s), {{8}} Prix total, {{9}} URL paiement
 export function buildPaymentLinkTemplateMessage(
   language: 'fr' | 'en',
   clientName: string,
@@ -357,17 +360,15 @@ export function buildPaymentLinkTemplateMessage(
       {
         type: 'body',
         parameters: [
-          { type: 'text', text: clientName },              // {{1}} nom complet
-          { type: 'text', text: clientName },              // {{2}} nom complet (dupliqué)
-          { type: 'text', text: hairdresserName },         // {{3}}
-          { type: 'text', text: hotelName },               // {{4}}
-          { type: 'text', text: bookingDate },             // {{5}}
-          { type: 'text', text: bookingTime },             // {{6}}
-          { type: 'text', text: String(bookingNumber) },   // {{7}}
-          { type: 'text', text: treatments },              // {{8}}
-          { type: 'text', text: totalPriceWithCurrency },  // {{9}} ex: "160€"
-          { type: 'text', text: totalPriceWithCurrency },  // {{10}} dupliqué
-          { type: 'text', text: paymentUrl },              // {{11}}
+          { type: 'text', text: clientName },              // {{1}} Nom client
+          { type: 'text', text: hairdresserName },         // {{2}} Nom praticien
+          { type: 'text', text: hotelName },               // {{3}} Nom hôtel
+          { type: 'text', text: bookingDate },             // {{4}} Date
+          { type: 'text', text: bookingTime },             // {{5}} Heure
+          { type: 'text', text: String(bookingNumber) },   // {{6}} N° réservation
+          { type: 'text', text: treatments },              // {{7}} Service(s)
+          { type: 'text', text: totalPriceWithCurrency },  // {{8}} Prix total
+          { type: 'text', text: paymentUrl },              // {{9}} URL paiement
         ],
       },
     ],
