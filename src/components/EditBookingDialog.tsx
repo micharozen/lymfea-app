@@ -254,7 +254,7 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, timezone")
+        .select("id, name, timezone, currency")
         .order("name");
       if (error) throw error;
       return data;
@@ -1087,7 +1087,7 @@ export default function EditBookingDialog({
                             : 0;
                         const customPrice = booking?.total_price;
                         const value = customPrice && customPrice > 0 ? customPrice : treatmentsPrice;
-                        return formatPrice(value);
+                        return formatPrice(value, selectedHotel?.currency || 'EUR');
                       })()}
                     </p>
                   </div>
@@ -1129,7 +1129,7 @@ export default function EditBookingDialog({
                         ))}
                         <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                           <span className="font-semibold">Total</span>
-                          <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                          <span className="font-semibold">{formatPrice(displayTotal, selectedHotel?.currency || 'EUR')}</span>
                         </div>
                       </div>
                     </div>
@@ -1143,12 +1143,12 @@ export default function EditBookingDialog({
                       {bookingTreatments.map((treatment) => (
                         <div key={treatment.id} className="flex items-center justify-between text-sm">
                           <span>{treatment.name}</span>
-                          <span className="font-medium">{formatPrice(treatment.price || 0)}</span>
+                          <span className="font-medium">{formatPrice(treatment.price || 0, selectedHotel?.currency || 'EUR')}</span>
                         </div>
                       ))}
                       <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                         <span className="font-semibold">Total</span>
-                        <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                        <span className="font-semibold">{formatPrice(displayTotal, selectedHotel?.currency || 'EUR')}</span>
                       </div>
                     </div>
                   </div>
@@ -1802,6 +1802,7 @@ export default function EditBookingDialog({
               name: t.name || 'Service',
               price: t.price || 0,
             })) || [],
+            currency: selectedHotel?.currency || 'EUR',
           }}
         />
       )}

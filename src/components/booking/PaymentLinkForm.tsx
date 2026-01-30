@@ -27,6 +27,7 @@ export interface BookingData {
   total_price: number;
   hotel_name?: string;
   treatments?: Treatment[];
+  currency?: string;
 }
 
 interface PaymentLinkFormProps {
@@ -125,7 +126,7 @@ export function PaymentLinkForm({
   // Preview message based on language
   const getPreviewMessage = () => {
     const clientName = `${booking.client_first_name} ${booking.client_last_name}`;
-    const treatmentsList = booking.treatments?.map(t => `• ${t.name} - ${formatPrice(t.price)}`).join("\n") || "";
+    const treatmentsList = booking.treatments?.map(t => `• ${t.name} - ${formatPrice(t.price, booking.currency || 'EUR')}`).join("\n") || "";
 
     if (language === "fr") {
       return `Bonjour ${clientName} !
@@ -139,7 +140,7 @@ Réservation #${booking.booking_id}
 
 ${treatmentsList}
 
-Total: ${formatPrice(booking.total_price)}
+Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
 
 [Lien de paiement sera généré]`;
     }
@@ -155,7 +156,7 @@ Booking #${booking.booking_id}
 
 ${treatmentsList}
 
-Total: ${formatPrice(booking.total_price)}
+Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
 
 [Payment link will be generated]`;
   };
@@ -219,7 +220,7 @@ Total: ${formatPrice(booking.total_price)}
       <div className="p-3 bg-muted/50 rounded-lg text-sm">
         <p className="font-medium">Réservation #{booking.booking_id}</p>
         <p className="text-muted-foreground">
-          {booking.client_first_name} {booking.client_last_name} - {formatPrice(booking.total_price)}
+          {booking.client_first_name} {booking.client_last_name} - {formatPrice(booking.total_price, booking.currency || 'EUR')}
         </p>
       </div>
 

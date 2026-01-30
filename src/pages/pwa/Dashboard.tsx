@@ -45,7 +45,7 @@ interface Booking {
       duration: number;
     } | null;
   }>;
-  hotels?: { image: string | null } | { image: string | null }[] | null;
+  hotels?: { image: string | null; currency: string | null } | { image: string | null; currency: string | null }[] | null;
 }
 
 // Helper to get hotel image from booking (handles both object and array)
@@ -55,6 +55,15 @@ const getHotelImage = (booking: Booking): string | null => {
     return booking.hotels[0]?.image || null;
   }
   return booking.hotels.image;
+};
+
+// Helper to get hotel currency from booking (handles both object and array)
+const getHotelCurrency = (booking: Booking): string => {
+  if (!booking.hotels) return 'EUR';
+  if (Array.isArray(booking.hotels)) {
+    return booking.hotels[0]?.currency || 'EUR';
+  }
+  return booking.hotels.currency || 'EUR';
 };
 
 const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
@@ -291,13 +300,13 @@ const PwaDashboard = () => {
       : [];
     console.log('🧳 Hairdresser trunk IDs:', hairdresserTrunkIds);
 
-    // Fetch hotel images separately (no FK relationship)
-    const { data: hotelImages } = await supabase
+    // Fetch hotel images and currency separately (no FK relationship)
+    const { data: hotelData } = await supabase
       .from("hotels")
-      .select("id, image")
+      .select("id, image, currency")
       .in("id", hotelIds);
-    
-    const hotelImageMap = new Map(hotelImages?.map(h => [h.id, h.image]) || []);
+
+    const hotelDataMap = new Map(hotelData?.map(h => [h.id, { image: h.image, currency: h.currency }]) || []);
 
     // 1. Get bookings assigned to this hairdresser (any status)
     const { data: myBookings, error: myError } = await supabase
@@ -317,7 +326,7 @@ const PwaDashboard = () => {
     // Add hotel images to bookings
     const myBookingsWithImages = myBookings?.map(b => ({
       ...b,
-      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
     })) || [];
 
     if (myError) {
@@ -363,7 +372,7 @@ const PwaDashboard = () => {
     // Add hotel images to pending bookings
     const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
       ...b,
-      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
     }));
 
     if (pendingError) {
@@ -735,7 +744,7 @@ const PwaDashboard = () => {
                         })()}
                       </div>
                       <p className="text-[11px] text-gray-500">
-                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
+                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -826,7 +835,7 @@ const PwaDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
                             <p className="text-[11px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
+                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
                             </p>
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />

@@ -205,6 +205,7 @@ export default function Booking() {
               hours={calendar.hours}
               hourHeight={calendar.hourHeight}
               startHour={calendar.startHour}
+              getHotelInfo={getHotelInfo}
             />
           ) : (
             <BookingListView
@@ -275,6 +276,7 @@ export default function Booking() {
             total_price: paymentLinkBooking.total_price,
             hotel_name: paymentLinkBooking.hotel_name,
             treatments: paymentLinkBooking.treatments,
+            currency: getHotelInfo(paymentLinkBooking.hotel_id)?.currency || 'EUR',
           }}
         />
       )}

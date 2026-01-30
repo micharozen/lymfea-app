@@ -26,6 +26,7 @@ export interface Hotel {
   id: string;
   name: string;
   image: string | null;
+  currency: string | null;
 }
 
 export interface Hairdresser {
@@ -93,7 +94,7 @@ export function useBookingData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, image")
+        .select("id, name, image, currency")
         .order("name");
       if (error) throw error;
       return data as Hotel[];

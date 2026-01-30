@@ -211,7 +211,7 @@ export function BookingDetailDialog({
                       )}
                       {treatment.price && (
                         <span className="font-medium text-foreground">
-                          {formatPrice(treatment.price)}
+                          {formatPrice(treatment.price, hotel?.currency || 'EUR')}
                         </span>
                       )}
                     </div>
@@ -252,7 +252,7 @@ export function BookingDetailDialog({
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Total</p>
-                  <p className="text-xl font-semibold">{formatPrice(booking.total_price)}</p>
+                  <p className="text-xl font-semibold">{formatPrice(booking.total_price, hotel?.currency || 'EUR')}</p>
                 </div>
               </div>
             </div>
