@@ -872,15 +872,17 @@ const PwaBookingDetail = () => {
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
-                      <a
-                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                      </a>
+                      {booking.phone && (
+                        <a
+                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium">{t('booking.contactClient')}</span>
+                        </a>
+                      )}
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
@@ -942,16 +944,18 @@ const PwaBookingDetail = () => {
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
-                      <a
-                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                      </a>
+                      {booking.phone && (
+                        <a
+                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShowContactDrawer(false)}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-4 h-4 text-primary" />
+                          <span className="text-sm font-medium">{t('booking.contactClient')}</span>
+                        </a>
+                      )}
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
