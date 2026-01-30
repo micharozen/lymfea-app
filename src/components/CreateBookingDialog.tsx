@@ -320,15 +320,43 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     mutationFn: async (d: any) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
       const hd = hairdressers?.find(h => h.id === d.hairdresserId);
-      
+
+      // Pour les concierges, auto-assigner le premier coiffeur de l'hôtel (alphabétiquement)
+      let autoAssignedHairdresser: { id: string; first_name: string; last_name: string } | null = null;
+      if (!d.isAdmin && d.hotelId) {
+        const { data: hairdresserHotels } = await supabase
+          .from("hairdresser_hotels")
+          .select("hairdresser_id, hairdressers (id, first_name, last_name, status)")
+          .eq("hotel_id", d.hotelId);
+
+        const activeHairdressers = hairdresserHotels
+          ?.map((hh: any) => hh.hairdressers)
+          .filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status))
+          .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name));
+
+        if (activeHairdressers && activeHairdressers.length > 0) {
+          autoAssignedHairdresser = activeHairdressers[0];
+        }
+      }
+
       // Determine status based on role:
       // - Admin with hairdresser assigned: "confirmed"
       // - Admin without hairdresser: "pending" (hairdressers notified)
-      // - Concierge/Client: "pending_quote" (waiting for admin review)
+      // - Concierge with auto-assigned hairdresser: "pending" (hairdresser can accept/decline)
+      // - Concierge without hairdresser available: "pending_quote" (waiting for admin review)
       let status: string;
+      let finalHairdresserId = d.hairdresserId || null;
+      let finalHairdresserName = hd ? `${hd.first_name} ${hd.last_name}` : null;
+
       if (d.isAdmin) {
         status = d.hairdresserId ? "confirmed" : "pending";
+      } else if (autoAssignedHairdresser) {
+        // Concierge avec auto-assignation
+        status = "pending";
+        finalHairdresserId = autoAssignedHairdresser.id;
+        finalHairdresserName = `${autoAssignedHairdresser.first_name} ${autoAssignedHairdresser.last_name}`;
       } else {
+        // Concierge sans coiffeur disponible
         status = "pending_quote";
       }
       
@@ -371,10 +399,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         room_number: d.roomNumber, 
         booking_date: d.date, 
         booking_time: d.time,
-        hairdresser_id: d.hairdresserId || null, 
-        hairdresser_name: hd ? `${hd.first_name} ${hd.last_name}` : null,
-        status, 
-        assigned_at: d.hairdresserId ? new Date().toISOString() : null, 
+        hairdresser_id: finalHairdresserId,
+        hairdresser_name: finalHairdresserName,
+        status,
+        assigned_at: finalHairdresserId ? new Date().toISOString() : null, 
         total_price: d.totalPrice,
         trunk_id: trunkId,
         duration: d.totalDuration,
@@ -395,8 +423,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           if (!d.hairdresserId) {
             await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
           }
+        } else if (autoAssignedHairdresser) {
+          // Concierge avec auto-assignation: notifier le coiffeur assigné
+          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
         } else {
-          // Concierge/Client flow: notify admin for quote review
+          // Concierge sans coiffeur: notify admin for quote review
           await invokeEdgeFunction('notify-admin-new-booking', { body: { bookingId: booking.id } });
         }
       } catch {}
