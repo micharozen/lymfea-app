@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import {
+  sendWhatsAppTemplate,
+  buildPaymentConfirmedTemplateMessage,
+  formatDateForWhatsApp,
+} from '../_shared/whatsapp-meta.ts';
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -47,6 +52,32 @@ serve(async (req) => {
         if (metadata?.source === 'payment_link' && metadata?.booking_id) {
           console.log(`[STRIPE-WEBHOOK] Payment link completed for booking: ${metadata.booking_id}`);
 
+          // Fetch full booking details for WhatsApp confirmation
+          const { data: booking, error: fetchError } = await supabase
+            .from('bookings')
+            .select(`
+              id,
+              booking_id,
+              client_first_name,
+              phone,
+              room_number,
+              booking_date,
+              booking_time,
+              total_price,
+              hotel_id,
+              hotel_name,
+              payment_link_language,
+              payment_link_channels
+            `)
+            .eq('id', metadata.booking_id)
+            .single();
+
+          if (fetchError || !booking) {
+            console.error('[STRIPE-WEBHOOK] Failed to fetch booking:', fetchError);
+            throw new Error(`Booking not found: ${metadata.booking_id}`);
+          }
+
+          // Update payment status
           const { error: updateError } = await supabase
             .from('bookings')
             .update({
@@ -61,6 +92,75 @@ serve(async (req) => {
           }
 
           console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as paid via payment link`);
+
+          // Send WhatsApp payment confirmation if payment link was sent via WhatsApp
+          const wasWhatsAppUsed = booking.payment_link_channels?.includes('whatsapp');
+          const clientPhone = booking.phone;
+
+          if (wasWhatsAppUsed && clientPhone) {
+            try {
+              // Fetch hotel currency
+              let currency = 'EUR';
+              if (booking.hotel_id) {
+                const { data: hotel } = await supabase
+                  .from('hotels')
+                  .select('currency')
+                  .eq('id', booking.hotel_id)
+                  .single();
+                if (hotel?.currency) {
+                  currency = hotel.currency.toUpperCase();
+                }
+              }
+
+              // Fetch treatments for this booking
+              const { data: bookingTreatments } = await supabase
+                .from('booking_treatments')
+                .select(`
+                  treatment_menus (name)
+                `)
+                .eq('booking_id', booking.id);
+
+              const treatmentsList = bookingTreatments
+                ?.map(bt => bt.treatment_menus?.name)
+                .filter(Boolean)
+                .join(', ') || 'Service bien-être';
+
+              // Determine language (default to 'fr' if not set)
+              const language = (booking.payment_link_language as 'fr' | 'en') || 'fr';
+
+              // Format date
+              const formattedDate = formatDateForWhatsApp(booking.booking_date);
+
+              // Format amount with currency symbol
+              const currencySymbol = currency === 'EUR' ? '€' : currency;
+              const amountPaid = `${booking.total_price}${currencySymbol}`;
+
+              // Build and send WhatsApp template
+              const template = buildPaymentConfirmedTemplateMessage(
+                language,
+                booking.client_first_name,
+                amountPaid,
+                formattedDate,
+                booking.booking_time,
+                booking.hotel_name || 'Hotel',
+                booking.room_number || '-',
+                booking.booking_id,
+                treatmentsList
+              );
+
+              const whatsappResult = await sendWhatsAppTemplate(clientPhone, template);
+
+              if (whatsappResult.success) {
+                console.log(`[STRIPE-WEBHOOK] WhatsApp payment confirmation sent: ${whatsappResult.messageId}`);
+              } else {
+                console.error(`[STRIPE-WEBHOOK] WhatsApp payment confirmation failed: ${whatsappResult.error}`);
+              }
+            } catch (whatsappError) {
+              console.error('[STRIPE-WEBHOOK] WhatsApp payment confirmation error:', whatsappError);
+              // Don't throw - payment is already processed, WhatsApp is best-effort
+            }
+          }
+
           return new Response(JSON.stringify({ received: true }), { status: 200 });
         }
 

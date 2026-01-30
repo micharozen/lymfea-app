@@ -163,6 +163,8 @@ export const WHATSAPP_TEMPLATES = {
   ALTERNATIVE_ACCEPTED: 'alternative_accepted',
   PAYMENT_LINK_FR: 'payment_link_fr',
   PAYMENT_LINK_EN: 'payment_link_en',
+  PAYMENT_CONFIRMED_FR: 'payment_confirmed_fr',
+  PAYMENT_CONFIRMED_EN: 'payment_confirmed_en',
 } as const;
 
 // Button IDs/payloads for webhook response matching
@@ -367,6 +369,39 @@ export function buildPaymentLinkTemplateMessage(
           { type: 'text', text: treatments },              // {{7}} Service(s)
           { type: 'text', text: totalPriceWithCurrency },  // {{8}} Prix total
           { type: 'text', text: paymentUrl },              // {{9}} URL paiement
+        ],
+      },
+    ],
+  };
+}
+
+// Build the payment confirmed template message (sent after payment link is paid)
+export function buildPaymentConfirmedTemplateMessage(
+  language: 'fr' | 'en',
+  clientFirstName: string,
+  totalPriceWithCurrency: string,
+  bookingDate: string,
+  bookingTime: string,
+  hotelName: string,
+  roomNumber: string,
+  bookingId: string | number,
+  treatmentsList: string
+): WhatsAppTemplateMessage {
+  return {
+    templateName: language === 'fr' ? WHATSAPP_TEMPLATES.PAYMENT_CONFIRMED_FR : WHATSAPP_TEMPLATES.PAYMENT_CONFIRMED_EN,
+    languageCode: language === 'fr' ? 'fr' : 'en',
+    components: [
+      {
+        type: 'body',
+        parameters: [
+          { type: 'text', text: clientFirstName },          // {{1}} prénom
+          { type: 'text', text: totalPriceWithCurrency },   // {{2}} ex: "160€"
+          { type: 'text', text: bookingDate },              // {{3}} date formatée
+          { type: 'text', text: bookingTime },              // {{4}} heure
+          { type: 'text', text: hotelName },                // {{5}} nom hôtel
+          { type: 'text', text: roomNumber },               // {{6}} numéro chambre
+          { type: 'text', text: String(bookingId) },        // {{7}} numéro réservation
+          { type: 'text', text: treatmentsList },           // {{8}} liste des soins
         ],
       },
     ],
