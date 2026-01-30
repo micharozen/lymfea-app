@@ -147,7 +147,7 @@ interface CreateBookingDialogProps {
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
   const queryClient = useQueryClient();
-  const { isConcierge } = useUserContext();
+  const { isConcierge, hotelIds } = useUserContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
 
@@ -156,7 +156,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      hotelId: "",
+      hotelId: isConcierge && hotelIds.length > 0 ? hotelIds[0] : "",
       hairdresserId: "",
       date: selectedDate,
       time: selectedTime || "",
@@ -524,7 +524,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {hotels?.map((hotel) => (
+                            {(isConcierge && hotelIds.length > 0
+                              ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
+                              : hotels
+                            )?.map((hotel) => (
                               <SelectItem key={hotel.id} value={hotel.id}>
                                 {hotel.name}
                               </SelectItem>
