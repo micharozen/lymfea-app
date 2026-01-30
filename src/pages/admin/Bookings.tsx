@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -28,7 +29,8 @@ export default function Booking() {
   const { activeTimezone } = useTimezone();
 
   // Data
-  const { bookings, hotels, hairdressers, getHotelInfo } = useBookingData();
+  const { bookings, hotels, hairdressers, getHotelInfo, refetch } = useBookingData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
   const [view, setView] = useState<"calendar" | "list">("calendar");
@@ -155,6 +157,12 @@ export default function Booking() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
@@ -163,9 +171,20 @@ export default function Booking() {
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
             📅 Bookings
           </h1>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            Create a booking
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh bookings"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              Create a booking
+            </Button>
+          </div>
         </div>
 
         <BookingFilters
