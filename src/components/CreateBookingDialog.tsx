@@ -219,7 +219,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: hotels } = useQuery({ 
     queryKey: ["hotels"], 
     queryFn: async () => { 
-      const { data } = await supabase.from("hotels").select("id, name, timezone").order("name"); 
+      const { data } = await supabase.from("hotels").select("id, name, timezone, currency").order("name"); 
       return data || []; 
     }
   });
@@ -842,7 +842,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                                 <span className="text-[10px] text-muted-foreground">
                                   {treatment.price_on_request 
                                     ? `${treatment.duration} min` 
-                                    : `${formatPrice(treatment.price, 'EUR', { decimals: 0 })} • ${treatment.duration} min`}
+                                    : `${formatPrice(treatment.price, selectedHotel?.currency || 'EUR', { decimals: 0 })} • ${treatment.duration} min`}
                                 </span>
                               </div>
 
@@ -936,7 +936,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
                   {/* Total + Actions */}
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-sm">{formatPrice(finalPrice)}</span>
+                    <span className="font-bold text-sm">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</span>
                     <Button 
                       type="button" 
                       variant="outline"
@@ -970,7 +970,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     <p className="text-sm text-muted-foreground text-center">
                       Réservation #{createdBooking.booking_id} pour {clientFirstName} {clientLastName}
                     </p>
-                    <p className="text-sm font-medium">{formatPrice(finalPrice)}</p>
+                    <p className="text-sm font-medium">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</p>
                   </div>
 
                   <div className="flex flex-col gap-2 w-full max-w-xs">
@@ -1018,6 +1018,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
             name: item.treatment?.name || 'Service',
             price: (item.treatment?.price || 0) * item.quantity,
           })),
+          currency: selectedHotel?.currency || 'EUR',
         }}
         onSuccess={() => {
           setIsPaymentLinkDialogOpen(false);

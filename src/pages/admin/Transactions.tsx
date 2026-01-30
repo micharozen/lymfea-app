@@ -33,6 +33,7 @@ interface BookingTransaction {
   payment_method: string | null;
   status: string;
   hotel_name: string | null;
+  hotels?: { currency: string | null } | null;
 }
 
 interface HotelBalance {
@@ -76,7 +77,8 @@ const ConciergeTransactions = () => {
           payment_method,
           status,
           hotel_name,
-          hotel_id
+          hotel_id,
+          hotels (currency)
         `)
         .in('hotel_id', hotelIds)
         .order('booking_date', { ascending: false })
@@ -152,7 +154,7 @@ const ConciergeTransactions = () => {
       `${t.client_first_name} ${t.client_last_name}`,
       `Réservation #${t.booking_id}`,
       t.hairdresser_name || "-",
-      t.total_price ? formatPrice(t.total_price) : "-",
+      t.total_price ? formatPrice(t.total_price, t.hotels?.currency || 'EUR') : "-",
       t.payment_status || "-"
     ]);
 
@@ -331,7 +333,7 @@ const ConciergeTransactions = () => {
                       </td>
                       <td className="py-3 px-2 text-right">
                         <span className="font-medium">
-                          {transaction.total_price ? formatPrice(transaction.total_price) : "-"}
+                          {transaction.total_price ? formatPrice(transaction.total_price, transaction.hotels?.currency || 'EUR') : "-"}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-center">

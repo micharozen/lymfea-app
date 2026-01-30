@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings')
+      .select('name, venue_type, auto_validate_bookings, currency')
       .eq('id', hotelId)
       .single();
 
@@ -425,7 +425,7 @@ serve(async (req) => {
               bookingTime: bookingData.time,
               treatments: treatmentsForEmail,
               totalPrice: hasPriceOnRequest ? totalPrice : totalPrice,
-              currency: 'EUR',
+              currency: hotel.currency || 'EUR',
               isQuotePending: hasPriceOnRequest,
             }),
           }
