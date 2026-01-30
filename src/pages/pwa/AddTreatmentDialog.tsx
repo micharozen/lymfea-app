@@ -77,7 +77,7 @@ export const AddTreatmentDialog = ({
         .from("treatment_menus")
         .select("*")
         .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
-        .eq("status", "Actif")
+        .eq("status", "active")
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
