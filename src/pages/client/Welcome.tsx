@@ -118,29 +118,29 @@ export default function Welcome() {
       </div>
 
       {/* 2. Content Layer */}
-      <div className="relative z-10 w-full flex flex-col max-w-lg mx-auto overflow-y-auto no-scrollbar pt-20">
+      <div className="relative z-10 w-full flex flex-col max-w-[92vw] sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto overflow-y-auto scrollbar-hide pt-12 sm:pt-16 md:pt-20">
         
         {/* Brand & Personalization */}
-        <div className="px-6 mb-8 animate-fade-in">
+        <div className="px-4 sm:px-6 mb-6 md:mb-8 animate-fade-in">
              <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
-               <img src={oomLogo} alt="OOM" className="h-14 w-14 mb-8" />
+               <img src={oomLogo} alt="OOM" className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 md:mb-8" />
              </a>
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
                 {venueTerms.exclusiveServiceLabel}
             </h3>
-            <h1 className="font-serif text-4xl md:text-5xl leading-tight mb-4 text-white">
+            <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
                 {t('welcome.artOfHairdressing')} <br/>
                 <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
             </h1>
-            <p className="text-gray-300 text-sm font-light leading-relaxed mb-6 max-w-sm">
+            <p className="text-gray-300 text-xs sm:text-sm font-light leading-relaxed mb-6 w-full max-w-[280px] sm:max-w-sm">
                 {venueTerms.serviceDescription}
             </p>
         </div>
 
         {/* Visual Service Menu (Preview) */}
         {treatments.length > 0 && (
-          <div className="mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <div className="flex items-center justify-between px-6 mb-4">
+          <div className="mb-6 md:mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
               <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">{t('welcome.ourServices')}</h4>
               <button
                 onClick={() => navigate(`/client/${hotelId}/treatments`)}
@@ -149,12 +149,12 @@ export default function Welcome() {
                 {t('welcome.seeAll')}
               </button>
             </div>
-            <div className="flex gap-4 overflow-x-auto px-6 no-scrollbar pb-2">
+            <div className="flex gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 scrollbar-hide pb-2">
               {treatments.map((treatment) => (
                 <div
                   key={treatment.id}
                   onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                  className="flex-shrink-0 w-32 group cursor-pointer"
+                  className="flex-shrink-0 w-28 sm:w-32 md:w-36 group cursor-pointer"
                 >
                   <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-white/5 ring-1 ring-white/10 group-hover:ring-gold-400/50 transition-all">
                     {treatment.image ? (
@@ -185,16 +185,16 @@ export default function Welcome() {
         <PractitionerCarousel hotelId={hotelId!} />
 
         {/* 4. Call to Action & Social Proof */}
-        <div className="px-6 pb-10 space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <Button 
+        <div className="px-4 sm:px-6 pb-10 sm:pb-12 md:pb-16 space-y-4 md:space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <Button
                 onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300"
+                className="w-full h-12 sm:h-14 md:h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300"
             >
                 {t('welcome.bookSession')}
             </Button>
             
             <div className="flex flex-col items-center gap-4 py-4 border-y border-white/5">
-                <div className="flex items-center gap-8 text-[10px] text-white/40 uppercase tracking-[0.2em] font-light">
+                <div className="flex items-center gap-4 sm:gap-6 md:gap-8 text-[10px] text-white/40 uppercase tracking-[0.2em] font-light">
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-gold-400/50"></span>
                     L'Oréal

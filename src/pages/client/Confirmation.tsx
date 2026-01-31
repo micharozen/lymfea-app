@@ -49,17 +49,17 @@ export default function Confirmation() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md text-center space-y-6">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-[92vw] sm:max-w-sm md:max-w-md text-center space-y-6">
         {/* Success Checkmark */}
         <div className="flex justify-center mb-8">
           <div className="relative">
             <div className={`absolute inset-0 ${isQuotePending ? 'bg-amber-500/20' : 'bg-green-500/20'} rounded-full animate-ping`} />
-            <div className={`relative ${isQuotePending ? 'bg-amber-500/10' : 'bg-green-500/10'} rounded-full p-6`}>
+            <div className={`relative ${isQuotePending ? 'bg-amber-500/10' : 'bg-green-500/10'} rounded-full p-4 sm:p-6`}>
               {isQuotePending ? (
-                <Clock className="h-16 w-16 text-amber-600" strokeWidth={2.5} />
+                <Clock className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-amber-600" strokeWidth={2.5} />
               ) : (
-                <CheckCircle2 className="h-16 w-16 text-green-600" strokeWidth={2.5} />
+                <CheckCircle2 className="h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 text-green-600" strokeWidth={2.5} />
               )}
             </div>
           </div>
@@ -67,11 +67,11 @@ export default function Confirmation() {
         
         {/* Success Message */}
         <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">
             {isQuotePending ? t('confirmation.quotePendingTitle') : t('confirmation.title')}
           </h1>
           
-          <p className="text-white/70 leading-relaxed px-4">
+          <p className="text-white/70 leading-relaxed px-2 sm:px-4">
             {isQuotePending 
               ? t('confirmation.quotePendingMessage')
               : t('confirmation.message')
@@ -83,7 +83,7 @@ export default function Confirmation() {
         <div className="pt-8">
           <Button
             onClick={() => navigate(`/client/${hotelId}`)}
-            className="w-full h-14 text-base rounded-full"
+            className="w-full h-12 sm:h-14 text-base rounded-full"
             size="lg"
           >
             {t('confirmation.backHome')}

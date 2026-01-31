@@ -248,13 +248,13 @@ export default function Schedule() {
         <ProgressBar currentStep="schedule" />
       </div>
 
-      <div className="px-6 py-6 space-y-8">
+      <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8">
         {/* Page headline */}
         <div className="animate-fade-in">
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
-          <h2 className="font-serif text-2xl text-white leading-tight">
+          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-white leading-tight">
             {t('datetime.headline')}
           </h2>
         </div>
@@ -271,19 +271,19 @@ export default function Schedule() {
               </div>
             ) : dateOptions.length === 0 ? (
               <div className="text-center py-8 border border-white/10 rounded-lg bg-white/5">
-                <Calendar className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                <Calendar className="w-10 h-10 sm:w-12 sm:h-12 text-white/20 mx-auto mb-4" />
                 <p className="text-white/60 text-sm mb-2">{t('datetime.noDatesAvailable') || 'Aucune date disponible'}</p>
                 <p className="text-white/40 text-xs">{t('datetime.contactVenue') || 'Veuillez contacter le lieu'}</p>
               </div>
             ) : (
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
+              <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory">
                 {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial }) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setSelectedDate(value)}
                     className={cn(
-                      "flex-shrink-0 snap-start px-5 py-4 rounded-lg border transition-all duration-200 min-w-[90px]",
+                      "flex-shrink-0 snap-start px-3 py-3 sm:px-5 sm:py-4 rounded-lg border transition-all duration-200 min-w-[70px] sm:min-w-[90px]",
                       selectedDate === value
                         ? "border-gold-400 bg-gold-400/10"
                         : "border-white/20 bg-white/5 hover:border-white/40"
@@ -319,7 +319,7 @@ export default function Schedule() {
 
           {!selectedDate ? (
             <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-white/20 mx-auto mb-4" />
+              <Calendar className="w-10 h-10 sm:w-12 sm:h-12 text-white/20 mx-auto mb-4" />
               <p className="text-white/40 text-sm">{t('datetime.selectDateFirst')}</p>
             </div>
           ) : loadingAvailability ? (
@@ -328,7 +328,7 @@ export default function Schedule() {
             </div>
           ) : noHairdressers || availableSlots.length === 0 ? (
             <div className="text-center py-12 border border-white/10 rounded-lg bg-white/5">
-              <Clock className="w-12 h-12 text-white/20 mx-auto mb-4" />
+              <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-white/20 mx-auto mb-4" />
               <p className="text-white/60 text-sm mb-2">{t('datetime.noSlots')}</p>
               <p className="text-white/40 text-xs">{t('datetime.tryAnotherDate')}</p>
             </div>
@@ -348,7 +348,7 @@ export default function Schedule() {
         <Button
           onClick={handleContinue}
           disabled={!selectedDate || !selectedTime || loadingAvailability}
-          className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
+          className="w-full h-12 sm:h-14 md:h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
         >
           {loadingAvailability ? (
             <>

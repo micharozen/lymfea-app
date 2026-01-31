@@ -124,9 +124,9 @@ const ManageBooking = () => {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <img src={oomLogo} alt="OOM" className="h-12 mb-6" />
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-[92vw] sm:max-w-sm md:max-w-md">
           <CardContent className="pt-6 text-center">
-            <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+            <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Réservation introuvable</h2>
             <p className="text-muted-foreground">
               Cette réservation n'existe pas ou le lien est invalide.
@@ -143,14 +143,14 @@ const ManageBooking = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Compact Header */}
-      <div className="bg-primary text-primary-foreground p-4">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <img src={oomLogo} alt="OOM" className="h-6 brightness-0 invert" />
+      <div className="bg-primary text-primary-foreground p-3 sm:p-4">
+        <div className="max-w-[92vw] sm:max-w-sm md:max-w-md mx-auto flex items-center justify-between">
+          <img src={oomLogo} alt="OOM" className="h-5 sm:h-6 brightness-0 invert" />
           <span className="text-sm opacity-80">#{booking.booking_id}</span>
         </div>
       </div>
 
-      <div className="max-w-md mx-auto p-4 space-y-4">
+      <div className="max-w-[92vw] sm:max-w-sm md:max-w-md mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* Status Badge */}
         {isCancelled && (
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 flex items-center gap-2">
@@ -168,7 +168,7 @@ const ManageBooking = () => {
 
         {/* Main Info Card */}
         <Card>
-          <CardContent className="p-4 space-y-3">
+          <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
             {/* Date & Time + Hotel */}
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
