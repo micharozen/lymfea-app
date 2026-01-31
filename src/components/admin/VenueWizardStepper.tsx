@@ -2,12 +2,13 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VenueWizardStepperProps {
-  currentStep: 1 | 2;
+  currentStep: 1 | 2 | 3;
 }
 
 const STEPS = [
   { id: 1, label: "Informations générales" },
   { id: 2, label: "Planning de déploiement" },
+  { id: 3, label: "Catégories de soins" },
 ];
 
 export function VenueWizardStepper({ currentStep }: VenueWizardStepperProps) {

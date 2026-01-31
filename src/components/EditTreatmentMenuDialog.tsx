@@ -8,6 +8,7 @@ import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import {
   Dialog,
   DialogContent,
@@ -130,6 +131,8 @@ export function EditTreatmentMenuDialog({
   const selectedHotel = hotels?.find(h => h.id === selectedHotelId);
   const currency = selectedHotel?.currency || 'EUR';
   const currencySymbol = getCurrencySymbol(currency);
+
+  const { categories, isLoading: categoriesLoading } = useTreatmentCategories(selectedHotelId);
 
   useEffect(() => {
     if (menu && open) {
@@ -280,10 +283,23 @@ export function EditTreatmentMenuDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Nails">Nails</SelectItem>
-                        <SelectItem value="Coloration">Coloration</SelectItem>
-                        <SelectItem value="Hair cut">Hair cut</SelectItem>
-                        <SelectItem value="Blowout">Blowout</SelectItem>
+                        {categoriesLoading ? (
+                          <div className="flex items-center justify-center py-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : categories.length === 0 ? (
+                          <div className="px-2 py-2 text-sm text-muted-foreground">
+                            {selectedHotelId
+                              ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
+                              : "Sélectionnez d'abord un lieu"}
+                          </div>
+                        ) : (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

@@ -783,6 +783,41 @@ export type Database = {
         }
         Relationships: []
       }
+      treatment_categories: {
+        Row: {
+          id: string
+          name: string
+          hotel_id: string
+          sort_order: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          hotel_id: string
+          sort_order?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          hotel_id?: string
+          sort_order?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_categories_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treatment_menus: {
         Row: {
           category: string
