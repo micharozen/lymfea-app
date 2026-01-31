@@ -8,6 +8,7 @@ import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import {
   Dialog,
   DialogContent,
@@ -112,6 +113,8 @@ export function AddTreatmentMenuDialog({
   const currency = selectedHotel?.currency || 'EUR';
   const currencySymbol = getCurrencySymbol(currency);
 
+  const { categories, isLoading: categoriesLoading } = useTreatmentCategories(selectedHotelId);
+
   const onSubmit = async (values: FormValues) => {
     const selectedHotelForSubmit = hotels?.find(h => h.id === values.hotel_id);
     const currencyForSubmit = selectedHotelForSubmit?.currency || 'EUR';
@@ -192,7 +195,14 @@ export function AddTreatmentMenuDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Hôtel *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Clear category when hotel changes
+                      form.setValue("category", "");
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un hôtel" />
@@ -239,10 +249,23 @@ export function AddTreatmentMenuDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Nails">Nails</SelectItem>
-                        <SelectItem value="Coloration">Coloration</SelectItem>
-                        <SelectItem value="Hair cut">Hair cut</SelectItem>
-                        <SelectItem value="Blowout">Blowout</SelectItem>
+                        {categoriesLoading ? (
+                          <div className="flex items-center justify-center py-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : categories.length === 0 ? (
+                          <div className="px-2 py-2 text-sm text-muted-foreground">
+                            {selectedHotelId
+                              ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
+                              : "Sélectionnez d'abord un lieu"}
+                          </div>
+                        ) : (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

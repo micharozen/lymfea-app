@@ -20,6 +20,7 @@ import { Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import { VenueWizardStepper } from "./VenueWizardStepper";
 import { VenueGeneralInfoStep } from "./steps/VenueGeneralInfoStep";
 import { VenueDeploymentStep, DeploymentScheduleState } from "./steps/VenueDeploymentStep";
+import { VenueCategoriesStep } from "./steps/VenueCategoriesStep";
 
 interface Trunk {
   id: string;
@@ -80,7 +81,8 @@ export function VenueWizardDialog({
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [savedHotelId, setSavedHotelId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [trunks, setTrunks] = useState<Trunk[]>([]);
@@ -143,6 +145,7 @@ export function VenueWizardDialog({
       setCurrentStep(1);
       fetchTrunks();
       if (mode === 'edit' && hotelId) {
+        setSavedHotelId(hotelId);
         loadHotelData();
       } else {
         // Reset form for add mode
@@ -160,6 +163,7 @@ export function VenueWizardDialog({
           recurrenceInterval: 1,
         });
         setExistingScheduleId(null);
+        setSavedHotelId(null);
       }
     }
   }, [open, mode, hotelId]);
@@ -298,16 +302,96 @@ export function VenueWizardDialog({
       if (isValid) {
         setCurrentStep(2);
       }
+    } else if (currentStep === 2) {
+      const isValid = await validateStep2();
+      if (isValid) {
+        // In add mode, we need to save first before going to step 3
+        if (mode === 'add' && !savedHotelId) {
+          await handleSaveAndContinue();
+        } else {
+          setCurrentStep(3);
+        }
+      }
     }
   };
 
   const handlePreviousStep = () => {
     if (currentStep === 2) {
       setCurrentStep(1);
+    } else if (currentStep === 3) {
+      setCurrentStep(2);
+    }
+  };
+
+  const handleSaveAndContinue = async () => {
+    setSaving(true);
+    try {
+      const values = form.getValues();
+
+      // Insert new hotel
+      const { data: insertedHotel, error: hotelError } = await supabase
+        .from("hotels")
+        .insert({
+          name: values.name,
+          venue_type: values.venue_type,
+          address: values.address,
+          postal_code: values.postal_code || null,
+          city: values.city,
+          country: values.country,
+          currency: values.currency,
+          vat: parseFloat(values.vat),
+          hotel_commission: parseFloat(values.hotel_commission),
+          hairdresser_commission: parseFloat(values.hairdresser_commission),
+          status: values.status,
+          image: hotelImage || null,
+          cover_image: coverImage || null,
+          timezone: values.timezone,
+          opening_time: values.opening_time + ':00',
+          closing_time: values.closing_time + ':00',
+          auto_validate_bookings: values.auto_validate_bookings,
+        })
+        .select('id')
+        .single();
+
+      if (hotelError) throw hotelError;
+
+      const newHotelId = insertedHotel.id;
+      setSavedHotelId(newHotelId);
+
+      // Associate trunks
+      if (selectedTrunkIds.length > 0) {
+        await supabase
+          .from("trunks")
+          .update({ hotel_id: newHotelId })
+          .in("id", selectedTrunkIds);
+      }
+
+      // Insert deployment schedule
+      await saveDeploymentSchedule(newHotelId);
+
+      toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
+      setCurrentStep(3);
+    } catch (error: any) {
+      console.error("Error saving venue:", error);
+      if (error.code === '23505') {
+        toast.error("Un lieu avec cet identifiant existe déjà");
+      } else {
+        toast.error("Erreur lors de l'enregistrement");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleSubmit = async () => {
+    // If we're in add mode and already saved the hotel (in step 3), just close
+    if (mode === 'add' && savedHotelId) {
+      toast.success("Lieu créé avec succès");
+      onSuccess();
+      onOpenChange(false);
+      return;
+    }
+
     // Validate step 2
     const step2Valid = await validateStep2();
     if (!step2Valid) return;
@@ -324,7 +408,7 @@ export function VenueWizardDialog({
       const values = form.getValues();
 
       if (mode === 'add') {
-        // Insert new hotel
+        // Insert new hotel (should not happen if we went through step 3)
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
           .insert({
@@ -521,8 +605,12 @@ export function VenueWizardDialog({
                 />
               )}
 
+              {currentStep === 3 && (
+                <VenueCategoriesStep hotelId={savedHotelId || hotelId || null} />
+              )}
+
               <div className="flex justify-between gap-3 pt-4 border-t">
-                {currentStep === 1 ? (
+                {currentStep === 1 && (
                   <>
                     <Button
                       type="button"
@@ -540,7 +628,30 @@ export function VenueWizardDialog({
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </>
-                ) : (
+                )}
+                {currentStep === 2 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handlePreviousStep}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Retour
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleNextStep}
+                      disabled={saving}
+                      className="bg-foreground text-background hover:bg-foreground/90"
+                    >
+                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Suivant
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+                {currentStep === 3 && (
                   <>
                     <Button
                       type="button"
