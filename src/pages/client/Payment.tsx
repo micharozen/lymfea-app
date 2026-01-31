@@ -178,13 +178,13 @@ export default function Payment() {
         <ProgressBar currentStep="payment" />
       </div>
 
-      <div className="px-6 py-6 space-y-8 pb-32">
+      <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
         {/* Page headline */}
         <div className="animate-fade-in">
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
             {t('payment.stepLabel')}
           </h3>
-          <h2 className="font-serif text-2xl text-white leading-tight">
+          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-white leading-tight">
             {t('payment.headline')}
           </h2>
         </div>
@@ -205,7 +205,7 @@ export default function Payment() {
         )}
 
         {/* Order Summary */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="bg-white/5 border border-white/10 rounded-lg p-4 sm:p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <h4 className="text-xs uppercase tracking-widest text-white/60 font-medium">
             {t('payment.orderSummary')}
           </h4>
@@ -274,7 +274,7 @@ export default function Payment() {
             >
               <div className="flex items-center gap-4">
                 <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                  "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all",
                   selectedMethod === 'card' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
                 )}>
                   <CreditCard className="h-5 w-5" />
@@ -303,7 +303,7 @@ export default function Payment() {
               >
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center transition-all",
+                    "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all",
                     selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
                   )}>
                     <Building className="h-5 w-5" />
@@ -328,7 +328,7 @@ export default function Payment() {
           onClick={handlePayment}
           disabled={isProcessing}
           className={cn(
-            "w-full h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40",
+            "w-full h-12 sm:h-14 md:h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40",
             hasPriceOnRequest
               ? "bg-amber-500 text-black hover:bg-amber-400"
               : "bg-white text-black hover:bg-gold-50"
@@ -336,7 +336,7 @@ export default function Payment() {
         >
           {isProcessing ? (
             <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
               {t('payment.processing')}
             </>
           ) : hasPriceOnRequest ? (

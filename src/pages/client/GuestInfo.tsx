@@ -161,13 +161,13 @@ export default function GuestInfo() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-6 space-y-8 pb-32">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
           {/* Page headline */}
           <div className="animate-fade-in">
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
               {t('info.stepLabel')}
             </h3>
-            <h2 className="font-serif text-2xl text-white leading-tight">
+            <h2 className="font-serif text-xl sm:text-2xl text-white leading-tight">
               {t('info.headline')}
             </h2>
           </div>
@@ -175,7 +175,7 @@ export default function GuestInfo() {
           {/* Form fields */}
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -256,7 +256,7 @@ export default function GuestInfo() {
                         </PopoverTrigger>
                         <PopoverContent
                           align="start"
-                          className="w-56 p-0 border border-white/20 shadow-lg z-50 bg-black"
+                          className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-white/20 shadow-lg z-50 bg-black"
                         >
                           <div className="p-2 border-b border-white/10">
                             <Input
@@ -266,7 +266,7 @@ export default function GuestInfo() {
                               className="h-8 text-sm bg-white/5 border-white/20 text-white placeholder:text-white/30"
                             />
                           </div>
-                          <ScrollArea className="h-40">
+                          <ScrollArea className="h-48 sm:h-40">
                             {filteredCountries.map((country) => (
                               <button
                                 key={country.code}
@@ -359,7 +359,7 @@ export default function GuestInfo() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
+              className="w-full h-12 sm:h-14 md:h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
             >
               {isSubmitting ? (
                 <>

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { formatPrice } from "@/lib/formatPrice";
 import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -56,6 +57,7 @@ interface Booking {
   payment_status?: string | null;
   payment_method?: string | null;
   hairdresser_commission?: number;
+  hotel_currency?: string;
 }
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
@@ -195,7 +197,7 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat, hairdresser_commission")
+          .select("image, address, city, vat, hairdresser_commission, currency")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
@@ -207,7 +209,8 @@ const PwaBookingDetail = () => {
         hotel_address: hotelData?.address,
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
-        hairdresser_commission: hotelData?.hairdresser_commission || 70
+        hairdresser_commission: hotelData?.hairdresser_commission || 70,
+        hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
 
@@ -754,7 +757,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('bookingDetail.price')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">{totalPrice}€</span>
+              <span className="text-xs font-medium text-foreground ml-auto">{formatPrice(totalPrice, booking.hotel_currency)}</span>
             </div>
           </div>
 
@@ -764,7 +767,7 @@ const PwaBookingDetail = () => {
               <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
               <span className="text-xs text-green-600 dark:text-green-500 font-medium">{t('bookingDetail.yourEarnings')}</span>
               <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
-                {estimatedEarnings}€
+                {formatPrice(estimatedEarnings, booking.hotel_currency)}
               </span>
             </div>
           )}
@@ -819,7 +822,7 @@ const PwaBookingDetail = () => {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">{treatment.treatment_menus?.name || 'Treatment'}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0}min
+                        {formatPrice(treatment.treatment_menus?.price || 0, booking.hotel_currency)} • {treatment.treatment_menus?.duration || 0}min
                       </p>
                     </div>
                     {(booking.status !== "completed" && booking.status !== "pending") && (
@@ -1008,7 +1011,7 @@ const PwaBookingDetail = () => {
                     className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     <Wallet className="w-4 h-4" />
-                    Finaliser ({totalPrice}€)
+                    Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
                   </button>
                 )}
                 

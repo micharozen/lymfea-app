@@ -298,6 +298,50 @@ serve(async (req) => {
       }
     }
 
+    // 4. Send push notification to assigned hairdresser
+    if (booking.hairdresser_id) {
+      const { data: hairdresser } = await supabase
+        .from('hairdressers')
+        .select('user_id, first_name')
+        .eq('id', booking.hairdresser_id)
+        .single();
+
+      if (hairdresser?.user_id) {
+        try {
+          console.log('[notify-booking-confirmed] Sending push to hairdresser:', hairdresser.first_name);
+
+          const { error: pushError } = await supabase.functions.invoke(
+            'send-push-notification',
+            {
+              body: {
+                userId: hairdresser.user_id,
+                title: '🎉 Nouvelle réservation confirmée !',
+                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
+                data: {
+                  bookingId: booking.id,
+                  url: `/pwa/booking/${booking.id}`,
+                },
+              },
+              headers: {
+                Authorization: `Bearer ${supabaseServiceKey}`,
+              },
+            }
+          );
+
+          if (pushError) {
+            console.error('[notify-booking-confirmed] Push error:', pushError);
+            errors.push(`push:${hairdresser.first_name}`);
+          } else {
+            console.log('[notify-booking-confirmed] ✅ Push sent to hairdresser');
+            emailsSent.push(`push:${hairdresser.first_name}`);
+          }
+        } catch (e) {
+          console.error('[notify-booking-confirmed] Push exception:', e);
+          errors.push(`push:${hairdresser.first_name}`);
+        }
+      }
+    }
+
     console.log('[notify-booking-confirmed] Summary - Sent:', emailsSent.length, 'Errors:', errors.length);
 
     return new Response(

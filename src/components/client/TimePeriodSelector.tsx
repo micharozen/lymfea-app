@@ -104,7 +104,7 @@ export default function TimePeriodSelector({
               )}
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gold-400">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-white/5 flex items-center justify-center text-gold-400">
                   {period.icon}
                 </div>
                 <span className="text-white font-light">{t(period.labelKey)}</span>
@@ -125,14 +125,14 @@ export default function TimePeriodSelector({
             </button>
 
             {isExpanded && hasSlots && (
-              <div className="grid grid-cols-3 gap-2 pb-4 animate-fade-in">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pb-4 animate-fade-in">
                 {slotsInPeriod.map((slot) => (
                   <button
                     key={slot.value}
                     type="button"
                     onClick={() => onSelectTime(slot.value)}
                     className={cn(
-                      "py-3 rounded-lg text-sm transition-all duration-200",
+                      "py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200",
                       selectedTime === slot.value
                         ? "bg-gold-400 text-black font-medium"
                         : "bg-white/5 text-white font-light hover:bg-white/10"

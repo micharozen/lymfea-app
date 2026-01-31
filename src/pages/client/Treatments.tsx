@@ -198,7 +198,7 @@ export default function Treatments() {
     >
       {/* Header Sticky */}
       <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md border-b border-white/10">
-        <div className="relative h-20 overflow-hidden">
+        <div className="relative h-16 sm:h-18 md:h-20 overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-between px-4 pt-safe">
             <Button
               variant="ghost"
@@ -209,7 +209,7 @@ export default function Treatments() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
 
-            <h1 className="font-serif text-lg md:text-xl text-gold-200 tracking-wide text-center flex-1 px-2 leading-tight">
+            <h1 className="font-serif text-base sm:text-lg md:text-xl text-gold-200 tracking-wide text-center flex-1 px-2 leading-tight">
               {hotel?.name}
             </h1>
 
@@ -282,7 +282,7 @@ export default function Treatments() {
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
-                        <div className="w-24 h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
                                     src={getOptimizedImageUrl(treatment.image, 192) || ''}
@@ -301,7 +301,7 @@ export default function Treatments() {
 
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                           <div>
-                            <h3 className="font-serif text-lg text-white font-medium leading-tight mb-1">
+                            <h3 className="font-serif text-base sm:text-lg text-white font-medium leading-tight mb-1">
                                 {treatment.name}
                             </h3>
                             {treatment.description && (
@@ -319,7 +319,7 @@ export default function Treatments() {
                                     </Badge>
                                 ) : (
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-lg font-light text-gold-200">
+                                        <span className="text-base sm:text-lg font-light text-gold-200">
                                             {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                                         </span>
                                         {treatment.duration && (
@@ -339,25 +339,25 @@ export default function Treatments() {
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
                                             if (navigator.vibrate) navigator.vibrate(30);
                                         }}
                                         >
-                                        <Minus className="h-4 w-4" />
+                                        <Minus className="h-5 w-5" />
                                         </Button>
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleAddToBasket(treatment);
                                         }}
                                         >
-                                        <Plus className="h-4 w-4" />
+                                        <Plus className="h-5 w-5" />
                                         </Button>
                                     </div>
                                 </div>
@@ -367,7 +367,7 @@ export default function Treatments() {
                                       e.stopPropagation();
                                       handleAddToBasket(treatment);
                                     }}
-                                    className="rounded-none px-6 h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
+                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
                                 </Button>
@@ -435,7 +435,7 @@ export default function Treatments() {
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
-                        <div className="w-24 h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
                                     src={getOptimizedImageUrl(treatment.image, 192) || ''}
@@ -454,7 +454,7 @@ export default function Treatments() {
 
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                           <div>
-                            <h3 className="font-serif text-lg text-white font-medium leading-tight mb-1">
+                            <h3 className="font-serif text-base sm:text-lg text-white font-medium leading-tight mb-1">
                                 {treatment.name}
                             </h3>
                             {treatment.description && (
@@ -472,7 +472,7 @@ export default function Treatments() {
                                     </Badge>
                                 ) : (
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-lg font-light text-gold-200">
+                                        <span className="text-base sm:text-lg font-light text-gold-200">
                                             {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                                         </span>
                                         {treatment.duration && (
@@ -492,25 +492,25 @@ export default function Treatments() {
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
                                             if (navigator.vibrate) navigator.vibrate(30);
                                         }}
                                         >
-                                        <Minus className="h-4 w-4" />
+                                        <Minus className="h-5 w-5" />
                                         </Button>
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleAddToBasket(treatment);
                                         }}
                                         >
-                                        <Plus className="h-4 w-4" />
+                                        <Plus className="h-5 w-5" />
                                         </Button>
                                     </div>
                                 </div>
@@ -520,7 +520,7 @@ export default function Treatments() {
                                       e.stopPropagation();
                                       handleAddToBasket(treatment);
                                     }}
-                                    className="rounded-none px-6 h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
+                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
                                 </Button>
@@ -541,9 +541,9 @@ export default function Treatments() {
         <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-black via-black to-transparent pb-safe z-30">
           <Button
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="w-full h-14 text-base rounded-none bg-white text-black hover:bg-gold-100 font-medium tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300"
+            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-white text-black hover:bg-gold-100 font-medium tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300"
           >
-            <ShoppingBag className="mr-2 h-5 w-5" />
+            <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
           </Button>
         </div>

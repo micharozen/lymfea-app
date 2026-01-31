@@ -419,10 +419,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       
       try {
         if (d.isAdmin) {
-          // Admin flow: notify hairdressers immediately (if not already assigned)
-          if (!d.hairdresserId) {
-            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
-          }
+          // Admin flow: always notify hairdresser(s) - assigned or all eligible
+          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
         } else if (autoAssignedHairdresser) {
           // Concierge avec auto-assignation: notifier le coiffeur assigné
           await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
