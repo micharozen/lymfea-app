@@ -342,6 +342,35 @@ serve(async (req) => {
       }
     }
 
+    // 5. Send Slack notification for booking confirmed
+    try {
+      const treatmentNames = treatments.map(t => t.name);
+
+      await supabase.functions.invoke('send-slack-notification', {
+        body: {
+          type: 'booking_confirmed',
+          bookingId: booking.id,
+          bookingNumber: booking.booking_id?.toString() || '',
+          clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+          hotelName: booking.hotel_name || '',
+          bookingDate: booking.booking_date,
+          bookingTime: booking.booking_time,
+          hairdresserName: booking.hairdresser_name,
+          totalPrice: booking.total_price,
+          currency: '€',
+          treatments: treatmentNames,
+        },
+        headers: {
+          Authorization: `Bearer ${supabaseServiceKey}`,
+        },
+      });
+      console.log('[notify-booking-confirmed] ✅ Slack notification sent');
+      emailsSent.push('slack');
+    } catch (slackError) {
+      console.error('[notify-booking-confirmed] Slack error:', slackError);
+      // Don't fail the whole request if Slack fails
+    }
+
     console.log('[notify-booking-confirmed] Summary - Sent:', emailsSent.length, 'Errors:', errors.length);
 
     return new Response(

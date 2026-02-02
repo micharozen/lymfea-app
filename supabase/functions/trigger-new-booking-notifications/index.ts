@@ -158,6 +158,53 @@ serve(async (req) => {
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
 
+    // Send Slack notification for new booking
+    try {
+      // Get treatments for Slack message
+      const { data: bookingTreatments } = await supabaseClient
+        .from('booking_treatments')
+        .select('treatment_id, treatment_menus(name)')
+        .eq('booking_id', bookingId);
+
+      const treatments = bookingTreatments?.map(bt => {
+        const menu = bt.treatment_menus as any;
+        return menu?.name || '';
+      }).filter(Boolean) || [];
+
+      // Get assigned hairdresser name if any
+      let hairdresserName = null;
+      if (booking.hairdresser_id && eligibleHairdressers.length > 0) {
+        const assigned = eligibleHairdressers.find(hh => (hh.hairdressers as any)?.id === booking.hairdresser_id);
+        if (assigned) {
+          const h = assigned.hairdressers as any;
+          hairdresserName = `${h.first_name} ${h.last_name}`;
+        }
+      }
+
+      await supabaseClient.functions.invoke('send-slack-notification', {
+        body: {
+          type: 'new_booking',
+          bookingId: booking.id,
+          bookingNumber: booking.booking_id?.toString() || '',
+          clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+          hotelName: booking.hotel_name || '',
+          bookingDate: booking.booking_date,
+          bookingTime: booking.booking_time,
+          hairdresserName: hairdresserName || booking.hairdresser_name,
+          totalPrice: booking.total_price,
+          currency: '€',
+          treatments: treatments,
+        },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+      });
+      console.log('✅ Slack notification sent');
+    } catch (slackError) {
+      console.error('Error sending Slack notification:', slackError);
+      // Don't fail the whole request if Slack fails
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
