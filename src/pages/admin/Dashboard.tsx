@@ -16,6 +16,8 @@ import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/formatPrice";
 import { useToast } from "@/hooks/use-toast";
+import { useExchangeRates } from "@/hooks/useExchangeRates";
+import { convertToEUR } from "@/lib/currencyConversion";
 
 export default function Dashboard() {
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().setDate(new Date().getDate() - 30)));
@@ -24,6 +26,7 @@ export default function Dashboard() {
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { rates } = useExchangeRates();
 
   useEffect(() => {
     fetchData();
@@ -33,18 +36,18 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // Fetch bookings
+      // Fetch bookings (only needed fields)
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
-        .select('*')
+        .select('booking_date, booking_time, total_price, hotel_id, status')
         .order('booking_date', { ascending: true });
 
       if (bookingsError) throw bookingsError;
 
-      // Fetch hotels
+      // Fetch hotels (only needed fields)
       const { data: hotelsData, error: hotelsError } = await supabase
         .from('hotels')
-        .select('*')
+        .select('id, name, currency')
         .order('created_at', { ascending: false });
 
       if (hotelsError) throw hotelsError;
@@ -74,6 +77,12 @@ export default function Dashboard() {
     return isWithinInterval(bookingDate, { start: startDate, end: endDate });
   });
 
+  // Map hotel_id -> currency pour la conversion
+  const hotelCurrencyMap: Record<string, string> = {};
+  hotels.forEach(hotel => {
+    hotelCurrencyMap[hotel.id] = hotel.currency || 'EUR';
+  });
+
   // Générer des données de ventes basées sur les vraies réservations
   const generateSalesData = () => {
     const days = differenceInDays(endDate, startDate);
@@ -90,7 +99,10 @@ export default function Dashboard() {
           const bookingHour = parseInt(b.booking_time?.split(':')[0] || '0');
           return bookingHour >= hour && bookingHour < hour + 2;
         });
-        const sales = hourBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+        const sales = hourBookings.reduce((sum, b) => {
+          const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
+          return sum + convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
+        }, 0);
         return {
           date: `${hour}h`,
           sales: sales,
@@ -108,11 +120,12 @@ export default function Dashboard() {
       salesByDate[dateKey] = 0;
     }
     
-    // Ajouter les ventes réelles
+    // Ajouter les ventes réelles (converties en EUR)
     filteredBookings.forEach(b => {
       const dateKey = b.booking_date;
       if (salesByDate.hasOwnProperty(dateKey)) {
-        salesByDate[dateKey] += parseFloat(b.total_price) || 0;
+        const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
+        salesByDate[dateKey] += convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
       }
     });
     
@@ -137,9 +150,12 @@ export default function Dashboard() {
       }));
   };
 
-  // Calculer les statistiques basées sur les vraies données
+  // Calculer les statistiques basées sur les vraies données (en EUR)
   const calculateStats = () => {
-    const totalSales = filteredBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+    const totalSales = filteredBookings.reduce((sum, b) => {
+      const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
+      return sum + convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
+    }, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const upcomingBookings = filteredBookings.filter(b => {
@@ -166,7 +182,10 @@ export default function Dashboard() {
 
   const hotelData = hotels.map(hotel => {
     const hotelBookings = filteredBookings.filter(b => b.hotel_id === hotel.id);
-    const totalSales = hotelBookings.reduce((sum, b) => sum + (parseFloat(b.total_price) || 0), 0);
+    const totalSales = hotelBookings.reduce((sum, b) => {
+      const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
+      return sum + convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
+    }, 0);
     const totalCancelled = hotelBookings.filter(b => b.status === 'Annulé').length;
     const totalSessions = hotelBookings.filter(b => b.status === 'Terminé').length;
     
