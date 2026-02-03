@@ -10,8 +10,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts";
-import { format, differenceInDays, addDays, isWithinInterval, parseISO } from "date-fns";
+import { format, differenceInDays, addDays, subDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/formatPrice";
@@ -25,6 +32,7 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [hotels, setHotels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedHotel, setSelectedHotel] = useState<string>("all");
   const { toast } = useToast();
   const { rates } = useExchangeRates();
 
@@ -71,11 +79,27 @@ export default function Dashboard() {
     setEndDate(end);
   };
 
-  // Filtrer les réservations par période
+  // Filtrer les réservations par période et par lieu
   const filteredBookings = bookings.filter(booking => {
     const bookingDate = parseISO(booking.booking_date);
-    return isWithinInterval(bookingDate, { start: startDate, end: endDate });
+    const matchesDate = isWithinInterval(bookingDate, { start: startDate, end: endDate });
+    const matchesHotel = selectedHotel === "all" || booking.hotel_id === selectedHotel;
+    return matchesDate && matchesHotel;
   });
+
+  // Calculer la période précédente équivalente
+  const getPreviousPeriodBookings = () => {
+    const daysDiff = differenceInDays(endDate, startDate);
+    const prevEnd = subDays(startDate, 1);
+    const prevStart = subDays(startDate, daysDiff + 1);
+
+    return bookings.filter(booking => {
+      const bookingDate = parseISO(booking.booking_date);
+      const matchesDate = isWithinInterval(bookingDate, { start: prevStart, end: prevEnd });
+      const matchesHotel = selectedHotel === "all" || booking.hotel_id === selectedHotel;
+      return matchesDate && matchesHotel;
+    });
+  };
 
   // Map hotel_id -> currency pour la conversion
   const hotelCurrencyMap: Record<string, string> = {};
@@ -152,6 +176,7 @@ export default function Dashboard() {
 
   // Calculer les statistiques basées sur les vraies données (en EUR)
   const calculateStats = () => {
+    // Période actuelle
     const totalSales = filteredBookings.reduce((sum, b) => {
       const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
       return sum + convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
@@ -165,15 +190,31 @@ export default function Dashboard() {
     }).length;
     const totalBookings = filteredBookings.length;
     const completedBookings = filteredBookings.filter(b => b.status === 'Terminé').length;
-    
+
+    // Période précédente pour comparaison
+    const prevBookings = getPreviousPeriodBookings();
+    const prevTotalSales = prevBookings.reduce((sum, b) => {
+      const currency = hotelCurrencyMap[b.hotel_id] || 'EUR';
+      return sum + convertToEUR(parseFloat(b.total_price) || 0, currency, rates);
+    }, 0);
+    const prevTotalBookings = prevBookings.length;
+
+    // Calcul des tendances (en pourcentage)
+    const salesTrend = prevTotalSales > 0
+      ? Math.round(((totalSales - prevTotalSales) / prevTotalSales) * 100)
+      : 0;
+    const bookingsTrend = prevTotalBookings > 0
+      ? Math.round(((totalBookings - prevTotalBookings) / prevTotalBookings) * 100)
+      : 0;
+
     return {
       totalSales: totalSales.toFixed(2),
       upcomingBookings: upcomingBookings,
       totalBookings: totalBookings,
       totalSessions: completedBookings,
-      salesTrend: "0",
-      bookingsTrend: "0",
-      sessionsTrend: "0",
+      salesTrend: salesTrend,
+      bookingsTrend: bookingsTrend,
+      sessionsTrend: 0,
     };
   };
 
@@ -213,8 +254,21 @@ export default function Dashboard() {
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8 flex items-center gap-2">
             🏠 Accueil
           </h1>
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-center gap-3 mb-2">
             <PeriodSelector onPeriodChange={handlePeriodChange} />
+            <Select value={selectedHotel} onValueChange={setSelectedHotel}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous les lieux" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les lieux</SelectItem>
+                {hotels.map((hotel) => (
+                  <SelectItem key={hotel.id} value={hotel.id}>
+                    {hotel.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <p className="text-sm text-muted-foreground">
             Période : {format(startDate, "dd MMM yyyy", { locale: fr })} - {format(endDate, "dd MMM yyyy", { locale: fr })}
@@ -225,7 +279,7 @@ export default function Dashboard() {
         <StatCard
           title="Ventes totales"
           value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
-          trend={parseFloat(stats.salesTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.salesTrend))}%`, isPositive: parseFloat(stats.salesTrend) > 0 } : undefined}
+          trend={stats.salesTrend !== 0 ? { value: `${Math.abs(stats.salesTrend)}%`, isPositive: stats.salesTrend > 0, periodLabel: "vs période précédente" } : undefined}
         />
         <StatCard
           title="Réservations à venir"
@@ -234,7 +288,7 @@ export default function Dashboard() {
         <StatCard
           title="Réservations totales"
           value={stats.totalBookings}
-          trend={parseFloat(stats.bookingsTrend) !== 0 ? { value: `${Math.abs(parseFloat(stats.bookingsTrend))}%`, isPositive: parseFloat(stats.bookingsTrend) > 0 } : undefined}
+          trend={stats.bookingsTrend !== 0 ? { value: `${Math.abs(stats.bookingsTrend)}%`, isPositive: stats.bookingsTrend > 0, periodLabel: "vs période précédente" } : undefined}
         />
       </div>
 

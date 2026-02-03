@@ -8,6 +8,7 @@ interface StatCardProps {
   trend?: {
     value: string;
     isPositive: boolean;
+    periodLabel?: string;
   };
 }
 
@@ -25,13 +26,13 @@ export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
           {trend && (
             <div className={`flex items-center gap-2 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
               {trend.isPositive ? (
-                <TrendingUp className="h-5 w-5 flex-shrink-0" strokeWidth={2.5} />
+                <TrendingUp className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
               ) : (
-                <TrendingDown className="h-5 w-5 flex-shrink-0" strokeWidth={2.5} />
+                <TrendingDown className="h-4 w-4 flex-shrink-0" strokeWidth={2.5} />
               )}
               <p className="text-xs">
-                <span className="font-semibold">{trend.value}</span>
-                <span className="text-muted-foreground ml-1">Comparé aux 30 derniers jours</span>
+                <span className="font-semibold">{trend.isPositive ? "+" : "-"}{trend.value}</span>
+                <span className="text-muted-foreground ml-1">{trend.periodLabel || "vs période précédente"}</span>
               </p>
             </div>
           )}
