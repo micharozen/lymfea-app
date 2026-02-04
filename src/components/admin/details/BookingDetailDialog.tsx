@@ -97,17 +97,22 @@ export function BookingDetailDialog({
   // Cancellation mutation
   const cancelMutation = useMutation({
     mutationFn: async (reason: string) => {
-      if (!booking?.id) return;
+      if (!booking?.id) throw new Error("Booking ID manquant");
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("bookings")
         .update({
           status: "cancelled",
           cancellation_reason: reason,
         })
-        .eq("id", booking.id);
+        .eq("id", booking.id)
+        .select()
+        .single();
 
       if (error) throw error;
+      if (!data) throw new Error("Échec de la mise à jour - booking non modifié");
+
+      return data;
     },
     onSuccess: async () => {
       // Call the backend cancellation handler

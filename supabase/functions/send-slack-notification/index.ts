@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface SlackNotificationPayload {
-  type: 'new_booking' | 'booking_confirmed';
+  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled';
   bookingId: string;
   bookingNumber: string;
   clientName: string;
@@ -17,6 +17,7 @@ interface SlackNotificationPayload {
   totalPrice?: number;
   currency?: string;
   treatments?: string[];
+  cancellationReason?: string;
 }
 
 serve(async (req) => {
@@ -74,14 +75,22 @@ serve(async (req) => {
     let title: string;
     let color: string;
 
-    if (payload.type === 'new_booking') {
-      emoji = "🆕";
-      title = "Nouvelle réservation";
-      color = "#3498db"; // Blue
-    } else {
-      emoji = "✅";
-      title = "Réservation confirmée";
-      color = "#2ecc71"; // Green
+    switch (payload.type) {
+      case 'new_booking':
+        emoji = "🆕";
+        title = "Nouvelle réservation";
+        color = "#3498db"; // Blue
+        break;
+      case 'booking_confirmed':
+        emoji = "✅";
+        title = "Réservation confirmée";
+        color = "#2ecc71"; // Green
+        break;
+      case 'booking_cancelled':
+        emoji = "❌";
+        title = "Réservation annulée";
+        color = "#e74c3c"; // Red
+        break;
     }
 
     const priceText = payload.totalPrice
@@ -91,6 +100,8 @@ serve(async (req) => {
     const treatmentsText = payload.treatments?.length
       ? payload.treatments.join(', ')
       : '';
+
+    const cancellationReasonText = payload.cancellationReason || '';
 
     // Simple Slack message with attachments for color
     const slackMessage = {
@@ -140,6 +151,13 @@ serve(async (req) => {
                 }] : [])
               ]
             },
+            ...(cancellationReasonText ? [{
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*Raison d'annulation:*\n${cancellationReasonText}`
+              }
+            }] : []),
             {
               type: "actions",
               elements: [
