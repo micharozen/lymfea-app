@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -7,10 +8,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatPrice } from "@/lib/formatPrice";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { toast } from "@/hooks/use-toast";
 import {
   User,
   Phone,
@@ -26,6 +43,8 @@ import {
   Pencil,
   Timer,
   Send,
+  X,
+  Loader2,
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
@@ -46,9 +65,91 @@ export function BookingDetailDialog({
   onEdit,
   onSendPaymentLink,
 }: BookingDetailDialogProps) {
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const queryClient = useQueryClient();
+
+  // Get user role for permission check
+  const { data: userRole } = useQuery({
+    queryKey: ["user-role"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error) throw error;
+      return data?.role;
+    },
+  });
+
+  const canCancel =
+    booking?.payment_status !== 'paid' &&
+    booking?.payment_status !== 'charged_to_room' &&
+    booking?.status !== 'cancelled' &&
+    booking?.status !== 'completed' &&
+    (userRole === 'admin' || userRole === 'concierge');
+
+  // Cancellation mutation
+  const cancelMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      if (!booking?.id) return;
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          status: "cancelled",
+          cancellation_reason: reason,
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      // Call the backend cancellation handler
+      if (booking?.id) {
+        try {
+          await invokeEdgeFunction(
+            "handle-booking-cancellation",
+            {
+              body: {
+                bookingId: booking.id,
+                cancellationReason: cancellationReason || undefined,
+              },
+            }
+          );
+        } catch (e) {
+          console.error("handle-booking-cancellation exception:", e);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      toast({
+        title: "Succès",
+        description: "La réservation a été annulée avec succès",
+      });
+      setShowCancelDialog(false);
+      setCancellationReason("");
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de l'annulation",
+        variant: "destructive",
+      });
+      console.error("Error cancelling booking:", error);
+    },
+  });
+
   if (!booking) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
@@ -82,6 +183,16 @@ export function BookingDetailDialog({
                 >
                   <Send className="h-4 w-4 mr-2" />
                   Envoyer lien paiement
+                </Button>
+              )}
+              {canCancel && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowCancelDialog(true)}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Annuler
                 </Button>
               )}
               {onEdit && (
@@ -312,5 +423,45 @@ export function BookingDetailDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Cancel confirmation dialog */}
+    <AlertDialog open={showCancelDialog} onOpenChange={(open) => {
+      setShowCancelDialog(open);
+      if (!open) setCancellationReason("");
+    }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Annuler la réservation</AlertDialogTitle>
+          <AlertDialogDescription>
+            Veuillez indiquer la raison de l'annulation. Cette action ne supprimera pas la réservation mais changera son statut en "Annulé".
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <Label htmlFor="cancellation-reason" className="text-sm font-medium">
+            Raison de l'annulation <span className="text-destructive">*</span>
+          </Label>
+          <Textarea
+            id="cancellation-reason"
+            value={cancellationReason}
+            onChange={(e) => setCancellationReason(e.target.value)}
+            placeholder="Saisissez la raison de l'annulation..."
+            className="mt-2"
+            rows={3}
+          />
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Retour</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => cancelMutation.mutate(cancellationReason)}
+            disabled={!cancellationReason.trim() || cancelMutation.isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {cancelMutation.isPending ? "Annulation..." : "Confirmer l'annulation"}
+            {cancelMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </>
   );
 }

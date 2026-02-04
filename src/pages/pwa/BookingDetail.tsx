@@ -1172,6 +1172,7 @@ const PwaBookingDetail = () => {
         bookingId={booking.id}
         bookingNumber={booking.booking_id}
         totalPrice={totalPrice}
+        currency={booking.hotel_currency}
         treatments={treatments.map(t => ({
           name: t.treatment_menus?.name || "Treatment",
           duration: t.treatment_menus?.duration || 0,
