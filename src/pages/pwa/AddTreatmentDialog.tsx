@@ -72,14 +72,9 @@ export const AddTreatmentDialog = ({
       const skills = hairdresserData?.skills || [];
       setHairdresserSkills(skills);
 
-      // Fetch treatments for this hotel
+      // Fetch treatments for this hotel using the same RPC as client side
       const { data, error } = await supabase
-        .from("treatment_menus")
-        .select("*")
-        .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
-        .in("status", ["active", "Actif"])
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
+        .rpc('get_public_treatments', { _hotel_id: hotelId });
 
       if (error) throw error;
 
