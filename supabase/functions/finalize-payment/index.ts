@@ -106,14 +106,34 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Récupérer le booking avec les relations
+    // 1. Récupérer le booking avec toutes les relations nécessaires en une seule requête
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
-        *,
+        id,
+        booking_id,
+        hotel_id,
+        hairdresser_id,
+        client_email,
+        client_first_name,
+        client_last_name,
+        room_number,
         booking_treatments(
           treatment_id,
           treatment_menus(name, price)
+        ),
+        hotels(
+          name,
+          vat,
+          hotel_commission,
+          hairdresser_commission,
+          currency,
+          venue_type
+        ),
+        hairdressers(
+          first_name,
+          last_name,
+          stripe_account_id
         )
       `)
       .eq('id', booking_id)
@@ -124,19 +144,20 @@ serve(async (req) => {
       throw new Error(`Booking not found: ${booking_id}`);
     }
 
-    log("Booking found", { booking_id: booking.booking_id, hotel_id: booking.hotel_id });
+    const hotel = booking.hotels;
+    const hairdresser = booking.hairdressers;
 
-    // 2. Récupérer l'hôtel avec ses paramètres fiscaux
-    const { data: hotel, error: hotelError } = await supabase
-      .from('hotels')
-      .select('*')
-      .eq('id', booking.hotel_id)
-      .single();
-
-    if (hotelError || !hotel) {
-      log("Hotel not found", { hotelError });
-      throw new Error(`Hotel not found: ${booking.hotel_id}`);
+    if (!hotel) {
+      log("Hotel not found in booking relation");
+      throw new Error(`Hotel not found for booking: ${booking_id}`);
     }
+
+    log("Booking found", {
+      booking_id: booking.booking_id,
+      hotel_id: booking.hotel_id,
+      hotel_name: hotel.name,
+      hairdresser: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : 'none'
+    });
 
     // Coworking spaces don't support room payment
     if (payment_method === 'room' && hotel.venue_type === 'coworking') {
@@ -145,34 +166,6 @@ serve(async (req) => {
 
     // Get currency for Stripe operations (lowercase)
     const currency = (hotel.currency || 'EUR').toLowerCase();
-
-    log("Hotel found", { 
-      name: hotel.name, 
-      vat: hotel.vat, 
-      hotel_commission: hotel.hotel_commission,
-      hairdresser_commission: hotel.hairdresser_commission,
-      currency: currency
-    });
-
-    // 3. Récupérer le coiffeur avec son compte Stripe
-    let hairdresser = null;
-    if (booking.hairdresser_id) {
-      const { data: hd, error: hdError } = await supabase
-        .from('hairdressers')
-        .select('*')
-        .eq('id', booking.hairdresser_id)
-        .single();
-
-      if (hdError) {
-        log("Hairdresser fetch error", { hdError });
-      } else {
-        hairdresser = hd;
-        log("Hairdresser found", { 
-          name: `${hairdresser.first_name} ${hairdresser.last_name}`,
-          stripe_account_id: hairdresser.stripe_account_id 
-        });
-      }
-    }
 
     // 4. Calculer les commissions
     const vatRate = hotel.vat || 20;
@@ -213,30 +206,7 @@ serve(async (req) => {
     // 5. Traitement selon le mode de paiement
     if (payment_method === 'card') {
       // ===== PAIEMENT CARTE =====
-      log("Processing CARD payment");
-
-      // Create or find Stripe customer
-      const clientEmail = booking.client_email || `${booking.client_first_name.toLowerCase()}.${booking.client_last_name.toLowerCase()}@guest.oom.com`;
-      let customerId: string | undefined;
-
-      // Try to find existing customer
-      const customers = await stripe.customers.list({ email: clientEmail, limit: 1 });
-      if (customers.data.length > 0) {
-        customerId = customers.data[0].id;
-        log("Found existing customer", { customerId });
-      } else {
-        // Create new customer
-        const customer = await stripe.customers.create({
-          email: clientEmail,
-          name: `${booking.client_first_name} ${booking.client_last_name}`,
-          metadata: {
-            booking_id: booking.id,
-            hotel_id: booking.hotel_id,
-          },
-        });
-        customerId = customer.id;
-        log("Created new customer", { customerId });
-      }
+      log("Processing CARD payment with Payment Link");
 
       // Build description with treatments
       const treatmentNames = booking.booking_treatments
@@ -244,12 +214,21 @@ serve(async (req) => {
         .filter(Boolean)
         .join(', ') || 'Prestation OOM';
 
-      // Create Stripe Invoice
-      const invoice = await stripe.invoices.create({
-        customer: customerId,
-        collection_method: 'send_invoice',
-        days_until_due: 0, // Due immediately
-        auto_advance: true,
+      const siteUrl = Deno.env.get("SITE_URL") || "https://oomworld.com";
+
+      // Create Stripe Payment Link (no customer/email required)
+      const paymentLink = await stripe.paymentLinks.create({
+        line_items: [{
+          price_data: {
+            currency: currency,
+            product_data: {
+              name: 'Prestations bien-être OOM World',
+              description: treatmentNames,
+            },
+            unit_amount: Math.round(totalTTC * 100),
+          },
+          quantity: 1,
+        }],
         metadata: {
           booking_id: booking.id,
           booking_number: booking.booking_id.toString(),
@@ -260,51 +239,25 @@ serve(async (req) => {
           oom_share: breakdown.oomShare.toString(),
           total_ht: breakdown.totalHT.toString(),
           source: 'finalize-payment',
-          signature_url: signaturePublicUrl || '',
         },
-        custom_fields: signaturePublicUrl ? [
-          {
-            name: 'Preuve de Signature',
-            value: signaturePublicUrl.substring(0, 30) + '...',
+        after_completion: {
+          type: 'redirect',
+          redirect: {
+            url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success`,
           },
-        ] : undefined,
-        footer: signaturePublicUrl 
-          ? `Signature client: ${signaturePublicUrl}` 
-          : undefined,
+        },
       });
 
-      log("Invoice created", { invoiceId: invoice.id });
+      log("Payment Link created", { url: paymentLink.url });
 
-      // Add invoice line item
-      await stripe.invoiceItems.create({
-        customer: customerId,
-        invoice: invoice.id,
-        amount: Math.round(totalTTC * 100), // In cents
-        currency: currency,
-        description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name}`,
-      });
-
-      // Finalize the invoice to generate the PDF
-      const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
-      
-      log("Invoice finalized", { 
-        invoiceId: finalizedInvoice.id, 
-        hosted_invoice_url: finalizedInvoice.hosted_invoice_url,
-        invoice_pdf: finalizedInvoice.invoice_pdf 
-      });
-
-      // Send the invoice (this sends email to customer)
-      const sentInvoice = await stripe.invoices.sendInvoice(invoice.id);
-      log("Invoice sent to customer", { email: clientEmail });
-
-      // Update booking with invoice URL and pending status
+      // Update booking with payment link URL and pending status
       await supabase
         .from('bookings')
         .update({
           payment_method: 'card',
           payment_status: 'pending',
           total_price: totalTTC,
-          stripe_invoice_url: sentInvoice.hosted_invoice_url,
+          payment_link_url: paymentLink.url,
           client_signature: signature_data || null,
           signed_at: signature_data ? new Date().toISOString() : null,
           updated_at: new Date().toISOString(),
@@ -315,23 +268,26 @@ serve(async (req) => {
         ...result,
         success: true,
         payment_method: 'card',
-        payment_url: sentInvoice.hosted_invoice_url,
-        invoice_url: sentInvoice.hosted_invoice_url,
-        invoice_pdf: sentInvoice.invoice_pdf,
-        message: "Stripe Invoice created and sent to client. Invoice URL saved.",
+        payment_url: paymentLink.url,
+        message: "Payment Link created. Send to client via WhatsApp or email.",
       };
 
     } else {
       // ===== PAIEMENT CHAMBRE =====
       log("Processing ROOM payment");
 
+      // Room payment requires email for invoice generation
+      if (!booking.client_email) {
+        throw new Error("L'email du client est requis pour le paiement sur chambre (génération de facture)");
+      }
+
       // Vérifier que la signature est présente
       if (!signature_data) {
         throw new Error("Signature is required for room payment");
       }
 
-      // Create or find Stripe customer for room payment too (for invoice generation)
-      const clientEmail = booking.client_email || `${booking.client_first_name.toLowerCase()}.${booking.client_last_name.toLowerCase()}@guest.oom.com`;
+      // Create or find Stripe customer for room payment (for invoice generation)
+      const clientEmail = booking.client_email;
       let customerId: string | undefined;
 
       const customers = await stripe.customers.list({ email: clientEmail, limit: 1 });
