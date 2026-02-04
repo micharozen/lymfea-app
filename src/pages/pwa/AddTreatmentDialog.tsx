@@ -41,52 +41,23 @@ export const AddTreatmentDialog = ({
   const [selectedTreatments, setSelectedTreatments] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [hairdresserSkills, setHairdresserSkills] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
-      fetchHairdresserAndTreatments();
+      fetchTreatments();
     }
   }, [open, hotelId]);
 
-  const fetchHairdresserAndTreatments = async () => {
+  const fetchTreatments = async () => {
     setLoading(true);
     try {
-      // Get current user's hairdresser profile with skills
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Non authentifié");
-        return;
-      }
-
-      const { data: hairdresserData, error: hairdresserError } = await supabase
-        .from("hairdressers")
-        .select("skills")
-        .eq("user_id", user.id)
-        .single();
-
-      if (hairdresserError) {
-        console.error("Error fetching hairdresser:", hairdresserError);
-      }
-
-      const skills = hairdresserData?.skills || [];
-      setHairdresserSkills(skills);
-
       // Fetch treatments for this hotel using the same RPC as client side
       const { data, error } = await supabase
         .rpc('get_public_treatments', { _hotel_id: hotelId });
 
       if (error) throw error;
 
-      // Filter treatments by hairdresser's skills (category must match one of their skills)
-      const filteredTreatments = (data || []).filter(treatment => {
-        // If hairdresser has no skills defined, show all treatments
-        if (skills.length === 0) return true;
-        // Otherwise, only show treatments where category matches one of their skills
-        return skills.includes(treatment.category);
-      });
-
-      setTreatments(filteredTreatments);
+      setTreatments(data || []);
     } catch (error) {
       console.error("Error fetching treatments:", error);
       toast.error("Erreur lors du chargement des prestations");
