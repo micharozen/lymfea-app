@@ -448,8 +448,8 @@ export const PaymentSelectionDrawer = ({
                     <CreditCard className="w-7 h-7" />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-bold text-lg">💳 Payer par Carte</p>
-                    <p className="text-sm text-white/80">Paiement immédiat par carte bancaire</p>
+                    <p className="font-bold text-lg">💳 {t('payment.payByCard')}</p>
+                    <p className="text-sm text-white/80">{t('payment.cardDescription')}</p>
                   </div>
                 </button>
 
@@ -464,8 +464,8 @@ export const PaymentSelectionDrawer = ({
                       <Hotel className="w-7 h-7" />
                     </div>
                     <div className="text-left flex-1">
-                      <p className="font-bold text-lg">🏨 Ajouter à la Chambre</p>
-                      <p className="text-sm text-white/80">Le client signe, l'hôtel débite</p>
+                      <p className="font-bold text-lg">🏨 {t('payment.addToRoom')}</p>
+                      <p className="text-sm text-white/80">{t('payment.roomDescription')}</p>
                     </div>
                   </button>
                 )}
@@ -476,25 +476,26 @@ export const PaymentSelectionDrawer = ({
             {step === 'card-processing' && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">Création du lien de paiement...</p>
-                <p className="text-xs text-muted-foreground mt-2">Veuillez patienter</p>
+                <p className="text-muted-foreground font-medium">{t('payment.creatingLink')}</p>
+                <p className="text-xs text-muted-foreground mt-2">{t('payment.pleaseWait')}</p>
               </div>
             )}
 
             {/* Card Ready Step with QR Code - LOCKED until cancel */}
             {step === 'card-ready' && paymentUrl && (
-              <PaymentQRCodeView 
+              <PaymentQRCodeView
                 paymentUrl={paymentUrl}
                 onOpenPaymentLink={handleOpenPaymentLink}
                 onCancelPayment={handleCancelPaymentRequest}
                 cancelling={cancelling}
                 isPolling={isPolling}
+                t={t}
               />
             )}
 
             {/* Success Step - Auto-closes */}
             {step === 'success' && (
-              <PaymentSuccessView onComplete={handleSuccessComplete} />
+              <PaymentSuccessView onComplete={handleSuccessComplete} t={t} />
             )}
           </div>
         </DrawerContent>
