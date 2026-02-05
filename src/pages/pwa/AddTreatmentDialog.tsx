@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Clock, Euro } from "lucide-react";
+import { Clock } from "lucide-react";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface Treatment {
   id: string;
@@ -19,6 +20,7 @@ interface Treatment {
   description: string;
   duration: number;
   price: number;
+  currency: string;
   category: string;
 }
 
@@ -197,9 +199,8 @@ export const AddTreatmentDialog = ({
                                   </p>
                                 )}
                               </div>
-                              <p className="text-sm font-semibold text-gray-900 flex items-center gap-0.5 flex-shrink-0">
-                                {treatment.price}
-                                <Euro className="h-3 w-3" />
+                              <p className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                                {formatPrice(treatment.price, treatment.currency, { decimals: 0 })}
                               </p>
                             </div>
                             {treatment.duration && (
@@ -223,9 +224,8 @@ export const AddTreatmentDialog = ({
                   <span className="text-gray-600">
                     {selectedTreatments.size} prestation{selectedTreatments.size > 1 ? "s" : ""} sélectionnée{selectedTreatments.size > 1 ? "s" : ""}
                   </span>
-                  <span className="font-semibold text-gray-900 flex items-center gap-1">
-                    +{calculateTotal().toFixed(2)}
-                    <Euro className="h-4 w-4" />
+                  <span className="font-semibold text-gray-900">
+                    +{formatPrice(calculateTotal(), treatments.find(t => selectedTreatments.has(t.id))?.currency || 'EUR')}
                   </span>
                 </div>
               </div>
