@@ -162,7 +162,7 @@ const PwaDashboard = () => {
           // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
           if (newData.hairdresser_id !== null && 
               newData.hairdresser_id !== hairdresser.id &&
-              (newData.status === 'pending' || newData.status === 'confirmed')) {
+              (newData.status === 'pending' || newData.status === 'confirmed' || newData.status === 'awaiting_hairdresser_selection')) {
             console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
@@ -173,7 +173,7 @@ const PwaDashboard = () => {
           }
           
           // Cas 2: Réservation non assignée mais statut change (refusée, annulée, etc.) - retirer
-          if (newData.hairdresser_id === null && newData.status !== 'pending') {
+          if (newData.hairdresser_id === null && newData.status !== 'pending' && newData.status !== 'awaiting_hairdresser_selection') {
             console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             return;
@@ -352,7 +352,7 @@ const PwaDashboard = () => {
       `)
       .in("hotel_id", hotelIds)
       .is("hairdresser_id", null)
-      .in("status", ["pending"]);
+      .in("status", ["pending", "awaiting_hairdresser_selection"]);
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
 
@@ -556,7 +556,7 @@ const PwaDashboard = () => {
 
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
-      const isStatusPending = b.status === "pending";
+      const isStatusPending = b.status === "pending" || b.status === "awaiting_hairdresser_selection";
       const isUnassigned = b.hairdresser_id === null;
       
       // Exclure les réservations que ce coiffeur a déjà refusées

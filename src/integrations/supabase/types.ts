@@ -56,6 +56,72 @@ export type Database = {
         }
         Relationships: []
       }
+      booking_proposed_slots: {
+        Row: {
+          id: string
+          booking_id: string
+          slot_1_date: string
+          slot_1_time: string
+          slot_2_date: string | null
+          slot_2_time: string | null
+          slot_3_date: string | null
+          slot_3_time: string | null
+          validated_slot: number | null
+          validated_by: string | null
+          validated_at: string | null
+          expires_at: string
+          admin_notified_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          slot_1_date: string
+          slot_1_time: string
+          slot_2_date?: string | null
+          slot_2_time?: string | null
+          slot_3_date?: string | null
+          slot_3_time?: string | null
+          validated_slot?: number | null
+          validated_by?: string | null
+          validated_at?: string | null
+          expires_at?: string
+          admin_notified_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          slot_1_date?: string
+          slot_1_time?: string
+          slot_2_date?: string | null
+          slot_2_time?: string | null
+          slot_3_date?: string | null
+          slot_3_time?: string | null
+          validated_slot?: number | null
+          validated_by?: string | null
+          validated_at?: string | null
+          expires_at?: string
+          admin_notified_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_proposed_slots_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_proposed_slots_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "hairdressers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_treatments: {
         Row: {
           booking_id: string
