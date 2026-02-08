@@ -46,6 +46,14 @@ interface Booking {
     } | null;
   }>;
   hotels?: { image: string | null; currency: string | null } | { image: string | null; currency: string | null }[] | null;
+  proposed_slots?: {
+    slot_1_date: string;
+    slot_1_time: string;
+    slot_2_date?: string | null;
+    slot_2_time?: string | null;
+    slot_3_date?: string | null;
+    slot_3_time?: string | null;
+  } | null;
 }
 
 // Helper to get hotel image from booking (handles both object and array)
@@ -125,7 +133,8 @@ const PwaDashboard = () => {
     if (cachedMyBookings || cachedPendingBookings) {
       console.log('📦 Using cached bookings data');
       const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
-      const sortedData = allData.sort((a, b) => {
+      const uniqueData = Array.from(new Map(allData.map((b: any) => [b.id, b])).values());
+      const sortedData = uniqueData.sort((a: any, b: any) => {
         const dateCompare = a.booking_date.localeCompare(b.booking_date);
         if (dateCompare !== 0) return dateCompare;
         return a.booking_time.localeCompare(b.booking_time);
@@ -371,10 +380,28 @@ const PwaDashboard = () => {
 
     console.log('🔍 Filtered pending bookings by trunk:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
 
-    // Add hotel images to pending bookings
+    // Fetch proposed slots for awaiting_hairdresser_selection bookings
+    const awaitingBookingIds = filteredPendingBookings
+      .filter(b => b.status === "awaiting_hairdresser_selection")
+      .map(b => b.id);
+
+    let slotsMap = new Map<string, any>();
+    if (awaitingBookingIds.length > 0) {
+      const { data: slotsData } = await supabase
+        .from("booking_proposed_slots")
+        .select("booking_id, slot_1_date, slot_1_time, slot_2_date, slot_2_time, slot_3_date, slot_3_time")
+        .in("booking_id", awaitingBookingIds);
+
+      if (slotsData) {
+        slotsMap = new Map(slotsData.map(s => [s.booking_id, s]));
+      }
+    }
+
+    // Add hotel images and proposed slots to pending bookings
     const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
       ...b,
-      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
+      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null },
+      proposed_slots: slotsMap.get(b.id) || null,
     }));
 
     if (pendingError) {
@@ -394,9 +421,10 @@ const PwaDashboard = () => {
       return;
     }
 
-    // Combine and sort both sets of bookings
+    // Combine, deduplicate, and sort both sets of bookings
     const allData = [...myBookingsWithImages, ...pendingBookingsWithImages];
-    const sortedData = allData.sort((a, b) => {
+    const uniqueData = Array.from(new Map(allData.map(b => [b.id, b])).values());
+    const sortedData = uniqueData.sort((a, b) => {
       const dateCompare = a.booking_date.localeCompare(b.booking_date);
       if (dateCompare !== 0) return dateCompare;
       return a.booking_time.localeCompare(b.booking_time);
@@ -835,10 +863,28 @@ const PwaDashboard = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
-                            <p className="text-[11px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
+                              {booking.proposed_slots && (booking.proposed_slots.slot_2_date || booking.proposed_slots.slot_3_date) && (
+                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3 bg-purple-100 text-purple-700 flex-shrink-0">
+                                  {[true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length} créneaux
+                                </Badge>
+                              )}
+                            </div>
+                            {booking.proposed_slots ? (
+                              <p className="text-[11px] text-gray-500">
+                                {format(new Date(booking.proposed_slots.slot_1_date + "T00:00:00"), "d/MM")} {booking.proposed_slots.slot_1_time.substring(0, 5)}
+                                {booking.proposed_slots.slot_2_date && booking.proposed_slots.slot_2_time &&
+                                  ` / ${format(new Date(booking.proposed_slots.slot_2_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_2_time.substring(0, 5)}`}
+                                {booking.proposed_slots.slot_3_date && booking.proposed_slots.slot_3_time &&
+                                  ` / ${format(new Date(booking.proposed_slots.slot_3_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_3_time.substring(0, 5)}`}
+                                {" "}• {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-gray-500">
+                                {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
+                              </p>
+                            )}
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                         </div>

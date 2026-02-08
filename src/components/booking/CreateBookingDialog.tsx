@@ -32,7 +32,7 @@ import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
-  const { isConcierge, hotelIds } = useUserContext();
+  const { isConcierge, hotelIds, isAdmin } = useUserContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
@@ -77,17 +77,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     if (selectedTime) form.setValue("time", selectedTime);
   }, [selectedDate, selectedTime]);
 
-  const { data: userRole } = useQuery({
-    queryKey: ["user-role"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id).single();
-      return data?.role;
-    },
-  });
-
-  const isAdmin = userRole === "admin";
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
