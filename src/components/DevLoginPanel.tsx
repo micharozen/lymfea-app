@@ -22,6 +22,12 @@ const DEV_USERS: DevUser[] = [
     description: "Admin dashboard",
   },
   {
+    label: "Concierge",
+    email: "concierge@oom.dev",
+    password: "password",
+    description: "Vue concierge (hôtel)",
+  },
+  {
     label: "Hairdresser (PWA)",
     email: "hairdresser@oom.dev",
     password: "password",
