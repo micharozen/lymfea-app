@@ -25,6 +25,7 @@ import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialo
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
+import { cn } from "@/lib/utils";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
@@ -34,6 +35,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { isConcierge, hotelIds } = useUserContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
+  const [visibleSlots, setVisibleSlots] = useState(1);
 
   const formSchema = useMemo(() => createFormSchema(t), [t]);
   const form = useForm<BookingFormValues>({
@@ -195,6 +197,22 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         return false;
       }
     }
+    // Duplicate slot validation
+    const slot1Key = values.date && values.time ? `${format(values.date, "yyyy-MM-dd")}-${values.time}` : null;
+    const slot2Key = values.slot2Date && values.slot2Time ? `${format(values.slot2Date, "yyyy-MM-dd")}-${values.slot2Time}` : null;
+    const slot3Key = values.slot3Date && values.slot3Time ? `${format(values.slot3Date, "yyyy-MM-dd")}-${values.slot3Time}` : null;
+    if (slot2Key && slot1Key && slot2Key === slot1Key) {
+      form.setError("slot2Time", { message: "Ce créneau est identique au créneau 1" });
+      return false;
+    }
+    if (slot3Key && slot1Key && slot3Key === slot1Key) {
+      form.setError("slot3Time", { message: "Ce créneau est identique au créneau 1" });
+      return false;
+    }
+    if (slot3Key && slot2Key && slot3Key === slot2Key) {
+      form.setError("slot3Time", { message: "Ce créneau est identique au créneau 2" });
+      return false;
+    }
     return result;
   };
 
@@ -267,7 +285,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
-      <DialogContent className="max-w-xl max-h-[92vh] p-0 gap-0 flex flex-col overflow-hidden" onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}>
+      <DialogContent className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden" onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}>
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             Nouvelle réservation
@@ -280,7 +298,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         <Form {...form}>
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "payment")} className="flex-1 flex flex-col min-h-0">
-              <TabsContent value="info" className="flex-1 px-4 py-4 space-y-3 mt-0 data-[state=inactive]:hidden">
+              <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                 <BookingInfoStep
                   form={form}
                   isAdmin={isAdmin}
@@ -291,6 +309,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   hotelTimezone={hotelTimezone}
                   hotelId={hotelId}
                   countryCode={countryCode}
+                  visibleSlots={visibleSlots}
+                  setVisibleSlots={setVisibleSlots}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />

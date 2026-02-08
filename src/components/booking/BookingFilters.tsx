@@ -42,7 +42,7 @@ export function BookingFilters({
   hairdressers,
 }: BookingFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3 pb-4 border-b border-border">
+    <div className="flex flex-wrap items-center gap-4 pb-4 border-b border-border">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -54,7 +54,7 @@ export function BookingFilters({
       </div>
 
       <Select value={statusFilter} onValueChange={onStatusChange}>
-        <SelectTrigger className="w-[130px]">
+        <SelectTrigger className="w-[160px]">
           <SelectValue placeholder="Tous les statuts" />
         </SelectTrigger>
         <SelectContent>
@@ -84,37 +84,39 @@ export function BookingFilters({
         </Select>
       )}
 
-      <Select value={hairdresserFilter} onValueChange={onHairdresserChange}>
-        <SelectTrigger className="w-[140px]">
-          <SelectValue placeholder="Tous les coiffeurs" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Tous les coiffeurs</SelectItem>
-          {hairdressers?.map((hairdresser) => (
-            <SelectItem key={hairdresser.id} value={hairdresser.id}>
-              {hairdresser.first_name} {hairdresser.last_name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {isAdmin && (
+        <Select value={hairdresserFilter} onValueChange={onHairdresserChange}>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="Tous les coiffeurs" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les coiffeurs</SelectItem>
+            {hairdressers?.map((hairdresser) => (
+              <SelectItem key={hairdresser.id} value={hairdresser.id}>
+                {hairdresser.first_name} {hairdresser.last_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <div className="ml-auto flex items-center border rounded-md overflow-hidden">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onViewChange("calendar")}
-          className={`rounded-none border-0 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+          className={`rounded-none border-0 h-6 px-1.5 text-[11px] ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
         >
-          <CalendarIcon className="h-4 w-4 md:mr-1" />
+          <CalendarIcon className="h-3 w-3 md:mr-1" />
           <span className="hidden md:inline">Calendrier</span>
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onViewChange("list")}
-          className={`rounded-none border-0 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+          className={`rounded-none border-0 h-6 px-1.5 text-[11px] ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
         >
-          <List className="h-4 w-4 md:mr-1" />
+          <List className="h-3 w-3 md:mr-1" />
           <span className="hidden md:inline">Liste</span>
         </Button>
       </div>

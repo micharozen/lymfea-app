@@ -124,7 +124,7 @@
     "quoteRequiredDesc": "Votre panier contient des prestations sur devis. Un conseiller vous contactera pour confirmer le prix final.",
     "onQuote": "Sur devis",
     "plusQuote": "+ devis",
-    "requestQuote": "Demander un devis"
+    "requestQuote": "Envoyer la demande"
   },
   "confirmation": {
     "title": "Réservation confirmée",

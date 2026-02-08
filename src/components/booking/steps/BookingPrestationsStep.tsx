@@ -209,8 +209,19 @@ export function BookingPrestationsStep({
         )}
 
         <div className="flex items-center justify-between gap-3">
-          {/* Cart Summary */}
-          <div className="flex-1 min-w-0">
+          {/* Back button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onBack}
+            className="h-7 text-xs px-2 shrink-0"
+          >
+            ← Retour
+          </Button>
+
+          {/* Cart Summary + Price */}
+          <div className="flex-1 min-w-0 flex justify-center">
             {cart.length > 0 ? (
               <div className="flex items-center gap-1.5 overflow-x-auto">
                 {cartDetails.slice(0, 3).map(({ treatmentId, quantity, treatment }) => (
@@ -222,34 +233,28 @@ export function BookingPrestationsStep({
                 {cartDetails.length > 3 && (
                   <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
                 )}
+                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</span>
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground">Aucun service</span>
             )}
           </div>
 
-          {/* Total + Actions */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="font-bold text-sm">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onBack}
-              className="h-7 text-xs px-2"
-            >
-              ← Retour
-            </Button>
-            <Button
-              type="submit"
-              disabled={isPending || cart.length === 0}
-              size="sm"
-              className="bg-foreground text-background hover:bg-foreground/90 h-7 text-xs px-3"
-            >
-              {isPending ? "Création..." : isAdmin ? "Créer" : "Demander un devis"}
-              {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </Button>
-          </div>
+          {/* Submit */}
+          <Button
+            type="submit"
+            disabled={isPending || cart.length === 0}
+            size="sm"
+            className={cn(
+              "h-7 text-xs px-3 shrink-0",
+              isAdmin
+                ? "bg-foreground text-background hover:bg-foreground/90"
+                : "bg-emerald-600 text-white hover:bg-emerald-700"
+            )}
+          >
+            {isPending ? "Création..." : isAdmin ? "Créer" : "Envoyer la demande"}
+            {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+          </Button>
         </div>
       </div>
     </>

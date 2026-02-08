@@ -167,11 +167,11 @@ export default function Booking() {
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
             📅 Bookings
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="icon"
@@ -182,7 +182,7 @@ export default function Booking() {
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
-              Create a booking
+              {isConcierge ? "Créer une demande" : "Créer une réservation"}
             </Button>
           </div>
         </div>

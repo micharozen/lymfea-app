@@ -580,10 +580,27 @@ serve(async (req) => {
       console.log(`[STRIPE-WEBHOOK] Payment intent failed: ${paymentIntent.id}`);
 
       // Find booking via metadata
-      const bookingId = paymentIntent.metadata?.booking_id;
+      let bookingId = paymentIntent.metadata?.booking_id;
+
+      // Fallback: lookup via Checkout Session (Payment Link metadata propagates to session)
+      if (!bookingId) {
+        console.log('[STRIPE-WEBHOOK] No booking_id in payment intent metadata, looking up checkout session...');
+        try {
+          const sessions = await stripe.checkout.sessions.list({
+            payment_intent: paymentIntent.id,
+            limit: 1,
+          });
+          if (sessions.data.length > 0) {
+            bookingId = sessions.data[0].metadata?.booking_id;
+            console.log(`[STRIPE-WEBHOOK] Found booking_id from checkout session: ${bookingId}`);
+          }
+        } catch (lookupError) {
+          console.error('[STRIPE-WEBHOOK] Failed to lookup checkout session:', lookupError);
+        }
+      }
 
       if (!bookingId) {
-        console.log('[STRIPE-WEBHOOK] No booking_id in payment intent metadata, skipping');
+        console.log('[STRIPE-WEBHOOK] No booking_id found in payment intent or checkout session metadata, skipping');
         return new Response(JSON.stringify({ received: true }), { status: 200 });
       }
 
@@ -633,7 +650,7 @@ serve(async (req) => {
 
       // Notify admin via Slack
       try {
-        await supabase.functions.invoke('send-slack-notification', {
+        const { data: slackData, error: slackError } = await supabase.functions.invoke('send-slack-notification', {
           body: {
             type: 'payment_failed',
             bookingId: existingBooking.id,
@@ -650,7 +667,11 @@ serve(async (req) => {
             cardLast4: errorDetails?.payment_method?.card?.last4,
           }
         });
-        console.log('[STRIPE-WEBHOOK] Slack notification sent for payment failure');
+        if (slackError) {
+          console.error('[STRIPE-WEBHOOK] Slack invoke error:', slackError);
+        } else {
+          console.log('[STRIPE-WEBHOOK] Slack notification sent for payment failure', slackData);
+        }
       } catch (notifyError) {
         console.error('[STRIPE-WEBHOOK] Failed to send Slack notification:', notifyError);
       }
