@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface SlackNotificationPayload {
-  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled';
+  type: 'new_booking' | 'booking_confirmed' | 'booking_cancelled' | 'payment_failed';
   bookingId: string;
   bookingNumber: string;
   clientName: string;
@@ -18,6 +18,12 @@ interface SlackNotificationPayload {
   currency?: string;
   treatments?: string[];
   cancellationReason?: string;
+  // Payment failure fields
+  paymentErrorCode?: string;
+  paymentErrorMessage?: string;
+  paymentDeclineCode?: string;
+  cardBrand?: string;
+  cardLast4?: string;
 }
 
 serve(async (req) => {
@@ -91,6 +97,11 @@ serve(async (req) => {
         title = "Réservation annulée";
         color = "#e74c3c"; // Red
         break;
+      case 'payment_failed':
+        emoji = "🚨";
+        title = "Échec de paiement";
+        color = "#e67e22"; // Orange (alert)
+        break;
     }
 
     const priceText = payload.totalPrice
@@ -157,6 +168,37 @@ serve(async (req) => {
                 type: "mrkdwn",
                 text: `*Raison d'annulation:*\n${cancellationReasonText}`
               }
+            }] : []),
+            ...(payload.type === 'payment_failed' && payload.paymentErrorMessage ? [{
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: `*❌ Erreur de paiement:*\n${payload.paymentErrorMessage}`
+              }
+            }, {
+              type: "section",
+              fields: [
+                {
+                  type: "mrkdwn",
+                  text: `*Code d'erreur:*\n\`${payload.paymentErrorCode || 'unknown'}\``
+                },
+                ...(payload.cardBrand && payload.cardLast4 ? [{
+                  type: "mrkdwn",
+                  text: `*Carte utilisée:*\n${payload.cardBrand} ****${payload.cardLast4}`
+                }] : []),
+                ...(payload.paymentDeclineCode ? [{
+                  type: "mrkdwn",
+                  text: `*Decline code:*\n\`${payload.paymentDeclineCode}\``
+                }] : [])
+              ]
+            }, {
+              type: "context",
+              elements: [
+                {
+                  type: "mrkdwn",
+                  text: "💡 *Actions recommandées:* Contacter le client • Renvoyer un lien de paiement • Facturer sur la chambre"
+                }
+              ]
             }] : []),
             {
               type: "actions",
