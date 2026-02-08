@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CreateBookingDialog from "@/components/CreateBookingDialog";
+import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";

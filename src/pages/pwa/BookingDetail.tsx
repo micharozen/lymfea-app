@@ -128,6 +128,13 @@ const PwaBookingDetail = () => {
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
   const isAcceptingRef = useRef(false);
+  // Proposed slots for awaiting_hairdresser_selection status
+  const [proposedSlots, setProposedSlots] = useState<{
+    slot_1_date: string; slot_1_time: string;
+    slot_2_date?: string | null; slot_2_time?: string | null;
+    slot_3_date?: string | null; slot_3_time?: string | null;
+  } | null>(null);
+  const [validatingSlot, setValidatingSlot] = useState<number | null>(null);
 
   // Fetch booking detail when ID changes - keep existing data while loading new booking
   useEffect(() => {
@@ -246,6 +253,20 @@ const PwaBookingDetail = () => {
         }
       }
 
+      // Fetch proposed slots if awaiting hairdresser selection
+      if (bookingData.status === "awaiting_hairdresser_selection") {
+        const { data: slotsData } = await supabase
+          .from("booking_proposed_slots")
+          .select("*")
+          .eq("booking_id", id)
+          .single();
+        if (slotsData) {
+          setProposedSlots(slotsData);
+        }
+      } else {
+        setProposedSlots(null);
+      }
+
       // Fetch concierge contact
       const { data: conciergeData } = await supabase
         .from("concierge_hotels")
@@ -358,6 +379,46 @@ const PwaBookingDetail = () => {
   const handlePaymentComplete = () => {
     toast.success("Paiement finalisé !");
     navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+  };
+
+  const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
+    if (!booking) return;
+
+    // Get current hairdresser's ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: hairdresserData } = await supabase
+      .from("hairdressers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!hairdresserData) {
+      toast.error("Profil coiffeur introuvable");
+      return;
+    }
+
+    setValidatingSlot(slotNumber);
+    try {
+      const { data, error } = await invokeEdgeFunction("validate-booking-slot", {
+        body: {
+          bookingId: booking.id,
+          slotNumber,
+          hairdresserId: hairdresserData.id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Créneau validé ! Le lien de paiement a été envoyé au client.");
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      console.error("Error validating slot:", error);
+      toast.error(error?.message || "Erreur lors de la validation du créneau");
+    } finally {
+      setValidatingSlot(null);
+    }
   };
 
   const handleUnassignBooking = async () => {
@@ -842,9 +903,68 @@ const PwaBookingDetail = () => {
 
         {/* Bottom Actions - Compact */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
-          <div className="flex items-center gap-2">
-            {/* For Pending Requests (not assigned to anyone) */}
-            {booking.status === "pending" && !booking.hairdresser_id ? (
+          <div className="flex flex-col gap-2">
+            {/* For Awaiting Hairdresser Selection (concierge flow with proposed slots) */}
+            {booking.status === "awaiting_hairdresser_selection" && proposedSlots ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-center text-muted-foreground">Choisissez un créneau</p>
+                {/* Slot 1 - Preferred */}
+                <button
+                  onClick={() => handleValidateSlot(1)}
+                  disabled={validatingSlot !== null}
+                  className="w-full p-3 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 flex items-center justify-between transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_1_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_1_time.substring(0, 5)}</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-primary/10 text-primary text-[10px] border-0">Préféré</Badge>
+                </button>
+
+                {/* Slot 2 */}
+                {proposedSlots.slot_2_date && proposedSlots.slot_2_time && (
+                  <button
+                    onClick={() => handleValidateSlot(2)}
+                    disabled={validatingSlot !== null}
+                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">2</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_2_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_2_time.substring(0, 5)}</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Slot 3 */}
+                {proposedSlots.slot_3_date && proposedSlots.slot_3_time && (
+                  <button
+                    onClick={() => handleValidateSlot(3)}
+                    disabled={validatingSlot !== null}
+                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">3</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_3_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_3_time.substring(0, 5)}</p>
+                    </div>
+                  </button>
+                )}
+
+                {validatingSlot && (
+                  <p className="text-xs text-center text-muted-foreground animate-pulse">Validation en cours...</p>
+                )}
+              </div>
+            ) : booking.status === "pending" && !booking.hairdresser_id ? (
               <>
                 {/* Decline Button */}
                 <button

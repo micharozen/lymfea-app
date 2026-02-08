@@ -45,6 +45,7 @@ import {
   Send,
   X,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
@@ -391,6 +392,54 @@ export function BookingDetailDialog({
                     <p className="text-sm text-green-600 dark:text-green-500 mt-1">
                       Via {booking.payment_link_channels.map(c => c === 'email' ? 'Email' : 'WhatsApp').join(' et ')}
                     </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Payment Error Details */}
+          {booking.payment_status === 'failed' && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-destructive uppercase tracking-wide flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Échec de paiement
+                </h3>
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg p-3">
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    {(booking as any).payment_error_message || 'Le paiement a échoué'}
+                  </p>
+                  {(booking as any).payment_error_code && (
+                    <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                      Code: {(booking as any).payment_error_code}
+                    </p>
+                  )}
+                  {(booking as any).payment_error_details && (
+                    <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                      {(booking as any).payment_error_details.last4 && (
+                        <p>Carte: {(booking as any).payment_error_details.brand} ****{(booking as any).payment_error_details.last4}</p>
+                      )}
+                      {(booking as any).payment_error_details.decline_code && (
+                        <p>Decline code: {(booking as any).payment_error_details.decline_code}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  {onSendPaymentLink && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onOpenChange(false);
+                        onSendPaymentLink();
+                      }}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Renvoyer lien de paiement
+                    </Button>
                   )}
                 </div>
               </div>
