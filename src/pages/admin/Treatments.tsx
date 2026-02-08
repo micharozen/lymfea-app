@@ -505,12 +505,12 @@ export default function TreatmentMenus() {
         onOpenChange={(open) => !open && closeView()}
         treatment={viewedMenu}
         hotel={viewedMenu ? getHotelInfo(viewedMenu.hotel_id) : null}
-        onEdit={() => {
+        onEdit={isAdmin ? () => {
           if (viewMenuId) {
             closeView();
             openEdit(viewMenuId);
           }
-        }}
+        } : undefined}
       />
     </div>
   );
