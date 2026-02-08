@@ -797,17 +797,21 @@ const PwaBookingDetail = () => {
               <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('booking.date')}</span>
               <span className="text-xs font-medium text-foreground ml-auto">
-                {format(new Date(booking.booking_date), "d MMM yyyy")}
+                {booking.status === "awaiting_hairdresser_selection" && proposedSlots
+                  ? "Voir créneaux ci-dessous"
+                  : format(new Date(booking.booking_date), "d MMM yyyy")}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 py-2 border-b border-border/50">
-              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">
-                {booking.booking_time.substring(0, 5)}
-              </span>
-            </div>
+            {!(booking.status === "awaiting_hairdresser_selection" && proposedSlots) && (
+              <div className="flex items-center gap-3 py-2 border-b border-border/50">
+                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
+                <span className="text-xs font-medium text-foreground ml-auto">
+                  {booking.booking_time.substring(0, 5)}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -963,6 +967,15 @@ const PwaBookingDetail = () => {
                 {validatingSlot && (
                   <p className="text-xs text-center text-muted-foreground animate-pulse">Validation en cours...</p>
                 )}
+
+                {/* Decline button for multi-slot bookings */}
+                <button
+                  onClick={() => setShowDeclineDialog(true)}
+                  disabled={updating || validatingSlot !== null}
+                  className="w-full py-2.5 rounded-full border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-[0.98] mt-2"
+                >
+                  Refuser cette demande
+                </button>
               </div>
             ) : booking.status === "pending" && !booking.hairdresser_id ? (
               <>
