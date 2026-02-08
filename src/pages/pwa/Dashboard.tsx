@@ -359,6 +359,8 @@ const PwaDashboard = () => {
     // Filter pending bookings by hairdresser's trunk assignments
     // Only show bookings where trunk_id matches one of the hairdresser's trunks
     const filteredPendingBookings = pendingBookings?.filter(b => {
+      // Bookings awaiting hairdresser selection: show to all hairdressers at the hotel
+      if (b.status === "awaiting_hairdresser_selection") return true;
       // If hairdresser has no trunk assignments, show bookings from their hotels (legacy behavior)
       if (hairdresserTrunkIds.length === 0) return true;
       // If booking has no trunk, show it (legacy data)
