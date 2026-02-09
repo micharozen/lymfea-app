@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { Pencil, Copy } from "lucide-react";
 import { ReactNode } from "react";
 
 export type EntityStatus = "active" | "inactive" | "pending" | "maintenance" | string;
@@ -18,6 +18,7 @@ interface EntityDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit?: () => void;
+  onDuplicate?: () => void;
   // Header props
   title: string;
   subtitle?: string;
@@ -47,6 +48,7 @@ export function EntityDetailDialog({
   open,
   onOpenChange,
   onEdit,
+  onDuplicate,
   title,
   subtitle,
   image,
@@ -101,6 +103,18 @@ export function EntityDetailDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fermer
           </Button>
+          {onDuplicate && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                onDuplicate();
+              }}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Dupliquer
+            </Button>
+          )}
           {onEdit && (
             <Button
               onClick={() => {
