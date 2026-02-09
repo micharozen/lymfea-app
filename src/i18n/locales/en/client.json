@@ -17,7 +17,8 @@
     "equipmentIncluded": "Full professional equipment included",
     "howItWorks": "How it works?",
     "ourExperts": "OUR EXPERTS",
-    "expertHairdresser": "Expert Hairdresser"
+    "expertHairdresser": "Expert Hairdresser",
+    "enterpriseWellnessTitle": "Wellness, delivered to your office"
   },
   "menu": {
     "title": "Menu",
@@ -158,11 +159,11 @@
     "addToWorkspaceDesc": "Charge will be added to your account",
     "exclusiveRoomService": "EXCLUSIVE ROOM SERVICE",
     "exclusiveWorkspaceService": "EXCLUSIVE WORKSPACE SERVICE",
-    "exclusiveEnterpriseService": "EXCLUSIVE WELLNESS SERVICE",
+    "exclusiveEnterpriseService": "CORPORATE WELLNESS EXPERIENCE",
     "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
     "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.",
-    "enterpriseServiceDescription": "Treat your team to a wellness break. Our expert hairdressers and barbers come to your office.",
+    "enterpriseServiceDescription": "Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
     "enterprise": "Enterprise",
-    "inEnterpriseDisclaimer": "Service performed at your office."
+    "inEnterpriseDisclaimer": "Our team comes directly to your offices."
   }
 }

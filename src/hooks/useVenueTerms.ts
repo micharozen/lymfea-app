@@ -61,7 +61,7 @@ export const useVenueTerms = (venueType: VenueType | null | undefined): VenueTer
       ? t('venue.workspaceNumber', 'Workspace Number')
       : t('venue.roomNumber', 'Room Number'),
     disclaimer: isEnterprise
-      ? t('venue.inEnterpriseDisclaimer', 'Service performed at your office.')
+      ? t('venue.inEnterpriseDisclaimer', 'Our team comes directly to your offices.')
       : isCoworking
       ? t('venue.inWorkspaceDisclaimer', 'Service performed at your workspace.')
       : t('venue.inRoomDisclaimer', 'Service performed in the privacy of your room.'),
@@ -73,12 +73,12 @@ export const useVenueTerms = (venueType: VenueType | null | undefined): VenueTer
       ? t('venue.addToWorkspaceDesc', 'Charge will be added to your account')
       : t('venue.addToRoomDesc', 'Charge will be added to your room bill'),
     exclusiveServiceLabel: isEnterprise
-      ? t('venue.exclusiveEnterpriseService', 'EXCLUSIVE WELLNESS SERVICE')
+      ? t('venue.exclusiveEnterpriseService', 'CORPORATE WELLNESS EXPERIENCE')
       : isCoworking
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Treat your team to a wellness break. Our expert hairdressers and barbers come to your office.')
+      ? t('venue.enterpriseServiceDescription', 'Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
@@ -113,7 +113,7 @@ export const getVenueTerms = (
       ? t('venue.workspaceNumber', 'Workspace Number')
       : t('venue.roomNumber', 'Room Number'),
     disclaimer: isEnterprise
-      ? t('venue.inEnterpriseDisclaimer', 'Service performed at your office.')
+      ? t('venue.inEnterpriseDisclaimer', 'Our team comes directly to your offices.')
       : isCoworking
       ? t('venue.inWorkspaceDisclaimer', 'Service performed at your workspace.')
       : t('venue.inRoomDisclaimer', 'Service performed in the privacy of your room.'),
@@ -125,12 +125,12 @@ export const getVenueTerms = (
       ? t('venue.addToWorkspaceDesc', 'Charge will be added to your account')
       : t('venue.addToRoomDesc', 'Charge will be added to your room bill'),
     exclusiveServiceLabel: isEnterprise
-      ? t('venue.exclusiveEnterpriseService', 'EXCLUSIVE WELLNESS SERVICE')
+      ? t('venue.exclusiveEnterpriseService', 'CORPORATE WELLNESS EXPERIENCE')
       : isCoworking
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Treat your team to a wellness break. Our expert hairdressers and barbers come to your office.')
+      ? t('venue.enterpriseServiceDescription', 'Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),

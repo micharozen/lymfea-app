@@ -17,7 +17,8 @@
     "equipmentIncluded": "Équipement professionnel complet inclus",
     "howItWorks": "Comment ça marche ?",
     "ourExperts": "NOS EXPERTS",
-    "expertHairdresser": "Expert Coiffeur"
+    "expertHairdresser": "Expert Coiffeur",
+    "enterpriseWellnessTitle": "Le bien-être, directement dans vos bureaux"
   },
   "menu": {
     "title": "Menu",
@@ -158,11 +159,11 @@
     "addToWorkspaceDesc": "Ajouté à votre compte",
     "exclusiveRoomService": "SERVICE EN CHAMBRE EXCLUSIF",
     "exclusiveWorkspaceService": "SERVICE EXCLUSIF",
-    "exclusiveEnterpriseService": "SERVICE BIEN-ÊTRE ENTREPRISE",
+    "exclusiveEnterpriseService": "EXPÉRIENCE BIEN-ÊTRE EN ENTREPRISE",
     "roomServiceDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
     "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous.",
-    "enterpriseServiceDescription": "Offrez une pause bien-être à vos collaborateurs. Nos experts coiffeurs et barbiers se déplacent dans vos locaux.",
+    "enterpriseServiceDescription": "Offrez à vos équipes un vrai moment de déconnexion. Nos experts coiffeurs et barbiers s'installent directement dans vos locaux — sans déplacement, sans stress, juste du soin.",
     "enterprise": "Entreprise",
-    "inEnterpriseDisclaimer": "Prestation réalisée dans vos locaux."
+    "inEnterpriseDisclaimer": "Notre équipe se déplace directement dans vos locaux."
   }
 }

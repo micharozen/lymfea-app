@@ -93,8 +93,13 @@ export default function Welcome() {
   const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
 
   const venueType = hotel?.venue_type as VenueType | null;
+  const isEnterprise = venueType === 'enterprise';
   const venueTerms = useVenueTerms(venueType);
-  const backgroundImage = venueType === 'coworking' ? welcomeBgCoworking : welcomeBgHotel;
+  const backgroundImage = useMemo(() => {
+    if (isEnterprise && hotel?.cover_image) return hotel.cover_image;
+    if (venueType === 'coworking') return welcomeBgCoworking;
+    return welcomeBgHotel;
+  }, [isEnterprise, venueType, hotel?.cover_image]);
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
 
@@ -354,7 +359,8 @@ export default function Welcome() {
   return (
     <div
       className={cn(
-        'min-h-screen bg-black flex flex-col text-white',
+        'min-h-screen flex flex-col text-white',
+        isEnterprise ? 'bg-[#1a1a1a]' : 'bg-black',
         itemCount > 0 ? 'pb-20' : ''
       )}
     >
@@ -364,10 +370,18 @@ export default function Welcome() {
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
-            className="h-full w-full object-cover brightness-[0.5] scale-105 animate-[pulse_10s_infinite_alternate]"
+            className={cn(
+              "h-full w-full object-cover scale-105 animate-[pulse_10s_infinite_alternate]",
+              isEnterprise ? "brightness-[0.6]" : "brightness-[0.5]"
+            )}
             alt="Ambiance"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/40" />
+          <div className={cn(
+            "absolute inset-0 bg-gradient-to-t",
+            isEnterprise
+              ? "from-[#1a1a1a] via-black/10 to-black/30"
+              : "from-black via-black/20 to-black/40"
+          )} />
         </div>
 
         {/* Language Switcher */}
@@ -376,57 +390,93 @@ export default function Welcome() {
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 w-full max-w-[92vw] sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10">
+        <div className="relative z-10 w-full max-w-[92vw] sm:max-w-md md:max-w-xl lg:max-w-2xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10">
           <div className="px-4 sm:px-6 animate-fade-in">
             <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
-              <img src={oomLogo} alt="OOM" className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6" />
+              <img
+                src={oomLogo}
+                alt="OOM"
+                className={cn(
+                  "mb-4 sm:mb-6",
+                  isEnterprise && hotel?.image
+                    ? "h-6 w-6 sm:h-7 sm:w-7 opacity-60"
+                    : "h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14"
+                )}
+              />
             </a>
+            {isEnterprise && hotel?.image && (
+              <img
+                src={hotel.image}
+                alt={hotel.name}
+                className="h-14 w-auto sm:h-16 md:h-20 mb-4 sm:mb-6 object-contain"
+              />
+            )}
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
               {venueTerms.exclusiveServiceLabel}
             </h3>
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
-              {t('welcome.artOfHairdressing')} <br/>
-              <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
+              {isEnterprise ? (
+                <>
+                  <span className="italic text-gold-200">{hotel?.name}</span>
+                  <br />
+                  {t('welcome.enterpriseWellnessTitle')}
+                </>
+              ) : (
+                <>
+                  {t('welcome.artOfHairdressing')} <br/>
+                  <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
+                </>
+              )}
             </h1>
             <p className="text-gray-300 text-xs sm:text-sm font-light leading-relaxed w-full max-w-[280px] sm:max-w-sm">
-              {venueTerms.serviceDescription}
+              {isEnterprise && (hotel as any)?.description
+                ? (hotel as any).description
+                : venueTerms.serviceDescription}
             </p>
           </div>
 
-          {/* How it works + Equipment */}
-          <div className="px-4 sm:px-6 mt-6 flex items-center gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <Button
-              variant="ghost"
-              onClick={() => setVideoOpen(true)}
-              className="text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2 px-0"
-            >
-              {t('welcome.howItWorks')}
-            </Button>
-            <span className="text-white/20">|</span>
-            <p className="text-[9px] text-white/30 uppercase tracking-widest leading-relaxed">
-              {t('welcome.equipmentIncluded')}
-            </p>
-          </div>
         </div>
       </div>
 
       {/* Reassurance Banner */}
-      <div className="px-4 py-3 bg-white/5 flex items-center justify-center gap-2 border-b border-white/5">
-        <Sparkles className="w-3 h-3 text-gold-400" />
-        <p className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium text-center">
-          {venueTerms.disclaimer}
-        </p>
-      </div>
+      {!isEnterprise && (
+        <div className="px-4 py-3 bg-white/5 flex items-center justify-center gap-2 border-b border-white/5">
+          <Sparkles className="w-3 h-3 text-gold-400" />
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium text-center">
+            {venueTerms.disclaimer}
+          </p>
+        </div>
+      )}
 
       {/* Treatments - Gender Sections */}
-      <div className="flex-1">
+      <div className="flex-1 w-full max-w-2xl mx-auto">
         {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
         {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
       </div>
 
+      {/* How it works + Equipment */}
+      <div className="py-6 flex items-center justify-center gap-4">
+        <Button
+          variant="ghost"
+          onClick={() => setVideoOpen(true)}
+          className="text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2 px-0"
+        >
+          {t('welcome.howItWorks')}
+        </Button>
+        <span className="text-white/20">|</span>
+        <p className="text-[9px] text-white/30 uppercase tracking-widest leading-relaxed">
+          {t('welcome.equipmentIncluded')}
+        </p>
+      </div>
+
       {/* Fixed Bottom Button */}
       {itemCount > 0 && (
-        <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-black via-black to-transparent pb-safe z-30">
+        <div className={cn(
+          "fixed bottom-4 left-0 right-0 px-4 pb-safe z-30",
+          isEnterprise
+            ? "bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a] to-transparent"
+            : "bg-gradient-to-t from-black via-black to-transparent"
+        )}>
           <Button
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
             className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-white text-black hover:bg-gold-100 font-medium tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300"
