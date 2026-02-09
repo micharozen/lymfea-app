@@ -191,25 +191,25 @@ export default function Treatments() {
   return (
     <div
       className={cn(
-        'min-h-screen bg-black flex flex-col text-white',
+        'min-h-screen bg-white flex flex-col text-gray-900',
         // Add padding for bottom button when items selected
         itemCount > 0 ? 'pb-20' : ''
       )}
     >
       {/* Header Sticky */}
-      <div className="sticky top-0 z-20 bg-black/80 backdrop-blur-md border-b border-white/10">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="relative h-16 sm:h-18 md:h-20 overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-between px-4 pt-safe">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate(`/client/${hotelId}`)}
-              className="text-white hover:bg-white/10 hover:text-gold-400 transition-colors"
+              className="text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
 
-            <h1 className="font-serif text-base sm:text-lg md:text-xl text-gold-200 tracking-wide text-center flex-1 px-2 leading-tight">
+            <h1 className="font-serif text-base sm:text-lg md:text-xl text-gold-600 tracking-wide text-center flex-1 px-2 leading-tight">
               {hotel?.name}
             </h1>
 
@@ -220,9 +220,9 @@ export default function Treatments() {
       </div>
 
       {/* Reassurance Banner */}
-      <div className="px-4 py-3 bg-white/5 flex items-center justify-center gap-2 border-b border-white/5">
+      <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
           <Sparkles className="w-3 h-3 text-gold-400" />
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium text-center">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium text-center">
             {venueTerms.disclaimer}
           </p>
       </div>
@@ -230,15 +230,15 @@ export default function Treatments() {
       {/* Gender Sections */}
       <div className="flex-1 overflow-y-auto">
         {/* Women Section */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-gray-200">
           <button
             type="button"
             onClick={() => setExpandedGender(g => g === 'women' ? null : 'women')}
             className="w-full flex items-center justify-between px-5 py-5 transition-all"
           >
             <div className="flex flex-col items-start gap-1">
-              <span className="font-serif text-xl text-white tracking-wide">{t('welcome.womensMenu')}</span>
-              <span className="text-white/40 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.women.length} {t('menu.items')}</span>
+              <span className="font-serif text-xl text-gray-900 tracking-wide">{t('welcome.womensMenu')}</span>
+              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.women.length} {t('menu.items')}</span>
             </div>
             <ChevronDown
               className={cn(
@@ -252,7 +252,7 @@ export default function Treatments() {
             <div className="animate-fade-in">
               {/* Categories Tabs for Women */}
               {categoriesByGender.women.length > 1 && (
-                <div className="w-full overflow-x-auto scrollbar-hide bg-black/50 border-t border-white/5">
+                <div className="w-full overflow-x-auto scrollbar-hide bg-gray-50 border-t border-gray-100">
                   <div className="flex px-2">
                     {categoriesByGender.women.map(category => (
                       <button
@@ -261,7 +261,7 @@ export default function Treatments() {
                         className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all duration-300 ${
                           activeCategoryByGender.women === category
                             ? 'border-gold-400 text-gold-400 font-medium tracking-wide'
-                            : 'border-transparent text-white/50 hover:text-white font-light'
+                            : 'border-transparent text-gray-400 hover:text-gray-700 font-light'
                         }`}
                       >
                         {t(`menu.categories.${category}`, category)}
@@ -272,17 +272,17 @@ export default function Treatments() {
               )}
 
               {/* Women Treatments List */}
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-gray-100">
                 {treatmentsByGender.women
                   .filter(treatment => treatment.category === activeCategoryByGender.women)
                   .map(treatment => (
                     <div
                       key={treatment.id}
-                      className="p-4 active:bg-white/5 transition-colors group cursor-pointer"
+                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer"
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-gray-100 ring-1 ring-gray-200 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
                                     src={getOptimizedImageUrl(treatment.image, 192) || ''}
@@ -293,7 +293,7 @@ export default function Treatments() {
                                     className="w-full h-full object-cover grayscale-[0.3] group-active:grayscale-0 transition-all duration-500"
                                 />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white/10">
+                                <div className="w-full h-full flex items-center justify-center text-gray-200">
                                     <ShoppingBag className="w-8 h-8" />
                                 </div>
                             )}
@@ -301,11 +301,11 @@ export default function Treatments() {
 
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                           <div>
-                            <h3 className="font-serif text-base sm:text-lg text-white font-medium leading-tight mb-1">
+                            <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
                                 {treatment.name}
                             </h3>
                             {treatment.description && (
-                                <p className="text-xs text-white/50 line-clamp-2 leading-relaxed font-light">
+                                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light">
                                 {treatment.description}
                                 </p>
                             )}
@@ -314,16 +314,16 @@ export default function Treatments() {
                           <div className="flex items-end justify-between mt-2">
                              <div className="flex flex-col">
                                 {treatment.price_on_request ? (
-                                    <Badge className="text-[10px] px-1.5 py-0.5 bg-white/10 text-gold-400 border-gold-400/20 font-medium w-fit">
+                                    <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
                                         {t('payment.onQuote')}
                                     </Badge>
                                 ) : (
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-base sm:text-lg font-light text-gold-200">
+                                        <span className="text-base sm:text-lg font-light text-gray-700">
                                             {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                                         </span>
                                         {treatment.duration && (
-                                            <span className="text-white/30 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
+                                            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
                                         )}
                                     </div>
                                 )}
@@ -331,7 +331,7 @@ export default function Treatments() {
 
                             {/* Controls */}
                             {getItemQuantity(treatment.id) > 0 ? (
-                                <div className="flex items-center gap-2 bg-white/10 rounded-none p-1 pl-2 border border-white/10">
+                                <div className="flex items-center gap-2 bg-gray-100 rounded-none p-1 pl-2 border border-gray-200">
                                     <span className="w-4 text-center font-medium text-sm text-gold-400">
                                         {getItemQuantity(treatment.id)}
                                     </span>
@@ -339,7 +339,7 @@ export default function Treatments() {
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
@@ -367,7 +367,7 @@ export default function Treatments() {
                                       e.stopPropagation();
                                       handleAddToBasket(treatment);
                                     }}
-                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
+                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
                                 </Button>
@@ -435,7 +435,7 @@ export default function Treatments() {
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-gray-100 ring-1 ring-gray-200 group-active:ring-gold-400/50 transition-all">
                             {treatment.image ? (
                                 <img
                                     src={getOptimizedImageUrl(treatment.image, 192) || ''}
@@ -446,7 +446,7 @@ export default function Treatments() {
                                     className="w-full h-full object-cover grayscale-[0.3] group-active:grayscale-0 transition-all duration-500"
                                 />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white/10">
+                                <div className="w-full h-full flex items-center justify-center text-gray-200">
                                     <ShoppingBag className="w-8 h-8" />
                                 </div>
                             )}
@@ -454,11 +454,11 @@ export default function Treatments() {
 
                         <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                           <div>
-                            <h3 className="font-serif text-base sm:text-lg text-white font-medium leading-tight mb-1">
+                            <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
                                 {treatment.name}
                             </h3>
                             {treatment.description && (
-                                <p className="text-xs text-white/50 line-clamp-2 leading-relaxed font-light">
+                                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light">
                                 {treatment.description}
                                 </p>
                             )}
@@ -467,16 +467,16 @@ export default function Treatments() {
                           <div className="flex items-end justify-between mt-2">
                              <div className="flex flex-col">
                                 {treatment.price_on_request ? (
-                                    <Badge className="text-[10px] px-1.5 py-0.5 bg-white/10 text-gold-400 border-gold-400/20 font-medium w-fit">
+                                    <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
                                         {t('payment.onQuote')}
                                     </Badge>
                                 ) : (
                                     <div className="flex items-baseline gap-2">
-                                        <span className="text-base sm:text-lg font-light text-gold-200">
+                                        <span className="text-base sm:text-lg font-light text-gray-700">
                                             {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                                         </span>
                                         {treatment.duration && (
-                                            <span className="text-white/30 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
+                                            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
                                         )}
                                     </div>
                                 )}
@@ -484,7 +484,7 @@ export default function Treatments() {
 
                             {/* Controls */}
                             {getItemQuantity(treatment.id) > 0 ? (
-                                <div className="flex items-center gap-2 bg-white/10 rounded-none p-1 pl-2 border border-white/10">
+                                <div className="flex items-center gap-2 bg-gray-100 rounded-none p-1 pl-2 border border-gray-200">
                                     <span className="w-4 text-center font-medium text-sm text-gold-400">
                                         {getItemQuantity(treatment.id)}
                                     </span>
@@ -492,7 +492,7 @@ export default function Treatments() {
                                         <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
+                                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
@@ -520,7 +520,7 @@ export default function Treatments() {
                                       e.stopPropagation();
                                       handleAddToBasket(treatment);
                                     }}
-                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
+                                    className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
                                 >
                                     {t('menu.add')}
                                 </Button>

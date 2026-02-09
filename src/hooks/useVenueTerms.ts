@@ -78,7 +78,7 @@ export const useVenueTerms = (venueType: VenueType | null | undefined): VenueTer
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
@@ -130,7 +130,7 @@ export const getVenueTerms = (
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),

@@ -18,7 +18,8 @@
     "howItWorks": "How it works?",
     "ourExperts": "OUR EXPERTS",
     "expertHairdresser": "Expert Hairdresser",
-    "enterpriseWellnessTitle": "Wellness, delivered to your office"
+    "enterpriseWellnessTitle": "Wellness, delivered to your office",
+    "nextSession": "Next session:"
   },
   "menu": {
     "title": "Menu",
@@ -162,7 +163,7 @@
     "exclusiveEnterpriseService": "CORPORATE WELLNESS EXPERIENCE",
     "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
     "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.",
-    "enterpriseServiceDescription": "Give your team a moment to disconnect. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
+    "enterpriseServiceDescription": "Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
     "enterprise": "Enterprise",
     "inEnterpriseDisclaimer": "Our team comes directly to your offices."
   }

@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useClientSession } from '@/hooks/useClientSession';
 import { useClientPrefetch } from '@/hooks/useClientPrefetch';
+import { useVenueDefaultLanguage } from '@/hooks/useVenueDefaultLanguage';
 import { PageTransition } from '@/components/client/PageTransition';
 import { ClientFlowProvider } from '@/pages/client/context/FlowContext';
 import { AnalyticsProvider } from '@/pages/client/context/AnalyticsContext';
@@ -29,6 +30,9 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
 
   // Prefetch data for the next page in the booking flow
   useClientPrefetch();
+
+  // Set default language based on venue type and country
+  useVenueDefaultLanguage(hotelId);
 
   useEffect(() => {
     if (!hotelId) return;
