@@ -150,7 +150,7 @@ serve(async (req) => {
 
     const { data: admins, error: adminsError } = await supabaseClient
       .from("admins")
-      .select("email, first_name, last_name")
+      .select("email, first_name, last_name, user_id")
       .eq("status", "Actif");
 
     if (adminsError) {
@@ -197,8 +197,52 @@ serve(async (req) => {
 
     console.log(`Admin notification emails sent: ${emailsSent}/${admins.length}`);
 
+    // Send push notifications and in-app notifications to admins
+    let pushSent = 0;
+    for (const admin of admins) {
+      if (!admin.user_id) continue;
+
+      // Create in-app notification
+      try {
+        await supabaseClient.from("notifications").insert({
+          user_id: admin.user_id,
+          booking_id: booking.id,
+          type: "new_booking",
+          message: `🔔 Nouvelle réservation #${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+        });
+      } catch (e) {
+        console.error(`Error creating notification for admin ${admin.first_name}:`, e);
+      }
+
+      // Send push notification
+      try {
+        const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
+          body: {
+            userId: admin.user_id,
+            title: "🔔 Nouvelle réservation",
+            body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+            data: {
+              bookingId: booking.id,
+              url: `/admin-pwa/booking/${booking.id}`,
+            },
+          },
+        });
+
+        if (!pushError) {
+          pushSent++;
+          console.log(`✅ Push sent to admin: ${admin.first_name}`);
+        } else {
+          console.error(`Push error for admin ${admin.first_name}:`, pushError);
+        }
+      } catch (e) {
+        console.error(`Push exception for admin ${admin.first_name}:`, e);
+      }
+    }
+
+    console.log(`Admin push notifications sent: ${pushSent}/${admins.length}`);
+
     return new Response(
-      JSON.stringify({ success: true, emailsSent, totalAdmins: admins.length, errors: errors.length > 0 ? errors : undefined }),
+      JSON.stringify({ success: true, emailsSent, pushSent, totalAdmins: admins.length, errors: errors.length > 0 ? errors : undefined }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

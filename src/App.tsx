@@ -68,6 +68,14 @@ const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"))
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 
+// Admin PWA Layout & Pages
+const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
+const AdminPwaDashboard = lazy(() => import("./pages/admin-pwa/Dashboard"));
+const AdminPwaBookingDetail = lazy(() => import("./pages/admin-pwa/BookingDetail"));
+const AdminPwaCreateBooking = lazy(() => import("./pages/admin-pwa/CreateBooking"));
+const AdminPwaNotifications = lazy(() => import("./pages/admin-pwa/Notifications"));
+const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
+
 // Client Pages
 const Welcome = lazy(() => import("./pages/client/Welcome"));
 const ClientTreatments = lazy(() => import("./pages/client/Treatments"));
@@ -317,6 +325,25 @@ const App = () => {
               }
             />
             
+            {/* Admin PWA Public Routes */}
+            <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
+
+            {/* Admin PWA Routes with TabBar */}
+            <Route
+              path="/admin-pwa"
+              element={
+                <AdminProtectedRoute>
+                  <AdminPwaLayout />
+                </AdminProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin-pwa/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminPwaDashboard />} />
+              <Route path="booking/:id" element={<AdminPwaBookingDetail />} />
+              <Route path="create" element={<AdminPwaCreateBooking />} />
+              <Route path="notifications" element={<AdminPwaNotifications />} />
+            </Route>
+
             {/* Admin Dashboard Routes */}
             <Route
               path="/admin/*"
