@@ -66,6 +66,23 @@ interface Hotel {
   name: string;
 }
 
+interface SessionsByHotel {
+  hotel_id: string;
+  hotel_name: string;
+  session_count: number;
+}
+
+const HOTEL_COLORS = [
+  "#3b82f6",
+  "#f59e0b",
+  "#10b981",
+  "#8b5cf6",
+  "#ef4444",
+  "#06b6d4",
+  "#f97316",
+  "#84cc16",
+];
+
 export default function Analytics() {
   const [startDate, setStartDate] = useState<Date>(
     new Date(new Date().setDate(new Date().getDate() - 30))
@@ -75,6 +92,7 @@ export default function Analytics() {
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [funnelData, setFunnelData] = useState<FunnelStep[]>([]);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [sessionsByHotel, setSessionsByHotel] = useState<SessionsByHotel[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -123,6 +141,20 @@ export default function Analytics() {
 
         if (summaryError) throw summaryError;
         setSummary(summaryData?.[0] || null);
+
+        // Fetch sessions by hotel (only when "Tous les lieux" is selected)
+        if (!selectedHotel) {
+          const { data: sessionsByHotelData, error: sessionsByHotelError } =
+            await supabase.rpc("get_sessions_by_hotel", {
+              _start_date: startStr,
+              _end_date: endStr,
+            });
+
+          if (sessionsByHotelError) throw sessionsByHotelError;
+          setSessionsByHotel(sessionsByHotelData || []);
+        } else {
+          setSessionsByHotel([]);
+        }
       } catch (error) {
         console.error("Error fetching analytics:", error);
         toast({
@@ -310,6 +342,43 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Sessions par lieu - Only shown when "Tous les lieux" is selected */}
+        {!selectedHotel && sessionsByHotel.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Sessions par lieu</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={Math.max(200, sessionsByHotel.length * 50)}>
+                <BarChart data={sessionsByHotel} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis
+                    dataKey="hotel_name"
+                    type="category"
+                    width={150}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [
+                      `${value} sessions`,
+                      "Sessions uniques",
+                    ]}
+                  />
+                  <Bar dataKey="session_count" radius={4}>
+                    {sessionsByHotel.map((_, index) => (
+                      <Cell
+                        key={`hotel-cell-${index}`}
+                        fill={HOTEL_COLORS[index % HOTEL_COLORS.length]}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Daily Visitors Chart */}
         <Card>
