@@ -55,7 +55,7 @@ export default function Payment() {
 
   // Set default payment method based on venue type
   useEffect(() => {
-    if (venueType === 'coworking') {
+    if (venueType === 'coworking' || venueType === 'enterprise') {
       setSelectedMethod('card');
     }
   }, [venueType]);

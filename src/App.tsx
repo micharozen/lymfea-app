@@ -190,24 +190,14 @@ const App = () => {
             <Route path="/" element={<Home />} />
             
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId" element={
-              <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
-                <Suspense fallback={<ClientPageLoader />}>
-                  <ClientFlowWrapper>
-                    <Welcome />
-                  </ClientFlowWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            } />
             <Route path="/client/:hotelId/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
                 <Suspense fallback={<ClientPageLoader />}>
                   <ClientFlowWrapper>
                     <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                       <Routes>
-                        <Route path="/treatments" element={<ClientTreatments />} />
-                        {/* Cart page removed from flow - direct navigation to schedule */}
-                        {/* <Route path="/cart" element={<Cart />} /> */}
+                        <Route index element={<Welcome />} />
+                        <Route path="/treatments" element={<Navigate to={`/client/${window.location.pathname.split('/')[2]}`} replace />} />
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/guest-info" element={<GuestInfo />} />
                         <Route path="/payment" element={<Payment />} />

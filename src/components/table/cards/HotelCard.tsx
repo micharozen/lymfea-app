@@ -31,7 +31,7 @@ interface Hotel {
   city: string;
   country: string;
   currency: string;
-  venue_type: "hotel" | "coworking" | null;
+  venue_type: "hotel" | "coworking" | "enterprise" | null;
   status: string;
   concierges?: Concierge[];
   trunks?: Trunk[];

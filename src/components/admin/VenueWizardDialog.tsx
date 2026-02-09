@@ -33,7 +33,7 @@ interface Trunk {
 // Form schema for step 1
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
-  venue_type: z.enum(['hotel', 'coworking']).default('hotel'),
+  venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
   city: z.string().min(1, t('errors.validation.cityRequired')),

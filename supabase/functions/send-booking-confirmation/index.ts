@@ -48,11 +48,11 @@ function generateBookingConfirmationHtml({
   currency: string;
   siteUrl: string;
   isQuotePending: boolean;
-  venueType?: 'hotel' | 'coworking';
+  venueType?: 'hotel' | 'coworking' | 'enterprise';
 }) {
   // Get venue-specific terminology
-  const locationLabel = venueType === 'coworking' ? 'Workspace' : 'Room';
-  const venueLabel = venueType === 'coworking' ? 'Location' : 'Hotel';
+  const locationLabel = venueType === 'coworking' ? 'Workspace' : venueType === 'enterprise' ? 'Room' : 'Room';
+  const venueLabel = venueType === 'coworking' ? 'Location' : venueType === 'enterprise' ? 'Company' : 'Hotel';
   // Build treatments list with proper handling for on-quote items
   const safeCurrency = (currency || 'EUR').toUpperCase();
   const treatmentsList = treatments.map(t => {

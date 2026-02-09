@@ -158,7 +158,11 @@
     "addToWorkspaceDesc": "Charge will be added to your account",
     "exclusiveRoomService": "EXCLUSIVE ROOM SERVICE",
     "exclusiveWorkspaceService": "EXCLUSIVE WORKSPACE SERVICE",
+    "exclusiveEnterpriseService": "EXCLUSIVE WELLNESS SERVICE",
     "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
-    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you."
+    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.",
+    "enterpriseServiceDescription": "Treat your team to a wellness break. Our expert hairdressers and barbers come to your office.",
+    "enterprise": "Enterprise",
+    "inEnterpriseDisclaimer": "Service performed at your office."
   }
 }

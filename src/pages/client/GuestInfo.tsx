@@ -103,7 +103,7 @@ export default function GuestInfo() {
     }
   }, [trackPageView]);
 
-  const isCoworking = venueType === 'coworking';
+  const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);
 
   const form = useForm<ClientInfoFormData>({

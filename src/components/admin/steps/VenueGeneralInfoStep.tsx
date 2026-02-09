@@ -243,6 +243,7 @@ export function VenueGeneralInfoStep({
                     <SelectContent>
                       <SelectItem value="hotel">Hotel</SelectItem>
                       <SelectItem value="coworking">Coworking</SelectItem>
+                      <SelectItem value="enterprise">Entreprise</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

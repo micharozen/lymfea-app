@@ -172,7 +172,7 @@ interface PaymentSelectionDrawerProps {
   totalPrice: number;
   treatments: Treatment[];
   vatRate: number;
-  venueType?: 'hotel' | 'coworking' | null;
+  venueType?: 'hotel' | 'coworking' | 'enterprise' | null;
   currency?: string;
   onSignatureRequired: () => void;
   onPaymentComplete: () => void;

@@ -158,7 +158,11 @@
     "addToWorkspaceDesc": "Ajouté à votre compte",
     "exclusiveRoomService": "SERVICE EN CHAMBRE EXCLUSIF",
     "exclusiveWorkspaceService": "SERVICE EXCLUSIF",
+    "exclusiveEnterpriseService": "SERVICE BIEN-ÊTRE ENTREPRISE",
     "roomServiceDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
-    "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous."
+    "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous.",
+    "enterpriseServiceDescription": "Offrez une pause bien-être à vos collaborateurs. Nos experts coiffeurs et barbiers se déplacent dans vos locaux.",
+    "enterprise": "Entreprise",
+    "inEnterpriseDisclaimer": "Prestation réalisée dans vos locaux."
   }
 }

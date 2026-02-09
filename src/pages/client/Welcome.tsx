@@ -1,19 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import { PractitionerCarousel } from '@/components/client/PractitionerCarousel';
 import { WelcomeSkeleton } from '@/components/client/skeletons/WelcomeSkeleton';
 import { VideoDialog } from '@/components/client/VideoDialog';
+import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
 import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
+import { useBasket } from './context/CartContext';
+import { cn } from '@/lib/utils';
+import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown } from 'lucide-react';
 
 // Optimize Supabase image URLs for thumbnails
 const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): string | null => {
@@ -31,56 +35,141 @@ interface Treatment {
   image: string | null;
   category: string;
   price_on_request: boolean | null;
+  currency: string | null;
 }
 
 export default function Welcome() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const hotelId = window.location.pathname.split('/')[2];
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const [videoOpen, setVideoOpen] = useState(false);
+  const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
+
+  // On Request drawer state
+  const [isOnRequestOpen, setIsOnRequestOpen] = useState(false);
+  const [selectedOnRequestTreatment, setSelectedOnRequestTreatment] = useState<Treatment | null>(null);
+
+  // Bounce animation state
+  const [bounceKey, setBounceKey] = useState(0);
+
+  const getItemQuantity = (id: string) => {
+    const item = items.find(i => i.id === id);
+    return item?.quantity || 0;
+  };
 
   const { data: hotel, isLoading: isHotelLoading } = useQuery({
     queryKey: ['public-hotel', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
-
       if (error) throw error;
       return data?.[0] || null;
     },
     enabled: !!hotelId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - hotel info rarely changes
-    gcTime: 30 * 60 * 1000,    // 30 minutes cache
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
-  const { data: treatments = [], isLoading: isTreatmentsLoading } = useQuery({
-    queryKey: ['public-treatments-preview', hotelId],
+  const { data: allTreatments = [], isLoading: isTreatmentsLoading } = useQuery({
+    queryKey: ['public-treatments', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_public_treatments', { _hotel_id: hotelId });
-
       if (error) throw error;
-      // Take first 4-5 treatments for preview
-      return (data || []).slice(0, 5) as Treatment[];
+      return (data || []) as (Treatment & { service_for: string })[];
     },
     enabled: !!hotelId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - treatments change occasionally
-    gcTime: 15 * 60 * 1000,   // 15 minutes cache
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
-  // venue_type is now included in the RPC response (get_public_hotel_by_id)
-  // No need for a separate query that could fail due to RLS policies
+  // Group treatments by gender
+  const treatmentsByGender = useMemo(() => ({
+    women: allTreatments.filter(t => t.service_for === 'Female' || t.service_for === 'All'),
+    men: allTreatments.filter(t => t.service_for === 'Male' || t.service_for === 'All'),
+  }), [allTreatments]);
+
+  // Expanded gender section state - default to women
+  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
+
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const backgroundImage = venueType === 'coworking' ? welcomeBgCoworking : welcomeBgHotel;
-  const { trackPageView } = useClientAnalytics(hotelId);
+  const { trackPageView, trackAction } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
 
-  // Track page view
+  // Track page view once
   useEffect(() => {
-    if (hotel?.name) {
+    if (!hasTrackedPageView.current && hotel?.name) {
+      hasTrackedPageView.current = true;
       trackPageView('welcome', { hotelName: hotel.name });
     }
   }, [hotel?.name, trackPageView]);
+
+  // Define category order priority
+  const categoryOrder = ['Blowout', 'Brushing', 'Haircut', 'Hair cut', 'Coloration', 'Nail', 'Nails'];
+
+  const getCategoriesFromTreatments = (treatments: Treatment[]) => {
+    return [...new Set(treatments.map(t => t.category))].sort((a, b) => {
+      const indexA = categoryOrder.findIndex(c => c.toLowerCase() === a.toLowerCase());
+      const indexB = categoryOrder.findIndex(c => c.toLowerCase() === b.toLowerCase());
+      const orderA = indexA === -1 ? 999 : indexA;
+      const orderB = indexB === -1 ? 999 : indexB;
+      return orderA - orderB;
+    });
+  };
+
+  const categoriesByGender = useMemo(() => ({
+    women: getCategoriesFromTreatments(treatmentsByGender.women),
+    men: getCategoriesFromTreatments(treatmentsByGender.men),
+  }), [treatmentsByGender]);
+
+  const [activeCategoryByGender, setActiveCategoryByGender] = useState<{ women: string; men: string }>({
+    women: '',
+    men: '',
+  });
+
+  useEffect(() => {
+    if (categoriesByGender.women.length > 0 && !activeCategoryByGender.women) {
+      setActiveCategoryByGender(prev => ({ ...prev, women: categoriesByGender.women[0] }));
+    }
+    if (categoriesByGender.men.length > 0 && !activeCategoryByGender.men) {
+      setActiveCategoryByGender(prev => ({ ...prev, men: categoriesByGender.men[0] }));
+    }
+  }, [categoriesByGender.women.length, categoriesByGender.men.length]);
+
+  const handleAddToBasket = (treatment: Treatment) => {
+    trackAction('add_to_cart', {
+      treatmentId: treatment.id,
+      treatmentName: treatment.name,
+      price: treatment.price,
+      category: treatment.category,
+    });
+
+    addItem({
+      id: treatment.id,
+      name: treatment.name,
+      price: Number(treatment.price) || 0,
+      currency: treatment.currency || 'EUR',
+      duration: treatment.duration || 0,
+      image: treatment.image || undefined,
+      category: treatment.category,
+      isPriceOnRequest: treatment.price_on_request || false,
+    });
+
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+
+    setBounceKey(prev => prev + 1);
+  };
+
+  useEffect(() => {
+    if (bounceKey > 0) {
+      const timer = setTimeout(() => setBounceKey(0), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [bounceKey]);
 
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
@@ -99,136 +188,270 @@ export default function Welcome() {
     );
   }
 
+  // Render a treatment card (shared between Women and Men sections)
+  const renderTreatmentCard = (treatment: Treatment & { service_for?: string }) => (
+    <div
+      key={treatment.id}
+      className="p-4 active:bg-white/5 transition-colors group cursor-pointer"
+      onClick={() => handleAddToBasket(treatment)}
+    >
+      <div className="flex gap-4">
+        <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-sm overflow-hidden bg-white/5 ring-1 ring-white/10 group-active:ring-gold-400/50 transition-all">
+          {treatment.image ? (
+            <img
+              src={getOptimizedImageUrl(treatment.image, 192) || ''}
+              alt={treatment.name}
+              loading="lazy"
+              width={96}
+              height={96}
+              className="w-full h-full object-cover grayscale-[0.3] group-active:grayscale-0 transition-all duration-500"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/10">
+              <ShoppingBag className="w-8 h-8" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+          <div>
+            <h3 className="font-serif text-base sm:text-lg text-white font-medium leading-tight mb-1">
+              {treatment.name}
+            </h3>
+            {treatment.description && (
+              <p className="text-xs text-white/50 line-clamp-2 leading-relaxed font-light">
+                {treatment.description}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-end justify-between mt-2">
+            <div className="flex flex-col">
+              {treatment.price_on_request ? (
+                <Badge className="text-[10px] px-1.5 py-0.5 bg-white/10 text-gold-400 border-gold-400/20 font-medium w-fit">
+                  {t('payment.onQuote')}
+                </Badge>
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-base sm:text-lg font-light text-gold-200">
+                    {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+                  </span>
+                  {treatment.duration && (
+                    <span className="text-white/30 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Quantity Controls */}
+            {getItemQuantity(treatment.id) > 0 ? (
+              <div className="flex items-center gap-2 bg-white/10 rounded-none p-1 pl-2 border border-white/10">
+                <span className="w-4 text-center font-medium text-sm text-gold-400">
+                  {getItemQuantity(treatment.id)}
+                </span>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-white/10 text-white/70 hover:text-white"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
+                      if (navigator.vibrate) navigator.vibrate(30);
+                    }}
+                  >
+                    <Minus className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddToBasket(treatment);
+                    }}
+                  >
+                    <Plus className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddToBasket(treatment);
+                }}
+                className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-white transition-all duration-300 font-bold border-none"
+              >
+                {t('menu.add')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render a gender section (Women or Men)
+  const renderGenderSection = (
+    gender: 'women' | 'men',
+    label: string,
+    treatments: (Treatment & { service_for?: string })[],
+    categories: string[],
+  ) => (
+    <div className="border-b border-white/10">
+      <button
+        type="button"
+        onClick={() => setExpandedGender(g => g === gender ? null : gender)}
+        className="w-full flex items-center justify-between px-5 py-5 transition-all"
+      >
+        <div className="flex flex-col items-start gap-1">
+          <span className="font-serif text-xl text-white tracking-wide">{label}</span>
+          <span className="text-white/40 text-[11px] uppercase tracking-[0.15em]">{treatments.length} {t('menu.items')}</span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-5 h-5 text-gold-400 transition-transform duration-200",
+            expandedGender === gender && "rotate-180"
+          )}
+        />
+      </button>
+
+      {expandedGender === gender && (
+        <div className="animate-fade-in">
+          {/* Category Tabs */}
+          {categories.length > 1 && (
+            <div className="w-full overflow-x-auto scrollbar-hide bg-black/50 border-t border-white/5">
+              <div className="flex px-2">
+                {categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategoryByGender(prev => ({ ...prev, [gender]: category }))}
+                    className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all duration-300 ${
+                      activeCategoryByGender[gender] === category
+                        ? 'border-gold-400 text-gold-400 font-medium tracking-wide'
+                        : 'border-transparent text-white/50 hover:text-white font-light'
+                    }`}
+                  >
+                    {t(`menu.categories.${category}`, category)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Treatments List */}
+          <div className="divide-y divide-white/5">
+            {treatments
+              .filter(treatment => treatment.category === activeCategoryByGender[gender])
+              .map(treatment => renderTreatmentCard(treatment))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="relative h-[100dvh] w-full overflow-hidden flex flex-col justify-end pb-safe bg-black">
-      
-      {/* 1. Immersive Background */}
-      <div className="absolute inset-0 z-0">
-        <img
+    <div
+      className={cn(
+        'min-h-screen bg-black flex flex-col text-white',
+        itemCount > 0 ? 'pb-20' : ''
+      )}
+    >
+      {/* Hero Section (compact) */}
+      <div className="relative w-full overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <img
             src={backgroundImage}
             className="h-full w-full object-cover brightness-[0.5] scale-105 animate-[pulse_10s_infinite_alternate]"
-            alt="Ambiance" 
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/40" />
-      </div>
+            alt="Ambiance"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/40" />
+        </div>
 
-       {/* Language Switcher */}
-       <div className="absolute top-4 right-4 z-20">
-        <LanguageSwitcher variant="client" />
-      </div>
+        {/* Language Switcher */}
+        <div className="absolute top-4 right-4 z-20">
+          <LanguageSwitcher variant="client" />
+        </div>
 
-      {/* 2. Content Layer */}
-      <div className="relative z-10 w-full flex flex-col max-w-[92vw] sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto overflow-y-auto scrollbar-hide pt-12 sm:pt-16 md:pt-20">
-        
-        {/* Brand & Personalization */}
-        <div className="px-4 sm:px-6 mb-6 md:mb-8 animate-fade-in">
-             <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
-               <img src={oomLogo} alt="OOM" className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 md:mb-8" />
-             </a>
+        {/* Hero Content */}
+        <div className="relative z-10 w-full max-w-[92vw] sm:max-w-md md:max-w-lg lg:max-w-xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10">
+          <div className="px-4 sm:px-6 animate-fade-in">
+            <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+              <img src={oomLogo} alt="OOM" className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6" />
+            </a>
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
-                {venueTerms.exclusiveServiceLabel}
+              {venueTerms.exclusiveServiceLabel}
             </h3>
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
-                {t('welcome.artOfHairdressing')} <br/>
-                <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
+              {t('welcome.artOfHairdressing')} <br/>
+              <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
             </h1>
-            <p className="text-gray-300 text-xs sm:text-sm font-light leading-relaxed mb-6 w-full max-w-[280px] sm:max-w-sm">
-                {venueTerms.serviceDescription}
+            <p className="text-gray-300 text-xs sm:text-sm font-light leading-relaxed w-full max-w-[280px] sm:max-w-sm">
+              {venueTerms.serviceDescription}
             </p>
-        </div>
-
-        {/* Visual Service Menu (Preview) */}
-        {treatments.length > 0 && (
-          <div className="mb-6 md:mb-10 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
-              <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">{t('welcome.ourServices')}</h4>
-              <button
-                onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                className="text-xs text-gold-400 hover:text-gold-300"
-              >
-                {t('welcome.seeAll')}
-              </button>
-            </div>
-            <div className="flex gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-6 scrollbar-hide pb-2">
-              {treatments.map((treatment) => (
-                <div
-                  key={treatment.id}
-                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                  className="flex-shrink-0 w-28 sm:w-32 md:w-36 group cursor-pointer"
-                >
-                  <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-white/5 ring-1 ring-white/10 group-hover:ring-gold-400/50 transition-all">
-                    {treatment.image ? (
-                      <img
-                        src={getOptimizedImageUrl(treatment.image, 256) || ''}
-                        alt={treatment.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center p-4">
-                        <img src={oomLogo} className="w-full opacity-20" alt="" />
-                      </div>
-                    )}
-                  </div>
-                  <h5 className="text-[10px] font-medium text-white/90 truncate mb-0.5">{treatment.name}</h5>
-                  <p className="text-[10px] text-gold-400/80 font-light">
-                    {treatment.price_on_request ? t('welcome.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
-        )}
 
-        {/* Our Experts Section */}
-        <PractitionerCarousel hotelId={hotelId!} />
-
-        {/* 4. Call to Action & Social Proof */}
-        <div className="px-4 sm:px-6 pb-10 sm:pb-12 md:pb-16 space-y-4 md:space-y-6 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          {/* How it works + Equipment */}
+          <div className="px-4 sm:px-6 mt-6 flex items-center gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <Button
-                onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                className="w-full h-12 sm:h-14 md:h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300"
+              variant="ghost"
+              onClick={() => setVideoOpen(true)}
+              className="text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2 px-0"
             >
-                {t('welcome.bookSession')}
+              {t('welcome.howItWorks')}
             </Button>
-            
-            <div className="flex flex-col items-center gap-4 py-4 border-y border-white/5">
-                <div className="flex items-center gap-4 sm:gap-6 md:gap-8 text-[10px] text-white/40 uppercase tracking-[0.2em] font-light">
-                  <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gold-400/50"></span>
-                    L'Oréal
-                  </span>
-                  <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gold-400/50"></span>
-                    Kérastase
-                  </span>
-                   <span className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gold-400/50"></span>
-                    Dyson
-                  </span>
-                </div>
-                <p className="text-[9px] text-white/30 text-center uppercase tracking-widest leading-relaxed">
-                  {/* {t('welcome.availability')} <br/> */}
-                  {t('welcome.equipmentIncluded')}
-                </p>
-            </div>
-
-             <Button
-                variant="ghost"
-                onClick={() => setVideoOpen(true)}
-                className="w-full text-white/50 hover:text-white hover:bg-white/5 text-[10px] uppercase tracking-widest font-light h-auto py-2"
-            >
-                {t('welcome.howItWorks')}
-            </Button>
+            <span className="text-white/20">|</span>
+            <p className="text-[9px] text-white/30 uppercase tracking-widest leading-relaxed">
+              {t('welcome.equipmentIncluded')}
+            </p>
+          </div>
         </div>
       </div>
 
+      {/* Reassurance Banner */}
+      <div className="px-4 py-3 bg-white/5 flex items-center justify-center gap-2 border-b border-white/5">
+        <Sparkles className="w-3 h-3 text-gold-400" />
+        <p className="text-[10px] uppercase tracking-[0.2em] text-white/60 font-medium text-center">
+          {venueTerms.disclaimer}
+        </p>
+      </div>
+
+      {/* Treatments - Gender Sections */}
+      <div className="flex-1">
+        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
+        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
+      </div>
+
+      {/* Fixed Bottom Button */}
+      {itemCount > 0 && (
+        <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-black via-black to-transparent pb-safe z-30">
+          <Button
+            onClick={() => navigate(`/client/${hotelId}/schedule`)}
+            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-white text-black hover:bg-gold-100 font-medium tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300"
+          >
+            <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+          </Button>
+        </div>
+      )}
+
+      {/* Video Dialog */}
       <VideoDialog
         open={videoOpen}
         onOpenChange={setVideoOpen}
         videoId={venueType === 'coworking' ? 'u8HxuKPgtco' : 'Lw0gv5VjqY8'}
         hotelId={hotelId!}
+      />
+
+      {/* On Request Form Drawer */}
+      <OnRequestFormDrawer
+        open={isOnRequestOpen}
+        onOpenChange={setIsOnRequestOpen}
+        treatment={selectedOnRequestTreatment}
+        hotelId={hotelId || ''}
+        hotelName={hotel?.name}
       />
     </div>
   );
