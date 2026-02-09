@@ -1,3 +1,16 @@
+-- =====================================================================
+-- MIGRATION REQUISE : Exécuter dans l'ordre suivant
+-- =====================================================================
+-- 1. 20260211000000_add_enterprise_venue_type.sql
+--    → Ajoute le type 'enterprise' à venue_type + colonne 'description' sur hotels
+-- 2. 20260212000000_create_avatars_storage_bucket.sql
+--    → Crée le bucket storage 'avatars'
+-- 3. 20260213000000_add_description_to_public_hotel_rpc.sql (CE FICHIER)
+--    → Expose 'description' dans le RPC get_public_hotel_by_id
+-- =====================================================================
+-- Après exécution : régénérer les types avec `supabase gen types typescript`
+-- =====================================================================
+--
 -- Add 'description' to the get_public_hotel_by_id return type
 -- The 'description' column was added to hotels in 20260211000000_add_enterprise_venue_type.sql
 -- but was not exposed in the public RPC function.
