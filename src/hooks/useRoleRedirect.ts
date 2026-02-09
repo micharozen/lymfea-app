@@ -18,8 +18,14 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     if (debug) console.debug("[getRoleRedirect]", ...args);
   };
 
+  const isStandalone = typeof window !== 'undefined' && (
+    window.matchMedia("(display-mode: standalone)").matches
+    || (window.navigator as any).standalone === true
+  );
+  const adminPath = isStandalone ? "/admin-pwa/accueil" : "/admin/dashboard";
+
   try {
-    log("start", { userId });
+    log("start", { userId, isStandalone });
 
     // 1) Prefer roles table
     const { data: roles, error: rolesError } = await supabase
@@ -37,12 +43,12 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     // Priority: admin > concierge > hairdresser
     if (roleList.includes("admin")) {
       log("match: admin (user_roles) -> /admin/dashboard");
-      return { role: "admin", redirectPath: "/admin/dashboard" };
+      return { role: "admin", redirectPath: adminPath };
     }
 
     if (roleList.includes("concierge")) {
       log("match: concierge (user_roles) -> /admin/dashboard");
-      return { role: "concierge", redirectPath: "/admin/dashboard" };
+      return { role: "concierge", redirectPath: adminPath };
     }
 
     if (roleList.includes("hairdresser")) {
@@ -75,7 +81,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     });
     if (isAdminErr) console.warn("[getRoleRedirect] has_role(admin) error:", isAdminErr);
     log("has_role(admin)", { isAdmin: !!isAdmin });
-    if (isAdmin) return { role: "admin", redirectPath: "/admin/dashboard" };
+    if (isAdmin) return { role: "admin", redirectPath: adminPath };
 
     const { data: isConcierge, error: isConciergeErr } = await supabase.rpc("has_role", {
       _user_id: userId,
@@ -83,7 +89,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     });
     if (isConciergeErr) console.warn("[getRoleRedirect] has_role(concierge) error:", isConciergeErr);
     log("has_role(concierge)", { isConcierge: !!isConcierge });
-    if (isConcierge) return { role: "concierge", redirectPath: "/admin/dashboard" };
+    if (isConcierge) return { role: "concierge", redirectPath: adminPath };
 
     const { data: isHairdresser, error: isHairdresserErr } = await supabase.rpc("has_role", {
       _user_id: userId,
@@ -126,7 +132,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
 
     if (adminRow) {
       log("legacy match: admin -> /admin/dashboard");
-      return { role: "admin", redirectPath: "/admin/dashboard" };
+      return { role: "admin", redirectPath: adminPath };
     }
 
     const { data: conciergeRow, error: conciergeError } = await supabase
@@ -141,7 +147,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
 
     if (conciergeRow) {
       log("legacy match: concierge -> /admin/dashboard");
-      return { role: "concierge", redirectPath: "/admin/dashboard" };
+      return { role: "concierge", redirectPath: adminPath };
     }
 
     const { data: hairdresserRow, error: hairdresserRowError } = await supabase

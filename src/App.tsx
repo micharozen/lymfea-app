@@ -74,6 +74,7 @@ const AdminPwaDashboard = lazy(() => import("./pages/admin-pwa/Dashboard"));
 const AdminPwaBookingDetail = lazy(() => import("./pages/admin-pwa/BookingDetail"));
 const AdminPwaCreateBooking = lazy(() => import("./pages/admin-pwa/CreateBooking"));
 const AdminPwaNotifications = lazy(() => import("./pages/admin-pwa/Notifications"));
+const AdminPwaAccueil = lazy(() => import("./pages/admin-pwa/Accueil"));
 const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
 
 // Client Pages
@@ -337,7 +338,8 @@ const App = () => {
                 </AdminProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/admin-pwa/dashboard" replace />} />
+              <Route index element={<Navigate to="/admin-pwa/accueil" replace />} />
+              <Route path="accueil" element={<AdminPwaAccueil />} />
               <Route path="dashboard" element={<AdminPwaDashboard />} />
               <Route path="booking/:id" element={<AdminPwaBookingDetail />} />
               <Route path="create" element={<AdminPwaCreateBooking />} />
@@ -349,12 +351,15 @@ const App = () => {
               path="/admin/*"
               element={
                 <AdminProtectedRoute>
+                  {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
+                    ? <Navigate to="/admin-pwa/accueil" replace />
+                    : (
                   <SidebarProvider>
                     <div className="flex min-h-screen w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col">
                         {/* Mobile header with menu trigger */}
-                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40">
+                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">OOM Admin</span>
                         </header>
@@ -381,6 +386,7 @@ const App = () => {
                       </div>
                     </div>
                   </SidebarProvider>
+                    )}
                 </AdminProtectedRoute>
               }
             />
