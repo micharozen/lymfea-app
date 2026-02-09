@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -7,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Calendar as CalendarIcon, List, Search } from "lucide-react";
 import type { Hotel, Hairdresser } from "@/hooks/booking";
 
@@ -100,26 +102,34 @@ export function BookingFilters({
         </Select>
       )}
 
-      <div className="ml-auto flex items-center border rounded-md overflow-hidden">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onViewChange("calendar")}
-          className={`rounded-none border-0 h-6 px-1.5 text-[11px] ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-        >
-          <CalendarIcon className="h-3 w-3 md:mr-1" />
-          <span className="hidden md:inline">Calendrier</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onViewChange("list")}
-          className={`rounded-none border-0 h-6 px-1.5 text-[11px] ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-        >
-          <List className="h-3 w-3 md:mr-1" />
-          <span className="hidden md:inline">Liste</span>
-        </Button>
-      </div>
+      <ButtonGroup className="ml-auto">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onViewChange("calendar")}
+              className={`h-7 w-7 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Calendrier</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onViewChange("list")}
+              className={`h-7 w-7 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              <List className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Liste</TooltipContent>
+        </Tooltip>
+      </ButtonGroup>
     </div>
   );
 }
