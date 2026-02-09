@@ -342,7 +342,53 @@ serve(async (req) => {
       }
     }
 
-    // 5. Send Slack notification for booking confirmed
+    // 5. Send push + in-app notifications to admins
+    const { data: adminUsers } = await supabase
+      .from('admins')
+      .select('user_id, first_name')
+      .eq('status', 'Actif');
+
+    if (adminUsers && adminUsers.length > 0) {
+      for (const admin of adminUsers) {
+        if (!admin.user_id) continue;
+
+        // In-app notification
+        try {
+          await supabase.from('notifications').insert({
+            user_id: admin.user_id,
+            booking_id: booking.id,
+            type: 'booking_confirmed',
+            message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.hairdresser_name || 'un coiffeur'} · ${formattedDate} à ${formattedTime}`,
+          });
+        } catch (e) {
+          console.error(`[notify-booking-confirmed] Notification insert error for admin ${admin.first_name}:`, e);
+        }
+
+        // Push notification
+        try {
+          await supabase.functions.invoke('send-push-notification', {
+            body: {
+              userId: admin.user_id,
+              title: '✅ Réservation confirmée',
+              body: `#${booking.booking_id} confirmée par ${booking.hairdresser_name || 'un coiffeur'} · ${formattedDate} à ${formattedTime}`,
+              data: {
+                bookingId: booking.id,
+                url: `/admin-pwa/booking/${booking.id}`,
+              },
+            },
+            headers: {
+              Authorization: `Bearer ${supabaseServiceKey}`,
+            },
+          });
+          console.log(`[notify-booking-confirmed] ✅ Push sent to admin: ${admin.first_name}`);
+          emailsSent.push(`admin-push:${admin.first_name}`);
+        } catch (e) {
+          console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
+        }
+      }
+    }
+
+    // 6. Send Slack notification for booking confirmed
     try {
       const treatmentNames = treatments.map(t => t.name);
 

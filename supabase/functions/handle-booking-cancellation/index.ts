@@ -126,7 +126,59 @@ serve(async (req) => {
     }
 
     // ============================================
-    // 2. NOTIFY SLACK CHANNEL
+    // 2. NOTIFY ADMINS (Push + In-App Notification)
+    // ============================================
+    try {
+      const { data: adminUsers } = await supabaseClient
+        .from("admins")
+        .select("user_id, first_name")
+        .eq("status", "Actif");
+
+      if (adminUsers && adminUsers.length > 0) {
+        for (const admin of adminUsers) {
+          if (!admin.user_id) continue;
+
+          const adminMessage = `❌ Réservation #${booking.booking_id} annulée · ${clientName} · ${booking.hotel_name || ""}`;
+
+          // In-app notification
+          try {
+            await supabaseClient.from("notifications").insert({
+              user_id: admin.user_id,
+              booking_id: booking.id,
+              type: "booking_cancelled",
+              message: adminMessage,
+            });
+          } catch (e) {
+            console.error(`[handle-booking-cancellation] Notification error for admin ${admin.first_name}:`, e);
+          }
+
+          // Push notification
+          try {
+            await supabaseClient.functions.invoke("send-push-notification", {
+              body: {
+                userId: admin.user_id,
+                title: "❌ Réservation annulée",
+                body: `#${booking.booking_id} · ${clientName} · ${booking.hotel_name || ""}`,
+                data: {
+                  bookingId: booking.id,
+                  type: "booking_cancelled",
+                  url: `/admin-pwa/booking/${booking.id}`,
+                },
+              },
+            });
+            console.log(`[handle-booking-cancellation] Push sent to admin: ${admin.first_name}`);
+          } catch (e) {
+            console.error(`[handle-booking-cancellation] Admin push error for ${admin.first_name}:`, e);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[handle-booking-cancellation] Admin notification error:", err);
+      results.errors.push("Admin notification failed");
+    }
+
+    // ============================================
+    // 3. NOTIFY SLACK CHANNEL
     // ============================================
     try {
       const { error: slackError } = await supabaseClient.functions.invoke(
