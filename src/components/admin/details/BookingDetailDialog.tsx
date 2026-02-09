@@ -23,6 +23,8 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { formatPrice } from "@/lib/formatPrice";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,7 +159,7 @@ export function BookingDetailDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div>
@@ -174,47 +176,62 @@ export function BookingDetailDialog({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 pr-10">
+            <ButtonGroup className="pr-10">
               {onSendPaymentLink &&
                booking.payment_status !== 'paid' &&
                booking.payment_status !== 'charged_to_room' &&
                booking.status !== 'cancelled' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onOpenChange(false);
-                    onSendPaymentLink();
-                  }}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Envoyer lien paiement
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        onOpenChange(false);
+                        onSendPaymentLink();
+                      }}
+                    >
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Envoyer lien paiement</TooltipContent>
+                </Tooltip>
               )}
               {canCancel && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowCancelDialog(true)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Annuler
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => setShowCancelDialog(true)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Annuler</TooltipContent>
+                </Tooltip>
               )}
               {onEdit && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    onOpenChange(false);
-                    onEdit();
-                  }}
-                  className="bg-foreground text-background hover:bg-foreground/90"
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Modifier
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        onOpenChange(false);
+                        onEdit();
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Modifier</TooltipContent>
+                </Tooltip>
               )}
-            </div>
+            </ButtonGroup>
           </div>
         </DialogHeader>
 
