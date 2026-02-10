@@ -132,7 +132,11 @@ const PwaNewBooking = () => {
 
         if (affiliations) {
           const hotelList = affiliations
-            .map((a: any) => a.hotels)
+            .map((a: any) => {
+              const h = a.hotels;
+              // Handle both object and array from Supabase join
+              return Array.isArray(h) ? h[0] : h;
+            })
             .filter(Boolean) as Hotel[];
           setHotels(hotelList);
           if (hotelList.length === 1) {
@@ -253,8 +257,24 @@ const PwaNewBooking = () => {
 
   const handleNext = () => {
     if (step === 1) {
-      if (!canProceedStep1) {
-        toast.error("Veuillez remplir tous les champs obligatoires");
+      if (!selectedHotelId) {
+        toast.error("Veuillez sélectionner un lieu");
+        return;
+      }
+      if (!clientFirstName.trim() || !clientLastName.trim()) {
+        toast.error("Veuillez renseigner le prénom et le nom du client");
+        return;
+      }
+      if (!phone.trim()) {
+        toast.error("Veuillez renseigner le numéro de téléphone");
+        return;
+      }
+      if (!selectedDate) {
+        toast.error("Veuillez sélectionner une date");
+        return;
+      }
+      if (!selectedTime) {
+        toast.error("Veuillez sélectionner une heure");
         return;
       }
       setStep(2);
@@ -372,8 +392,8 @@ const PwaNewBooking = () => {
         {step === 1 && (
           <div className="flex-1 flex flex-col">
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              {/* Hotel selection (only if multiple) */}
-              {hotels.length > 1 && (
+              {/* Hotel selection */}
+              {hotels.length > 0 && (
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">
                     {t("newBooking.selectHotel", "Lieu")} *
@@ -595,7 +615,6 @@ const PwaNewBooking = () => {
               <Button
                 className="w-full"
                 onClick={handleNext}
-                disabled={!canProceedStep1}
               >
                 {t("newBooking.next", "Suivant")}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -752,7 +771,6 @@ const PwaNewBooking = () => {
                 <Button
                   size="sm"
                   onClick={handleNext}
-                  disabled={!canProceedStep2}
                   className="h-8 text-xs px-3 shrink-0"
                 >
                   {t("newBooking.next", "Suivant")}
