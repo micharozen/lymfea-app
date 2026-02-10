@@ -52,7 +52,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           onClick={() => handleNavigation("/pwa/new-booking")}
           className="flex items-center justify-center flex-1 -mt-4"
         >
-          <div className="w-12 h-12 rounded-full bg-gold-400 flex items-center justify-center shadow-lg shadow-gold-400/30">
+          <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
           </div>
         </button>

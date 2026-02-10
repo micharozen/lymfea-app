@@ -92,8 +92,8 @@ export default function Welcome() {
     men: allTreatments.filter(t => t.service_for === 'Male' || t.service_for === 'All'),
   }), [allTreatments]);
 
-  // Expanded gender section state - default to women
-  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
+  // Expanded gender section state - default to closed
+  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>(null);
 
   const venueType = hotel?.venue_type as VenueType | null;
   const isHotel = venueType === 'hotel' || (!venueType && !hotel?.venue_type);
@@ -389,7 +389,7 @@ export default function Welcome() {
       >
         <div className="flex flex-col items-start gap-1">
           <span className="font-serif text-xl tracking-wide text-gray-900">{label}</span>
-          <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">{treatments.length} {t('menu.items')}</span>
+          <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">{treatments.length} {treatments.length === 1 ? t('menu.item') : t('menu.items')}</span>
         </div>
         <ChevronDown
           className={cn(

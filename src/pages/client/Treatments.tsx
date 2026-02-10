@@ -88,8 +88,8 @@ export default function Treatments() {
     };
   }, [allTreatments]);
 
-  // Expanded gender section state - default to women
-  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
+  // Expanded gender section state - default to closed
+  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>(null);
 
   // venue_type is now included in the RPC response (get_public_hotel_by_id)
   // No need for a separate query that could fail due to RLS policies
@@ -238,7 +238,7 @@ export default function Treatments() {
           >
             <div className="flex flex-col items-start gap-1">
               <span className="font-serif text-xl text-gray-900 tracking-wide">{t('welcome.womensMenu')}</span>
-              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.women.length} {t('menu.items')}</span>
+              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.women.length} {treatmentsByGender.women.length === 1 ? t('menu.item') : t('menu.items')}</span>
             </div>
             <ChevronDown
               className={cn(
@@ -391,7 +391,7 @@ export default function Treatments() {
           >
             <div className="flex flex-col items-start gap-1">
               <span className="font-serif text-xl text-gray-900 tracking-wide">{t('welcome.mensMenu')}</span>
-              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.men.length} {t('menu.items')}</span>
+              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.men.length} {treatmentsByGender.men.length === 1 ? t('menu.item') : t('menu.items')}</span>
             </div>
             <ChevronDown
               className={cn(
