@@ -228,14 +228,14 @@ export default function Welcome() {
         <div className="absolute inset-0">
           <img
             src={hotelBg}
-            className="h-full w-full object-cover brightness-[0.4]"
+            className="h-full w-full object-cover object-[center_20%] scale-125 brightness-[0.4]"
             alt="Ambiance"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40" />
         </div>
 
         {/* Top Bar */}
-        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-6 pb-4 pt-safe">
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
           <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
             <img
               src={oomLogo}
@@ -247,24 +247,33 @@ export default function Welcome() {
         </div>
 
         {/* Content */}
-        <div className="absolute inset-0 z-10 flex flex-col justify-end px-8 sm:px-12 pb-12 pb-safe animate-fade-in">
-          {/* Venue Name + Subtitle */}
-          <div className="mb-10 sm:mb-12">
-            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide">
+        <div className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12 animate-fade-in">
+          {/* Spacer top */}
+          <div className="flex-1" />
+
+          {/* Venue Name + Subtitle — centered vertically & horizontally */}
+          <div className="text-center">
+            <h1 className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide">
               {hotel.name}
             </h1>
-            <p className="font-serif text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide mt-1 sm:mt-2">
+            <div className="w-12 h-px bg-white/40 mx-auto mt-4 mb-3" />
+            <p className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide">
               {subtitle}
             </p>
           </div>
 
-          {/* CTA Button */}
-          <Button
-            onClick={() => navigate(`/client/${hotelId}/treatments`)}
-            className="w-full h-14 sm:h-16 text-base sm:text-lg font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 rounded-full transition-all duration-300 shadow-lg"
-          >
-            {t('welcome.booking')}
-          </Button>
+          {/* Spacer bottom */}
+          <div className="flex-1" />
+
+          {/* CTA Button — bas de page avec espace */}
+          <div className="w-full pb-safe mb-10">
+            <Button
+              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 rounded-full transition-all duration-300 shadow-lg"
+            >
+              {t('welcome.booking')}
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -524,24 +533,23 @@ export default function Welcome() {
         </div>
       </div>
 
-      {/* Reassurance Banner */}
-      {!isEnterprise && (
+      {/* Reassurance Banner — commented out: not always accurate (spa rooms vs in-room) */}
+      {/* {!isEnterprise && (
         <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
           <Sparkles className="w-3 h-3 text-gold-400" />
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium text-center">
             {venueTerms.disclaimer}
           </p>
         </div>
-      )}
+      )} */}
 
       {/* Treatments - Gender Sections */}
       <div className="flex-1 w-full max-w-2xl mx-auto">
         {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
         {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
-      </div>
 
-      {/* How it works + Equipment */}
-      <div className="py-6 flex items-center justify-center gap-4">
+        {/* How it works + Equipment */}
+        <div className="py-6 flex items-center justify-center gap-4">
         <Button
           variant="ghost"
           onClick={() => setVideoOpen(true)}
@@ -553,6 +561,7 @@ export default function Welcome() {
         <p className="text-[9px] uppercase tracking-widest leading-relaxed text-gray-300">
           {t('welcome.equipmentIncluded')}
         </p>
+        </div>
       </div>
 
       {/* Fixed Bottom Button */}

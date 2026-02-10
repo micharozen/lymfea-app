@@ -238,7 +238,7 @@ export default function Schedule() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/treatments`)}
+            onClick={() => navigate(-1)}
             className="text-gray-900 hover:bg-gray-100"
           >
             <ArrowLeft className="h-5 w-5" />

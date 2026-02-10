@@ -85,6 +85,7 @@ export default {
       fontFamily: {
         'kormelink': ['Kormelink', 'serif'],
         'serif': ['Kormelink', 'serif'],
+        'grotesk': ['Founders Grotesk', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
