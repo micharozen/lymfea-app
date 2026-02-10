@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 // Optimize Supabase image URLs for thumbnails
 const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): string | null => {
@@ -182,6 +183,10 @@ export default function Treatments() {
     }
   }, [bounceKey]);
 
+  // Scroll-reveal for gender sections
+  const womenReveal = useScrollReveal();
+  const menReveal = useScrollReveal();
+
   const isLoading = isHotelLoading || isTreatmentsLoading;
 
   if (isLoading) {
@@ -230,7 +235,10 @@ export default function Treatments() {
       {/* Gender Sections */}
       <div className="flex-1 overflow-y-auto">
         {/* Women Section */}
-        <div className="border-b border-gray-200">
+        <div
+          ref={womenReveal.ref}
+          className={cn("border-b border-gray-200 scroll-reveal", womenReveal.isVisible && "visible")}
+        >
           <button
             type="button"
             onClick={() => setExpandedGender(g => g === 'women' ? null : 'women')}
@@ -275,10 +283,11 @@ export default function Treatments() {
               <div className="divide-y divide-gray-100">
                 {treatmentsByGender.women
                   .filter(treatment => treatment.category === activeCategoryByGender.women)
-                  .map(treatment => (
+                  .map((treatment, i) => (
                     <div
                       key={treatment.id}
-                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer"
+                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer animate-slide-up-fade"
+                      style={{ animationDelay: `${i * 0.05}s` }}
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
@@ -383,7 +392,11 @@ export default function Treatments() {
         </div>
 
         {/* Men Section */}
-        <div className="border-b border-gray-200">
+        <div
+          ref={menReveal.ref}
+          className={cn("border-b border-gray-200 scroll-reveal", menReveal.isVisible && "visible")}
+          style={{ transitionDelay: '0.15s' }}
+        >
           <button
             type="button"
             onClick={() => setExpandedGender(g => g === 'men' ? null : 'men')}
@@ -428,10 +441,11 @@ export default function Treatments() {
               <div className="divide-y divide-gray-100">
                 {treatmentsByGender.men
                   .filter(treatment => treatment.category === activeCategoryByGender.men)
-                  .map(treatment => (
+                  .map((treatment, i) => (
                     <div
                       key={treatment.id}
-                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer"
+                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer animate-slide-up-fade"
+                      style={{ animationDelay: `${i * 0.05}s` }}
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">

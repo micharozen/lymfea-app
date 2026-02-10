@@ -15,6 +15,7 @@ import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useBasket } from './context/CartContext';
 import { cn } from '@/lib/utils';
 import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown, CalendarDays } from 'lucide-react';
@@ -99,6 +100,10 @@ export default function Welcome() {
   const isHotel = venueType === 'hotel' || (!venueType && !hotel?.venue_type);
   const isEnterprise = venueType === 'enterprise';
   const venueTerms = useVenueTerms(venueType);
+
+  // Scroll-reveal for gender sections (coworking/enterprise layout)
+  const womenReveal = useScrollReveal();
+  const menReveal = useScrollReveal();
 
   // Fetch next available date for enterprise venues
   const { data: nextServiceDate } = useQuery({
@@ -224,11 +229,11 @@ export default function Welcome() {
 
     return (
       <div className="h-dvh w-full relative overflow-hidden">
-        {/* Background Image */}
+        {/* Background Image — cinematic zoom-out */}
         <div className="absolute inset-0">
           <img
             src={hotelBg}
-            className="h-full w-full object-cover object-[center_20%] scale-125 brightness-[0.4]"
+            className="h-full w-full object-cover object-[center_20%] brightness-[0.4] animate-hero-zoom"
             alt="Ambiance"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40" />
@@ -246,18 +251,27 @@ export default function Welcome() {
           <LanguageSwitcher variant="client" />
         </div>
 
-        {/* Content */}
-        <div className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12 animate-fade-in">
+        {/* Content — cinematic sequential reveal */}
+        <div className="absolute inset-0 z-10 flex flex-col items-center px-8 sm:px-12">
           {/* Spacer top */}
           <div className="flex-1" />
 
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
-            <h1 className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide">
+            <h1
+              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide animate-reveal-text"
+              style={{ animationDelay: '0.5s' }}
+            >
               {hotel.name}
             </h1>
-            <div className="w-12 h-px bg-white/40 mx-auto mt-4 mb-3" />
-            <p className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide">
+            <div
+              className="w-12 h-px bg-white/40 mx-auto mt-4 mb-3 animate-expand-line"
+              style={{ animationDelay: '1s' }}
+            />
+            <p
+              className="font-grotesk font-light italic text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide animate-slide-up-fade"
+              style={{ animationDelay: '1.3s' }}
+            >
               {subtitle}
             </p>
           </div>
@@ -266,7 +280,10 @@ export default function Welcome() {
           <div className="flex-1" />
 
           {/* CTA Button — bas de page avec espace */}
-          <div className="w-full pb-safe mb-10">
+          <div
+            className="w-full pb-safe mb-10 animate-slide-up-fade"
+            style={{ animationDelay: '1.8s' }}
+          >
             <Button
               onClick={() => navigate(`/client/${hotelId}/treatments`)}
               className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 rounded-full transition-all duration-300 shadow-lg"
@@ -389,8 +406,15 @@ export default function Welcome() {
     label: string,
     treatments: (Treatment & { service_for?: string })[],
     categories: string[],
+    reveal?: { ref: React.RefObject<HTMLDivElement>; isVisible: boolean },
   ) => (
-    <div className="border-b border-gray-200">
+    <div
+      ref={reveal?.ref}
+      className={cn(
+        "border-b border-gray-200",
+        reveal && "scroll-reveal",
+        reveal?.isVisible && "visible"
+      )}>
       <button
         type="button"
         onClick={() => setExpandedGender(g => g === gender ? null : gender)}
@@ -545,8 +569,8 @@ export default function Welcome() {
 
       {/* Treatments - Gender Sections */}
       <div className="flex-1 w-full max-w-2xl mx-auto">
-        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
-        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
+        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women, womenReveal)}
+        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men, menReveal)}
 
         {/* How it works + Equipment */}
         <div className="py-6 flex items-center justify-center gap-4">
