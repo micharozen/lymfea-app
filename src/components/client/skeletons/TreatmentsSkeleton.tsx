@@ -40,19 +40,16 @@ export function TreatmentsSkeleton() {
         {/* Treatment Items */}
         <div className="divide-y divide-gray-100">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="p-4 flex gap-4">
-              <Skeleton className="w-24 h-24 rounded-sm bg-gray-100 flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-5 w-3/4 bg-gray-100" />
-                <Skeleton className="h-3 w-full bg-gray-100" />
-                <Skeleton className="h-3 w-2/3 bg-gray-100" />
-                <div className="flex justify-between items-end mt-4 pt-2">
-                  <div className="space-y-1">
-                    <Skeleton className="h-5 w-16 bg-gray-100" />
-                    <Skeleton className="h-3 w-12 bg-gray-100" />
-                  </div>
-                  <Skeleton className="h-9 w-20 bg-gray-100" />
+            <div key={i} className="p-4 space-y-2">
+              <Skeleton className="h-5 w-3/4 bg-gray-100" />
+              <Skeleton className="h-3 w-full bg-gray-100" />
+              <Skeleton className="h-3 w-2/3 bg-gray-100" />
+              <div className="flex justify-between items-end mt-4 pt-2">
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-16 bg-gray-100" />
+                  <Skeleton className="h-3 w-12 bg-gray-100" />
                 </div>
+                <Skeleton className="h-9 w-20 bg-gray-100" />
               </div>
             </div>
           ))}
