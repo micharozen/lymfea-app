@@ -70,7 +70,7 @@ export default function QuoteResponse() {
         {/* Logo */}
         <div className="mb-8">
           <img
-            src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png"
+            src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png"
             alt="OOM World"
             className="h-10 mx-auto"
           />

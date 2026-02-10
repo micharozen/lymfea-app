@@ -175,7 +175,7 @@ serve(async (req) => {
             const { error: emailError } = await resend.emails.send({
               from: 'OOM <booking@oomworld.com>',
               to: [concierge.email],
-              subject: `[TEST CONCIERGE] 💳 Ch.${booking.room_number} · ${booking.total_price}€ · #${booking.booking_id}`,
+              subject: `💳 Ch.${booking.room_number} · ${booking.total_price}€ · #${booking.booking_id}`,
               html: createConciergeEmailHtml(),
             });
 

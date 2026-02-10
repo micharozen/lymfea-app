@@ -133,7 +133,7 @@ const handler = async (req: Request): Promise<Response> => {
                   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px;">
                       <div style="text-align: center; margin-bottom: 24px;">
-                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
                       </div>
                       
                       <div style="background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
@@ -231,7 +231,7 @@ const handler = async (req: Request): Promise<Response> => {
                   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px;">
                       <div style="text-align: center; margin-bottom: 24px;">
-                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
                       </div>
                       
                       <div style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
