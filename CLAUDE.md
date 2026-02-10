@@ -15,10 +15,10 @@ Venue types: `hotel`, `coworking`, `enterprise` — each with adapted terminolog
 ## Commands
 
 ```bash
-npm run dev              # Vite dev server on port 8080
-npm run build            # Production build
-npm run lint             # ESLint
-npm run supabase:function  # Serve Edge Functions locally
+bun dev              # Vite dev server on port 8080
+bun build            # Production build
+bun lint             # ESLint
+bun run supabase:function  # Serve Edge Functions locally
 ```
 
 No test runner is configured.

@@ -49,6 +49,7 @@ const createFormSchema = (t: TFunction) => z.object({
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
   price_on_request: z.boolean().default(false),
+  is_bestseller: z.boolean().default(false),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -68,6 +69,7 @@ interface TreatmentMenu {
   status: string;
   sort_order: number | null;
   price_on_request: boolean | null;
+  is_bestseller: boolean | null;
 }
 
 interface EditTreatmentMenuDialogProps {
@@ -109,6 +111,7 @@ export function EditTreatmentMenuDialog({
       status: "active",
       sort_order: "0",
       price_on_request: false,
+      is_bestseller: false,
     },
   });
 
@@ -148,6 +151,7 @@ export function EditTreatmentMenuDialog({
         status: menu.status || "active",
         sort_order: menu.sort_order?.toString() || "0",
         price_on_request: menu.price_on_request || false,
+        is_bestseller: menu.is_bestseller || false,
       });
       setMenuImage(menu.image || "");
     }
@@ -175,6 +179,7 @@ export function EditTreatmentMenuDialog({
         status: values.status,
         sort_order: parseInt(values.sort_order),
         price_on_request: values.price_on_request,
+        is_bestseller: values.is_bestseller,
       })
       .eq("id", menu.id);
 
@@ -404,6 +409,27 @@ export function EditTreatmentMenuDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="is_bestseller"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="h-4 w-4"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm cursor-pointer font-normal m-0">
+                      Bestseller (mis en avant sur la page de réservation)
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

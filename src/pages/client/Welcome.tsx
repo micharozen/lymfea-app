@@ -15,7 +15,6 @@ import welcomeBgCoworking from '@/assets/background-coworking.jpg';
 import oomLogo from '@/assets/oom-monogram-white-client.svg';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
-import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useBasket } from './context/CartContext';
 import { cn } from '@/lib/utils';
 import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown, CalendarDays } from 'lucide-react';
@@ -101,9 +100,6 @@ export default function Welcome() {
   const isEnterprise = venueType === 'enterprise';
   const venueTerms = useVenueTerms(venueType);
 
-  // Scroll-reveal for gender sections (coworking/enterprise layout)
-  const womenReveal = useScrollReveal();
-  const menReveal = useScrollReveal();
 
   // Fetch next available date for enterprise venues
   const { data: nextServiceDate } = useQuery({
@@ -286,7 +282,7 @@ export default function Welcome() {
           >
             <Button
               onClick={() => navigate(`/client/${hotelId}/treatments`)}
-              className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 rounded-full transition-all duration-300 shadow-lg"
+              className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 transition-all duration-300 shadow-lg"
             >
               {t('welcome.booking')}
             </Button>
@@ -354,7 +350,7 @@ export default function Welcome() {
 
           {/* Quantity Controls */}
           {getItemQuantity(treatment.id) > 0 ? (
-            <div className="flex items-center gap-2 rounded-none p-1 pl-2 border flex-shrink-0 bg-gray-100 border-gray-200">
+            <div className="flex items-center gap-2 rounded-md p-1 pl-2 border flex-shrink-0 bg-gray-100 border-gray-200">
               <span className="w-4 text-center font-medium text-sm text-gold-400">
                 {getItemQuantity(treatment.id)}
               </span>
@@ -362,7 +358,7 @@ export default function Welcome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                  className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                   onClick={(e) => {
                     e.stopPropagation();
                     updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
@@ -374,7 +370,7 @@ export default function Welcome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                  className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToBasket(treatment);
@@ -390,7 +386,7 @@ export default function Welcome() {
                 e.stopPropagation();
                 handleAddToBasket(treatment);
               }}
-              className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none flex-shrink-0"
+              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none flex-shrink-0"
             >
               {t('menu.add')}
             </Button>
@@ -569,11 +565,11 @@ export default function Welcome() {
 
       {/* Treatments - Gender Sections */}
       <div className="flex-1 w-full max-w-2xl mx-auto">
-        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women, womenReveal)}
-        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men, menReveal)}
+        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
+        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
 
         {/* How it works + Equipment */}
-        <div className="py-6 flex items-center justify-center gap-4">
+        <div className="py-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         <Button
           variant="ghost"
           onClick={() => setVideoOpen(true)}
@@ -593,7 +589,7 @@ export default function Welcome() {
         <div className="fixed bottom-4 left-0 right-0 px-4 pb-safe z-30 bg-gradient-to-t from-white via-white to-transparent">
           <Button
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none font-medium tracking-wide transition-all duration-300 bg-gray-900 text-white hover:bg-gray-800 shadow-lg"
+            className="w-full h-12 sm:h-14 md:h-16 text-base font-medium tracking-wide transition-all duration-300 bg-gray-900 text-white hover:bg-gray-800 shadow-lg"
           >
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})

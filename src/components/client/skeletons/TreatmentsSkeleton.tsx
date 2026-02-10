@@ -14,11 +14,23 @@ export function TreatmentsSkeleton() {
         </div>
       </div>
 
-      {/* Reassurance Banner */}
-      <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
-        <Skeleton className="h-3 w-3 rounded-full bg-gray-100" />
-        <Skeleton className="h-3 w-48 bg-gray-100" />
+      {/* Bestseller Section Skeleton */}
+      <div className="px-5 pt-6 pb-3">
+        <Skeleton className="h-3 w-24 bg-gray-100 mb-2" />
+        <Skeleton className="h-3 w-40 bg-gray-100" />
       </div>
+      <div className="grid grid-cols-3 gap-2 px-4 pb-5">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i}>
+            <Skeleton className="aspect-[4/3] w-full bg-gray-100 mb-1.5" />
+            <Skeleton className="h-2 w-10 bg-gray-100 mb-1" />
+            <Skeleton className="h-3 w-full bg-gray-100 mb-1.5" />
+            <Skeleton className="h-3 w-8 bg-gray-100 mb-1.5" />
+            <Skeleton className="h-6 w-full bg-gray-100" />
+          </div>
+        ))}
+      </div>
+      <div className="border-b border-gray-200" />
 
       {/* Gender Section */}
       <div className="border-b border-gray-200">

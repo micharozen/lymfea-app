@@ -297,7 +297,7 @@ All colors MUST be HSL.
   }
   
   /* Ensure minimum touch target size (44x44 for accessibility) */
-  button:not(.btn-xs), 
+  button:not(.btn-xs):not([role="checkbox"]),
   [role="button"]:not(.btn-xs) {
     min-height: 44px;
   }

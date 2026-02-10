@@ -20,7 +20,7 @@
     "expertHairdresser": "Expert Coiffeur",
     "enterpriseWellnessTitle": "Le bien-être, directement dans vos bureaux",
     "nextSession": "Prochaine session :",
-    "booking": "Réserver"
+    "booking": "Réserver un soin"
   },
   "menu": {
     "title": "Menu",
@@ -31,6 +31,10 @@
     "item": "article",
     "items": "articles",
     "duration": "{{duration}} min",
+    "bestsellers": "Incontournables",
+    "bestsellersSubtitle": "Nos soins les plus populaires",
+    "forWomen": "Femmes",
+    "forMen": "Hommes",
     "noTreatments": "Aucun soin disponible",
     "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
     "categories": {
