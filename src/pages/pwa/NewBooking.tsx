@@ -125,22 +125,24 @@ const PwaNewBooking = () => {
       if (hd) {
         setHairdresser(hd);
 
+        // Fetch hotel_ids first, then hotel details (avoids RLS join issues)
         const { data: affiliations } = await supabase
           .from("hairdresser_hotels")
-          .select("hotel_id, hotels(id, name, timezone, currency)")
+          .select("hotel_id")
           .eq("hairdresser_id", hd.id);
 
-        if (affiliations) {
-          const hotelList = affiliations
-            .map((a: any) => {
-              const h = a.hotels;
-              // Handle both object and array from Supabase join
-              return Array.isArray(h) ? h[0] : h;
-            })
-            .filter(Boolean) as Hotel[];
-          setHotels(hotelList);
-          if (hotelList.length === 1) {
-            setSelectedHotelId(hotelList[0].id);
+        if (affiliations && affiliations.length > 0) {
+          const hotelIds = affiliations.map((a) => a.hotel_id);
+          const { data: hotelData } = await supabase
+            .from("hotels")
+            .select("id, name, timezone, currency")
+            .in("id", hotelIds);
+
+          if (hotelData) {
+            setHotels(hotelData as Hotel[]);
+            if (hotelData.length === 1) {
+              setSelectedHotelId(hotelData[0].id);
+            }
           }
         }
       }
