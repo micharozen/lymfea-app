@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { CartDrawer } from '@/components/client/CartDrawer';
 import { useClientFlow } from './context/FlowContext';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -20,8 +21,9 @@ import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 export default function Schedule() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
-  const { items } = useBasket();
+  const { items, itemCount } = useBasket();
   const { setBookingDateTime } = useClientFlow();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
@@ -234,16 +236,31 @@ export default function Schedule() {
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
-        <div className="flex items-center gap-4 p-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="text-gray-900 hover:bg-gray-100"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-light text-gray-900">{t('datetime.title')}</h1>
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="text-gray-900 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-light text-gray-900">{t('datetime.title')}</h1>
+          </div>
+          {itemCount > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCartOpen(true)}
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                {itemCount}
+              </span>
+            </Button>
+          )}
         </div>
         <ProgressBar currentStep="schedule" />
       </div>
@@ -348,7 +365,7 @@ export default function Schedule() {
         <Button
           onClick={handleContinue}
           disabled={!selectedDate || !selectedTime || loadingAvailability}
-          className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+          className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
         >
           {loadingAvailability ? (
             <>
@@ -360,6 +377,9 @@ export default function Schedule() {
           )}
         </Button>
       </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
   );
 }

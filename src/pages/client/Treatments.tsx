@@ -4,10 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ShoppingBag, Minus, Plus, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
+import { CartDrawer } from '@/components/client/CartDrawer';
+import { BestsellerSection } from '@/components/client/BestsellerSection';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
@@ -25,6 +27,7 @@ interface Treatment {
   category: string;
   price_on_request: boolean | null;
   currency: string | null;
+  is_bestseller?: boolean;
 }
 
 export default function Treatments() {
@@ -38,6 +41,9 @@ export default function Treatments() {
   // On Request drawer state
   const [isOnRequestOpen, setIsOnRequestOpen] = useState(false);
   const [selectedOnRequestTreatment, setSelectedOnRequestTreatment] = useState<Treatment | null>(null);
+
+  // Cart drawer state
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const getItemQuantity = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -210,8 +216,22 @@ export default function Treatments() {
               {hotel?.name}
             </h1>
 
-            {/* Spacer to balance header */}
-            <div className="w-10" />
+            {/* Cart icon */}
+            {itemCount > 0 ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsCartOpen(true)}
+                className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              </Button>
+            ) : (
+              <div className="w-10" />
+            )}
           </div>
         </div>
       </div>
@@ -224,8 +244,18 @@ export default function Treatments() {
           </p>
       </div> */}
 
-      {/* Gender Sections */}
+      {/* Sections */}
       <div className="flex-1 overflow-y-auto">
+        {/* Bestseller Section - only for hotels */}
+        {venueType === 'hotel' && (
+          <BestsellerSection
+            treatments={allTreatments}
+            onAddToBasket={handleAddToBasket}
+            getItemQuantity={getItemQuantity}
+            onUpdateQuantity={updateBasketQuantity}
+          />
+        )}
+
         {/* Women Section */}
         <div
           ref={womenReveal.ref}
@@ -313,7 +343,7 @@ export default function Treatments() {
 
                         {/* Controls */}
                         {getItemQuantity(treatment.id) > 0 ? (
-                            <div className="flex items-center gap-2 bg-gray-100 rounded-none p-1 pl-2 border border-gray-200">
+                            <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
                                 <span className="w-4 text-center font-medium text-sm text-gold-400">
                                     {getItemQuantity(treatment.id)}
                                 </span>
@@ -321,7 +351,7 @@ export default function Treatments() {
                                     <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                                    className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
@@ -333,7 +363,7 @@ export default function Treatments() {
                                     <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                                    className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleAddToBasket(treatment);
@@ -349,7 +379,7 @@ export default function Treatments() {
                                   e.stopPropagation();
                                   handleAddToBasket(treatment);
                                 }}
-                                className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
+                                className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
                             >
                                 {t('menu.add')}
                             </Button>
@@ -450,7 +480,7 @@ export default function Treatments() {
 
                         {/* Controls */}
                         {getItemQuantity(treatment.id) > 0 ? (
-                            <div className="flex items-center gap-2 bg-gray-100 rounded-none p-1 pl-2 border border-gray-200">
+                            <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
                                 <span className="w-4 text-center font-medium text-sm text-gold-400">
                                     {getItemQuantity(treatment.id)}
                                 </span>
@@ -458,7 +488,7 @@ export default function Treatments() {
                                     <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+                                    className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
@@ -470,7 +500,7 @@ export default function Treatments() {
                                     <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                                    className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleAddToBasket(treatment);
@@ -486,7 +516,7 @@ export default function Treatments() {
                                   e.stopPropagation();
                                   handleAddToBasket(treatment);
                                 }}
-                                className="rounded-none px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
+                                className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
                             >
                                 {t('menu.add')}
                             </Button>
@@ -505,13 +535,16 @@ export default function Treatments() {
         <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
           <Button
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-wide shadow-lg transition-all duration-300"
+            className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-300 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
-            <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <Scissors className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
           </Button>
         </div>
       )}
+
+      {/* Cart Drawer */}
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
 
       {/* On Request Form Drawer */}
       <OnRequestFormDrawer

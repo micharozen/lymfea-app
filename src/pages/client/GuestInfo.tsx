@@ -8,10 +8,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronDown, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
+import { useBasket } from './context/CartContext';
+import { CartDrawer } from '@/components/client/CartDrawer';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
@@ -69,7 +71,9 @@ export default function GuestInfo() {
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { canProceedToStep, setClientInfo } = useClientFlow();
+  const { itemCount } = useBasket();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
 
@@ -145,16 +149,31 @@ export default function GuestInfo() {
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
-        <div className="flex items-center gap-4 p-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="text-gray-900 hover:bg-gray-100"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-light text-gray-900">{t('info.title')}</h1>
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/client/${hotelId}/schedule`)}
+              className="text-gray-900 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-light text-gray-900">{t('info.title')}</h1>
+          </div>
+          {itemCount > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCartOpen(true)}
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                {itemCount}
+              </span>
+            </Button>
+          )}
         </div>
         <ProgressBar currentStep="guest-info" />
       </div>
@@ -358,7 +377,7 @@ export default function GuestInfo() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+              className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
               {isSubmitting ? (
                 <>
@@ -372,6 +391,9 @@ export default function GuestInfo() {
           </div>
         </form>
       </Form>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
   );
 }
