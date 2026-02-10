@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Bell, X } from 'lucide-react';
 import { oneSignalSubscribe, isOneSignalSubscribed, isOneSignalReady } from '@/hooks/useOneSignal';
 
 export default function PushNotificationPrompt() {
+  const { t } = useTranslation('pwa');
   const [showPrompt, setShowPrompt] = useState(false);
   const checkedRef = useRef(false);
 
@@ -70,10 +72,10 @@ export default function PushNotificationPrompt() {
 
           <div>
             <h3 className="text-xl font-semibold mb-2">
-              Activer les notifications ?
+              {t('notifications.enablePromptTitle')}
             </h3>
             <p className="text-sm text-muted-foreground">
-              Recevez des alertes en temps réel pour vos nouvelles réservations, même quand l'app est fermée.
+              {t('notifications.enablePromptDesc')}
             </p>
           </div>
 
@@ -83,13 +85,13 @@ export default function PushNotificationPrompt() {
               onClick={handleDecline}
               className="flex-1"
             >
-              Plus tard
+              {t('notifications.enablePromptLater')}
             </Button>
             <Button
               onClick={handleAccept}
               className="flex-1"
             >
-              Activer
+              {t('notifications.enablePromptButton')}
             </Button>
           </div>
         </div>

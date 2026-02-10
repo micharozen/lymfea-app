@@ -92,7 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
               <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="text-align: center; margin-bottom: 24px;">
-                  <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                  <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
                 </div>
                 
                 <div style="background-color: #fff7ed; border: 2px solid #f97316; border-radius: 8px; padding: 20px; margin-bottom: 24px;">

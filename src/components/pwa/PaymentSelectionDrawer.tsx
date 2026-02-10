@@ -435,7 +435,7 @@ export const PaymentSelectionDrawer = ({
             {step === 'selection' && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground text-center mb-4">
-                  Comment le client souhaite-t-il payer ?
+                  {t('payment.howToPay')}
                 </p>
                 
                 {/* Card Payment Button */}
@@ -507,15 +507,15 @@ export const PaymentSelectionDrawer = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Annuler ce paiement ?
+              {t('payment.cancelTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Le lien de paiement actuel sera invalidé. Vous pourrez ensuite choisir une autre méthode de paiement.
+              {t('payment.cancelDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>
-              Garder le lien
+              {t('payment.keepLink')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmCancel}
@@ -525,10 +525,10 @@ export const PaymentSelectionDrawer = ({
               {cancelling ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Annulation...
+                  {t('payment.cancelling')}
                 </>
               ) : (
-                "Oui, annuler"
+                t('payment.yesCancel')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -65,7 +65,7 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#fef3c7;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
-    const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
     
     // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';

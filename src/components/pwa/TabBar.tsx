@@ -56,7 +56,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
               strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
             />
             <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
-              Wallet
+              {t('tabs.wallet')}
             </span>
           </button>
 
