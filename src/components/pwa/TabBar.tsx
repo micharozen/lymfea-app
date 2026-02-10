@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Home, Wallet, Bell } from "lucide-react";
+import { Home, Wallet, Bell, Plus } from "lucide-react";
 
 interface TabBarProps {
   unreadCount?: number;
@@ -48,7 +48,15 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             Wallet
           </span>
         </button>
-        <button 
+        <button
+          onClick={() => handleNavigation("/pwa/new-booking")}
+          className="flex items-center justify-center flex-1 -mt-4"
+        >
+          <div className="w-12 h-12 rounded-full bg-gold-400 flex items-center justify-center shadow-lg shadow-gold-400/30">
+            <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
+          </div>
+        </button>
+        <button
           onClick={() => handleNavigation("/pwa/notifications")}
           className="flex flex-col items-center justify-center gap-1 flex-1 transition-all relative"
         >

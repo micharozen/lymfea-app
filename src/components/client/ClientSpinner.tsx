@@ -33,7 +33,7 @@ export function ClientSpinner({ size = 'md', className }: ClientSpinnerProps) {
  */
 export function ClientPageLoading() {
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="min-h-screen bg-white flex items-center justify-center">
       <ClientSpinner size="lg" />
     </div>
   );

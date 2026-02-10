@@ -202,6 +202,23 @@
     },
     "complete": "Welcome to OOM!"
   },
+  "newBooking": {
+    "title": "New booking",
+    "clientInfo": "Client information",
+    "treatments": "Treatments",
+    "summary": "Summary",
+    "payment": "Payment link",
+    "create": "Create booking",
+    "next": "Next",
+    "back": "Back",
+    "selectHotel": "Select a venue",
+    "bookingCreated": "Booking created!",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "room": "Room",
+    "time": "Time"
+  },
   "tabs": {
     "home": "Home",
     "bookings": "Bookings",

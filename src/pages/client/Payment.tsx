@@ -160,20 +160,20 @@ export default function Payment() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-black pb-safe">
+    <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/95 backdrop-blur-sm border-b border-white/10 pt-safe">
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate(`/client/${hotelId}/guest-info`)}
             disabled={isProcessing}
-            className="text-white hover:bg-white/10"
+            className="text-gray-900 hover:bg-gray-100"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-light text-white">{t('payment.title')}</h1>
+          <h1 className="text-lg font-light text-gray-900">{t('payment.title')}</h1>
         </div>
         <ProgressBar currentStep="payment" />
       </div>
@@ -184,7 +184,7 @@ export default function Payment() {
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
             {t('payment.stepLabel')}
           </h3>
-          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-white leading-tight">
+          <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-gray-900 leading-tight">
             {t('payment.headline')}
           </h2>
         </div>
@@ -205,8 +205,8 @@ export default function Payment() {
         )}
 
         {/* Order Summary */}
-        <div className="bg-white/5 border border-white/10 rounded-lg p-4 sm:p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-          <h4 className="text-xs uppercase tracking-widest text-white/60 font-medium">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('payment.orderSummary')}
           </h4>
 
@@ -215,10 +215,10 @@ export default function Payment() {
             <div className="space-y-3">
               {fixedItems.map(item => (
                 <div key={item.id} className="flex justify-between text-sm">
-                  <span className="text-white/70">
-                    {item.name} <span className="text-white/40">x{item.quantity}</span>
+                  <span className="text-gray-600">
+                    {item.name} <span className="text-gray-400">x{item.quantity}</span>
                   </span>
-                  <span className="text-white font-light">
+                  <span className="text-gray-900 font-light">
                     {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
                   </span>
                 </div>
@@ -228,11 +228,11 @@ export default function Payment() {
 
           {/* Variable Price Items (Quote Required) */}
           {variableItems.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-white/10">
+            <div className="space-y-3 pt-4 border-t border-gray-200">
               {variableItems.map(item => (
                 <div key={item.id} className="flex justify-between text-sm items-center">
-                  <span className="text-white/70">
-                    {item.name} <span className="text-white/40">x{item.quantity}</span>
+                  <span className="text-gray-600">
+                    {item.name} <span className="text-gray-400">x{item.quantity}</span>
                   </span>
                   <span className="text-amber-400 text-xs font-medium">{t('payment.onQuote')}</span>
                 </div>
@@ -241,11 +241,11 @@ export default function Payment() {
           )}
 
           {/* Total */}
-          <div className="flex justify-between items-center pt-4 border-t border-white/10">
-            <span className="text-white/60 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <span className="text-gray-500 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
             {hasPriceOnRequest ? (
               <div className="text-right">
-                <span className="text-white text-lg font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
+                <span className="text-gray-900 text-lg font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
                 <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
               </div>
             ) : (
@@ -257,7 +257,7 @@ export default function Payment() {
         {/* Payment Method Selection - Only show if no quote required */}
         {!hasPriceOnRequest && (
           <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <h4 className="text-xs uppercase tracking-widest text-white/60 font-medium">
+            <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
               {t('payment.paymentMethod')}
             </h4>
 
@@ -269,22 +269,22 @@ export default function Payment() {
                 "w-full p-4 rounded-lg border transition-all duration-200 text-left",
                 selectedMethod === 'card'
                   ? "border-gold-400 bg-gold-400/10"
-                  : "border-white/20 bg-white/5 hover:border-white/40"
+                  : "border-gray-200 bg-gray-50 hover:border-gray-300"
               )}
             >
               <div className="flex items-center gap-4">
                 <div className={cn(
                   "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all",
-                  selectedMethod === 'card' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
+                  selectedMethod === 'card' ? "bg-gold-400 text-black" : "bg-gray-100 text-gray-500"
                 )}>
                   <CreditCard className="h-5 w-5" />
                 </div>
                 <div>
                   <p className={cn(
                     "font-medium",
-                    selectedMethod === 'card' ? "text-gold-400" : "text-white"
+                    selectedMethod === 'card' ? "text-gold-400" : "text-gray-900"
                   )}>{t('payment.payNow')}</p>
-                  <p className="text-sm text-white/50">{t('payment.payNowDesc')}</p>
+                  <p className="text-sm text-gray-400">{t('payment.payNowDesc')}</p>
                 </div>
               </div>
             </button>
@@ -298,22 +298,22 @@ export default function Payment() {
                   "w-full p-4 rounded-lg border transition-all duration-200 text-left",
                   selectedMethod === 'room'
                     ? "border-gold-400 bg-gold-400/10"
-                    : "border-white/20 bg-white/5 hover:border-white/40"
+                    : "border-gray-200 bg-gray-50 hover:border-gray-300"
                 )}
               >
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all",
-                    selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-white/10 text-white/60"
+                    selectedMethod === 'room' ? "bg-gold-400 text-black" : "bg-gray-100 text-gray-500"
                   )}>
                     <Building className="h-5 w-5" />
                   </div>
                   <div>
                     <p className={cn(
                       "font-medium",
-                      selectedMethod === 'room' ? "text-gold-400" : "text-white"
+                      selectedMethod === 'room' ? "text-gold-400" : "text-gray-900"
                     )}>{venueTerms.addToLocationLabel}</p>
-                    <p className="text-sm text-white/50">{venueTerms.addToLocationDesc}</p>
+                    <p className="text-sm text-gray-400">{venueTerms.addToLocationDesc}</p>
                   </div>
                 </div>
               </button>
@@ -323,15 +323,15 @@ export default function Payment() {
       </div>
 
       {/* Fixed Bottom Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent pb-safe">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe">
         <Button
           onClick={handlePayment}
           disabled={isProcessing}
           className={cn(
-            "w-full h-12 sm:h-14 md:h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40",
+            "w-full h-12 sm:h-14 md:h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400",
             hasPriceOnRequest
               ? "bg-amber-500 text-black hover:bg-amber-400"
-              : "bg-white text-black hover:bg-gold-50"
+              : "bg-gray-900 text-white hover:bg-gray-800"
           )}
         >
           {isProcessing ? (

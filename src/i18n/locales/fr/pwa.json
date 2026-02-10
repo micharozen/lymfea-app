@@ -202,6 +202,23 @@
     },
     "complete": "Bienvenue sur OOM !"
   },
+  "newBooking": {
+    "title": "Nouvelle réservation",
+    "clientInfo": "Informations client",
+    "treatments": "Prestations",
+    "summary": "Récapitulatif",
+    "payment": "Lien de paiement",
+    "create": "Créer la réservation",
+    "next": "Suivant",
+    "back": "Retour",
+    "selectHotel": "Sélectionner un lieu",
+    "bookingCreated": "Réservation créée !",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "room": "Chambre",
+    "time": "Heure"
+  },
   "tabs": {
     "home": "Accueil",
     "bookings": "Réservations",

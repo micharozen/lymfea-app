@@ -1136,6 +1136,8 @@ export type Database = {
           status: string
           vat: number
           venue_type: string
+          description: string
+          landing_subtitle: string
         }[]
       }
       get_public_hotels: {

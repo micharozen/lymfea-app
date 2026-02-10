@@ -383,15 +383,15 @@ export default function Treatments() {
         </div>
 
         {/* Men Section */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-gray-200">
           <button
             type="button"
             onClick={() => setExpandedGender(g => g === 'men' ? null : 'men')}
             className="w-full flex items-center justify-between px-5 py-5 transition-all"
           >
             <div className="flex flex-col items-start gap-1">
-              <span className="font-serif text-xl text-white tracking-wide">{t('welcome.mensMenu')}</span>
-              <span className="text-white/40 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.men.length} {t('menu.items')}</span>
+              <span className="font-serif text-xl text-gray-900 tracking-wide">{t('welcome.mensMenu')}</span>
+              <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">{treatmentsByGender.men.length} {t('menu.items')}</span>
             </div>
             <ChevronDown
               className={cn(
@@ -405,7 +405,7 @@ export default function Treatments() {
             <div className="animate-fade-in">
               {/* Categories Tabs for Men */}
               {categoriesByGender.men.length > 1 && (
-                <div className="w-full overflow-x-auto scrollbar-hide bg-black/50 border-t border-white/5">
+                <div className="w-full overflow-x-auto scrollbar-hide bg-gray-50 border-t border-gray-100">
                   <div className="flex px-2">
                     {categoriesByGender.men.map(category => (
                       <button
@@ -414,7 +414,7 @@ export default function Treatments() {
                         className={`px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all duration-300 ${
                           activeCategoryByGender.men === category
                             ? 'border-gold-400 text-gold-400 font-medium tracking-wide'
-                            : 'border-transparent text-white/50 hover:text-white font-light'
+                            : 'border-transparent text-gray-400 hover:text-gray-700 font-light'
                         }`}
                       >
                         {t(`menu.categories.${category}`, category)}
@@ -425,13 +425,13 @@ export default function Treatments() {
               )}
 
               {/* Men Treatments List */}
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-gray-100">
                 {treatmentsByGender.men
                   .filter(treatment => treatment.category === activeCategoryByGender.men)
                   .map(treatment => (
                     <div
                       key={treatment.id}
-                      className="p-4 active:bg-white/5 transition-colors group cursor-pointer"
+                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer"
                       onClick={() => handleAddToBasket(treatment)}
                     >
                       <div className="flex gap-4">
@@ -538,10 +538,10 @@ export default function Treatments() {
 
       {/* Fixed Bottom Button - Direct to datetime (basket page skipped) */}
       {itemCount > 0 && (
-        <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-black via-black to-transparent pb-safe z-30">
+        <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
           <Button
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-white text-black hover:bg-gold-100 font-medium tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300"
+            className="w-full h-12 sm:h-14 md:h-16 text-base rounded-none bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})

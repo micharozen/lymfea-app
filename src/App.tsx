@@ -67,6 +67,7 @@ const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
+const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 
 // Admin PWA Layout & Pages
 const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
@@ -105,9 +106,9 @@ const PageLoader = () => (
   </div>
 );
 
-// Client-specific loader with black background to prevent white flash
+// Client-specific loader
 const ClientPageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-black">
+  <div className="flex items-center justify-center min-h-screen bg-white">
     <img
       src="/images/oom-logo-email-white.png"
       alt="OOM"
@@ -197,7 +198,7 @@ const App = () => {
                     <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                       <Routes>
                         <Route index element={<Welcome />} />
-                        <Route path="/treatments" element={<Navigate to={`/client/${window.location.pathname.split('/')[2]}`} replace />} />
+                        <Route path="/treatments" element={<ClientTreatments />} />
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/guest-info" element={<GuestInfo />} />
                         <Route path="/payment" element={<Payment />} />
@@ -281,6 +282,7 @@ const App = () => {
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="wallet" element={<PwaWallet />} />
+              <Route path="new-booking" element={<PwaNewBooking />} />
             </Route>
             {/* PWA routes without TabBar (still protected) */}
             <Route

@@ -96,6 +96,7 @@ export default function Welcome() {
   const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>('women');
 
   const venueType = hotel?.venue_type as VenueType | null;
+  const isHotel = venueType === 'hotel' || (!venueType && !hotel?.venue_type);
   const isEnterprise = venueType === 'enterprise';
   const venueTerms = useVenueTerms(venueType);
 
@@ -211,6 +212,59 @@ export default function Welcome() {
         <div className="text-center">
           <h1 className="text-2xl font-serif mb-2">{t('hotelNotFound')}</h1>
           <p className="text-gray-500">{t('checkQrCode')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Hotel venues: full-screen landing page
+  if (isHotel) {
+    const hotelBg = hotel.cover_image || welcomeBgHotel;
+    const subtitle = (hotel as any)?.landing_subtitle || 'Beauty Services';
+
+    return (
+      <div className="h-dvh w-full relative overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img
+            src={hotelBg}
+            className="h-full w-full object-cover brightness-[0.4]"
+            alt="Ambiance"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/40" />
+        </div>
+
+        {/* Top Bar */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-6 pb-4 pt-safe">
+          <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+            <img
+              src={oomLogo}
+              alt="OOM"
+              className="h-10 w-10 sm:h-12 sm:w-12"
+            />
+          </a>
+          <LanguageSwitcher variant="client" />
+        </div>
+
+        {/* Content */}
+        <div className="absolute inset-0 z-10 flex flex-col justify-end px-8 sm:px-12 pb-12 pb-safe animate-fade-in">
+          {/* Venue Name + Subtitle */}
+          <div className="mb-10 sm:mb-12">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide">
+              {hotel.name}
+            </h1>
+            <p className="font-serif text-2xl sm:text-3xl md:text-4xl text-white uppercase tracking-wide mt-1 sm:mt-2">
+              {subtitle}
+            </p>
+          </div>
+
+          {/* CTA Button */}
+          <Button
+            onClick={() => navigate(`/client/${hotelId}/treatments`)}
+            className="w-full h-14 sm:h-16 text-base sm:text-lg font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 rounded-full transition-all duration-300 shadow-lg"
+          >
+            {t('welcome.booking')}
+          </Button>
         </div>
       </div>
     );
@@ -393,10 +447,10 @@ export default function Welcome() {
         <div className="absolute inset-0 z-0">
           <img
             src={backgroundImage}
-            className="h-full w-full object-cover scale-105 animate-[pulse_10s_infinite_alternate] brightness-[0.5]"
+            className="h-full w-full object-cover scale-105 brightness-[0.5]"
             alt="Ambiance"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-black/30 to-black/50" />
+          <div className="absolute inset-0 bg-black/50" />
         </div>
 
         {/* Language Switcher */}
