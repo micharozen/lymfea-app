@@ -2,7 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, LayoutDashboard } from "lucide-react";
+import { toast } from "sonner";
 import { HotelQRCode } from "@/components/HotelQRCode";
 
 interface Concierge {
@@ -103,13 +104,17 @@ export function HotelCard({
                 hotel.venue_type === "hotel" &&
                   "bg-blue-500/10 text-blue-700 border-blue-200",
                 hotel.venue_type === "coworking" &&
-                  "bg-purple-500/10 text-purple-700 border-purple-200"
+                  "bg-purple-500/10 text-purple-700 border-purple-200",
+                hotel.venue_type === "enterprise" &&
+                  "bg-emerald-500/10 text-emerald-700 border-emerald-200"
               )}
             >
               {hotel.venue_type === "hotel"
                 ? "Hotel"
                 : hotel.venue_type === "coworking"
                 ? "Coworking"
+                : hotel.venue_type === "enterprise"
+                ? "Entreprise"
                 : "-"}
             </Badge>
           </div>
@@ -148,8 +153,23 @@ export function HotelCard({
 
       {/* Actions Footer */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-        <div onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+          {hotel.venue_type === "enterprise" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 px-3"
+              onClick={() => {
+                const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                navigator.clipboard.writeText(url);
+                toast.success("Lien dashboard copié !");
+              }}
+            >
+              <LayoutDashboard className="h-4 w-4 mr-1.5" />
+              Dashboard
+            </Button>
+          )}
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">

@@ -16,7 +16,7 @@ Venue types: `hotel`, `coworking`, `enterprise` — each with adapted terminolog
 
 ```bash
 bun dev              # Vite dev server on port 8080
-bun build            # Production build
+bun run build            # Production build
 bun lint             # ESLint
 bun run supabase:function  # Serve Edge Functions locally
 ```

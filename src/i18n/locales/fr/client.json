@@ -171,5 +171,42 @@
     "enterpriseServiceDescription": "Offrez-vous un vrai moment de déconnexion. Nos experts coiffeurs et barbiers s'installent directement dans vos locaux — sans déplacement, sans stress, juste du soin.",
     "enterprise": "Entreprise",
     "inEnterpriseDisclaimer": "Notre équipe se déplace directement dans vos locaux."
+  },
+  "enterpriseDashboard": {
+    "label": "TABLEAU DE BORD BIEN-ÊTRE",
+    "subtitle": "Votre espace bien-être",
+    "sessionSelector": {
+      "title": "SESSION",
+      "noSessions": "Aucune session programmée pour le moment.",
+      "nextSession": "Session suivante",
+      "previousSession": "Session précédente"
+    },
+    "metrics": {
+      "totalSlots": "Créneaux",
+      "bookedSlots": "Réservés",
+      "fillRate": "Taux de remplissage",
+      "uniqueClients": "Participants"
+    },
+    "timeline": {
+      "title": "Planning de la journée",
+      "available": "Disponible",
+      "blocked": "Indisponible",
+      "booked": "Réservé"
+    },
+    "popularServices": {
+      "title": "Services les plus demandés",
+      "bookings": "réservations",
+      "noData": "Aucune réservation sur cette session"
+    },
+    "footer": {
+      "cta": "Envie de planifier votre prochaine session bien-être ?",
+      "contact": "Nous contacter",
+      "poweredBy": "Propulsé par"
+    },
+    "error": {
+      "notFound": "Lieu non trouvé",
+      "notFoundDesc": "Ce lien ne correspond à aucun lieu. Vérifiez l'URL ou contactez votre représentant OOM.",
+      "notDeployed": "Aucune session prévue à cette date."
+    }
   }
 }

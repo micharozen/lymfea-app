@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -519,7 +519,25 @@ export default function Hotels() {
                             <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                            <div className="flex items-center gap-1">
+                              <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                              {hotel.venue_type === "enterprise" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title="Copier lien dashboard entreprise"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Lien dashboard copié !");
+                                  }}
+                                >
+                                  <LayoutDashboard className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           {isAdmin && (
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
