@@ -17,7 +17,10 @@
     "equipmentIncluded": "Full professional equipment included",
     "howItWorks": "How it works?",
     "ourExperts": "OUR EXPERTS",
-    "expertHairdresser": "Expert Hairdresser"
+    "expertHairdresser": "Expert Hairdresser",
+    "enterpriseWellnessTitle": "Wellness, delivered to your office",
+    "nextSession": "Next session:",
+    "booking": "Book a treatment"
   },
   "menu": {
     "title": "Menu",
@@ -28,6 +31,10 @@
     "item": "item",
     "items": "items",
     "duration": "{{duration}} min",
+    "bestsellers": "Bestsellers",
+    "bestsellersSubtitle": "Our most popular treatments",
+    "forWomen": "Women",
+    "forMen": "Men",
     "noTreatments": "No treatments available",
     "inRoomDisclaimer": "Service performed in the privacy of your room.",
     "categories": {
@@ -158,7 +165,11 @@
     "addToWorkspaceDesc": "Charge will be added to your account",
     "exclusiveRoomService": "EXCLUSIVE ROOM SERVICE",
     "exclusiveWorkspaceService": "EXCLUSIVE WORKSPACE SERVICE",
+    "exclusiveEnterpriseService": "CORPORATE WELLNESS EXPERIENCE",
     "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
-    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you."
+    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.",
+    "enterpriseServiceDescription": "Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
+    "enterprise": "Enterprise",
+    "inEnterpriseDisclaimer": "Our team comes directly to your offices."
   }
 }

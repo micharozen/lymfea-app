@@ -32,23 +32,8 @@ async function prefetchForRoute(
   hotelId: string,
   queryClient: ReturnType<typeof useQueryClient>
 ) {
-  // On Welcome page -> Prefetch treatments for the next page
+  // On Welcome page (now includes treatments) -> Prefetch venue hours for Schedule page
   if (currentPath === `/client/${hotelId}` || currentPath === `/client/${hotelId}/`) {
-    queryClient.prefetchQuery({
-      queryKey: ['public-treatments', hotelId],
-      queryFn: async () => {
-        const { data, error } = await supabase.rpc('get_public_treatments', {
-          _hotel_id: hotelId,
-        });
-        if (error) throw error;
-        return data || [];
-      },
-      staleTime: 5 * 60 * 1000,
-    });
-  }
-
-  // On Treatments page -> Prefetch venue hours for Schedule page
-  if (currentPath.includes('/treatments')) {
     queryClient.prefetchQuery({
       queryKey: ['venue-hours', hotelId],
       queryFn: async () => {

@@ -45,7 +45,19 @@
     "showLess": "Afficher moins",
     "pendingRequests": "DEMANDES EN ATTENTE",
     "noPending": "Aucune demande en attente",
-    "pendingWillAppear": "Les nouvelles demandes de réservation apparaîtront ici"
+    "pendingWillAppear": "Les nouvelles demandes de réservation apparaîtront ici",
+    "paymentPaid": "Payé",
+    "paymentRoom": "Chambre",
+    "paymentPending": "En attente",
+    "paymentFailed": "Échoué",
+    "bookingTakenByOther": "Réservation #{{id}} prise par un autre coiffeur",
+    "profileNotFound": "Profil introuvable",
+    "bookingAlreadyTaken": "Réservation déjà prise par un autre coiffeur",
+    "bookingAccepted": "Réservation acceptée !",
+    "acceptError": "Erreur lors de l'acceptation",
+    "bookingDeclined": "Réservation refusée",
+    "error": "Erreur",
+    "slots": "{{count}} créneaux"
   },
   "booking": {
     "details": "Détails de la réservation",
@@ -132,7 +144,11 @@
     "pushBlockedSettings": "Notifications bloquées. Allez dans Réglages > Safari > Notifications pour les activer.",
     "pushDenied": "Notifications refusées. Activez-les dans les réglages.",
     "pushError": "Impossible d'activer les notifications",
-    "willBeNotified": "Vous serez notifié des nouvelles réservations et mises à jour"
+    "willBeNotified": "Vous serez notifié des nouvelles réservations et mises à jour",
+    "enablePromptTitle": "Activer les notifications ?",
+    "enablePromptDesc": "Recevez des alertes en temps réel pour vos nouvelles réservations, même quand l'app est fermée.",
+    "enablePromptLater": "Plus tard",
+    "enablePromptButton": "Activer"
   },
   "profile": {
     "title": "Profil",
@@ -202,13 +218,31 @@
     },
     "complete": "Bienvenue sur OOM !"
   },
+  "newBooking": {
+    "title": "Nouvelle réservation",
+    "clientInfo": "Informations client",
+    "treatments": "Prestations",
+    "summary": "Récapitulatif",
+    "payment": "Lien de paiement",
+    "create": "Créer la réservation",
+    "next": "Suivant",
+    "back": "Retour",
+    "selectHotel": "Sélectionner un lieu",
+    "bookingCreated": "Réservation créée !",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "room": "Chambre",
+    "time": "Heure"
+  },
   "tabs": {
     "home": "Accueil",
     "bookings": "Réservations",
     "hotels": "Hôtels",
     "venues": "Lieux",
     "notifications": "Notifications",
-    "profile": "Profil"
+    "profile": "Profil",
+    "wallet": "Wallet"
   },
   "payment": {
     "received": "Paiement reçu !",

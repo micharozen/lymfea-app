@@ -37,8 +37,11 @@ import {
   Package,
   Clock,
   Settings,
+  Info,
+  Type,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -243,6 +246,7 @@ export function VenueGeneralInfoStep({
                     <SelectContent>
                       <SelectItem value="hotel">Hotel</SelectItem>
                       <SelectItem value="coworking">Coworking</SelectItem>
+                      <SelectItem value="enterprise">Entreprise</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -297,6 +301,34 @@ export function VenueGeneralInfoStep({
               </FormItem>
             )}
           />
+
+          {/* Landing Subtitle (hotel only) */}
+          {venueTypeValue === 'hotel' && (
+            <FormField
+              control={form.control}
+              name="landing_subtitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Type className="h-3.5 w-3.5 text-muted-foreground" />
+                    Sous-titre landing page
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[260px]">
+                        <p className="text-xs">Texte affiche sous le nom du lieu sur la page d'accueil client. Par defaut : "Beauty Services".</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Beauty Services" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           {/* Trunk Selection */}
           <div className="space-y-2">

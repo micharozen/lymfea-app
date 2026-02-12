@@ -167,7 +167,7 @@ const PwaLayout = () => {
   }, []);
 
   // Hide TabBar on booking detail pages
-  const shouldShowTabBar = !location.pathname.includes('/pwa/booking/');
+  const shouldShowTabBar = !location.pathname.includes('/pwa/booking/') && !location.pathname.includes('/pwa/new-booking');
 
   return (
     <div className="min-h-[100dvh] flex flex-col bg-background">

@@ -45,7 +45,19 @@
     "showLess": "Show less",
     "pendingRequests": "PENDING REQUESTS",
     "noPending": "No pending requests",
-    "pendingWillAppear": "New booking requests will appear here"
+    "pendingWillAppear": "New booking requests will appear here",
+    "paymentPaid": "Paid",
+    "paymentRoom": "Room",
+    "paymentPending": "Pending",
+    "paymentFailed": "Failed",
+    "bookingTakenByOther": "Booking #{{id}} taken by another hairdresser",
+    "profileNotFound": "Profile not found",
+    "bookingAlreadyTaken": "Booking already taken by another hairdresser",
+    "bookingAccepted": "Booking accepted!",
+    "acceptError": "Error accepting booking",
+    "bookingDeclined": "Booking declined",
+    "error": "Error",
+    "slots": "{{count}} slots"
   },
   "booking": {
     "details": "Booking Details",
@@ -132,7 +144,11 @@
     "pushBlockedSettings": "Notifications blocked. Go to Settings > Safari > Notifications to enable them.",
     "pushDenied": "Notifications denied. Enable them in settings.",
     "pushError": "Unable to enable notifications",
-    "willBeNotified": "You will be notified of new bookings and updates"
+    "willBeNotified": "You will be notified of new bookings and updates",
+    "enablePromptTitle": "Enable notifications?",
+    "enablePromptDesc": "Receive real-time alerts for your new bookings, even when the app is closed.",
+    "enablePromptLater": "Later",
+    "enablePromptButton": "Enable"
   },
   "profile": {
     "title": "Profile",
@@ -202,13 +218,31 @@
     },
     "complete": "Welcome to OOM!"
   },
+  "newBooking": {
+    "title": "New booking",
+    "clientInfo": "Client information",
+    "treatments": "Treatments",
+    "summary": "Summary",
+    "payment": "Payment link",
+    "create": "Create booking",
+    "next": "Next",
+    "back": "Back",
+    "selectHotel": "Select a venue",
+    "bookingCreated": "Booking created!",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "room": "Room",
+    "time": "Time"
+  },
   "tabs": {
     "home": "Home",
     "bookings": "Bookings",
     "hotels": "Hotels",
     "venues": "Venues",
     "notifications": "Notifications",
-    "profile": "Profile"
+    "profile": "Profile",
+    "wallet": "Wallet"
   },
   "payment": {
     "received": "Payment received!",

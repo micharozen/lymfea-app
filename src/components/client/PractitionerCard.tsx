@@ -16,7 +16,7 @@ export function PractitionerCard({ firstName, profileImage, skills }: Practition
 
   return (
     <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 group cursor-default">
-      <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-gradient-to-b from-zinc-800 to-zinc-900 ring-1 ring-white/10 relative">
+      <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-gradient-to-b from-zinc-800 to-zinc-900 ring-1 ring-gray-200 relative">
         {profileImage ? (
           <img
             src={profileImage}

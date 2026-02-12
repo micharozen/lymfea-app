@@ -68,7 +68,8 @@
     "coverImage": "Image de couverture",
     "venueType": "Type de lieu",
     "hotel": "Hôtel",
-    "coworking": "Coworking"
+    "coworking": "Coworking",
+    "enterprise": "Entreprise"
   },
   "hairdressers": {
     "title": "Coiffeurs",

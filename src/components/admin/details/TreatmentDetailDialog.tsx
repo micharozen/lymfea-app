@@ -32,6 +32,7 @@ interface TreatmentDetailDialogProps {
   treatment: TreatmentMenu | null;
   hotel: Hotel | null;
   onEdit?: () => void;
+  onDuplicate?: () => void;
 }
 
 export function TreatmentDetailDialog({
@@ -40,6 +41,7 @@ export function TreatmentDetailDialog({
   treatment,
   hotel,
   onEdit,
+  onDuplicate,
 }: TreatmentDetailDialogProps) {
   if (!treatment) return null;
 
@@ -84,6 +86,7 @@ export function TreatmentDetailDialog({
       open={open}
       onOpenChange={onOpenChange}
       onEdit={onEdit}
+      onDuplicate={onDuplicate}
       title={treatment.name}
       image={treatment.image}
       emoji="💆"

@@ -7,7 +7,7 @@
 
 import { useTranslation } from 'react-i18next';
 
-export type VenueType = 'hotel' | 'coworking';
+export type VenueType = 'hotel' | 'coworking' | 'enterprise';
 
 export interface VenueTerms {
   /** The venue type label (Hotel / Coworking Space) */
@@ -45,31 +45,41 @@ export const useVenueTerms = (venueType: VenueType | null | undefined): VenueTer
   const { t } = useTranslation('client');
 
   const isCoworking = venueType === 'coworking';
+  const isEnterprise = venueType === 'enterprise';
+  const isNonHotel = isCoworking || isEnterprise;
 
   return {
-    venueName: isCoworking
+    venueName: isEnterprise
+      ? t('venue.enterprise', 'Enterprise')
+      : isCoworking
       ? t('venue.coworking', 'Coworking Space')
       : t('venue.hotel', 'Hotel'),
-    locationName: isCoworking
+    locationName: isNonHotel
       ? t('venue.workspace', 'Workspace')
       : t('venue.room', 'Room'),
-    locationNumberLabel: isCoworking
+    locationNumberLabel: isNonHotel
       ? t('venue.workspaceNumber', 'Workspace Number')
       : t('venue.roomNumber', 'Room Number'),
-    disclaimer: isCoworking
+    disclaimer: isEnterprise
+      ? t('venue.inEnterpriseDisclaimer', 'Our team comes directly to your offices.')
+      : isCoworking
       ? t('venue.inWorkspaceDisclaimer', 'Service performed at your workspace.')
       : t('venue.inRoomDisclaimer', 'Service performed in the privacy of your room.'),
-    supportsRoomPayment: !isCoworking,
-    addToLocationLabel: isCoworking
+    supportsRoomPayment: !isNonHotel,
+    addToLocationLabel: isNonHotel
       ? t('venue.addToWorkspace', 'Add to Workspace')
       : t('venue.addToRoom', 'Add to Room'),
-    addToLocationDesc: isCoworking
+    addToLocationDesc: isNonHotel
       ? t('venue.addToWorkspaceDesc', 'Charge will be added to your account')
       : t('venue.addToRoomDesc', 'Charge will be added to your room bill'),
-    exclusiveServiceLabel: isCoworking
+    exclusiveServiceLabel: isEnterprise
+      ? t('venue.exclusiveEnterpriseService', 'CORPORATE WELLNESS EXPERIENCE')
+      : isCoworking
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
-    serviceDescription: isCoworking
+    serviceDescription: isEnterprise
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
   };
@@ -87,31 +97,41 @@ export const getVenueTerms = (
   t: (key: string, defaultValue?: string) => string
 ): VenueTerms => {
   const isCoworking = venueType === 'coworking';
+  const isEnterprise = venueType === 'enterprise';
+  const isNonHotel = isCoworking || isEnterprise;
 
   return {
-    venueName: isCoworking
+    venueName: isEnterprise
+      ? t('venue.enterprise', 'Enterprise')
+      : isCoworking
       ? t('venue.coworking', 'Coworking Space')
       : t('venue.hotel', 'Hotel'),
-    locationName: isCoworking
+    locationName: isNonHotel
       ? t('venue.workspace', 'Workspace')
       : t('venue.room', 'Room'),
-    locationNumberLabel: isCoworking
+    locationNumberLabel: isNonHotel
       ? t('venue.workspaceNumber', 'Workspace Number')
       : t('venue.roomNumber', 'Room Number'),
-    disclaimer: isCoworking
+    disclaimer: isEnterprise
+      ? t('venue.inEnterpriseDisclaimer', 'Our team comes directly to your offices.')
+      : isCoworking
       ? t('venue.inWorkspaceDisclaimer', 'Service performed at your workspace.')
       : t('venue.inRoomDisclaimer', 'Service performed in the privacy of your room.'),
-    supportsRoomPayment: !isCoworking,
-    addToLocationLabel: isCoworking
+    supportsRoomPayment: !isNonHotel,
+    addToLocationLabel: isNonHotel
       ? t('venue.addToWorkspace', 'Add to Workspace')
       : t('venue.addToRoom', 'Add to Room'),
-    addToLocationDesc: isCoworking
+    addToLocationDesc: isNonHotel
       ? t('venue.addToWorkspaceDesc', 'Charge will be added to your account')
       : t('venue.addToRoomDesc', 'Charge will be added to your room bill'),
-    exclusiveServiceLabel: isCoworking
+    exclusiveServiceLabel: isEnterprise
+      ? t('venue.exclusiveEnterpriseService', 'CORPORATE WELLNESS EXPERIENCE')
+      : isCoworking
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
-    serviceDescription: isCoworking
+    serviceDescription: isEnterprise
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      : isCoworking
       ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
       : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
   };

@@ -19,12 +19,12 @@
 **`hairdressers`**
 - `id`, `user_id`, `email`, `first_name`, `last_name`, `phone`, `country_code`, `profile_image`, `skills[]`, `status`, `password_set`, `stripe_account_id`, `stripe_onboarding_completed`, `trunks`
 
-### Venues (Hotels/Coworking)
+### Venues (Hotels/Coworking/Enterprise)
 
 **`hotels`**
 - `id`, `name`, `image`, `cover_image`, `address`, `city`, `country`, `country_code`, `postal_code`
 - `timezone`, `opening_time`, `closing_time`
-- `venue_type` (enum: hotel|coworking|null)
+- `venue_type` (enum: hotel|coworking|enterprise|null)
 - `currency`, `vat`, `hairdresser_commission`, `hotel_commission`
 - `status`, `auto_validate_bookings`
 
@@ -93,7 +93,7 @@
 ```sql
 app_role: "admin" | "moderator" | "user" | "concierge" | "hairdresser"
 schedule_type: "always_open" | "specific_days" | "one_time"
-venue_type: "hotel" | "coworking"
+venue_type: "hotel" | "coworking" | "enterprise"
 ```
 
 ## Relations Principales

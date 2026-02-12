@@ -83,7 +83,7 @@ interface Hotel {
   hotel_commission: number;
   hairdresser_commission: number;
   status: string;
-  venue_type: 'hotel' | 'coworking' | null;
+  venue_type: 'hotel' | 'coworking' | 'enterprise' | null;
   opening_time: string | null;
   closing_time: string | null;
   created_at: string;
@@ -478,10 +478,11 @@ export default function Hotels() {
                               className={cn(
                                 "text-[10px] px-2 py-0.5 whitespace-nowrap",
                                 hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
-                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
+                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200",
+                                hotel.venue_type === "enterprise" && "bg-emerald-500/10 text-emerald-700 border-emerald-200"
                               )}
                             >
-                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : "-"}
+                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "-"}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">

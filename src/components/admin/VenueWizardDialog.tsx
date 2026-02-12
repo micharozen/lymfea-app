@@ -33,7 +33,7 @@ interface Trunk {
 // Form schema for step 1
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
-  venue_type: z.enum(['hotel', 'coworking']).default('hotel'),
+  venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
   city: z.string().min(1, t('errors.validation.cityRequired')),
@@ -47,6 +47,7 @@ const createFormSchema = (t: TFunction) => z.object({
   opening_time: z.string().default("06:00"),
   closing_time: z.string().default("23:00"),
   auto_validate_bookings: z.boolean().default(false),
+  landing_subtitle: z.string().optional(),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
   const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
@@ -136,6 +137,7 @@ export function VenueWizardDialog({
       opening_time: "06:00",
       closing_time: "23:00",
       auto_validate_bookings: false,
+      landing_subtitle: "",
     },
   });
 
@@ -213,6 +215,7 @@ export function VenueWizardDialog({
           opening_time: hotel.opening_time?.substring(0, 5) || "06:00",
           closing_time: hotel.closing_time?.substring(0, 5) || "23:00",
           auto_validate_bookings: hotel.auto_validate_bookings || false,
+          landing_subtitle: (hotel as any).landing_subtitle || "",
         });
 
         setHotelImage(hotel.image || "");
@@ -349,6 +352,7 @@ export function VenueWizardDialog({
           opening_time: values.opening_time + ':00',
           closing_time: values.closing_time + ':00',
           auto_validate_bookings: values.auto_validate_bookings,
+          landing_subtitle: values.landing_subtitle || null,
         })
         .select('id')
         .single();
@@ -429,6 +433,7 @@ export function VenueWizardDialog({
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
             auto_validate_bookings: values.auto_validate_bookings,
+            landing_subtitle: values.landing_subtitle || null,
           })
           .select('id')
           .single();
@@ -471,6 +476,7 @@ export function VenueWizardDialog({
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
             auto_validate_bookings: values.auto_validate_bookings,
+            landing_subtitle: values.landing_subtitle || null,
           })
           .eq("id", hotelId);
 
