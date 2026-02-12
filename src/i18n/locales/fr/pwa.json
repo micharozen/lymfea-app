@@ -109,7 +109,13 @@
     "accepted": "Réservation acceptée !",
     "declined": "Réservation refusée",
     "treatmentDeleted": "Traitement supprimé",
-    "yourEarnings": "Vos honoraires"
+    "yourEarnings": "Vos honoraires",
+    "acceptTitle": "Accepter cette réservation ?",
+    "acceptDesc": "Êtes-vous sûr de vouloir accepter cette réservation ?",
+    "confirmAccept": "Oui, accepter",
+    "validateSlotTitle": "Confirmer ce créneau ?",
+    "validateSlotDesc": "Êtes-vous sûr de vouloir sélectionner le créneau du {{date}} à {{time}} ?",
+    "confirmSlot": "Oui, confirmer"
   },
   "hotels": {
     "title": "Mes Hôtels",
@@ -242,7 +248,8 @@
     "venues": "Lieux",
     "notifications": "Notifications",
     "profile": "Profil",
-    "wallet": "Wallet"
+    "wallet": "Wallet",
+    "agenda": "Agenda"
   },
   "payment": {
     "received": "Paiement reçu !",

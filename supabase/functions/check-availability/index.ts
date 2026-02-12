@@ -23,7 +23,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    console.log(`Checking availability for hotel ${hotelId} on ${date}`);
+    const _debug: Record<string, any> = {};
+    console.log(`[DEBUG] ====== CHECK-AVAILABILITY START ======`);
+    console.log(`[DEBUG] hotelId: ${hotelId}, date: ${date}, treatmentIds: ${JSON.stringify(treatmentIds)}`);
+    _debug.input = { hotelId, date, treatmentIds };
 
     // Check if venue is deployed on this date
     const { data: isVenueAvailable, error: scheduleError } = await supabase
@@ -32,17 +35,23 @@ serve(async (req) => {
         _check_date: date
       });
 
+    console.log(`[DEBUG] is_venue_available_on_date result: ${isVenueAvailable}, error: ${JSON.stringify(scheduleError)}`);
+
     if (scheduleError) {
       console.error('Error checking venue schedule:', scheduleError);
     }
 
+    _debug.isVenueAvailable = isVenueAvailable;
+    _debug.scheduleError = scheduleError;
+
     // If venue is not deployed on this date, return no slots
     if (isVenueAvailable === false) {
-      console.log(`Venue ${hotelId} is not deployed on ${date}`);
+      console.log(`[DEBUG] EARLY EXIT: venue not deployed on ${date}`);
       return new Response(
         JSON.stringify({
           availableSlots: [],
-          reason: 'venue_not_deployed'
+          reason: 'venue_not_deployed',
+          _debug
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -68,6 +77,27 @@ serve(async (req) => {
       : 23;
 
     console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00`);
+    _debug.hotelData = hotelData;
+    _debug.openingHour = openingHour;
+    _debug.closingHour = closingHour;
+
+    // Fetch active blocked slots for this hotel
+    const { data: blockedSlots, error: blockedSlotsError } = await supabase
+      .from('venue_blocked_slots')
+      .select('start_time, end_time, days_of_week')
+      .eq('hotel_id', hotelId)
+      .eq('is_active', true);
+
+    console.log(`[DEBUG] blocked slots query result: data=${JSON.stringify(blockedSlots)}, error=${JSON.stringify(blockedSlotsError)}`);
+
+    if (blockedSlotsError) {
+      console.error('Error fetching blocked slots:', blockedSlotsError);
+    }
+
+    // Get day of week for the requested date (0=Sunday, matches PostgreSQL DOW and JS getDay())
+    const requestedDayOfWeek = new Date(date + 'T00:00:00').getDay();
+
+    console.log(`[DEBUG] requestedDayOfWeek: ${requestedDayOfWeek}, blockedSlots count: ${blockedSlots?.length || 0}`);
 
     // Get the maximum lead_time from selected treatments (if provided)
     let maxLeadTime = 0;
@@ -97,10 +127,17 @@ serve(async (req) => {
       `)
       .eq('hotel_id', hotelId);
 
+    console.log(`[DEBUG] hairdresser_hotels raw result: ${JSON.stringify(hairdressers)}, error: ${JSON.stringify(hairdressersError)}`);
+    _debug.hairdressersRaw = hairdressers;
+    _debug.hairdressersError = hairdressersError;
+
     // Filter active hairdressers (case-insensitive)
-    const activeHairdressers = hairdressers?.filter((h: any) => 
+    const activeHairdressers = hairdressers?.filter((h: any) =>
       h.hairdressers?.status?.toLowerCase() === 'active'
     ) || [];
+
+    console.log(`[DEBUG] activeHairdressers after filter: ${JSON.stringify(activeHairdressers)}`);
+    _debug.activeHairdressers = activeHairdressers;
 
     if (hairdressersError) {
       console.error('Error fetching hairdressers:', hairdressersError);
@@ -120,21 +157,25 @@ serve(async (req) => {
     }
 
     const totalTrunks = trunks?.length || 0;
-    console.log(`Hotel has ${totalTrunks} active trunks`);
+    console.log(`[DEBUG] trunks: ${JSON.stringify(trunks)}, totalTrunks: ${totalTrunks}`);
+    _debug.trunks = trunks;
+    _debug.totalTrunks = totalTrunks;
 
     // If no trunks, no availability
     if (totalTrunks === 0) {
-      console.log('No active trunks found for hotel - no availability');
+      console.log('[DEBUG] EARLY EXIT: no active trunks');
+      _debug.earlyExit = 'no_active_trunks';
       return new Response(
-        JSON.stringify({ availableSlots: [] }),
+        JSON.stringify({ availableSlots: [], _debug }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!activeHairdressers || activeHairdressers.length === 0) {
-      console.log('No active hairdressers found for hotel');
+      console.log('[DEBUG] EARLY EXIT: no active hairdressers');
+      _debug.earlyExit = 'no_active_hairdressers';
       return new Response(
-        JSON.stringify({ availableSlots: [] }),
+        JSON.stringify({ availableSlots: [], _debug }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -157,7 +198,8 @@ serve(async (req) => {
       throw allBookingsError;
     }
 
-    console.log(`Found ${allHotelBookings?.length || 0} active bookings for hotel on ${date}`);
+    console.log(`[DEBUG] active bookings on ${date}: ${JSON.stringify(allHotelBookings)}`);
+    _debug.activeBookings = allHotelBookings;
 
     // Helper function to convert time string to minutes
     const timeToMinutes = (time: string): number => {
@@ -179,6 +221,27 @@ serve(async (req) => {
       return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
     };
 
+    // Function to check if a 30-minute slot overlaps with any blocked time range
+    const isSlotInBlockedRange = (slotTime: string): boolean => {
+      if (!blockedSlots || blockedSlots.length === 0) return false;
+
+      const slotStartMinutes = timeToMinutes(slotTime);
+      const slotEndMinutes = slotStartMinutes + 30;
+
+      return blockedSlots.some((block: any) => {
+        // Check day of week applicability
+        if (block.days_of_week !== null && !block.days_of_week.includes(requestedDayOfWeek)) {
+          return false;
+        }
+
+        const blockStartMinutes = timeToMinutes(block.start_time);
+        const blockEndMinutes = timeToMinutes(block.end_time);
+
+        // A slot is blocked if any part of it overlaps with the blocked range
+        return slotStartMinutes < blockEndMinutes && slotEndMinutes > blockStartMinutes;
+      });
+    };
+
     // Generate time slots based on venue opening hours (every 30 minutes)
     const timeSlots = [];
     for (let hour = openingHour; hour < closingHour; hour++) {
@@ -188,7 +251,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Generated ${timeSlots.length} time slots from ${openingHour}:00 to ${closingHour}:00`);
+    console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingHour}:00 - ${closingHour}:00 => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
 
     // Calculate the earliest bookable time based on lead_time
     const now = new Date();
@@ -211,6 +274,11 @@ serve(async (req) => {
 
     // Check which slots have availability (both hairdresser AND trunk)
     const availableSlots = timeSlots.filter(slot => {
+      // Filter out slots that fall in blocked time ranges (e.g., lunch breaks)
+      if (isSlotInBlockedRange(slot)) {
+        return false;
+      }
+
       // Filter out slots that are too soon based on lead_time (only for today)
       if (isToday && earliestBookableTime && slot < earliestBookableTime) {
         return false;
@@ -239,10 +307,16 @@ serve(async (req) => {
       return availableHairdresserCount > 0;
     });
 
-    console.log(`${availableSlots.length} slots available out of ${timeSlots.length}`);
+    console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);
+    _debug.timeSlotsGenerated = timeSlots.length;
+    _debug.isToday = isToday;
+    _debug.earliestBookableTime = earliestBookableTime;
+    _debug.now = now.toISOString();
+    _debug.blockedSlotsData = blockedSlots;
+    _debug.hairdresserIds = hairdresserIds;
 
     return new Response(
-      JSON.stringify({ availableSlots }),
+      JSON.stringify({ availableSlots, _debug }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

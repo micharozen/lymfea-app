@@ -128,6 +128,19 @@
     "billing": "Billing",
     "team": "Team"
   },
+  "blockedSlots": {
+    "title": "Blocked time slots",
+    "addSlot": "Add a blocked slot",
+    "label": "Name",
+    "labelPlaceholder": "e.g., Lunch break",
+    "startTime": "Start",
+    "endTime": "End",
+    "specificDays": "Specific days",
+    "allDays": "Every day",
+    "fillAllFields": "Please fill in all fields",
+    "invalidTimeRange": "Start time must be before end time",
+    "selectAtLeastOneDay": "Select at least one day"
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",

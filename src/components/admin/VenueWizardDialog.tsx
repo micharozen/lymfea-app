@@ -30,6 +30,15 @@ interface Trunk {
   hotel_id: string | null;
 }
 
+export interface BlockedSlot {
+  id?: string;
+  label: string;
+  start_time: string;
+  end_time: string;
+  days_of_week: number[] | null;
+  is_active: boolean;
+}
+
 // Form schema for step 1
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
@@ -89,6 +98,7 @@ export function VenueWizardDialog({
   const [trunks, setTrunks] = useState<Trunk[]>([]);
   const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
+  const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
 
   // Deployment schedule state
   const [deploymentState, setDeploymentState] = useState<DeploymentScheduleState>({
@@ -165,6 +175,7 @@ export function VenueWizardDialog({
           recurrenceInterval: 1,
         });
         setExistingScheduleId(null);
+        setBlockedSlots([]);
         setSavedHotelId(null);
       }
     }
@@ -250,6 +261,25 @@ export function VenueWizardDialog({
           specificDates: (schedule.specific_dates || []).map((d: string) => new Date(d)),
           recurrenceInterval: schedule.recurrence_interval || 1,
         });
+      }
+
+      // Load blocked slots
+      const { data: blockedSlotsData } = await supabase
+        .from("venue_blocked_slots")
+        .select("*")
+        .eq("hotel_id", hotelId)
+        .order("start_time");
+
+      if (blockedSlotsData) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setBlockedSlots(blockedSlotsData.map((slot: any) => ({
+          id: slot.id,
+          label: slot.label,
+          start_time: slot.start_time.substring(0, 5),
+          end_time: slot.end_time.substring(0, 5),
+          days_of_week: slot.days_of_week,
+          is_active: slot.is_active,
+        })));
       }
     } catch (error) {
       console.error("Error loading hotel data:", error);
@@ -373,6 +403,9 @@ export function VenueWizardDialog({
       // Insert deployment schedule
       await saveDeploymentSchedule(newHotelId);
 
+      // Save blocked slots
+      await saveBlockedSlots(newHotelId);
+
       toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
       setCurrentStep(3);
     } catch (error: any) {
@@ -453,6 +486,9 @@ export function VenueWizardDialog({
         // Insert deployment schedule
         await saveDeploymentSchedule(newHotelId);
 
+        // Save blocked slots
+        await saveBlockedSlots(newHotelId);
+
         toast.success("Lieu créé avec succès");
       } else {
         // Update existing hotel
@@ -500,6 +536,9 @@ export function VenueWizardDialog({
         // Update deployment schedule
         await saveDeploymentSchedule(hotelId!);
 
+        // Save blocked slots
+        await saveBlockedSlots(hotelId!);
+
         toast.success("Lieu mis à jour avec succès");
       }
 
@@ -514,6 +553,50 @@ export function VenueWizardDialog({
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveBlockedSlots = async (targetHotelId: string) => {
+    // Get existing blocked slots from DB
+    const { data: existingSlots } = await supabase
+      .from("venue_blocked_slots")
+      .select("id")
+      .eq("hotel_id", targetHotelId);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existingIds = new Set((existingSlots || []).map((s: any) => s.id));
+    const currentIds = new Set(blockedSlots.filter(s => s.id).map(s => s.id!));
+
+    // Delete removed slots
+    const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+    if (toDelete.length > 0) {
+      await supabase
+        .from("venue_blocked_slots")
+        .delete()
+        .in("id", toDelete);
+    }
+
+    // Upsert current slots
+    for (const slot of blockedSlots) {
+      const payload = {
+        hotel_id: targetHotelId,
+        label: slot.label,
+        start_time: slot.start_time + ":00",
+        end_time: slot.end_time + ":00",
+        days_of_week: slot.days_of_week,
+        is_active: slot.is_active,
+      };
+
+      if (slot.id) {
+        await supabase
+          .from("venue_blocked_slots")
+          .update(payload)
+          .eq("id", slot.id);
+      } else {
+        await supabase
+          .from("venue_blocked_slots")
+          .insert(payload);
+      }
     }
   };
 
@@ -608,6 +691,8 @@ export function VenueWizardDialog({
                   form={form}
                   state={deploymentState}
                   onChange={setDeploymentState}
+                  blockedSlots={blockedSlots}
+                  onBlockedSlotsChange={setBlockedSlots}
                 />
               )}
 

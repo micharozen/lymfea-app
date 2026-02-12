@@ -109,7 +109,13 @@
     "accepted": "Booking accepted!",
     "declined": "Booking declined",
     "treatmentDeleted": "Treatment deleted",
-    "yourEarnings": "Your earnings"
+    "yourEarnings": "Your earnings",
+    "acceptTitle": "Accept this booking?",
+    "acceptDesc": "Are you sure you want to accept this booking?",
+    "confirmAccept": "Yes, accept",
+    "validateSlotTitle": "Confirm this slot?",
+    "validateSlotDesc": "Are you sure you want to select the slot on {{date}} at {{time}}?",
+    "confirmSlot": "Yes, confirm"
   },
   "hotels": {
     "title": "My Hotels",
@@ -242,7 +248,8 @@
     "venues": "Venues",
     "notifications": "Notifications",
     "profile": "Profile",
-    "wallet": "Wallet"
+    "wallet": "Wallet",
+    "agenda": "Schedule"
   },
   "payment": {
     "received": "Payment received!",
