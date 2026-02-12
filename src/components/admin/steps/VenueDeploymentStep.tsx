@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -29,11 +31,14 @@ import {
   ToggleLeft,
   Repeat,
   CalendarCheck,
+  Ban,
+  Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { VenueWizardFormValues } from "../VenueWizardDialog";
+import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
+import { toast } from "sonner";
 
 const DAYS_OF_WEEK = [
   { value: 1, label: "Lun" },
@@ -90,9 +95,11 @@ interface VenueDeploymentStepProps {
   form: UseFormReturn<VenueWizardFormValues>;
   state: DeploymentScheduleState;
   onChange: (state: DeploymentScheduleState) => void;
+  blockedSlots: BlockedSlot[];
+  onBlockedSlotsChange: (slots: BlockedSlot[]) => void;
 }
 
-export function VenueDeploymentStep({ form, state, onChange }: VenueDeploymentStepProps) {
+export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlockedSlotsChange }: VenueDeploymentStepProps) {
   const {
     isAlwaysOpen,
     scheduleType,
@@ -102,6 +109,46 @@ export function VenueDeploymentStep({ form, state, onChange }: VenueDeploymentSt
     specificDates,
     recurrenceInterval,
   } = state;
+
+  // Blocked slots local state
+  const [showAddBlockedSlot, setShowAddBlockedSlot] = useState(false);
+  const [newBlockedSlot, setNewBlockedSlot] = useState<Omit<BlockedSlot, 'id'>>({
+    label: '',
+    start_time: '12:00',
+    end_time: '13:00',
+    days_of_week: null,
+    is_active: true,
+  });
+
+  const addBlockedSlot = () => {
+    if (!newBlockedSlot.label || !newBlockedSlot.start_time || !newBlockedSlot.end_time) {
+      toast.error("Veuillez remplir tous les champs");
+      return;
+    }
+    if (newBlockedSlot.start_time >= newBlockedSlot.end_time) {
+      toast.error("L'heure de début doit être avant l'heure de fin");
+      return;
+    }
+    if (newBlockedSlot.days_of_week !== null && newBlockedSlot.days_of_week.length === 0) {
+      toast.error("Sélectionnez au moins un jour");
+      return;
+    }
+    onBlockedSlotsChange([...blockedSlots, { ...newBlockedSlot }]);
+    setNewBlockedSlot({ label: '', start_time: '12:00', end_time: '13:00', days_of_week: null, is_active: true });
+    setShowAddBlockedSlot(false);
+  };
+
+  const removeBlockedSlot = (index: number) => {
+    onBlockedSlotsChange(blockedSlots.filter((_, i) => i !== index));
+  };
+
+  const toggleNewBlockedSlotDay = (day: number) => {
+    const current = newBlockedSlot.days_of_week || [];
+    const updated = current.includes(day)
+      ? current.filter(d => d !== day)
+      : [...current, day];
+    setNewBlockedSlot(prev => ({ ...prev, days_of_week: updated }));
+  };
 
   const updateState = (updates: Partial<DeploymentScheduleState>) => {
     onChange({ ...state, ...updates });
@@ -198,6 +245,159 @@ export function VenueDeploymentStep({ form, state, onChange }: VenueDeploymentSt
             )}
           />
         </div>
+      </div>
+
+      {/* Blocked time slots section */}
+      <div>
+        <SectionHeader icon={Ban} title="Plages horaires bloquées" />
+
+        {blockedSlots.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {blockedSlots.map((slot, index) => (
+              <div
+                key={slot.id || index}
+                className="flex items-center justify-between p-3 border rounded-lg bg-muted/10"
+              >
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium">{slot.label}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {slot.start_time} - {slot.end_time}
+                  </span>
+                  {slot.days_of_week ? (
+                    <div className="flex gap-1">
+                      {DAYS_OF_WEEK.filter(d => slot.days_of_week!.includes(d.value)).map(d => (
+                        <span key={d.value} className="text-xs px-1.5 py-0.5 bg-muted rounded">
+                          {d.label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Tous les jours</span>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeBlockedSlot(index)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAddBlockedSlot ? (
+          <div className="p-4 border rounded-lg bg-muted/10 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Nom</Label>
+              <Input
+                value={newBlockedSlot.label}
+                onChange={(e) => setNewBlockedSlot(prev => ({ ...prev, label: e.target.value }))}
+                placeholder="ex: Pause déjeuner"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-sm">Début</Label>
+                <Select
+                  value={newBlockedSlot.start_time}
+                  onValueChange={(value) => setNewBlockedSlot(prev => ({ ...prev, start_time: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map(time => (
+                      <SelectItem key={time.value} value={time.value}>
+                        {time.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm">Fin</Label>
+                <Select
+                  value={newBlockedSlot.end_time}
+                  onValueChange={(value) => setNewBlockedSlot(prev => ({ ...prev, end_time: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIME_OPTIONS.map(time => (
+                      <SelectItem key={time.value} value={time.value}>
+                        {time.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Jours spécifiques</Label>
+                <Switch
+                  checked={newBlockedSlot.days_of_week !== null}
+                  onCheckedChange={(checked) =>
+                    setNewBlockedSlot(prev => ({
+                      ...prev,
+                      days_of_week: checked ? [] : null,
+                    }))
+                  }
+                />
+              </div>
+              {newBlockedSlot.days_of_week !== null && (
+                <div className="flex flex-wrap gap-2">
+                  {DAYS_OF_WEEK.map(day => (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleNewBlockedSlotDay(day.value)}
+                      className={cn(
+                        "px-3 py-2 text-sm rounded-md border transition-colors",
+                        newBlockedSlot.days_of_week?.includes(day.value)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background hover:bg-muted border-input"
+                      )}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddBlockedSlot(false)}
+              >
+                Annuler
+              </Button>
+              <Button type="button" size="sm" onClick={addBlockedSlot}>
+                Ajouter
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAddBlockedSlot(true)}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Ajouter une plage bloquée
+          </Button>
+        )}
       </div>
 
       {/* Deployment schedule section */}
