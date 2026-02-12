@@ -117,6 +117,8 @@ const PwaBookingDetail = () => {
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [pendingSlotNumber, setPendingSlotNumber] = useState<1 | 2 | 3 | null>(null);
   const [showProposeAlternativeDialog, setShowProposeAlternativeDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
@@ -914,7 +916,7 @@ const PwaBookingDetail = () => {
                 <p className="text-xs font-medium text-center text-muted-foreground">Choisissez un créneau</p>
                 {/* Slot 1 - Preferred */}
                 <button
-                  onClick={() => handleValidateSlot(1)}
+                  onClick={() => setPendingSlotNumber(1)}
                   disabled={validatingSlot !== null}
                   className="w-full p-3 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 flex items-center justify-between transition-all active:scale-[0.98] disabled:opacity-50"
                 >
@@ -933,7 +935,7 @@ const PwaBookingDetail = () => {
                 {/* Slot 2 */}
                 {proposedSlots.slot_2_date && proposedSlots.slot_2_time && (
                   <button
-                    onClick={() => handleValidateSlot(2)}
+                    onClick={() => setPendingSlotNumber(2)}
                     disabled={validatingSlot !== null}
                     className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
@@ -950,7 +952,7 @@ const PwaBookingDetail = () => {
                 {/* Slot 3 */}
                 {proposedSlots.slot_3_date && proposedSlots.slot_3_time && (
                   <button
-                    onClick={() => handleValidateSlot(3)}
+                    onClick={() => setPendingSlotNumber(3)}
                     disabled={validatingSlot !== null}
                     className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
@@ -1056,7 +1058,7 @@ const PwaBookingDetail = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleAcceptBooking();
+                    setShowAcceptDialog(true);
                   }}
                   disabled={updating}
                   className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
@@ -1293,6 +1295,65 @@ const PwaBookingDetail = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t('bookingDetail.confirmDecline')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Accept Booking Confirmation Dialog */}
+      <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('bookingDetail.acceptTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('bookingDetail.acceptDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAcceptBooking}
+              disabled={updating}
+            >
+              {t('bookingDetail.confirmAccept')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Validate Slot Confirmation Dialog */}
+      <AlertDialog open={pendingSlotNumber !== null} onOpenChange={(open) => { if (!open) setPendingSlotNumber(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('bookingDetail.validateSlotTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSlotNumber && proposedSlots ? t('bookingDetail.validateSlotDesc', {
+                date: format(
+                  new Date(
+                    (pendingSlotNumber === 1 ? proposedSlots.slot_1_date :
+                     pendingSlotNumber === 2 ? proposedSlots.slot_2_date :
+                     proposedSlots.slot_3_date) + "T00:00:00"
+                  ),
+                  "EEE d MMM"
+                ),
+                time: (pendingSlotNumber === 1 ? proposedSlots.slot_1_time :
+                       pendingSlotNumber === 2 ? proposedSlots.slot_2_time :
+                       proposedSlots.slot_3_time)?.substring(0, 5)
+              }) : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSlotNumber) {
+                  handleValidateSlot(pendingSlotNumber);
+                  setPendingSlotNumber(null);
+                }
+              }}
+              disabled={validatingSlot !== null}
+            >
+              {t('bookingDetail.confirmSlot')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

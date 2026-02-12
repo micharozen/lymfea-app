@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
@@ -47,6 +47,7 @@ interface CartItem {
 
 const PwaNewBooking = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation("pwa");
 
   // Steps: 1=Client Info, 2=Treatments, 3=Summary, 4=Payment Link
@@ -86,8 +87,15 @@ const PwaNewBooking = () => {
   // Loading
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Fetch hairdresser & hotels on mount
+  // Fetch hairdresser & hotels on mount + pre-fill date/time from URL params
   useEffect(() => {
+    // Pre-fill date/time from calendar slot click (?date=...&time=...)
+    const params = new URLSearchParams(location.search);
+    const dateParam = params.get('date');
+    const timeParam = params.get('time');
+    if (dateParam) setSelectedDate(new Date(dateParam + "T00:00:00"));
+    if (timeParam) setSelectedTime(timeParam);
+
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;

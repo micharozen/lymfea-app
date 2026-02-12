@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, Clock, List } from "lucide-react";
+import { Calendar, Clock, List } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
+import PwaHeader from "@/components/pwa/Header";
 
 interface Booking {
   id: string;
@@ -29,7 +29,7 @@ const PwaBookings = () => {
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar">("calendar");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -98,40 +98,25 @@ const PwaBookings = () => {
 
   return (
     <div className="flex flex-1 flex-col bg-background">
-      {/* Header */}
-      <div className="bg-black text-white p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/pwa/dashboard")}
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Mes Réservations</h1>
-          </div>
-          <div className="flex gap-1 bg-white/10 rounded-lg p-1">
-            <Button
-              variant="ghost"
-              size="icon"
+      <PwaHeader
+        title="Agenda"
+        rightSlot={
+          <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
+            <button
               onClick={() => setView("list")}
-              className={`h-8 w-8 ${view === "list" ? "bg-white text-black" : "text-white hover:bg-white/20"}`}
+              className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <List className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
+            </button>
+            <button
               onClick={() => setView("calendar")}
-              className={`h-8 w-8 ${view === "calendar" ? "bg-white text-black" : "text-white hover:bg-white/20"}`}
+              className={`p-1.5 rounded-md transition-colors ${view === "calendar" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               <Calendar className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Content */}
       <div className="flex-1 min-h-0 flex flex-col">
@@ -216,6 +201,7 @@ const PwaBookings = () => {
             <PwaCalendarView
               bookings={filteredBookings}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
+              onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
             />
           </div>
         )}

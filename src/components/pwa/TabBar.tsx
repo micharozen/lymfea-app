@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Home, Wallet, Bell, Plus } from "lucide-react";
+import { Home, Wallet, Bell, Plus, Calendar } from "lucide-react";
 
 interface TabBarProps {
   unreadCount?: number;
@@ -62,6 +62,19 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
           {/* Center spacer for the FAB */}
           <div className="flex-1" />
+
+          <button
+            onClick={() => handleNavigation("/pwa/bookings")}
+            className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
+          >
+            <Calendar
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-400" : "text-muted-foreground"}`}
+              strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
+            />
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
+              {t('tabs.agenda')}
+            </span>
+          </button>
 
           <button
             onClick={() => handleNavigation("/pwa/notifications")}
