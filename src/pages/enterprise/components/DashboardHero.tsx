@@ -11,7 +11,7 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
   const { t } = useTranslation('client');
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className="relative w-full overflow-hidden bg-gray-900 shrink-0">
       {/* Background Image */}
       <div className="absolute inset-0 z-0">
         {hotel.cover_image ? (
@@ -28,7 +28,7 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
 
       {/* Language Switcher */}
       <div className="absolute top-4 right-4 z-20">
-        <LanguageSwitcher variant="client" />
+        <LanguageSwitcher variant="pill" />
       </div>
 
       {/* Hero Content */}
@@ -43,15 +43,15 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
                 className="h-8 w-8 sm:h-10 sm:w-10"
               />
             </a>
-            {hotel.image && (
-              <>
-                <span className="text-gold-400/60 text-lg sm:text-xl font-light select-none">×</span>
-                <img
-                  src={hotel.image}
-                  alt={hotel.name}
-                  className="h-10 w-auto sm:h-12 object-contain"
-                />
-              </>
+            <span className="text-gold-400/60 text-lg sm:text-xl font-light select-none">×</span>
+            {hotel.image ? (
+              <img
+                src={hotel.image}
+                alt={hotel.name}
+                className="h-10 w-auto sm:h-12 object-contain"
+              />
+            ) : (
+              <span className="text-white font-serif text-lg sm:text-xl tracking-wide">{hotel.name}</span>
             )}
           </div>
 

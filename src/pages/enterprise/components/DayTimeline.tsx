@@ -89,8 +89,9 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
           {t('enterpriseDashboard.timeline.title')}
         </h2>
 
-        <div className="space-y-0">
-          {slots.map((slot, idx) => {
+        <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-gray-100">
+          <div className="space-y-0">
+            {slots.map((slot, idx) => {
             if (slot.type === 'continuation') return null;
 
             const durationSlots = slot.booking
@@ -167,7 +168,8 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
         </div>
       </div>
     </div>
