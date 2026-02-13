@@ -171,5 +171,42 @@
     "enterpriseServiceDescription": "Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
     "enterprise": "Enterprise",
     "inEnterpriseDisclaimer": "Our team comes directly to your offices."
+  },
+  "enterpriseDashboard": {
+    "label": "WELLNESS DASHBOARD",
+    "subtitle": "Your wellness space",
+    "sessionSelector": {
+      "title": "SESSION",
+      "noSessions": "No sessions scheduled at this time.",
+      "nextSession": "Next session",
+      "previousSession": "Previous session"
+    },
+    "metrics": {
+      "totalSlots": "Slots",
+      "bookedSlots": "Booked",
+      "fillRate": "Fill rate",
+      "uniqueClients": "Participants"
+    },
+    "timeline": {
+      "title": "Day schedule",
+      "available": "Available",
+      "blocked": "Unavailable",
+      "booked": "Booked"
+    },
+    "popularServices": {
+      "title": "Most popular services",
+      "bookings": "bookings",
+      "noData": "No bookings for this session"
+    },
+    "footer": {
+      "cta": "Ready to plan your next wellness session?",
+      "contact": "Contact us",
+      "poweredBy": "Powered by"
+    },
+    "error": {
+      "notFound": "Location not found",
+      "notFoundDesc": "This link doesn't match any location. Check the URL or contact your OOM representative.",
+      "notDeployed": "No session scheduled on this date."
+    }
   }
 }

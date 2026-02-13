@@ -44,18 +44,24 @@ export function useVenueDefaultLanguage(hotelId: string | undefined) {
     if (!hotelId || !hotel || hasApplied.current) return;
 
     const storageKey = `oom-venue-lang-applied:${hotelId}`;
-    if (sessionStorage.getItem(storageKey)) {
+    const stored = sessionStorage.getItem(storageKey);
+    const defaultLang = getVenueDefaultLanguage(hotel.venue_type, hotel.country);
+
+    // Skip if already correctly applied in this session.
+    // Old 'true' values (from previous code) are treated as stale → re-detect.
+    if (stored === 'fr' || stored === 'en') {
+      if (i18n.language !== stored) {
+        i18n.changeLanguage(stored);
+      }
       hasApplied.current = true;
       return;
     }
-
-    const defaultLang = getVenueDefaultLanguage(hotel.venue_type, hotel.country);
 
     if (i18n.language !== defaultLang) {
       i18n.changeLanguage(defaultLang);
     }
 
-    sessionStorage.setItem(storageKey, 'true');
+    sessionStorage.setItem(storageKey, defaultLang);
     hasApplied.current = true;
   }, [hotelId, hotel, i18n]);
 }

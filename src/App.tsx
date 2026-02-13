@@ -89,6 +89,9 @@ const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
 
+// Enterprise Dashboard
+const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -190,6 +193,9 @@ const App = () => {
             {/* Root - Smart redirect based on user type */}
             <Route path="/" element={<Home />} />
             
+            {/* Enterprise Dashboard (Public - QR Code) */}
+            <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
+
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
             <Route path="/client/:hotelId/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
