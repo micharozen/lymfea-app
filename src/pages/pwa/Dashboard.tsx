@@ -74,18 +74,18 @@ const getHotelCurrency = (booking: Booking): string => {
   return booking.hotels.currency || 'EUR';
 };
 
-const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
+const getPaymentStatusBadge = (paymentStatus: string | null | undefined, paymentMethod: string | null | undefined, t: (key: string) => string) => {
   if (!paymentStatus) return null;
-  
+
   switch (paymentStatus) {
     case 'paid':
-      return { label: 'Payé', className: 'bg-green-100 text-green-700' };
+      return { label: t('dashboard.paymentPaid'), className: 'bg-green-100 text-green-700' };
     case 'charged_to_room':
-      return { label: 'Chambre', className: 'bg-blue-100 text-blue-700' };
+      return { label: t('dashboard.paymentRoom'), className: 'bg-blue-100 text-blue-700' };
     case 'pending':
-      return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
+      return { label: t('dashboard.paymentPending'), className: 'bg-yellow-100 text-yellow-700' };
     case 'failed':
-      return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+      return { label: t('dashboard.paymentFailed'), className: 'bg-red-100 text-red-700' };
     default:
       return null;
   }
@@ -176,7 +176,7 @@ const PwaDashboard = () => {
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
             if (oldData.hairdresser_id === null) {
-              toast.info(`Réservation #${newData.booking_id} prise par un autre coiffeur`);
+              toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
             }
             return;
           }
@@ -255,7 +255,7 @@ const PwaDashboard = () => {
         .single();
 
       if (error || !hairdresserData) {
-        toast.error("Profil introuvable");
+        toast.error(t('dashboard.profileNotFound'));
         await supabase.auth.signOut();
         navigate("/pwa/login");
         return;
@@ -508,7 +508,7 @@ const PwaDashboard = () => {
       const result = data as { success: boolean; error?: string } | null;
       
       if (result && !result.success) {
-        toast.error("Réservation déjà prise par un autre coiffeur");
+        toast.error(t('dashboard.bookingAlreadyTaken'));
         fetchAllBookings(hairdresser.id);
         return;
       }
@@ -522,11 +522,11 @@ const PwaDashboard = () => {
         console.error("Email notification error (non-blocking):", notifError);
       }
 
-      toast.success("Réservation acceptée !");
+      toast.success(t('dashboard.bookingAccepted'));
       fetchAllBookings(hairdresser.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
-      toast.error("Erreur lors de l'acceptation");
+      toast.error(t('dashboard.acceptError'));
     }
   };
 
@@ -550,11 +550,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("Réservation refusée");
+      toast.success(t('dashboard.bookingDeclined'));
       fetchAllBookings(hairdresser.id, true); // Force refresh
     } catch (error) {
       console.error("Error declining booking:", error);
-      toast.error("Erreur");
+      toast.error(t('dashboard.error'));
     }
   };
 
@@ -765,7 +765,7 @@ const PwaDashboard = () => {
                           </Badge>
                         )}
                         {(() => {
-                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
+                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method, t);
                           return paymentBadge ? (
                             <Badge className={`text-[8px] px-1 py-0 h-3 ${paymentBadge.className}`}>
                               {paymentBadge.label}
@@ -867,7 +867,7 @@ const PwaDashboard = () => {
                               <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
                               {booking.proposed_slots && (booking.proposed_slots.slot_2_date || booking.proposed_slots.slot_3_date) && (
                                 <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3 bg-purple-100 text-purple-700 flex-shrink-0">
-                                  {[true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length} créneaux
+                                  {t('dashboard.slots', { count: [true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length })}
                                 </Badge>
                               )}
                             </div>

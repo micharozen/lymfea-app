@@ -107,7 +107,7 @@ interface Hotel {
   hotel_commission: number;
   hairdresser_commission: number;
   status: string;
-  venue_type?: 'hotel' | 'coworking' | null;
+  venue_type?: 'hotel' | 'coworking' | 'enterprise' | null;
   opening_time?: string | null;
   closing_time?: string | null;
   auto_validate_bookings?: boolean | null;

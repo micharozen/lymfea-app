@@ -92,7 +92,7 @@ serve(async (req) => {
     const totalAmount = booking.total_price || 0;
     const roomNumber = booking.room_number || 'N/A';
 
-    const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
 
     // Dynamic subject based on payment method
     const emailSubject = isRoomPayment

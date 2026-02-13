@@ -147,7 +147,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
                   <tr>
                     <td align="center">
-                      <img src="https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png" alt="OOM World" style="height: 40px;">
+                      <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
                     </td>
                   </tr>
                 </table>

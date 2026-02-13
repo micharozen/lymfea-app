@@ -21,7 +21,7 @@ interface BookingConfirmationEmailProps {
   treatments: string[]
   totalPrice: number
   currency: string
-  venueType?: 'hotel' | 'coworking'
+  venueType?: 'hotel' | 'coworking' | 'enterprise'
 }
 
 export const BookingConfirmationEmail = ({

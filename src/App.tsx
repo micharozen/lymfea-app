@@ -67,6 +67,16 @@ const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
+const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
+
+// Admin PWA Layout & Pages
+const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
+const AdminPwaDashboard = lazy(() => import("./pages/admin-pwa/Dashboard"));
+const AdminPwaBookingDetail = lazy(() => import("./pages/admin-pwa/BookingDetail"));
+const AdminPwaCreateBooking = lazy(() => import("./pages/admin-pwa/CreateBooking"));
+const AdminPwaNotifications = lazy(() => import("./pages/admin-pwa/Notifications"));
+const AdminPwaAccueil = lazy(() => import("./pages/admin-pwa/Accueil"));
+const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
 
 // Client Pages
 const Welcome = lazy(() => import("./pages/client/Welcome"));
@@ -78,6 +88,9 @@ const GuestInfo = lazy(() => import("./pages/client/GuestInfo"));
 const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
+
+// Enterprise Dashboard
+const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,9 +109,9 @@ const PageLoader = () => (
   </div>
 );
 
-// Client-specific loader with black background to prevent white flash
+// Client-specific loader
 const ClientPageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-black">
+  <div className="flex items-center justify-center min-h-screen bg-white">
     <img
       src="/images/oom-logo-email-white.png"
       alt="OOM"
@@ -180,25 +193,18 @@ const App = () => {
             {/* Root - Smart redirect based on user type */}
             <Route path="/" element={<Home />} />
             
+            {/* Enterprise Dashboard (Public - QR Code) */}
+            <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
+
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId" element={
-              <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
-                <Suspense fallback={<ClientPageLoader />}>
-                  <ClientFlowWrapper>
-                    <Welcome />
-                  </ClientFlowWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            } />
             <Route path="/client/:hotelId/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
                 <Suspense fallback={<ClientPageLoader />}>
                   <ClientFlowWrapper>
                     <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                       <Routes>
+                        <Route index element={<Welcome />} />
                         <Route path="/treatments" element={<ClientTreatments />} />
-                        {/* Cart page removed from flow - direct navigation to schedule */}
-                        {/* <Route path="/cart" element={<Cart />} /> */}
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/guest-info" element={<GuestInfo />} />
                         <Route path="/payment" element={<Payment />} />
@@ -282,6 +288,7 @@ const App = () => {
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="wallet" element={<PwaWallet />} />
+              <Route path="new-booking" element={<PwaNewBooking />} />
             </Route>
             {/* PWA routes without TabBar (still protected) */}
             <Route
@@ -317,17 +324,40 @@ const App = () => {
               }
             />
             
+            {/* Admin PWA Public Routes */}
+            <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
+
+            {/* Admin PWA Routes with TabBar */}
+            <Route
+              path="/admin-pwa"
+              element={
+                <AdminProtectedRoute>
+                  <AdminPwaLayout />
+                </AdminProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin-pwa/accueil" replace />} />
+              <Route path="accueil" element={<AdminPwaAccueil />} />
+              <Route path="dashboard" element={<AdminPwaDashboard />} />
+              <Route path="booking/:id" element={<AdminPwaBookingDetail />} />
+              <Route path="create" element={<AdminPwaCreateBooking />} />
+              <Route path="notifications" element={<AdminPwaNotifications />} />
+            </Route>
+
             {/* Admin Dashboard Routes */}
             <Route
               path="/admin/*"
               element={
                 <AdminProtectedRoute>
+                  {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
+                    ? <Navigate to="/admin-pwa/accueil" replace />
+                    : (
                   <SidebarProvider>
                     <div className="flex min-h-screen w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col">
                         {/* Mobile header with menu trigger */}
-                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40">
+                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">OOM Admin</span>
                         </header>
@@ -354,6 +384,7 @@ const App = () => {
                       </div>
                     </div>
                   </SidebarProvider>
+                    )}
                 </AdminProtectedRoute>
               }
             />
