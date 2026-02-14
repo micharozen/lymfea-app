@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // OOM Logo URL (hosted publicly)
-const OOM_LOGO_URL = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/OOM_logo-secondary-2.png';
+const OOM_LOGO_URL = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
 
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {

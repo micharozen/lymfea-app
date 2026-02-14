@@ -68,7 +68,8 @@
     "coverImage": "Image de couverture",
     "venueType": "Type de lieu",
     "hotel": "Hôtel",
-    "coworking": "Coworking"
+    "coworking": "Coworking",
+    "enterprise": "Entreprise"
   },
   "hairdressers": {
     "title": "Coiffeurs",
@@ -126,6 +127,19 @@
     "notifications": "Notifications",
     "billing": "Facturation",
     "team": "Équipe"
+  },
+  "blockedSlots": {
+    "title": "Plages horaires bloquées",
+    "addSlot": "Ajouter une plage bloquée",
+    "label": "Nom",
+    "labelPlaceholder": "ex: Pause déjeuner",
+    "startTime": "Début",
+    "endTime": "Fin",
+    "specificDays": "Jours spécifiques",
+    "allDays": "Tous les jours",
+    "fillAllFields": "Veuillez remplir tous les champs",
+    "invalidTimeRange": "L'heure de début doit être avant l'heure de fin",
+    "selectAtLeastOneDay": "Sélectionnez au moins un jour"
   },
   "common": {
     "save": "Enregistrer",

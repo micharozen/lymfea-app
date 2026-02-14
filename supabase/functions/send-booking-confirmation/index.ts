@@ -48,11 +48,11 @@ function generateBookingConfirmationHtml({
   currency: string;
   siteUrl: string;
   isQuotePending: boolean;
-  venueType?: 'hotel' | 'coworking';
+  venueType?: 'hotel' | 'coworking' | 'enterprise';
 }) {
   // Get venue-specific terminology
-  const locationLabel = venueType === 'coworking' ? 'Workspace' : 'Room';
-  const venueLabel = venueType === 'coworking' ? 'Location' : 'Hotel';
+  const locationLabel = venueType === 'coworking' ? 'Workspace' : venueType === 'enterprise' ? 'Room' : 'Room';
+  const venueLabel = venueType === 'coworking' ? 'Location' : venueType === 'enterprise' ? 'Company' : 'Hotel';
   // Build treatments list with proper handling for on-quote items
   const safeCurrency = (currency || 'EUR').toUpperCase();
   const treatmentsList = treatments.map(t => {
@@ -63,7 +63,7 @@ function generateBookingConfirmationHtml({
     return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${name} - ${priceDisplay}</span>`;
   }).join('');
   
-  const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   
   // Status badge styling

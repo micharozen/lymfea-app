@@ -99,9 +99,24 @@ export function PhoneNumberField({
                 </button>
               ))}
               {filteredCountries.length === 0 && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">
-                  Aucun résultat
-                </div>
+                /^\+\d+$/.test(search.trim()) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCountryCode(search.trim());
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                    className="flex w-full items-center px-3 py-1.5 text-sm hover:bg-muted"
+                  >
+                    <span className="w-6 shrink-0 text-xs text-muted-foreground">🌍</span>
+                    <span className="flex-1 text-left">Utiliser {search.trim()}</span>
+                  </button>
+                ) : (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    Aucun résultat — tapez un indicatif (ex: +355)
+                  </div>
+                )
               )}
             </div>
           </ScrollArea>

@@ -140,7 +140,7 @@ serve(async (req) => {
       await supabase.functions.invoke("send-payment-link", {
         body: {
           bookingId: booking.id,
-          language: "fr",
+          language: "en",
           channels: ["whatsapp"],
           clientPhone: booking.phone,
           clientEmail: booking.client_email,
@@ -153,6 +153,21 @@ serve(async (req) => {
     } catch (paymentError) {
       console.error("[VALIDATE-SLOT] Error sending payment link:", paymentError);
       // Don't fail the validation if payment link fails - it can be resent manually
+    }
+
+    // Fetch hotel currency for Slack notification
+    let currency = "EUR";
+    try {
+      const { data: hotel } = await supabase
+        .from("hotels")
+        .select("currency")
+        .eq("id", booking.hotel_id)
+        .single();
+      if (hotel?.currency) {
+        currency = hotel.currency.toUpperCase();
+      }
+    } catch (e) {
+      console.error("[VALIDATE-SLOT] Error fetching hotel currency, defaulting to EUR:", e);
     }
 
     // Send Slack notification
@@ -168,7 +183,7 @@ serve(async (req) => {
           bookingTime: selectedTime,
           hairdresserName,
           totalPrice: booking.total_price,
-          currency: "EUR",
+          currency,
         },
         headers: {
           Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,

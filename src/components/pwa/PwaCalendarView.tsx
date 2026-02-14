@@ -22,13 +22,14 @@ interface Booking {
 interface PwaCalendarViewProps {
   bookings: Booking[];
   onBookingClick: (booking: Booking) => void;
+  onSlotClick?: (date: string, time: string) => void;
 }
 
 const HOUR_HEIGHT = 48;
 const START_HOUR = 7;
 const END_HOUR = 23;
 
-export function PwaCalendarView({ bookings, onBookingClick }: PwaCalendarViewProps) {
+export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCalendarViewProps) {
   const [currentWeekStart, setCurrentWeekStart] = useState(
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Monday start
   );
@@ -233,8 +234,16 @@ export function PwaCalendarView({ bookings, onBookingClick }: PwaCalendarViewPro
                   {hours.map((hour) => (
                     <div
                       key={hour}
-                      className="border-b"
+                      className={`border-b ${onSlotClick ? "cursor-pointer hover:bg-primary/5 active:bg-primary/10 transition-colors" : ""}`}
                       style={{ height: `${HOUR_HEIGHT}px` }}
+                      onClick={() => {
+                        if (onSlotClick) {
+                          onSlotClick(
+                            format(day, "yyyy-MM-dd"),
+                            `${hour.toString().padStart(2, "0")}:00`
+                          );
+                        }
+                      }}
                     />
                   ))}
 

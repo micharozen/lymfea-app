@@ -22,7 +22,7 @@ export function VideoDialog({ open, onOpenChange, videoId, hotelId }: VideoDialo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-sm w-[90vw] p-0 bg-black border-white/10 overflow-hidden rounded-sm [&>button]:text-white/60 [&>button]:hover:text-white"
+        className="max-w-sm w-[90vw] p-0 bg-white border-gray-200 overflow-hidden rounded-sm [&>button]:text-gray-500 [&>button]:hover:text-gray-900"
       >
         <DialogTitle className="sr-only">How it works</DialogTitle>
         {/* Aspect ratio 9:16 pour YouTube Shorts (vertical) */}
@@ -38,7 +38,7 @@ export function VideoDialog({ open, onOpenChange, videoId, hotelId }: VideoDialo
         <div className="p-4">
           <Button
             onClick={handleBookSession}
-            className="w-full bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-xs rounded-none"
+            className="w-full bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-xs rounded-none"
           >
             {t('welcome.bookSession')}
           </Button>

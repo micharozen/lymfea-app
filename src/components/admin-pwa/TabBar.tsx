@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { CalendarDays, Plus, Bell } from "lucide-react";
+import { Home, CalendarDays, Plus, Bell } from "lucide-react";
 
 interface AdminTabBarProps {
   unreadCount?: number;
@@ -20,6 +20,18 @@ const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md bg-black/30 border-t border-white/10 w-full">
       <div className="flex items-center justify-around pt-3 pb-[max(env(safe-area-inset-bottom),16px)]">
+        <button
+          onClick={() => handleNavigation("/admin-pwa/accueil")}
+          className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"
+        >
+          <Home
+            className={`w-6 h-6 transition-colors ${isActive("/admin-pwa/accueil") ? "text-white" : "text-white/50"}`}
+            strokeWidth={isActive("/admin-pwa/accueil") ? 2.5 : 1.5}
+          />
+          <span className={`text-[10px] transition-colors ${isActive("/admin-pwa/accueil") ? "text-white font-semibold" : "text-white/50 font-medium"}`}>
+            Accueil
+          </span>
+        </button>
         <button
           onClick={() => handleNavigation("/admin-pwa/dashboard")}
           className="flex flex-col items-center justify-center gap-1 flex-1 transition-all"

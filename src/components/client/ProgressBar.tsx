@@ -19,7 +19,7 @@ export function ProgressBar({ currentStep, className }: ProgressBarProps) {
   const percentage = getProgressPercentage(currentStep);
 
   return (
-    <div className={cn("w-full bg-white/10 h-0.5", className)}>
+    <div className={cn("w-full bg-gray-200 h-0.5", className)}>
       <div
         className="bg-gold-400 h-full transition-all duration-500"
         style={{ width: `${percentage}%` }}

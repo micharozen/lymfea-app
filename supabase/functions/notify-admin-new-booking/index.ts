@@ -21,7 +21,7 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
     `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
   ).join('');
 
-  const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
 
   return `
 <!DOCTYPE html>
@@ -176,7 +176,7 @@ serve(async (req) => {
         const { error: emailError } = await resend.emails.send({
           from: "OOM <booking@oomworld.com>",
           to: [admin.email],
-          subject: `[TEST ADMIN] 🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
+          subject: `🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
           html: emailHtml,
         });
 

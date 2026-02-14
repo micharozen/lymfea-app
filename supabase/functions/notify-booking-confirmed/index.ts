@@ -2,10 +2,6 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
-// 🧪 TEST MODE - All notifications go to test addresses
-const TEST_MODE = true;
-const TEST_EMAIL = 'aaron@oomworld.com';
-
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const corsHeaders = {
@@ -21,7 +17,6 @@ serve(async (req) => {
   try {
     const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
     
-    console.log('[notify-booking-confirmed] TEST_MODE:', TEST_MODE, '- Emails to:', TEST_EMAIL);
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -64,7 +59,7 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
-    const logoUrl = 'https://xbkvmrqanoqdqvqwldio.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
     
     // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
@@ -211,24 +206,22 @@ serve(async (req) => {
 
     if (admins && admins.length > 0) {
       for (const admin of admins) {
-        const targetEmail = TEST_MODE ? TEST_EMAIL : admin.email;
         try {
           const { error: emailError } = await resend.emails.send({
             from: 'OOM <booking@oomworld.com>',
-            to: [targetEmail],
-            subject: `[TEST ADMIN] ✅ #${booking.booking_id} confirmée · ${booking.hairdresser_name}`,
+            to: [admin.email],
+            subject: `✅ #${booking.booking_id} confirmée · ${booking.hairdresser_name}`,
             html: createEmailHtml('admin'),
           });
 
           if (emailError) {
-            errors.push(`admin:${targetEmail}`);
+            errors.push(`admin:${admin.email}`);
           } else {
-            emailsSent.push(`admin:${targetEmail}`);
+            emailsSent.push(`admin:${admin.email}`);
           }
         } catch (e) {
-          errors.push(`admin:${targetEmail}`);
+          errors.push(`admin:${admin.email}`);
         }
-        if (TEST_MODE) break;
         await delay(600);
       }
     }
@@ -252,24 +245,22 @@ serve(async (req) => {
 
       if (concierges && concierges.length > 0) {
         for (const concierge of concierges) {
-          const targetEmail = TEST_MODE ? TEST_EMAIL : concierge.email;
           try {
             const { error: emailError } = await resend.emails.send({
               from: 'OOM <booking@oomworld.com>',
-              to: [targetEmail],
-              subject: `[TEST CONCIERGE] ✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
+              to: [concierge.email],
+              subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
               html: createEmailHtml('concierge'),
             });
 
             if (emailError) {
-              errors.push(`concierge:${targetEmail}`);
+              errors.push(`concierge:${concierge.email}`);
             } else {
-              emailsSent.push(`concierge:${targetEmail}`);
+              emailsSent.push(`concierge:${concierge.email}`);
             }
           } catch (e) {
-            errors.push(`concierge:${targetEmail}`);
+            errors.push(`concierge:${concierge.email}`);
           }
-          if (TEST_MODE) break;
           await delay(600);
         }
       }
@@ -279,22 +270,21 @@ serve(async (req) => {
 
     // 3. Send to client
     if (booking.client_email) {
-      const clientEmail = TEST_MODE ? TEST_EMAIL : booking.client_email;
       try {
         const { error: emailError } = await resend.emails.send({
           from: 'OOM <booking@oomworld.com>',
-          to: [clientEmail],
-          subject: `[TEST CLIENT] ✅ Votre RDV est confirmé · ${formattedDate}`,
+          to: [booking.client_email],
+          subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
           html: createClientEmailHtml(),
         });
 
         if (emailError) {
-          errors.push(`client:${clientEmail}`);
+          errors.push(`client:${booking.client_email}`);
         } else {
-          emailsSent.push(`client:${clientEmail}`);
+          emailsSent.push(`client:${booking.client_email}`);
         }
       } catch (e) {
-        errors.push(`client:${clientEmail}`);
+        errors.push(`client:${booking.client_email}`);
       }
     }
 
