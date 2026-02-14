@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type')
+      .select('name, venue_type, auto_validate_bookings, currency')
       .eq('id', hotelId)
       .single();
 
@@ -219,11 +219,11 @@ serve(async (req) => {
       );
     }
 
-    // Validate that all treatment IDs exist and check for price_on_request
+    // Validate that all treatment IDs exist and check for price_on_request and duration
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request')
+      .select('id, price_on_request, duration')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -256,6 +256,16 @@ serve(async (req) => {
     const bookingStatus = hasPriceOnRequest ? 'quote_pending' : 'pending';
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest);
 
+    // Calculate total duration from treatments (considering quantities)
+    let totalDuration = 0;
+    for (const treatment of treatments) {
+      const treatmentData = validTreatments?.find(t => t.id === treatment.treatmentId);
+      if (treatmentData?.duration) {
+        totalDuration += treatmentData.duration * treatment.quantity;
+      }
+    }
+    console.log('Total booking duration:', totalDuration, 'minutes');
+
     // Create booking with trunk_id assigned
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -276,6 +286,7 @@ serve(async (req) => {
         payment_method: paymentMethod,
         payment_status: paymentMethod === 'room' ? 'charged_to_room' : 'pending',
         total_price: hasPriceOnRequest ? 0 : totalPrice,
+        duration: totalDuration > 0 ? totalDuration : null,
       })
       .select()
       .single();
@@ -315,6 +326,70 @@ serve(async (req) => {
 
     console.log('Booking treatments created');
 
+    // Auto-validation logic: if hotel has auto_validate_bookings enabled and booking is pending (not quote_pending)
+    let wasAutoValidated = false;
+    let autoAssignedHairdresser: { id: string; first_name: string; last_name: string } | null = null;
+
+    if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
+      console.log('Auto-validation enabled for hotel, checking for single hairdresser...');
+
+      // Get active hairdressers assigned to this hotel
+      const { data: hairdresserHotels, error: hairdresserError } = await supabase
+        .from('hairdresser_hotels')
+        .select(`
+          hairdresser_id,
+          hairdressers:hairdresser_id (
+            id,
+            first_name,
+            last_name,
+            status
+          )
+        `)
+        .eq('hotel_id', hotelId);
+
+      if (!hairdresserError && hairdresserHotels) {
+        // Filter to get only active hairdressers
+        const activeHairdressers = hairdresserHotels
+          .filter((hh: any) => {
+            const h = hh.hairdressers;
+            return h && (h.status?.toLowerCase() === 'active' || h.status?.toLowerCase() === 'actif');
+          })
+          .map((hh: any) => hh.hairdressers);
+
+        console.log('Active hairdressers found:', activeHairdressers.length);
+
+        // If exactly one active hairdresser, auto-assign and confirm
+        if (activeHairdressers.length === 1) {
+          const hairdresser = activeHairdressers[0];
+          const hairdresserName = `${hairdresser.first_name} ${hairdresser.last_name}`;
+
+          console.log('Auto-assigning hairdresser:', hairdresserName);
+
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+              status: 'confirmed',
+              hairdresser_id: hairdresser.id,
+              hairdresser_name: hairdresserName,
+              assigned_at: new Date().toISOString(),
+            })
+            .eq('id', booking.id);
+
+          if (!updateError) {
+            wasAutoValidated = true;
+            autoAssignedHairdresser = hairdresser;
+            console.log('Booking auto-validated and assigned to:', hairdresserName);
+          } else {
+            console.error('Failed to auto-validate booking:', updateError);
+          }
+        } else {
+          console.log('Auto-validation skipped: found', activeHairdressers.length, 'active hairdressers (need exactly 1)');
+        }
+      } else {
+        console.error('Error fetching hairdressers for auto-validation:', hairdresserError);
+      }
+    }
+
     // Get treatment names, prices and price_on_request status for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
@@ -350,7 +425,7 @@ serve(async (req) => {
               bookingTime: bookingData.time,
               treatments: treatmentsForEmail,
               totalPrice: hasPriceOnRequest ? totalPrice : totalPrice,
-              currency: 'EUR',
+              currency: hotel.currency || 'EUR',
               isQuotePending: hasPriceOnRequest,
             }),
           }
@@ -383,8 +458,24 @@ serve(async (req) => {
       } catch (quoteNotifError) {
         console.error('Error sending quote pending notification:', quoteNotifError);
       }
+    } else if (wasAutoValidated) {
+      // Auto-validated booking: send confirmation notifications (not new booking notifications)
+      try {
+        console.log('Sending booking confirmed notifications for auto-validated booking:', booking.id);
+        const confirmResponse = await supabase.functions.invoke('notify-booking-confirmed', {
+          body: { bookingId: booking.id }
+        });
+
+        if (confirmResponse.error) {
+          console.error('Failed to send booking confirmed notifications:', confirmResponse.error);
+        } else {
+          console.log('Booking confirmed notifications sent:', confirmResponse.data);
+        }
+      } catch (confirmError) {
+        console.error('Error sending booking confirmed notifications:', confirmError);
+      }
     } else {
-      // Trigger push notifications for hairdressers (only for regular pending bookings)
+      // Regular pending booking: trigger push notifications for hairdressers
       try {
         console.log('Triggering push notifications for booking:', booking.id);
         const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {

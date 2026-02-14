@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { formatPrice } from '@/lib/formatPrice';
+import { useQuery } from '@tanstack/react-query';
 
 export default function Checkout() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -32,6 +33,30 @@ export default function Checkout() {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
 
+  // Fetch venue data to determine max days ahead and venue type
+  const { data: venueData } = useQuery({
+    queryKey: ['venue-data', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
+
+      if (error) throw error;
+      const hotel = data?.[0];
+
+      // Determine max days based on schedule
+      const isRecurring = hotel?.schedule_type === 'specific_days';
+      const daysPerWeek = hotel?.days_of_week?.length ?? 7;
+      const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
+
+      return { maxDaysAhead, venueType: hotel?.venue_type };
+    },
+    enabled: !!hotelId,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  const maxDaysAhead = venueData?.maxDaysAhead ?? 14;
+  const isCoworking = venueData?.venueType === 'coworking';
+
   const countryCodes = [
     { code: '+33', country: 'France' },
     { code: '+1', country: 'USA/Canada' },
@@ -41,18 +66,18 @@ export default function Checkout() {
     { code: '+39', country: 'Italy' },
   ];
 
-  // Generate date options (next 14 days)
+  // Generate date options based on venue schedule
   const dateOptions = useMemo(() => {
     const dates = [];
     const today = new Date();
-    
-    for (let i = 0; i < 14; i++) {
+
+    for (let i = 0; i < maxDaysAhead; i++) {
       const date = addDays(today, i);
       let label = format(date, 'd MMM');
-      
+
       if (i === 0) label = 'Today';
       else if (i === 1) label = 'Tomorrow';
-      
+
       dates.push({
         value: format(date, 'yyyy-MM-dd'),
         label,
@@ -60,9 +85,9 @@ export default function Checkout() {
         fullLabel: format(date, 'd MMM'),
       });
     }
-    
+
     return dates;
-  }, []);
+  }, [maxDaysAhead]);
 
   // Generate time slots (6AM to 11PM every 30 minutes)
   const timeSlots = useMemo(() => {
@@ -116,8 +141,11 @@ export default function Checkout() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.firstName || !formData.lastName || !formData.phone || 
-        !formData.email || !formData.roomNumber || !formData.date || !formData.time) {
+    const requiredFields = !formData.firstName || !formData.lastName || !formData.phone ||
+        !formData.email || !formData.date || !formData.time;
+    const roomNumberRequired = !isCoworking && !formData.roomNumber;
+
+    if (requiredFields || roomNumberRequired) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -231,16 +259,19 @@ export default function Checkout() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="roomNumber">Room Number</Label>
-            <Input
-              id="roomNumber"
-              value={formData.roomNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
-              placeholder="102"
-              required
-            />
-          </div>
+          {/* Room number - hidden for coworking */}
+          {!isCoworking && (
+            <div className="space-y-2">
+              <Label htmlFor="roomNumber">Room Number</Label>
+              <Input
+                id="roomNumber"
+                value={formData.roomNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, roomNumber: e.target.value }))}
+                placeholder="102"
+                required
+              />
+            </div>
+          )}
         </div>
 
         {/* Booking Date & Time */}

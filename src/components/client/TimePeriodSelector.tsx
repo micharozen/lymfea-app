@@ -93,7 +93,7 @@ export default function TimePeriodSelector({
         const hasSlots = slotsInPeriod.length > 0;
 
         return (
-          <div key={period.id} className="border-b border-white/10 last:border-b-0">
+          <div key={period.id} className="border-b border-gray-200 last:border-b-0">
             <button
               type="button"
               onClick={() => hasSlots && togglePeriod(period.id)}
@@ -104,19 +104,19 @@ export default function TimePeriodSelector({
               )}
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gold-400">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-full bg-gray-50 flex items-center justify-center text-gold-400">
                   {period.icon}
                 </div>
-                <span className="text-white font-light">{t(period.labelKey)}</span>
+                <span className="text-gray-900 font-light">{t(period.labelKey)}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-white/40 text-xs">
+                <span className="text-gray-400 text-xs">
                   {slotsInPeriod.length} {t('datetime.available')}
                 </span>
                 {hasSlots && (
                   <ChevronDown
                     className={cn(
-                      "w-4 h-4 text-white/40 transition-transform duration-200",
+                      "w-4 h-4 text-gray-400 transition-transform duration-200",
                       isExpanded && "rotate-180"
                     )}
                   />
@@ -125,17 +125,17 @@ export default function TimePeriodSelector({
             </button>
 
             {isExpanded && hasSlots && (
-              <div className="grid grid-cols-3 gap-2 pb-4 animate-fade-in">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pb-4 animate-fade-in">
                 {slotsInPeriod.map((slot) => (
                   <button
                     key={slot.value}
                     type="button"
                     onClick={() => onSelectTime(slot.value)}
                     className={cn(
-                      "py-3 rounded-lg text-sm transition-all duration-200",
+                      "py-3 min-h-[44px] rounded-lg text-sm transition-all duration-200",
                       selectedTime === slot.value
                         ? "bg-gold-400 text-black font-medium"
-                        : "bg-white/5 text-white font-light hover:bg-white/10"
+                        : "bg-gray-50 text-gray-900 font-light hover:bg-gray-100"
                     )}
                   >
                     {slot.label}

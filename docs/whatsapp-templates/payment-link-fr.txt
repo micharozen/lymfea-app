@@ -1,0 +1,19 @@
+💫 OOM World - Lien de paiement
+
+Bonjour {{1}} !
+
+Votre réservation bien-être est confirmée ✨
+
+Un professionnel viendra directement dans votre chambre {{2}} à {{3}}. Vous n'avez rien à faire, juste profiter !
+
+📅 {{4}} à {{5}}
+🎯 Réservation #{{6}}
+
+💆 {{7}}
+💰 Total: {{8}}€
+
+👉 Payez ici: {{9}}
+
+Ce lien expire dans 24h.
+
+L'équipe OOM World

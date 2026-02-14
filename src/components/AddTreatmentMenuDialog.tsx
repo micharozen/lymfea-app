@@ -8,6 +8,7 @@ import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ const createFormSchema = (t: TFunction) => z.object({
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
   price_on_request: z.boolean().default(false),
+  is_bestseller: z.boolean().default(false),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -89,6 +91,7 @@ export function AddTreatmentMenuDialog({
       status: "active",
       sort_order: "0",
       price_on_request: false,
+      is_bestseller: false,
     },
   });
 
@@ -112,6 +115,8 @@ export function AddTreatmentMenuDialog({
   const currency = selectedHotel?.currency || 'EUR';
   const currencySymbol = getCurrencySymbol(currency);
 
+  const { categories, isLoading: categoriesLoading } = useTreatmentCategories(selectedHotelId);
+
   const onSubmit = async (values: FormValues) => {
     const selectedHotelForSubmit = hotels?.find(h => h.id === values.hotel_id);
     const currencyForSubmit = selectedHotelForSubmit?.currency || 'EUR';
@@ -130,6 +135,7 @@ export function AddTreatmentMenuDialog({
       status: values.status,
       sort_order: parseInt(values.sort_order),
       price_on_request: values.price_on_request,
+      is_bestseller: values.is_bestseller,
     });
 
     if (error) {
@@ -192,7 +198,14 @@ export function AddTreatmentMenuDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Hôtel *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // Clear category when hotel changes
+                      form.setValue("category", "");
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Sélectionner un hôtel" />
@@ -239,10 +252,23 @@ export function AddTreatmentMenuDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Nails">Nails</SelectItem>
-                        <SelectItem value="Coloration">Coloration</SelectItem>
-                        <SelectItem value="Hair cut">Hair cut</SelectItem>
-                        <SelectItem value="Blowout">Blowout</SelectItem>
+                        {categoriesLoading ? (
+                          <div className="flex items-center justify-center py-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : categories.length === 0 ? (
+                          <div className="px-2 py-2 text-sm text-muted-foreground">
+                            {selectedHotelId
+                              ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
+                              : "Sélectionnez d'abord un lieu"}
+                          </div>
+                        ) : (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -347,6 +373,27 @@ export function AddTreatmentMenuDialog({
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="is_bestseller"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="h-4 w-4"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-sm cursor-pointer font-normal m-0">
+                      Bestseller (mis en avant sur la page de réservation)
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

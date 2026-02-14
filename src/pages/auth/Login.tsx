@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Loader2 } from "lucide-react";
 import oomLogo from "@/assets/oom-logo.svg";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
+import { DevLoginPanel } from "@/components/DevLoginPanel";
 
 const Auth = () => {
   const [loginMethod, setLoginMethod] = useState<"email" | "phone">("email");
@@ -393,6 +394,9 @@ const Auth = () => {
             Email
           </button>
         </div>
+
+        {/* Dev Quick Login - only renders in local dev */}
+        <DevLoginPanel />
 
         {/* Content based on step */}
         {step === "email" && (

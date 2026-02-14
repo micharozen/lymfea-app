@@ -4,16 +4,20 @@ import { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, ChevronDown } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Loader2, ChevronDown, ShoppingBag } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
+import { useBasket } from './context/CartContext';
+import { CartDrawer } from '@/components/client/CartDrawer';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
+import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import {
   Form,
   FormControl,
@@ -28,8 +32,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ProgressBar } from '@/components/client/ProgressBar';
 
-const createClientInfoSchema = (t: TFunction) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
   email: z.string()
@@ -39,7 +44,7 @@ const createClientInfoSchema = (t: TFunction) => z.object({
     .min(1, t('info.errors.phoneRequired'))
     .min(6, t('info.errors.phoneInvalid')),
   countryCode: z.string(),
-  roomNumber: z.string().min(1, t('info.errors.roomRequired')),
+  roomNumber: isCoworking ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')),
   note: z.string().optional(),
 });
 
@@ -58,40 +63,51 @@ const countries = [
   { code: "+377", label: "Monaco", flag: "MC" },
 ];
 
-// Dark themed input styles
-const darkInputStyles = "h-12 bg-white/5 border-white/20 text-white placeholder:text-white/30 rounded-lg focus:border-gold-400 focus:ring-gold-400/20";
-const darkLabelStyles = "text-white/60 text-xs uppercase tracking-wider font-medium";
+const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-400 focus:ring-gold-400/20";
+const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium";
 
 export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { canProceedToStep, setClientInfo } = useClientFlow();
+  const { itemCount } = useBasket();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
-  const [venueType, setVenueType] = useState<VenueType | null>(null);
+
+  // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
+  const { data: hotel } = useQuery({
+    queryKey: ['public-hotel', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .rpc('get_public_hotel_by_id', { _hotel_id: hotelId });
+      if (error) throw error;
+      return data?.[0] || null;
+    },
+    enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const venueType = hotel?.venue_type as VenueType | null;
 
   // Get venue-specific terminology
   const { locationNumberLabel } = useVenueTerms(venueType);
+  const { trackPageView } = useClientAnalytics(hotelId);
+  const hasTrackedPageView = useRef(false);
 
-  // Fetch venue type
+  // Track page view once
   useEffect(() => {
-    const fetchVenueType = async () => {
-      if (!hotelId) return;
-      const { data } = await supabase
-        .from('hotels')
-        .select('venue_type')
-        .eq('id', hotelId)
-        .single();
-      if (data?.venue_type) {
-        setVenueType(data.venue_type as VenueType);
-      }
-    };
-    fetchVenueType();
-  }, [hotelId]);
+    if (!hasTrackedPageView.current) {
+      hasTrackedPageView.current = true;
+      trackPageView('guest_info');
+    }
+  }, [trackPageView]);
 
-  const schema = useMemo(() => createClientInfoSchema(t), [t]);
+  const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -130,37 +146,46 @@ export default function GuestInfo() {
   );
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-black pb-safe">
+    <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black/95 backdrop-blur-sm border-b border-white/10 pt-safe">
-        <div className="flex items-center gap-4 p-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/client/${hotelId}/schedule`)}
-            className="text-white hover:bg-white/10"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-light text-white">{t('info.title')}</h1>
+      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/client/${hotelId}/schedule`)}
+              className="text-gray-900 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-lg font-light text-gray-900">{t('info.title')}</h1>
+          </div>
+          {itemCount > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCartOpen(true)}
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                {itemCount}
+              </span>
+            </Button>
+          )}
         </div>
-        {/* Progress bar */}
-        <div className="w-full bg-white/10 h-0.5">
-          <div
-            className="bg-gold-400 h-full transition-all duration-500"
-            style={{ width: '66.66%' }}
-          />
-        </div>
+        <ProgressBar currentStep="guest-info" />
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="px-6 py-6 space-y-8 pb-32">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
           {/* Page headline */}
           <div className="animate-fade-in">
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
               {t('info.stepLabel')}
             </h3>
-            <h2 className="font-serif text-2xl text-white leading-tight">
+            <h2 className="font-serif text-xl sm:text-2xl text-gray-900 leading-tight">
               {t('info.headline')}
             </h2>
           </div>
@@ -168,18 +193,18 @@ export default function GuestInfo() {
           {/* Form fields */}
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
                 control={form.control}
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className={darkLabelStyles}>{t('info.firstName')}</FormLabel>
+                    <FormLabel className={labelStyles}>{t('info.firstName')}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="John"
-                        className={darkInputStyles}
+                        className={inputStyles}
                       />
                     </FormControl>
                     <FormMessage className="text-red-400 text-xs" />
@@ -191,12 +216,12 @@ export default function GuestInfo() {
                 name="lastName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className={darkLabelStyles}>{t('info.lastName')}</FormLabel>
+                    <FormLabel className={labelStyles}>{t('info.lastName')}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
                         placeholder="Doe"
-                        className={darkInputStyles}
+                        className={inputStyles}
                       />
                     </FormControl>
                     <FormMessage className="text-red-400 text-xs" />
@@ -211,13 +236,13 @@ export default function GuestInfo() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={darkLabelStyles}>{t('info.email')}</FormLabel>
+                  <FormLabel className={labelStyles}>{t('info.email')}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       type="email"
                       placeholder="john.doe@example.com"
-                      className={darkInputStyles}
+                      className={inputStyles}
                     />
                   </FormControl>
                   <FormMessage className="text-red-400 text-xs" />
@@ -231,35 +256,35 @@ export default function GuestInfo() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={darkLabelStyles}>{t('info.phone')}</FormLabel>
+                  <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
                   <FormControl>
-                    <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-white/20 bg-white/5 focus-within:border-gold-400 focus-within:ring-1 focus-within:ring-gold-400/20">
+                    <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-400 focus-within:ring-1 focus-within:ring-gold-400/20">
                       <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="h-full rounded-none border-r border-white/20 px-3 font-normal text-sm text-white hover:bg-white/10 hover:text-white"
+                            className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900"
                             aria-expanded={countryPopoverOpen}
                           >
                             <span className="tabular-nums">{form.watch('countryCode')}</span>
-                            <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-white/50" />
+                            <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-gray-400" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent
                           align="start"
-                          className="w-56 p-0 border border-white/20 shadow-lg z-50 bg-black"
+                          className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-gray-200 shadow-lg z-50 bg-white"
                         >
-                          <div className="p-2 border-b border-white/10">
+                          <div className="p-2 border-b border-gray-200">
                             <Input
                               placeholder="Search..."
                               value={countrySearch}
                               onChange={(e) => setCountrySearch(e.target.value)}
-                              className="h-8 text-sm bg-white/5 border-white/20 text-white placeholder:text-white/30"
+                              className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
                             />
                           </div>
-                          <ScrollArea className="h-40">
+                          <ScrollArea className="h-48 sm:h-40">
                             {filteredCountries.map((country) => (
                               <button
                                 key={country.code}
@@ -270,21 +295,21 @@ export default function GuestInfo() {
                                   setCountrySearch("");
                                 }}
                                 className={cn(
-                                  "flex w-full items-center px-3 py-2 text-sm text-white hover:bg-white/10",
+                                  "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
                                   form.watch('countryCode') === country.code && "bg-gold-400/10 text-gold-400"
                                 )}
                               >
-                                <span className="w-8 shrink-0 text-xs text-white/50 uppercase">
+                                <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
                                   {country.flag}
                                 </span>
                                 <span className="flex-1 text-left">{country.label}</span>
-                                <span className="ml-2 shrink-0 tabular-nums text-white/50">
+                                <span className="ml-2 shrink-0 tabular-nums text-gray-400">
                                   {country.code}
                                 </span>
                               </button>
                             ))}
                             {filteredCountries.length === 0 && (
-                              <div className="px-3 py-2 text-sm text-white/40">
+                              <div className="px-3 py-2 text-sm text-gray-400">
                                 No results
                               </div>
                             )}
@@ -296,7 +321,7 @@ export default function GuestInfo() {
                         value={field.value}
                         onChange={(e) => field.onChange(e.target.value)}
                         placeholder="612345678"
-                        className="h-full flex-1 border-0 bg-transparent text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
+                        className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
                       />
                     </div>
                   </FormControl>
@@ -305,24 +330,26 @@ export default function GuestInfo() {
               )}
             />
 
-            {/* Room/Workspace number */}
-            <FormField
-              control={form.control}
-              name="roomNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={darkLabelStyles}>{locationNumberLabel}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder="102"
-                      className={darkInputStyles}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-400 text-xs" />
-                </FormItem>
-              )}
-            />
+            {/* Room number - hidden for coworking */}
+            {!isCoworking && (
+              <FormField
+                control={form.control}
+                name="roomNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="102"
+                        className={inputStyles}
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-400 text-xs" />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Note */}
             <FormField
@@ -330,12 +357,12 @@ export default function GuestInfo() {
               name="note"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className={darkLabelStyles}>{t('info.note')}</FormLabel>
+                  <FormLabel className={labelStyles}>{t('info.note')}</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       placeholder={t('info.notePlaceholder')}
-                      className="bg-white/5 border-white/20 text-white placeholder:text-white/30 rounded-lg focus:border-gold-400 focus:ring-gold-400/20 resize-none"
+                      className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-400 focus:ring-gold-400/20 resize-none"
                       rows={3}
                     />
                   </FormControl>
@@ -346,11 +373,11 @@ export default function GuestInfo() {
           </div>
 
           {/* Fixed Bottom Button */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black to-transparent pb-safe">
+          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe">
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-16 bg-white text-black hover:bg-gold-50 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-white/20 disabled:text-white/40"
+              className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
               {isSubmitting ? (
                 <>
@@ -364,6 +391,9 @@ export default function GuestInfo() {
           </div>
         </form>
       </Form>
+
+      {/* Cart Drawer */}
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
     </div>
   );
 }

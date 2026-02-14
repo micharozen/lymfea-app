@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CreateBookingDialog from "@/components/CreateBookingDialog";
+import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
@@ -20,6 +21,7 @@ import {
   BookingCalendarView,
   BookingListView,
   InvoicePreviewDialog,
+  SendPaymentLinkDialog,
 } from "@/components/booking";
 
 export default function Booking() {
@@ -27,7 +29,8 @@ export default function Booking() {
   const { activeTimezone } = useTimezone();
 
   // Data
-  const { bookings, hotels, hairdressers, getHotelInfo } = useBookingData();
+  const { bookings, hotels, hairdressers, getHotelInfo, refetch } = useBookingData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
   const [view, setView] = useState<"calendar" | "list">("calendar");
@@ -43,6 +46,10 @@ export default function Booking() {
   const [invoiceHTML, setInvoiceHTML] = useState("");
   const [invoiceBookingId, setInvoiceBookingId] = useState<number | null>(null);
   const [invoiceIsRoomPayment, setInvoiceIsRoomPayment] = useState(false);
+
+  // Payment link state
+  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [paymentLinkBooking, setPaymentLinkBooking] = useState<BookingWithTreatments | null>(null);
 
   // Filters
   const {
@@ -143,17 +150,42 @@ export default function Booking() {
     setCurrentPage(1);
   };
 
+  const handleSendPaymentLink = () => {
+    if (viewedBooking) {
+      setPaymentLinkBooking(viewedBooking);
+      setIsPaymentLinkDialogOpen(true);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
+
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
             📅 Bookings
           </h1>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            Create a booking
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh bookings"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white">
+              <Plus className="h-4 w-4" />
+              {isConcierge ? "Créer une demande" : "Créer une réservation"}
+            </Button>
+          </div>
         </div>
 
         <BookingFilters
@@ -193,6 +225,7 @@ export default function Booking() {
               hours={calendar.hours}
               hourHeight={calendar.hourHeight}
               startHour={calendar.startHour}
+              getHotelInfo={getHotelInfo}
             />
           ) : (
             <BookingListView
@@ -229,6 +262,7 @@ export default function Booking() {
         booking={viewedBooking}
         hotel={viewedBooking ? getHotelInfo(viewedBooking.hotel_id) : null}
         onEdit={handleEditFromDetail}
+        onSendPaymentLink={handleSendPaymentLink}
       />
 
       <EditBookingDialog
@@ -244,6 +278,28 @@ export default function Booking() {
         bookingId={invoiceBookingId}
         isRoomPayment={invoiceIsRoomPayment}
       />
+
+      {paymentLinkBooking && (
+        <SendPaymentLinkDialog
+          open={isPaymentLinkDialogOpen}
+          onOpenChange={setIsPaymentLinkDialogOpen}
+          booking={{
+            id: paymentLinkBooking.id,
+            booking_id: paymentLinkBooking.booking_id,
+            client_first_name: paymentLinkBooking.client_first_name,
+            client_last_name: paymentLinkBooking.client_last_name,
+            client_email: paymentLinkBooking.client_email,
+            phone: paymentLinkBooking.phone,
+            room_number: paymentLinkBooking.room_number,
+            booking_date: paymentLinkBooking.booking_date,
+            booking_time: paymentLinkBooking.booking_time,
+            total_price: paymentLinkBooking.total_price,
+            hotel_name: paymentLinkBooking.hotel_name,
+            treatments: paymentLinkBooking.treatments,
+            currency: getHotelInfo(paymentLinkBooking.hotel_id)?.currency || 'EUR',
+          }}
+        />
+      )}
     </div>
   );
 }

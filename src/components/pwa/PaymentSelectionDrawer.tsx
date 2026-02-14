@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 
 // Success Animation Component
-const PaymentSuccessView = ({ onComplete }: { onComplete: () => void }) => {
+const PaymentSuccessView = ({ onComplete, t }: { onComplete: () => void; t: (key: string) => string }) => {
   useEffect(() => {
     // Auto-complete after animation
     const timer = setTimeout(onComplete, 2500);
@@ -41,28 +41,30 @@ const PaymentSuccessView = ({ onComplete }: { onComplete: () => void }) => {
         </div>
       </div>
       <h3 className="text-xl font-bold text-green-600 mt-6 animate-in slide-in-from-bottom duration-500 delay-300">
-        Paiement reçu !
+        {t('payment.received')}
       </h3>
       <p className="text-sm text-muted-foreground mt-2 animate-in slide-in-from-bottom duration-500 delay-500">
-        La prestation est finalisée
+        {t('payment.serviceFinalized')}
       </p>
     </div>
   );
 };
 
 // QR Code component for payment URL - LOCKED STATE with polling
-const PaymentQRCodeView = ({ 
-  paymentUrl, 
-  onOpenPaymentLink, 
+const PaymentQRCodeView = ({
+  paymentUrl,
+  onOpenPaymentLink,
   onCancelPayment,
   cancelling,
-  isPolling
-}: { 
-  paymentUrl: string; 
-  onOpenPaymentLink: () => void; 
+  isPolling,
+  t
+}: {
+  paymentUrl: string;
+  onOpenPaymentLink: () => void;
   onCancelPayment: () => void;
   cancelling: boolean;
   isPolling: boolean;
+  t: (key: string) => string;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrGenerated, setQrGenerated] = useState(false);
@@ -95,7 +97,7 @@ const PaymentQRCodeView = ({
       <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
         <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
         <p className="font-medium text-green-800 dark:text-green-200">
-          Lien de paiement actif
+          {t('payment.linkActive')}
         </p>
         <div className="flex items-center justify-center gap-2 mt-2">
           {isPolling && (
@@ -105,7 +107,7 @@ const PaymentQRCodeView = ({
             </span>
           )}
           <p className="text-xs text-green-600 dark:text-green-400">
-            En attente du paiement client...
+            {t('payment.waitingForPayment')}
           </p>
         </div>
       </div>
@@ -116,7 +118,7 @@ const PaymentQRCodeView = ({
           <canvas ref={canvasRef} className="rounded-lg" />
         </div>
         <p className="text-sm text-muted-foreground mt-4 text-center font-medium">
-          Le client scanne ce QR code pour payer
+          {t('payment.scanQrCode')}
         </p>
       </div>
 
@@ -128,13 +130,13 @@ const PaymentQRCodeView = ({
         size="lg"
       >
         <ExternalLink className="w-4 h-4 mr-2" />
-        Ouvrir le lien manuellement
+        {t('payment.openLinkManually')}
       </Button>
 
       {/* Tip Box */}
       <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
-        <p className="font-medium mb-1">💡 Astuce</p>
-        <p>Une fois le paiement effectué, la prestation sera automatiquement finalisée.</p>
+        <p className="font-medium mb-1">💡 {t('payment.tip')}</p>
+        <p>{t('payment.tipMessage')}</p>
       </div>
 
       {/* CANCEL BUTTON - Only way out */}
@@ -149,7 +151,7 @@ const PaymentQRCodeView = ({
           ) : (
             <X className="w-4 h-4" />
           )}
-          Annuler ce lien de paiement
+          {t('payment.cancelPaymentLink')}
         </button>
       </div>
     </div>
@@ -170,7 +172,8 @@ interface PaymentSelectionDrawerProps {
   totalPrice: number;
   treatments: Treatment[];
   vatRate: number;
-  venueType?: 'hotel' | 'coworking' | null;
+  venueType?: 'hotel' | 'coworking' | 'enterprise' | null;
+  currency?: string;
   onSignatureRequired: () => void;
   onPaymentComplete: () => void;
 }
@@ -186,6 +189,7 @@ export const PaymentSelectionDrawer = ({
   treatments,
   vatRate,
   venueType,
+  currency = 'EUR',
   onSignatureRequired,
   onPaymentComplete,
 }: PaymentSelectionDrawerProps) => {
@@ -249,7 +253,7 @@ export const PaymentSelectionDrawer = ({
           }
           setIsPolling(false);
           setStep('success');
-          toast.success("Paiement reçu !");
+          toast.success(t('payment.received'));
         }
       }, 3000);
 
@@ -303,7 +307,7 @@ export const PaymentSelectionDrawer = ({
       }
     } catch (error: any) {
       console.error("Card payment error:", error);
-      toast.error(error.message || "Erreur lors de la création du paiement");
+      toast.error(error.message || t('payment.errorCreating'));
       setStep('selection');
     } finally {
       setProcessing(false);
@@ -343,15 +347,15 @@ export const PaymentSelectionDrawer = ({
 
       if (error) throw error;
 
-      toast.success("Lien de paiement annulé");
-      
+      toast.success(t('payment.linkCancelled'));
+
       // Reset state
       setPaymentUrl(null);
       setStep('selection');
       setShowCancelDialog(false);
     } catch (error: any) {
       console.error("Cancel payment error:", error);
-      toast.error("Erreur lors de l'annulation");
+      toast.error(t('payment.errorCancelling'));
     } finally {
       setCancelling(false);
     }
@@ -379,18 +383,18 @@ export const PaymentSelectionDrawer = ({
           <DrawerHeader className="border-b border-border pb-4">
             <div className="flex items-center gap-3">
             <DrawerTitle className="text-lg font-semibold flex-1">
-                {step === 'selection' && "Finaliser la prestation"}
-                {step === 'card-processing' && "Préparation du paiement..."}
-                {step === 'card-ready' && "Paiement par carte"}
-                {step === 'room-processing' && "Traitement en cours..."}
-                {step === 'success' && "Paiement confirmé"}
+                {step === 'selection' && t('payment.finalizeService')}
+                {step === 'card-processing' && t('payment.preparingPayment')}
+                {step === 'card-ready' && t('payment.cardPayment')}
+                {step === 'room-processing' && t('payment.processing')}
+                {step === 'success' && t('payment.confirmed')}
               </DrawerTitle>
               
               {/* Lock indicator when pending */}
               {isPaymentPending && step !== 'card-processing' && (
                 <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
-                  <span>En cours</span>
+                  <span>{t('payment.inProgress')}</span>
                 </div>
               )}
             </div>
@@ -400,8 +404,8 @@ export const PaymentSelectionDrawer = ({
             {/* Order Summary - Always visible but compact when pending */}
             <div className={`bg-muted/50 rounded-xl p-4 mb-6 ${isPaymentPending ? 'opacity-75' : ''}`}>
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">Récapitulatif</h4>
-                <span className="text-lg font-bold">{formatPrice(totalPrice)}</span>
+                <h4 className="text-sm font-semibold text-foreground">{t('payment.summary')}</h4>
+                <span className="text-lg font-bold">{formatPrice(totalPrice, currency)}</span>
               </div>
               
               {/* Only show details when not pending */}
@@ -410,17 +414,17 @@ export const PaymentSelectionDrawer = ({
                   {treatments.map((treatment, index) => (
                     <div key={index} className="flex justify-between text-sm">
                       <span className="text-muted-foreground">{treatment.name}</span>
-                      <span className="font-medium">{formatPrice(treatment.price)}</span>
+                      <span className="font-medium">{formatPrice(treatment.price, currency)}</span>
                     </div>
                   ))}
                   <div className="border-t border-border pt-2 mt-2">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Total HT</span>
-                      <span>{formatPrice(totalHT)}</span>
+                      <span>{t('payment.totalHT')}</span>
+                      <span>{formatPrice(totalHT, currency)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>TVA ({vatRate}%)</span>
-                      <span>{formatPrice(tvaAmount)}</span>
+                      <span>{t('payment.vat')} ({vatRate}%)</span>
+                      <span>{formatPrice(tvaAmount, currency)}</span>
                     </div>
                   </div>
                 </div>
@@ -431,7 +435,7 @@ export const PaymentSelectionDrawer = ({
             {step === 'selection' && (
               <div className="space-y-4">
                 <p className="text-sm text-muted-foreground text-center mb-4">
-                  Comment le client souhaite-t-il payer ?
+                  {t('payment.howToPay')}
                 </p>
                 
                 {/* Card Payment Button */}
@@ -444,8 +448,8 @@ export const PaymentSelectionDrawer = ({
                     <CreditCard className="w-7 h-7" />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-bold text-lg">💳 Payer par Carte</p>
-                    <p className="text-sm text-white/80">Paiement immédiat par carte bancaire</p>
+                    <p className="font-bold text-lg">💳 {t('payment.payByCard')}</p>
+                    <p className="text-sm text-white/80">{t('payment.cardDescription')}</p>
                   </div>
                 </button>
 
@@ -460,8 +464,8 @@ export const PaymentSelectionDrawer = ({
                       <Hotel className="w-7 h-7" />
                     </div>
                     <div className="text-left flex-1">
-                      <p className="font-bold text-lg">🏨 Ajouter à la Chambre</p>
-                      <p className="text-sm text-white/80">Le client signe, l'hôtel débite</p>
+                      <p className="font-bold text-lg">🏨 {t('payment.addToRoom')}</p>
+                      <p className="text-sm text-white/80">{t('payment.roomDescription')}</p>
                     </div>
                   </button>
                 )}
@@ -472,25 +476,26 @@ export const PaymentSelectionDrawer = ({
             {step === 'card-processing' && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">Création du lien de paiement...</p>
-                <p className="text-xs text-muted-foreground mt-2">Veuillez patienter</p>
+                <p className="text-muted-foreground font-medium">{t('payment.creatingLink')}</p>
+                <p className="text-xs text-muted-foreground mt-2">{t('payment.pleaseWait')}</p>
               </div>
             )}
 
             {/* Card Ready Step with QR Code - LOCKED until cancel */}
             {step === 'card-ready' && paymentUrl && (
-              <PaymentQRCodeView 
+              <PaymentQRCodeView
                 paymentUrl={paymentUrl}
                 onOpenPaymentLink={handleOpenPaymentLink}
                 onCancelPayment={handleCancelPaymentRequest}
                 cancelling={cancelling}
                 isPolling={isPolling}
+                t={t}
               />
             )}
 
             {/* Success Step - Auto-closes */}
             {step === 'success' && (
-              <PaymentSuccessView onComplete={handleSuccessComplete} />
+              <PaymentSuccessView onComplete={handleSuccessComplete} t={t} />
             )}
           </div>
         </DrawerContent>
@@ -502,15 +507,15 @@ export const PaymentSelectionDrawer = ({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
-              Annuler ce paiement ?
+              {t('payment.cancelTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Le lien de paiement actuel sera invalidé. Vous pourrez ensuite choisir une autre méthode de paiement.
+              {t('payment.cancelDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelling}>
-              Garder le lien
+              {t('payment.keepLink')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmCancel}
@@ -520,10 +525,10 @@ export const PaymentSelectionDrawer = ({
               {cancelling ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Annulation...
+                  {t('payment.cancelling')}
                 </>
               ) : (
-                "Oui, annuler"
+                t('payment.yesCancel')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

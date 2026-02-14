@@ -85,6 +85,7 @@ export default {
       fontFamily: {
         'kormelink': ['Kormelink', 'serif'],
         'serif': ['Kormelink', 'serif'],
+        'grotesk': ['Founders Grotesk', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -108,10 +109,15 @@ export default {
             height: "0",
           },
         },
+        "page-fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "page-fade-in": "page-fade-in 200ms ease-out",
       },
     },
   },

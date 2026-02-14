@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AddHotelDialog } from "@/components/AddHotelDialog";
-import { EditHotelDialog } from "@/components/EditHotelDialog";
+import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -62,6 +61,14 @@ interface HotelStats {
   totalSales: number;
 }
 
+interface DeploymentSchedule {
+  schedule_type: 'always_open' | 'specific_days' | 'one_time';
+  days_of_week: number[] | null;
+  recurring_start_date: string | null;
+  recurring_end_date: string | null;
+  specific_dates: string[] | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -76,12 +83,15 @@ interface Hotel {
   hotel_commission: number;
   hairdresser_commission: number;
   status: string;
-  venue_type: 'hotel' | 'coworking' | null;
+  venue_type: 'hotel' | 'coworking' | 'enterprise' | null;
+  opening_time: string | null;
+  closing_time: string | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
   trunks?: Trunk[];
   stats?: HotelStats;
+  deployment_schedule?: DeploymentSchedule;
 }
 
 export default function Hotels() {
@@ -192,6 +202,25 @@ export default function Hotels() {
 
       if (bookingsError) throw bookingsError;
 
+      // Fetch deployment schedules
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("venue_deployment_schedules")
+        .select("*");
+
+      if (schedulesError) throw schedulesError;
+
+      // Create a map of hotel_id to deployment schedule
+      const hotelSchedules: Record<string, DeploymentSchedule> = {};
+      (schedulesData || []).forEach((schedule) => {
+        hotelSchedules[schedule.hotel_id] = {
+          schedule_type: schedule.schedule_type,
+          days_of_week: schedule.days_of_week,
+          recurring_start_date: schedule.recurring_start_date,
+          recurring_end_date: schedule.recurring_end_date,
+          specific_dates: schedule.specific_dates,
+        };
+      });
+
       // Calculate stats per hotel
       const hotelStats: Record<string, HotelStats> = {};
       (bookingsData || []).forEach((booking) => {
@@ -228,6 +257,7 @@ export default function Hotels() {
           concierges: hotelConcierges,
           trunks: hotelTrunks,
           stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
+          deployment_schedule: hotelSchedules[hotel.id],
         };
       });
 
@@ -448,10 +478,11 @@ export default function Hotels() {
                               className={cn(
                                 "text-[10px] px-2 py-0.5 whitespace-nowrap",
                                 hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
-                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
+                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200",
+                                hotel.venue_type === "enterprise" && "bg-emerald-500/10 text-emerald-700 border-emerald-200"
                               )}
                             >
-                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : "-"}
+                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "-"}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
@@ -488,7 +519,25 @@ export default function Hotels() {
                             <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                            <div className="flex items-center gap-1">
+                              <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                              {hotel.venue_type === "enterprise" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title="Copier lien dashboard entreprise"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Lien dashboard copié !");
+                                  }}
+                                >
+                                  <LayoutDashboard className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           {isAdmin && (
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
@@ -540,10 +589,11 @@ export default function Hotels() {
         </div>
       </div>
 
-      <AddHotelDialog
+      <VenueWizardDialog
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
+        mode="add"
       />
 
       <HotelDetailDialog
@@ -559,10 +609,11 @@ export default function Hotels() {
       />
 
       {editHotelId && (
-        <EditHotelDialog
+        <VenueWizardDialog
           open={!!editHotelId}
           onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchHotels}
+          mode="edit"
           hotelId={editHotelId}
         />
       )}

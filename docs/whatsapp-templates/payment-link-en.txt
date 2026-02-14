@@ -1,0 +1,19 @@
+💫 OOM World - Payment Link
+
+Hello {{1}}!
+
+Your wellness booking is confirmed ✨
+
+A professional will come directly to your room {{2}} at {{3}}. You don't have to do anything, just relax and enjoy!
+
+📅 {{4}} at {{5}}
+🎯 Booking #{{6}}
+
+💆 {{7}}
+💰 Total: {{8}}€
+
+👉 Pay here: {{9}}
+
+This link expires in 24h.
+
+The OOM World Team

@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Plus, Scissors } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, Scissors, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -172,6 +172,35 @@ export default function TreatmentMenus() {
     refetch();
   };
 
+  const handleDuplicate = async (menuId: string) => {
+    const menu = menus?.find((m) => m.id === menuId);
+    if (!menu) return;
+
+    const { error } = await supabase.from("treatment_menus").insert({
+      name: `${menu.name} (Copie)`,
+      description: menu.description,
+      duration: menu.duration,
+      price: menu.price,
+      lead_time: menu.lead_time,
+      service_for: menu.service_for,
+      category: menu.category,
+      hotel_id: menu.hotel_id,
+      currency: menu.currency,
+      image: menu.image,
+      status: menu.status,
+      sort_order: menu.sort_order,
+      price_on_request: menu.price_on_request,
+    });
+
+    if (error) {
+      toast.error("Erreur lors de la duplication du soin");
+      return;
+    }
+
+    toast.success("Soin dupliqué avec succès");
+    refetch();
+  };
+
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return "-";
     return `${minutes}min`;
@@ -307,6 +336,7 @@ export default function TreatmentMenus() {
                       isAdmin={isAdmin}
                       onView={() => openView(menu.id)}
                       onEdit={() => openEdit(menu.id)}
+                      onDuplicate={() => handleDuplicate(menu.id)}
                       onDelete={() => openDelete(menu.id)}
                     />
                   ))
@@ -438,6 +468,17 @@ export default function TreatmentMenus() {
                                     className="h-6 w-6"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      handleDuplicate(menu.id);
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       openDelete(menu.id);
                                     }}
                                   >
@@ -505,12 +546,18 @@ export default function TreatmentMenus() {
         onOpenChange={(open) => !open && closeView()}
         treatment={viewedMenu}
         hotel={viewedMenu ? getHotelInfo(viewedMenu.hotel_id) : null}
-        onEdit={() => {
+        onEdit={isAdmin ? () => {
           if (viewMenuId) {
             closeView();
             openEdit(viewMenuId);
           }
-        }}
+        } : undefined}
+        onDuplicate={isAdmin ? () => {
+          if (viewMenuId) {
+            closeView();
+            handleDuplicate(viewMenuId);
+          }
+        } : undefined}
       />
     </div>
   );

@@ -57,13 +57,12 @@ const adminSubMenuItems = [
   { title: "Produits OOM", url: "/admin/products", emoji: "💈" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
+  { title: "Analytics", url: "/admin/analytics", emoji: "📊" },
 ];
 
 const conciergeSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
-  { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Transactions & Solde", url: "/admin/transactions", emoji: "💰" },
 ];
 

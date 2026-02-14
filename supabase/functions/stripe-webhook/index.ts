@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import {
+  sendWhatsAppTemplate,
+  buildPaymentConfirmedTemplateMessage,
+  formatDateForWhatsApp,
+} from '../_shared/whatsapp-meta.ts';
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -42,7 +47,123 @@ serve(async (req) => {
         console.log(`[STRIPE-WEBHOOK] Processing paid checkout session: ${session.id}`);
         
         const metadata = session.metadata;
-        
+
+        // Handle payment link completions - update existing booking
+        if (metadata?.source === 'payment_link' && metadata?.booking_id) {
+          console.log(`[STRIPE-WEBHOOK] Payment link completed for booking: ${metadata.booking_id}`);
+
+          // Fetch full booking details for WhatsApp confirmation
+          const { data: booking, error: fetchError } = await supabase
+            .from('bookings')
+            .select(`
+              id,
+              booking_id,
+              client_first_name,
+              phone,
+              room_number,
+              booking_date,
+              booking_time,
+              total_price,
+              hotel_id,
+              hotel_name,
+              payment_link_language,
+              payment_link_channels
+            `)
+            .eq('id', metadata.booking_id)
+            .single();
+
+          if (fetchError || !booking) {
+            console.error('[STRIPE-WEBHOOK] Failed to fetch booking:', fetchError);
+            throw new Error(`Booking not found: ${metadata.booking_id}`);
+          }
+
+          // Update payment status
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+              payment_status: 'paid',
+              stripe_invoice_url: session.id
+            })
+            .eq('id', metadata.booking_id);
+
+          if (updateError) {
+            console.error('[STRIPE-WEBHOOK] Failed to update booking payment status:', updateError);
+            throw updateError;
+          }
+
+          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as paid via payment link`);
+
+          // Send WhatsApp payment confirmation if payment link was sent via WhatsApp
+          const wasWhatsAppUsed = booking.payment_link_channels?.includes('whatsapp');
+          const clientPhone = booking.phone;
+
+          if (wasWhatsAppUsed && clientPhone) {
+            try {
+              // Fetch hotel currency
+              let currency = 'EUR';
+              if (booking.hotel_id) {
+                const { data: hotel } = await supabase
+                  .from('hotels')
+                  .select('currency')
+                  .eq('id', booking.hotel_id)
+                  .single();
+                if (hotel?.currency) {
+                  currency = hotel.currency.toUpperCase();
+                }
+              }
+
+              // Fetch treatments for this booking
+              const { data: bookingTreatments } = await supabase
+                .from('booking_treatments')
+                .select(`
+                  treatment_menus (name)
+                `)
+                .eq('booking_id', booking.id);
+
+              const treatmentsList = bookingTreatments
+                ?.map(bt => bt.treatment_menus?.name)
+                .filter(Boolean)
+                .join(', ') || 'Service bien-être';
+
+              // Determine language (default to 'fr' if not set)
+              const language = (booking.payment_link_language as 'fr' | 'en') || 'fr';
+
+              // Format date
+              const formattedDate = formatDateForWhatsApp(booking.booking_date);
+
+              // Format amount with currency symbol
+              const currencySymbol = currency === 'EUR' ? '€' : currency;
+              const amountPaid = `${booking.total_price}${currencySymbol}`;
+
+              // Build and send WhatsApp template
+              const template = buildPaymentConfirmedTemplateMessage(
+                language,
+                booking.client_first_name,
+                amountPaid,
+                formattedDate,
+                booking.booking_time,
+                booking.hotel_name || 'Hotel',
+                booking.room_number || '-',
+                booking.booking_id,
+                treatmentsList
+              );
+
+              const whatsappResult = await sendWhatsAppTemplate(clientPhone, template);
+
+              if (whatsappResult.success) {
+                console.log(`[STRIPE-WEBHOOK] WhatsApp payment confirmation sent: ${whatsappResult.messageId}`);
+              } else {
+                console.error(`[STRIPE-WEBHOOK] WhatsApp payment confirmation failed: ${whatsappResult.error}`);
+              }
+            } catch (whatsappError) {
+              console.error('[STRIPE-WEBHOOK] WhatsApp payment confirmation error:', whatsappError);
+              // Don't throw - payment is already processed, WhatsApp is best-effort
+            }
+          }
+
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
         if (!metadata?.hotel_id) {
           console.error("[STRIPE-WEBHOOK] Missing hotel_id in metadata");
           return new Response(JSON.stringify({ received: true }), { status: 200 });
@@ -355,6 +476,207 @@ serve(async (req) => {
             });
         }
       }
+    }
+
+    // Handle checkout.session.async_payment_failed - Payment failed
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      console.log(`[STRIPE-WEBHOOK] Payment failed for session: ${session.id}`);
+
+      // 1. Find booking via metadata.booking_id or stripe_invoice_url
+      let bookingId = session.metadata?.booking_id;
+
+      if (!bookingId) {
+        // Fallback: search via stripe_invoice_url
+        const { data: booking } = await supabase
+          .from('bookings')
+          .select('id, booking_id, client_first_name, client_last_name, hotel_name, booking_date, booking_time')
+          .eq('stripe_invoice_url', session.id)
+          .maybeSingle();
+
+        if (booking) {
+          bookingId = booking.id;
+        }
+      }
+
+      if (!bookingId) {
+        console.error('[STRIPE-WEBHOOK] Cannot find booking for failed payment');
+        return new Response(JSON.stringify({ received: true }), { status: 200 });
+      }
+
+      // 2. Retrieve payment intent error details
+      let errorDetails = null;
+      if (session.payment_intent) {
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(
+            session.payment_intent as string
+          );
+          errorDetails = paymentIntent.last_payment_error;
+        } catch (err) {
+          console.error('[STRIPE-WEBHOOK] Failed to retrieve payment intent:', err);
+        }
+      }
+
+      // 3. Update booking with failed status and error details
+      const { data: booking, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          payment_status: 'failed',
+          payment_error_code: errorDetails?.code || 'unknown',
+          payment_error_message: errorDetails?.message || 'Payment failed',
+          payment_error_details: JSON.stringify({
+            decline_code: errorDetails?.decline_code,
+            network_decline_code: errorDetails?.network_decline_code,
+            last4: errorDetails?.payment_method?.card?.last4,
+            brand: errorDetails?.payment_method?.card?.brand,
+            timestamp: new Date().toISOString(),
+          }),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId)
+        .select('id, booking_id, client_first_name, client_last_name, hotel_name, total_price, booking_date, booking_time')
+        .single();
+
+      if (updateError) {
+        console.error('[STRIPE-WEBHOOK] Failed to update booking:', updateError);
+        throw updateError;
+      }
+
+      console.log(`[STRIPE-WEBHOOK] Booking ${booking.booking_id} marked as payment failed`);
+
+      // 4. Notify admin via Slack
+      try {
+        await supabase.functions.invoke('send-slack-notification', {
+          body: {
+            type: 'payment_failed',
+            bookingId: booking.id,
+            bookingNumber: booking.booking_id.toString(),
+            clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+            hotelName: booking.hotel_name,
+            bookingDate: booking.booking_date,
+            bookingTime: booking.booking_time,
+            totalPrice: booking.total_price,
+            paymentErrorCode: errorDetails?.code || 'unknown',
+            paymentErrorMessage: errorDetails?.message || 'Payment failed',
+            paymentDeclineCode: errorDetails?.decline_code,
+            cardBrand: errorDetails?.payment_method?.card?.brand,
+            cardLast4: errorDetails?.payment_method?.card?.last4,
+          }
+        });
+        console.log('[STRIPE-WEBHOOK] Slack notification sent for payment failure');
+      } catch (notifyError) {
+        console.error('[STRIPE-WEBHOOK] Failed to send Slack notification:', notifyError);
+        // Don't throw - payment status is already updated
+      }
+
+      return new Response(JSON.stringify({ received: true }), { status: 200 });
+    }
+
+    // Handle payment_intent.payment_failed - Backup handler
+    if (event.type === "payment_intent.payment_failed") {
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+
+      console.log(`[STRIPE-WEBHOOK] Payment intent failed: ${paymentIntent.id}`);
+
+      // Find booking via metadata
+      let bookingId = paymentIntent.metadata?.booking_id;
+
+      // Fallback: lookup via Checkout Session (Payment Link metadata propagates to session)
+      if (!bookingId) {
+        console.log('[STRIPE-WEBHOOK] No booking_id in payment intent metadata, looking up checkout session...');
+        try {
+          const sessions = await stripe.checkout.sessions.list({
+            payment_intent: paymentIntent.id,
+            limit: 1,
+          });
+          if (sessions.data.length > 0) {
+            bookingId = sessions.data[0].metadata?.booking_id;
+            console.log(`[STRIPE-WEBHOOK] Found booking_id from checkout session: ${bookingId}`);
+          }
+        } catch (lookupError) {
+          console.error('[STRIPE-WEBHOOK] Failed to lookup checkout session:', lookupError);
+        }
+      }
+
+      if (!bookingId) {
+        console.log('[STRIPE-WEBHOOK] No booking_id found in payment intent or checkout session metadata, skipping');
+        return new Response(JSON.stringify({ received: true }), { status: 200 });
+      }
+
+      // Check if booking is already marked as failed (avoid duplicates)
+      const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('payment_status, id, booking_id, client_first_name, client_last_name, hotel_name, total_price, booking_date, booking_time')
+        .eq('id', bookingId)
+        .single();
+
+      if (existingBooking?.payment_status === 'failed') {
+        console.log('[STRIPE-WEBHOOK] Booking already marked as failed');
+        return new Response(JSON.stringify({ received: true }), { status: 200 });
+      }
+
+      if (!existingBooking) {
+        console.error('[STRIPE-WEBHOOK] Booking not found');
+        return new Response(JSON.stringify({ received: true }), { status: 200 });
+      }
+
+      // Update booking with failed status
+      const errorDetails = paymentIntent.last_payment_error;
+
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          payment_status: 'failed',
+          payment_error_code: errorDetails?.code || 'unknown',
+          payment_error_message: errorDetails?.message || 'Payment failed',
+          payment_error_details: JSON.stringify({
+            decline_code: errorDetails?.decline_code,
+            network_decline_code: errorDetails?.network_decline_code,
+            last4: errorDetails?.payment_method?.card?.last4,
+            brand: errorDetails?.payment_method?.card?.brand,
+            timestamp: new Date().toISOString(),
+          }),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId);
+
+      if (updateError) {
+        console.error('[STRIPE-WEBHOOK] Failed to update booking:', updateError);
+        throw updateError;
+      }
+
+      console.log(`[STRIPE-WEBHOOK] Booking ${existingBooking.booking_id} marked as payment failed (payment_intent))`);
+
+      // Notify admin via Slack
+      try {
+        const { data: slackData, error: slackError } = await supabase.functions.invoke('send-slack-notification', {
+          body: {
+            type: 'payment_failed',
+            bookingId: existingBooking.id,
+            bookingNumber: existingBooking.booking_id.toString(),
+            clientName: `${existingBooking.client_first_name} ${existingBooking.client_last_name}`,
+            hotelName: existingBooking.hotel_name,
+            bookingDate: existingBooking.booking_date,
+            bookingTime: existingBooking.booking_time,
+            totalPrice: existingBooking.total_price,
+            paymentErrorCode: errorDetails?.code || 'unknown',
+            paymentErrorMessage: errorDetails?.message || 'Payment failed',
+            paymentDeclineCode: errorDetails?.decline_code,
+            cardBrand: errorDetails?.payment_method?.card?.brand,
+            cardLast4: errorDetails?.payment_method?.card?.last4,
+          }
+        });
+        if (slackError) {
+          console.error('[STRIPE-WEBHOOK] Slack invoke error:', slackError);
+        } else {
+          console.log('[STRIPE-WEBHOOK] Slack notification sent for payment failure', slackData);
+        }
+      } catch (notifyError) {
+        console.error('[STRIPE-WEBHOOK] Failed to send Slack notification:', notifyError);
+      }
+
+      return new Response(JSON.stringify({ received: true }), { status: 200 });
     }
 
     return new Response(

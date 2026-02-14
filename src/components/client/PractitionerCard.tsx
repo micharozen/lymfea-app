@@ -15,8 +15,8 @@ export function PractitionerCard({ firstName, profileImage, skills }: Practition
     : t('welcome.expertHairdresser');
 
   return (
-    <div className="flex-shrink-0 w-28 group cursor-default">
-      <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-gradient-to-b from-zinc-800 to-zinc-900 ring-1 ring-white/10 relative">
+    <div className="flex-shrink-0 w-24 sm:w-28 md:w-32 group cursor-default">
+      <div className="aspect-[3/4] rounded-sm overflow-hidden mb-2 bg-gradient-to-b from-zinc-800 to-zinc-900 ring-1 ring-gray-200 relative">
         {profileImage ? (
           <img
             src={profileImage}
@@ -24,7 +24,7 @@ export function PractitionerCard({ firstName, profileImage, skills }: Practition
             className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center p-6">
+          <div className="w-full h-full flex items-center justify-center p-4 sm:p-6">
             <img src={oomLogo} className="w-full opacity-20" alt="" />
           </div>
         )}

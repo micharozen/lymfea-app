@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Copy } from "lucide-react";
 
 interface Treatment {
   id: string;
@@ -30,6 +30,7 @@ interface TreatmentCardProps {
   isAdmin: boolean;
   onView: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }
 
@@ -39,6 +40,7 @@ export function TreatmentCard({
   isAdmin,
   onView,
   onEdit,
+  onDuplicate,
   onDelete,
 }: TreatmentCardProps) {
   const formatDuration = (minutes: number | null | undefined) => {
@@ -132,6 +134,18 @@ export function TreatmentCard({
           >
             <Pencil className="h-4 w-4 mr-1.5" />
             Modifier
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 px-3"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+          >
+            <Copy className="h-4 w-4 mr-1.5" />
+            Dupliquer
           </Button>
           <Button
             variant="ghost"

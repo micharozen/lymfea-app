@@ -18,13 +18,13 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId } = await req.json();
-    
+    const { bookingId, notifyAll } = await req.json();
+
     if (!bookingId) {
       throw new Error("Booking ID is required");
     }
 
-    console.log("Processing notifications for booking:", bookingId);
+    console.log("Processing notifications for booking:", bookingId, "notifyAll:", notifyAll);
 
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
@@ -35,6 +35,17 @@ serve(async (req) => {
 
     if (bookingError || !booking) {
       throw new Error("Booking not found");
+    }
+
+    // Check if this booking has proposed slots (concierge multi-slot flow)
+    let proposedSlots: any = null;
+    if (notifyAll) {
+      const { data: slots } = await supabaseClient
+        .from("booking_proposed_slots")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .single();
+      proposedSlots = slots;
     }
 
     // Get all hairdressers for this hotel
@@ -69,14 +80,15 @@ serve(async (req) => {
     let eligibleHairdressers = hairdressers.filter(hh => {
       const h = hh.hairdressers as any;
       const statusLower = (h?.status || "").toLowerCase();
-      return h && 
-             h.user_id && 
+      return h &&
+             h.user_id &&
              (statusLower === "active" || statusLower === "actif") &&
              !(booking.declined_by || []).includes(h.id);
     });
 
-    // Si un hairdresser est assigné, ne notifier que lui
-    if (booking.hairdresser_id) {
+    // notifyAll = true (concierge flow): notify ALL hairdressers at this hotel
+    // notifyAll = false/undefined (admin flow): notify only assigned hairdresser
+    if (!notifyAll && booking.hairdresser_id) {
       eligibleHairdressers = eligibleHairdressers.filter(hh => {
         const h = hh.hairdressers as any;
         return h && h.id === booking.hairdresser_id;
@@ -84,6 +96,22 @@ serve(async (req) => {
       console.log(`Notifying assigned hairdresser only`);
     } else {
       console.log(`Notifying all ${eligibleHairdressers.length} eligible hairdressers`);
+    }
+
+    // Build notification body with proposed slots if available
+    const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR');
+    let notificationBody: string;
+
+    if (proposedSlots) {
+      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name}\nCréneau 1: ${formatDate(proposedSlots.slot_1_date)} à ${proposedSlots.slot_1_time}`;
+      if (proposedSlots.slot_2_date) {
+        notificationBody += `\nCréneau 2: ${formatDate(proposedSlots.slot_2_date)} à ${proposedSlots.slot_2_time}`;
+      }
+      if (proposedSlots.slot_3_date) {
+        notificationBody += `\nCréneau 3: ${formatDate(proposedSlots.slot_3_date)} à ${proposedSlots.slot_3_time}`;
+      }
+    } else {
+      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formatDate(booking.booking_date)} à ${booking.booking_time}`;
     }
 
     // Send push notifications to each hairdresser (with DB deduplication)
@@ -117,7 +145,6 @@ serve(async (req) => {
         });
 
       if (logError) {
-        // If insert fails due to unique constraint, another instance already processed this
         if (logError.code === "23505") {
           console.log(`[DEDUP] Race condition caught for user ${h.first_name}`);
           skippedDuplicates++;
@@ -132,12 +159,15 @@ serve(async (req) => {
             {
               body: {
                 userId: h.user_id,
-                title: "🎉 Nouvelle réservation !",
-                body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${new Date(booking.booking_date).toLocaleDateString('fr-FR')} à ${booking.booking_time}`,
+                title: proposedSlots ? "📋 Nouveau booking - Choisissez un créneau" : "🎉 Nouvelle réservation !",
+                body: notificationBody,
                 data: {
                   bookingId: booking.id,
                   url: `/pwa/booking/${booking.id}`,
                 },
+              },
+              headers: {
+                Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
               },
             }
           );
@@ -154,6 +184,53 @@ serve(async (req) => {
     }
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
+
+    // Send Slack notification for new booking
+    try {
+      // Get treatments for Slack message
+      const { data: bookingTreatments } = await supabaseClient
+        .from('booking_treatments')
+        .select('treatment_id, treatment_menus(name)')
+        .eq('booking_id', bookingId);
+
+      const treatments = bookingTreatments?.map(bt => {
+        const menu = bt.treatment_menus as any;
+        return menu?.name || '';
+      }).filter(Boolean) || [];
+
+      // Get assigned hairdresser name if any
+      let hairdresserName = null;
+      if (booking.hairdresser_id && eligibleHairdressers.length > 0) {
+        const assigned = eligibleHairdressers.find(hh => (hh.hairdressers as any)?.id === booking.hairdresser_id);
+        if (assigned) {
+          const h = assigned.hairdressers as any;
+          hairdresserName = `${h.first_name} ${h.last_name}`;
+        }
+      }
+
+      await supabaseClient.functions.invoke('send-slack-notification', {
+        body: {
+          type: 'new_booking',
+          bookingId: booking.id,
+          bookingNumber: booking.booking_id?.toString() || '',
+          clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+          hotelName: booking.hotel_name || '',
+          bookingDate: booking.booking_date,
+          bookingTime: booking.booking_time,
+          hairdresserName: hairdresserName || booking.hairdresser_name,
+          totalPrice: booking.total_price,
+          currency: '€',
+          treatments: treatments,
+        },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+      });
+      console.log('✅ Slack notification sent');
+    } catch (slackError) {
+      console.error('Error sending Slack notification:', slackError);
+      // Don't fail the whole request if Slack fails
+    }
 
     return new Response(
       JSON.stringify({

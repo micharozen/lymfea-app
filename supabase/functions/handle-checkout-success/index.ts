@@ -153,6 +153,9 @@ serve(async (req) => {
           totalPrice: parseFloat(metadata?.total_price || '0'),
           currency: 'EUR',
         },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
       });
       console.log("[CHECKOUT-SUCCESS] Confirmation email sent");
     } catch (emailError) {
@@ -162,7 +165,10 @@ serve(async (req) => {
     // Envoyer l'email aux admins
     try {
       await supabase.functions.invoke('notify-admin-new-booking', {
-        body: { bookingId: booking.id }
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
       });
       console.log("[CHECKOUT-SUCCESS] Admin notification sent");
     } catch (adminError) {
@@ -172,7 +178,10 @@ serve(async (req) => {
     // Déclencher les notifications push aux coiffeurs
     try {
       await supabase.functions.invoke('trigger-new-booking-notifications', {
-        body: { bookingId: booking.id }
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
       });
       console.log("[CHECKOUT-SUCCESS] Push notifications sent");
     } catch (pushError) {
