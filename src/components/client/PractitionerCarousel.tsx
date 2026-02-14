@@ -37,12 +37,12 @@ export function PractitionerCarousel({ hotelId }: PractitionerCarouselProps) {
 
   return (
     <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.05s' }}>
-      <div className="flex items-center justify-between px-6 mb-4">
-        <h4 className="text-xs uppercase tracking-widest text-white/80 font-medium">
+      <div className="flex items-center justify-between px-4 sm:px-6 mb-4">
+        <h4 className="text-xs uppercase tracking-widest text-gray-600 font-medium">
           {t('welcome.ourExperts')}
         </h4>
       </div>
-      <div className="flex gap-3 overflow-x-auto px-6 no-scrollbar pb-2">
+      <div className="flex gap-2 sm:gap-3 overflow-x-auto px-4 sm:px-6 no-scrollbar pb-2">
         {practitioners.map((practitioner) => (
           <PractitionerCard
             key={practitioner.id}

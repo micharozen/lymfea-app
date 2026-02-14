@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,15 +26,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { AddHotelDialog } from "@/components/AddHotelDialog";
-import { EditHotelDialog } from "@/components/EditHotelDialog";
+import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { HotelDetailDialog } from "@/components/admin/details/HotelDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { HotelCard } from "@/components/table/cards/HotelCard";
 
 interface Concierge {
   id: string;
@@ -55,6 +61,14 @@ interface HotelStats {
   totalSales: number;
 }
 
+interface DeploymentSchedule {
+  schedule_type: 'always_open' | 'specific_days' | 'one_time';
+  days_of_week: number[] | null;
+  recurring_start_date: string | null;
+  recurring_end_date: string | null;
+  specific_dates: string[] | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -69,11 +83,15 @@ interface Hotel {
   hotel_commission: number;
   hairdresser_commission: number;
   status: string;
+  venue_type: 'hotel' | 'coworking' | 'enterprise' | null;
+  opening_time: string | null;
+  closing_time: string | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
   trunks?: Trunk[];
   stats?: HotelStats;
+  deployment_schedule?: DeploymentSchedule;
 }
 
 export default function Hotels() {
@@ -86,11 +104,36 @@ export default function Hotels() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, editId: editHotelId, openEdit, closeEdit, deleteId: deleteHotelId, openDelete, closeDelete } = useDialogState<string>();
+  const {
+    isAddOpen, openAdd, closeAdd,
+    viewId: viewHotelId, openView, closeView,
+    editId: editHotelId, openEdit, closeEdit,
+    deleteId: deleteHotelId, openDelete, closeDelete
+  } = useDialogState<string>();
+  const { sortConfig, toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const isMobile = useIsMobile();
+
+  // Apply sorting to filtered hotels
+  const sortedHotels = useMemo(() => {
+    return sortItems(filteredHotels, (hotel, column) => {
+      switch (column) {
+        case "name": return hotel.name;
+        case "city": return hotel.city;
+        case "status": return hotel.status;
+        case "sales": return hotel.stats?.totalSales || 0;
+        case "bookings": return hotel.stats?.bookingsCount || 0;
+        default: return null;
+      }
+    });
+  }, [filteredHotels, sortItems]);
+
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedHotels, needsPagination } = usePagination({
-    items: filteredHotels,
+    items: sortedHotels,
     itemsPerPage,
   });
+
+  // Find the hotel being viewed
+  const viewedHotel = viewHotelId ? hotels.find(h => h.id === viewHotelId) || null : null;
 
   // Control overflow when pagination is needed
   useOverflowControl(!loading && needsPagination);
@@ -159,6 +202,25 @@ export default function Hotels() {
 
       if (bookingsError) throw bookingsError;
 
+      // Fetch deployment schedules
+      const { data: schedulesData, error: schedulesError } = await supabase
+        .from("venue_deployment_schedules")
+        .select("*");
+
+      if (schedulesError) throw schedulesError;
+
+      // Create a map of hotel_id to deployment schedule
+      const hotelSchedules: Record<string, DeploymentSchedule> = {};
+      (schedulesData || []).forEach((schedule) => {
+        hotelSchedules[schedule.hotel_id] = {
+          schedule_type: schedule.schedule_type,
+          days_of_week: schedule.days_of_week,
+          recurring_start_date: schedule.recurring_start_date,
+          recurring_end_date: schedule.recurring_end_date,
+          specific_dates: schedule.specific_dates,
+        };
+      });
+
       // Calculate stats per hotel
       const hotelStats: Record<string, HotelStats> = {};
       (bookingsData || []).forEach((booking) => {
@@ -195,12 +257,13 @@ export default function Hotels() {
           concierges: hotelConcierges,
           trunks: hotelTrunks,
           stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
+          deployment_schedule: hotelSchedules[hotel.id],
         };
       });
 
       setHotels(hotelsWithData);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des hôtels");
+      toast.error("Erreur lors du chargement des lieux");
       console.error(error);
     } finally {
       setLoading(false);
@@ -238,34 +301,28 @@ export default function Hotels() {
 
       if (error) throw error;
 
-      toast.success("Hôtel supprimé avec succès");
+      toast.success("Lieu supprimé avec succès");
       closeDelete();
       fetchHotels();
     } catch (error: any) {
-      toast.error("Erreur lors de la suppression de l'hôtel");
+      toast.error("Erreur lors de la suppression du lieu");
       console.error(error);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    );
-  }
+  const columnCount = isAdmin ? 10 : 9;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            🏨 Hôtels
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
+            📍 Lieux
           </h1>
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative flex-1 max-w-sm">
@@ -294,113 +351,229 @@ export default function Hotels() {
               onClick={openAdd}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un hôtel
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter un lieu</span>
             </Button>
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <Table className="text-xs w-full table-fixed">
-              <TableHeader>
-                <TableRow className="bg-muted/20 h-8">
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Localisation</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Ventes</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Rés.</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
-                  {isAdmin && (
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedHotels.length === 0 ? (
-                  <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={9} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                      Aucun hôtel trouvé
-                    </TableCell>
-                  </TableRow>
+            {/* Mobile: Card View */}
+            {isMobile ? (
+              <div className="p-4 space-y-3 overflow-y-auto h-full">
+                {loading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: itemsPerPage }).map((_, i) => (
+                      <div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-lg bg-muted" />
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                            <div className="h-3 bg-muted rounded w-1/2" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : paginatedHotels.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Aucun lieu trouve</p>
+                    {(searchQuery || statusFilter !== "all") && (
+                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
+                    )}
+                    {isAdmin && (
+                      <Button onClick={openAdd} className="mt-4">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter un lieu
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   paginatedHotels.map((hotel) => (
-                    <TableRow key={hotel.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          {hotel.image ? (
-                            <img
-                              src={hotel.image}
-                              alt={hotel.name}
-                              className="w-6 h-6 rounded object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
-                              {hotel.name.substring(0, 2).toUpperCase()}
-                            </div>
-                          )}
-                          <span className="truncate font-medium text-foreground">{hotel.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">
-                          {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
-                        </span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <ConciergesCell concierges={hotel.concierges || []} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <TrunksCell trunks={hotel.trunks || []} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <Badge
-                          variant={hotel.status === "active" ? "default" : "secondary"}
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 whitespace-nowrap",
-                            hotel.status === "active" && "bg-green-500/10 text-green-700",
-                            hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
-                          )}
-                        >
-                          {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
-                      </TableCell>
-                      {isAdmin && (
-                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => openEdit(hotel.id)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6"
-                              onClick={() => openDelete(hotel.id)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
+                    <HotelCard
+                      key={hotel.id}
+                      hotel={hotel}
+                      isAdmin={isAdmin}
+                      onView={() => openView(hotel.id)}
+                      onEdit={() => openEdit(hotel.id)}
+                      onDelete={() => openDelete(hotel.id)}
+                    />
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </div>
+            ) : (
+              /* Desktop: Table View */
+              <div className="overflow-x-auto h-full">
+                <Table className="text-xs w-full table-fixed min-w-[800px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/20 h-8">
+                      <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                        Lieu
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
+                      <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
+                        Localisation
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                      <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                        Statut
+                      </SortableTableHead>
+                      <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
+                        Ventes
+                      </SortableTableHead>
+                      <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right">
+                        Res.
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
+                      {isAdmin && (
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  {loading ? (
+                    <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+                  ) : paginatedHotels.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={columnCount}
+                      icon={Building2}
+                      message="Aucun lieu trouve"
+                      description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                      actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
+                      onAction={isAdmin ? openAdd : undefined}
+                    />
+                  ) : (
+                    <TableBody>
+                      {paginatedHotels.map((hotel) => (
+                        <TableRow
+                          key={hotel.id}
+                          className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                          onClick={() => openView(hotel.id)}
+                        >
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <div className="flex items-center gap-2 whitespace-nowrap">
+                              {hotel.image ? (
+                                <img
+                                  src={hotel.image}
+                                  alt={hotel.name}
+                                  className="w-6 h-6 rounded object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
+                                  {hotel.name.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="truncate font-medium text-foreground">{hotel.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                                hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
+                                hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200",
+                                hotel.venue_type === "enterprise" && "bg-emerald-500/10 text-emerald-700 border-emerald-200"
+                              )}
+                            >
+                              {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "-"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground">
+                              {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            {hotel.venue_type === "hotel" ? (
+                              <ConciergesCell concierges={hotel.concierges || []} />
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <TrunksCell trunks={hotel.trunks || []} />
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <Badge
+                              variant={hotel.status === "active" ? "default" : "secondary"}
+                              className={cn(
+                                "text-[10px] px-2 py-0.5 whitespace-nowrap",
+                                hotel.status === "active" && "bg-green-500/10 text-green-700",
+                                hotel.status === "pending" && "bg-orange-500/10 text-orange-700"
+                              )}
+                            >
+                              {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                            <div className="flex items-center gap-1">
+                              <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                              {hotel.venue_type === "enterprise" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title="Copier lien dashboard entreprise"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast.success("Lien dashboard copié !");
+                                  }}
+                                >
+                                  <LayoutDashboard className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                          {isAdmin && (
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEdit(hotel.id);
+                                  }}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDelete(hotel.id);
+                                  }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  )}
+                </Table>
+              </div>
+            )}
           </div>
 
           {needsPagination && (
@@ -410,23 +583,37 @@ export default function Hotels() {
               totalItems={filteredHotels.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="hôtels"
+              itemName="lieux"
             />
           )}
         </div>
       </div>
 
-      <AddHotelDialog
+      <VenueWizardDialog
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={fetchHotels}
+        mode="add"
+      />
+
+      <HotelDetailDialog
+        open={!!viewHotelId}
+        onOpenChange={(open) => !open && closeView()}
+        hotel={viewedHotel}
+        onEdit={() => {
+          if (viewHotelId) {
+            closeView();
+            openEdit(viewHotelId);
+          }
+        }}
       />
 
       {editHotelId && (
-        <EditHotelDialog
+        <VenueWizardDialog
           open={!!editHotelId}
           onOpenChange={(open) => !open && closeEdit()}
           onSuccess={fetchHotels}
+          mode="edit"
           hotelId={editHotelId}
         />
       )}
@@ -436,7 +623,7 @@ export default function Hotels() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cet hôtel ? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer ce lieu ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -26,6 +27,7 @@ export interface Hotel {
   id: string;
   name: string;
   image: string | null;
+  currency: string | null;
 }
 
 export interface Hairdresser {
@@ -35,8 +37,10 @@ export interface Hairdresser {
 }
 
 export function useBookingData() {
-  const { data: bookings } = useQuery({
+  const { data: bookings, refetch: refetchBookings } = useQuery({
     queryKey: ["bookings"],
+    refetchOnWindowFocus: true,
+    staleTime: 30000,
     queryFn: async () => {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
@@ -93,7 +97,7 @@ export function useBookingData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, image")
+        .select("id, name, image, currency")
         .order("name");
       if (error) throw error;
       return data as Hotel[];
@@ -113,6 +117,24 @@ export function useBookingData() {
     },
   });
 
+  // Realtime subscription for automatic updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('bookings-admin-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          refetchBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refetchBookings]);
+
   const getHotelInfo = (hotelId: string | null): Hotel | null => {
     if (!hotelId || !hotels) return null;
     return hotels.find(h => h.id === hotelId) || null;
@@ -123,5 +145,6 @@ export function useBookingData() {
     hotels,
     hairdressers,
     getHotelInfo,
+    refetch: refetchBookings,
   };
 }

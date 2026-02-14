@@ -1,7 +1,7 @@
 // Centralized Status Configuration
 // All database values are now in English
 
-export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval';
+export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval' | 'alternative_proposed' | 'awaiting_hairdresser_selection';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
@@ -63,6 +63,19 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     badgeClass: 'bg-purple-100 text-purple-800 border border-purple-400',
     cardClass: 'bg-purple-500 text-white',
     hexColor: '#a855f7',
+  },
+  alternative_proposed: {
+    label: 'Créneau proposé',
+    badgeClass: 'bg-orange-100 text-orange-700 border border-orange-300',
+    cardClass: 'bg-orange-500 text-white',
+    hexColor: '#f97316',
+  },
+  awaiting_hairdresser_selection: {
+    label: 'Attente coiffeur',
+    badgeClass: 'bg-violet-100 text-violet-800 border border-violet-300',
+    cardClass: 'bg-violet-500 text-white',
+    hexColor: '#8b5cf6',
+    pulse: true,
   },
 };
 
@@ -149,6 +162,8 @@ export function getBookingStatusConfig(status: string): StatusConfig {
     "annule": "cancelled",
     "confirmé": "confirmed",
     "confirme": "confirmed",
+    "créneau proposé": "alternative_proposed",
+    "creneau propose": "alternative_proposed",
   };
 
   const key = (aliases[normalized] || (normalized as BookingStatus)) as BookingStatus;

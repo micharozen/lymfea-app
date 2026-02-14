@@ -50,20 +50,19 @@ const conciergeMenuItems = [
 const adminSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
-  { title: "Hôtels", url: "/admin/hotels", emoji: "🏨" },
+  { title: "Lieux", url: "/admin/hotels", emoji: "📍" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
   { title: "Produits OOM", url: "/admin/products", emoji: "💈" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
+  { title: "Analytics", url: "/admin/analytics", emoji: "📊" },
 ];
 
 const conciergeSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
-  { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
   { title: "Transactions & Solde", url: "/admin/transactions", emoji: "💰" },
 ];
 

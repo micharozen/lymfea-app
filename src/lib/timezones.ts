@@ -5,6 +5,13 @@ export interface TimezoneOption {
   offset: string; // Current UTC offset (e.g., 'UTC+1')
 }
 
+// Country defaults for auto-suggestion (timezone, currency, VAT)
+export interface CountryDefaults {
+  timezone: string;
+  currency: string;
+  vat: number;
+}
+
 // Common timezones with friendly names grouped by region
 export const TIMEZONE_OPTIONS: TimezoneOption[] = [
   // Europe
@@ -278,9 +285,122 @@ const COUNTRY_TIMEZONE_MAP: Record<string, string> = {
  */
 export function suggestTimezoneFromCountry(country: string): string {
   if (!country) return 'Europe/Paris';
-  
+
   const normalized = country.toLowerCase().trim();
   return COUNTRY_TIMEZONE_MAP[normalized] || 'Europe/Paris';
+}
+
+// Country defaults mapping (timezone, currency, VAT rate)
+export const COUNTRY_DEFAULTS: Record<string, CountryDefaults> = {
+  // Europe
+  'france': { timezone: 'Europe/Paris', currency: 'EUR', vat: 20 },
+  'fr': { timezone: 'Europe/Paris', currency: 'EUR', vat: 20 },
+  'germany': { timezone: 'Europe/Berlin', currency: 'EUR', vat: 19 },
+  'de': { timezone: 'Europe/Berlin', currency: 'EUR', vat: 19 },
+  'spain': { timezone: 'Europe/Madrid', currency: 'EUR', vat: 21 },
+  'es': { timezone: 'Europe/Madrid', currency: 'EUR', vat: 21 },
+  'italy': { timezone: 'Europe/Rome', currency: 'EUR', vat: 22 },
+  'it': { timezone: 'Europe/Rome', currency: 'EUR', vat: 22 },
+  'netherlands': { timezone: 'Europe/Amsterdam', currency: 'EUR', vat: 21 },
+  'nl': { timezone: 'Europe/Amsterdam', currency: 'EUR', vat: 21 },
+  'belgium': { timezone: 'Europe/Brussels', currency: 'EUR', vat: 21 },
+  'be': { timezone: 'Europe/Brussels', currency: 'EUR', vat: 21 },
+  'austria': { timezone: 'Europe/Vienna', currency: 'EUR', vat: 20 },
+  'at': { timezone: 'Europe/Vienna', currency: 'EUR', vat: 20 },
+  'portugal': { timezone: 'Europe/Lisbon', currency: 'EUR', vat: 23 },
+  'pt': { timezone: 'Europe/Lisbon', currency: 'EUR', vat: 23 },
+  'ireland': { timezone: 'Europe/Dublin', currency: 'EUR', vat: 23 },
+  'ie': { timezone: 'Europe/Dublin', currency: 'EUR', vat: 23 },
+  'greece': { timezone: 'Europe/Athens', currency: 'EUR', vat: 24 },
+  'gr': { timezone: 'Europe/Athens', currency: 'EUR', vat: 24 },
+  'finland': { timezone: 'Europe/Helsinki', currency: 'EUR', vat: 24 },
+  'fi': { timezone: 'Europe/Helsinki', currency: 'EUR', vat: 24 },
+  'monaco': { timezone: 'Europe/Monaco', currency: 'EUR', vat: 20 },
+  'mc': { timezone: 'Europe/Monaco', currency: 'EUR', vat: 20 },
+  // Non-EUR Europe
+  'united kingdom': { timezone: 'Europe/London', currency: 'GBP', vat: 20 },
+  'uk': { timezone: 'Europe/London', currency: 'GBP', vat: 20 },
+  'england': { timezone: 'Europe/London', currency: 'GBP', vat: 20 },
+  'switzerland': { timezone: 'Europe/Zurich', currency: 'CHF', vat: 8.1 },
+  'ch': { timezone: 'Europe/Zurich', currency: 'CHF', vat: 8.1 },
+  'sweden': { timezone: 'Europe/Stockholm', currency: 'SEK', vat: 25 },
+  'se': { timezone: 'Europe/Stockholm', currency: 'SEK', vat: 25 },
+  'norway': { timezone: 'Europe/Oslo', currency: 'NOK', vat: 25 },
+  'no': { timezone: 'Europe/Oslo', currency: 'NOK', vat: 25 },
+  'denmark': { timezone: 'Europe/Copenhagen', currency: 'DKK', vat: 25 },
+  'dk': { timezone: 'Europe/Copenhagen', currency: 'DKK', vat: 25 },
+  'poland': { timezone: 'Europe/Warsaw', currency: 'PLN', vat: 23 },
+  'pl': { timezone: 'Europe/Warsaw', currency: 'PLN', vat: 23 },
+  'czech republic': { timezone: 'Europe/Prague', currency: 'CZK', vat: 21 },
+  'cz': { timezone: 'Europe/Prague', currency: 'CZK', vat: 21 },
+  'hungary': { timezone: 'Europe/Budapest', currency: 'HUF', vat: 27 },
+  'hu': { timezone: 'Europe/Budapest', currency: 'HUF', vat: 27 },
+  'romania': { timezone: 'Europe/Bucharest', currency: 'RON', vat: 19 },
+  'ro': { timezone: 'Europe/Bucharest', currency: 'RON', vat: 19 },
+  'turkey': { timezone: 'Europe/Istanbul', currency: 'TRY', vat: 20 },
+  'tr': { timezone: 'Europe/Istanbul', currency: 'TRY', vat: 20 },
+  // Middle East
+  'united arab emirates': { timezone: 'Asia/Dubai', currency: 'AED', vat: 5 },
+  'uae': { timezone: 'Asia/Dubai', currency: 'AED', vat: 5 },
+  'ae': { timezone: 'Asia/Dubai', currency: 'AED', vat: 5 },
+  'saudi arabia': { timezone: 'Asia/Riyadh', currency: 'SAR', vat: 15 },
+  'sa': { timezone: 'Asia/Riyadh', currency: 'SAR', vat: 15 },
+  'qatar': { timezone: 'Asia/Doha', currency: 'QAR', vat: 0 },
+  'qa': { timezone: 'Asia/Doha', currency: 'QAR', vat: 0 },
+  'kuwait': { timezone: 'Asia/Kuwait', currency: 'KWD', vat: 0 },
+  'kw': { timezone: 'Asia/Kuwait', currency: 'KWD', vat: 0 },
+  'bahrain': { timezone: 'Asia/Bahrain', currency: 'BHD', vat: 10 },
+  'bh': { timezone: 'Asia/Bahrain', currency: 'BHD', vat: 10 },
+  'israel': { timezone: 'Asia/Jerusalem', currency: 'ILS', vat: 17 },
+  'il': { timezone: 'Asia/Jerusalem', currency: 'ILS', vat: 17 },
+  // Americas
+  'united states': { timezone: 'America/New_York', currency: 'USD', vat: 0 },
+  'usa': { timezone: 'America/New_York', currency: 'USD', vat: 0 },
+  'us': { timezone: 'America/New_York', currency: 'USD', vat: 0 },
+  'canada': { timezone: 'America/Toronto', currency: 'CAD', vat: 5 },
+  'ca': { timezone: 'America/Toronto', currency: 'CAD', vat: 5 },
+  'mexico': { timezone: 'America/Mexico_City', currency: 'MXN', vat: 16 },
+  'mx': { timezone: 'America/Mexico_City', currency: 'MXN', vat: 16 },
+  'brazil': { timezone: 'America/Sao_Paulo', currency: 'BRL', vat: 0 },
+  'br': { timezone: 'America/Sao_Paulo', currency: 'BRL', vat: 0 },
+  // Asia Pacific
+  'japan': { timezone: 'Asia/Tokyo', currency: 'JPY', vat: 10 },
+  'jp': { timezone: 'Asia/Tokyo', currency: 'JPY', vat: 10 },
+  'china': { timezone: 'Asia/Shanghai', currency: 'CNY', vat: 13 },
+  'cn': { timezone: 'Asia/Shanghai', currency: 'CNY', vat: 13 },
+  'hong kong': { timezone: 'Asia/Hong_Kong', currency: 'HKD', vat: 0 },
+  'hk': { timezone: 'Asia/Hong_Kong', currency: 'HKD', vat: 0 },
+  'singapore': { timezone: 'Asia/Singapore', currency: 'SGD', vat: 9 },
+  'sg': { timezone: 'Asia/Singapore', currency: 'SGD', vat: 9 },
+  'australia': { timezone: 'Australia/Sydney', currency: 'AUD', vat: 10 },
+  'au': { timezone: 'Australia/Sydney', currency: 'AUD', vat: 10 },
+  'new zealand': { timezone: 'Pacific/Auckland', currency: 'NZD', vat: 15 },
+  'nz': { timezone: 'Pacific/Auckland', currency: 'NZD', vat: 15 },
+  'india': { timezone: 'Asia/Kolkata', currency: 'INR', vat: 18 },
+  'in': { timezone: 'Asia/Kolkata', currency: 'INR', vat: 18 },
+  'thailand': { timezone: 'Asia/Bangkok', currency: 'THB', vat: 7 },
+  'th': { timezone: 'Asia/Bangkok', currency: 'THB', vat: 7 },
+  // Africa
+  'south africa': { timezone: 'Africa/Johannesburg', currency: 'ZAR', vat: 15 },
+  'za': { timezone: 'Africa/Johannesburg', currency: 'ZAR', vat: 15 },
+  'morocco': { timezone: 'Africa/Casablanca', currency: 'MAD', vat: 20 },
+  'ma': { timezone: 'Africa/Casablanca', currency: 'MAD', vat: 20 },
+  'egypt': { timezone: 'Africa/Cairo', currency: 'EGP', vat: 14 },
+  'eg': { timezone: 'Africa/Cairo', currency: 'EGP', vat: 14 },
+  // Indian Ocean
+  'maldives': { timezone: 'Indian/Maldives', currency: 'USD', vat: 16 },
+  'mv': { timezone: 'Indian/Maldives', currency: 'USD', vat: 16 },
+  'mauritius': { timezone: 'Indian/Mauritius', currency: 'MUR', vat: 15 },
+  'mu': { timezone: 'Indian/Mauritius', currency: 'MUR', vat: 15 },
+};
+
+/**
+ * Gets country defaults (timezone, currency, VAT) based on country name or code
+ */
+export function getCountryDefaults(country: string): CountryDefaults | null {
+  if (!country) return null;
+  const normalized = country.toLowerCase().trim();
+  return COUNTRY_DEFAULTS[normalized] || null;
 }
 
 /**

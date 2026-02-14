@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Clock, Euro } from "lucide-react";
+import { Clock } from "lucide-react";
+import { formatPrice } from "@/lib/formatPrice";
 
 interface Treatment {
   id: string;
@@ -19,6 +20,7 @@ interface Treatment {
   description: string;
   duration: number;
   price: number;
+  currency: string;
   category: string;
 }
 
@@ -41,57 +43,23 @@ export const AddTreatmentDialog = ({
   const [selectedTreatments, setSelectedTreatments] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [hairdresserSkills, setHairdresserSkills] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
-      fetchHairdresserAndTreatments();
+      fetchTreatments();
     }
   }, [open, hotelId]);
 
-  const fetchHairdresserAndTreatments = async () => {
+  const fetchTreatments = async () => {
     setLoading(true);
     try {
-      // Get current user's hairdresser profile with skills
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Non authentifié");
-        return;
-      }
-
-      const { data: hairdresserData, error: hairdresserError } = await supabase
-        .from("hairdressers")
-        .select("skills")
-        .eq("user_id", user.id)
-        .single();
-
-      if (hairdresserError) {
-        console.error("Error fetching hairdresser:", hairdresserError);
-      }
-
-      const skills = hairdresserData?.skills || [];
-      setHairdresserSkills(skills);
-
-      // Fetch treatments for this hotel
+      // Fetch treatments for this hotel using the same RPC as client side
       const { data, error } = await supabase
-        .from("treatment_menus")
-        .select("*")
-        .or(`hotel_id.eq.${hotelId},hotel_id.is.null`)
-        .eq("status", "Actif")
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
+        .rpc('get_public_treatments', { _hotel_id: hotelId });
 
       if (error) throw error;
 
-      // Filter treatments by hairdresser's skills (category must match one of their skills)
-      const filteredTreatments = (data || []).filter(treatment => {
-        // If hairdresser has no skills defined, show all treatments
-        if (skills.length === 0) return true;
-        // Otherwise, only show treatments where category matches one of their skills
-        return skills.includes(treatment.category);
-      });
-
-      setTreatments(filteredTreatments);
+      setTreatments(data || []);
     } catch (error) {
       console.error("Error fetching treatments:", error);
       toast.error("Erreur lors du chargement des prestations");
@@ -231,9 +199,8 @@ export const AddTreatmentDialog = ({
                                   </p>
                                 )}
                               </div>
-                              <p className="text-sm font-semibold text-gray-900 flex items-center gap-0.5 flex-shrink-0">
-                                {treatment.price}
-                                <Euro className="h-3 w-3" />
+                              <p className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                                {formatPrice(treatment.price, treatment.currency, { decimals: 0 })}
                               </p>
                             </div>
                             {treatment.duration && (
@@ -257,9 +224,8 @@ export const AddTreatmentDialog = ({
                   <span className="text-gray-600">
                     {selectedTreatments.size} prestation{selectedTreatments.size > 1 ? "s" : ""} sélectionnée{selectedTreatments.size > 1 ? "s" : ""}
                   </span>
-                  <span className="font-semibold text-gray-900 flex items-center gap-1">
-                    +{calculateTotal().toFixed(2)}
-                    <Euro className="h-4 w-4" />
+                  <span className="font-semibold text-gray-900">
+                    +{formatPrice(calculateTotal(), treatments.find(t => selectedTreatments.has(t.id))?.currency || 'EUR')}
                   </span>
                 </div>
               </div>

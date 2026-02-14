@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Plus } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, Scissors, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -37,23 +37,30 @@ import { AddTreatmentMenuDialog } from "@/components/AddTreatmentMenuDialog";
 import { EditTreatmentMenuDialog } from "@/components/EditTreatmentMenuDialog";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { TreatmentDetailDialog } from "@/components/admin/details/TreatmentDetailDialog";
+import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
+import { useOverflowControl } from "@/hooks/useOverflowControl";
+import { usePagination } from "@/hooks/usePagination";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { TreatmentCard } from "@/components/table/cards/TreatmentCard";
 
 export default function TreatmentMenus() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [menuToDelete, setMenuToDelete] = useState<string | null>(null);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [menuToEdit, setMenuToEdit] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  
-  const headerRef = useRef<HTMLDivElement>(null);
-  const filtersRef = useRef<HTMLDivElement>(null);
+
+  // Use shared hooks
+  const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
+  const { isAddOpen, openAdd, closeAdd, viewId: viewMenuId, openView, closeView, editId: editMenuId, openEdit, closeEdit, deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
+  const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -70,48 +77,13 @@ export default function TreatmentMenus() {
         setUserRole(data.role);
       }
     };
-    
+
     fetchUserRole();
   }, []);
 
   const isAdmin = userRole === "admin";
 
-  // Auto-fit the number of rows so the page never needs scrolling
-  const computeRows = useCallback(() => {
-    const rowHeight = 40; // h-10 = 40px
-    const tableHeaderHeight = 32;
-    const paginationHeight = 48;
-    const sidebarOffset = 64;
-
-    const pageHeaderHeight = headerRef.current?.offsetHeight || 120;
-    const filtersHeight = filtersRef.current?.offsetHeight || 96;
-
-    // outer paddings/margins safety buffer
-    const chromePadding = 32;
-
-    const usedHeight =
-      pageHeaderHeight +
-      filtersHeight +
-      tableHeaderHeight +
-      paginationHeight +
-      sidebarOffset +
-      chromePadding;
-
-    const availableForRows = window.innerHeight - usedHeight;
-    const rows = Math.max(5, Math.floor(availableForRows / rowHeight));
-
-    setItemsPerPage(rows);
-  }, []);
-
-  useEffect(() => {
-    computeRows();
-    window.addEventListener("resize", computeRows);
-    return () => window.removeEventListener("resize", computeRows);
-  }, [computeRows]);
-
-  // needsPagination computed after filteredMenus is defined below
-
-  const { data: menus, refetch } = useQuery({
+  const { data: menus, refetch, isLoading } = useQuery({
     queryKey: ["treatment-menus"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -147,48 +119,85 @@ export default function TreatmentMenus() {
     const matchesHotel = hotelFilter === "all" || menu.hotel_id === hotelFilter;
 
     return matchesSearch && matchesStatus && matchesCategory && matchesHotel;
+  }) || [];
+
+  // Sort menus
+  const sortedMenus = useMemo(() => {
+    return sortItems(filteredMenus, (menu, column) => {
+      switch (column) {
+        case "name": return menu.name;
+        case "duration": return menu.duration;
+        case "price": return menu.price;
+        case "category": return menu.category;
+        case "status": return menu.status;
+        default: return null;
+      }
+    });
+  }, [filteredMenus, sortItems]);
+
+  // Use pagination hook
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedMenus, needsPagination } = usePagination({
+    items: sortedMenus,
+    itemsPerPage,
   });
 
-  const needsPagination = (filteredMenus?.length || 0) > itemsPerPage;
-  const totalPages = Math.ceil((filteredMenus?.length || 0) / itemsPerPage);
-  const paginatedMenus = needsPagination
-    ? filteredMenus?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-    : filteredMenus;
+  // Control overflow when pagination is needed
+  useOverflowControl(!isLoading && needsPagination);
 
-  // Force no scroll on this page only when pagination is needed
-  useEffect(() => {
-    if (needsPagination) {
-      const prevHtmlOverflow = document.documentElement.style.overflow;
-      const prevBodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.documentElement.style.overflow = prevHtmlOverflow;
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-  }, [needsPagination]);
+  // Get viewed/edited menu
+  const viewedMenu = viewMenuId ? menus?.find(m => m.id === viewMenuId) || null : null;
+  const editedMenu = editMenuId ? menus?.find(m => m.id === editMenuId) || null : null;
+
+  const columnCount = isAdmin ? 9 : 8;
 
   const categories = Array.from(
     new Set(menus?.map((menu) => menu.category).filter(Boolean))
   );
 
   const handleDelete = async () => {
-    if (!menuToDelete) return;
+    if (!deleteMenuId) return;
 
     const { error } = await supabase
       .from("treatment_menus")
       .delete()
-      .eq("id", menuToDelete);
+      .eq("id", deleteMenuId);
 
     if (error) {
       toast.error("Erreur lors de la suppression du menu");
       return;
     }
 
-    toast.success("Menu supprimé avec succès");
-    setDeleteDialogOpen(false);
-    setMenuToDelete(null);
+    toast.success("Menu supprime avec succes");
+    closeDelete();
+    refetch();
+  };
+
+  const handleDuplicate = async (menuId: string) => {
+    const menu = menus?.find((m) => m.id === menuId);
+    if (!menu) return;
+
+    const { error } = await supabase.from("treatment_menus").insert({
+      name: `${menu.name} (Copie)`,
+      description: menu.description,
+      duration: menu.duration,
+      price: menu.price,
+      lead_time: menu.lead_time,
+      service_for: menu.service_for,
+      category: menu.category,
+      hotel_id: menu.hotel_id,
+      currency: menu.currency,
+      image: menu.image,
+      status: menu.status,
+      sort_order: menu.sort_order,
+      price_on_request: menu.price_on_request,
+    });
+
+    if (error) {
+      toast.error("Erreur lors de la duplication du soin");
+      return;
+    }
+
+    toast.success("Soin dupliqué avec succès");
     refetch();
   };
 
@@ -214,23 +223,23 @@ export default function TreatmentMenus() {
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
+        <div className="mb-4 md:mb-6 flex items-center justify-between">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
             💆 Menus de soins
           </h1>
           {isAdmin && (
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter une prestation
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter une prestation</span>
             </Button>
           )}
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
-          <div ref={filtersRef} className="p-6 border-b border-border flex flex-wrap gap-4 flex-shrink-0">
+          <div ref={filtersRef} className="p-4 md:p-6 border-b border-border flex flex-wrap gap-3 md:gap-4 flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -283,116 +292,209 @@ export default function TreatmentMenus() {
             </Select>
           </div>
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-          <Table className="text-xs w-full table-fixed">
-            <TableHeader>
-              <TableRow className="bg-muted/20 h-8">
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[180px]">Prestation</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Durée</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[60px]">Tarif</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Délai</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Catégorie</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hôtel</TableHead>
-                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Statut</TableHead>
-                {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedMenus?.map((menu) => {
-                const hotel = getHotelInfo(menu.hotel_id);
-                return (
-                  <TableRow key={menu.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <div className="flex items-center gap-2 whitespace-nowrap">
-                        {menu.image ? (
-                          <img
-                            src={menu.image}
-                            alt={menu.name}
-                            className="w-6 h-6 rounded object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
-                            💆
+            {/* Mobile: Card View */}
+            {isMobile ? (
+              <div className="p-4 space-y-3 overflow-y-auto h-full">
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: itemsPerPage }).map((_, i) => (
+                      <div key={i} className="bg-card border border-border rounded-lg p-4 animate-pulse">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 rounded-lg bg-muted" />
+                          <div className="flex-1">
+                            <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                            <div className="h-3 bg-muted rounded w-1/2" />
                           </div>
-                        )}
-                        <span className="truncate font-medium text-foreground">{menu.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">
-                        {menu.price_on_request ? "Sur demande" : formatDuration(menu.duration)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">
-                        {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, 'EUR', { decimals: 0 })}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="text-xs">
-                        {menu.service_for === "Male"
-                          ? "👨"
-                          : menu.service_for === "Female"
-                          ? "👩"
-                          : "👥"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <span className="truncate block text-foreground">{menu.category}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <HotelCell hotel={hotel} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                      <Badge
-                        variant={menu.status === "active" ? "default" : "secondary"}
-                        className={cn(
-                          "text-[10px] px-2 py-0.5",
-                          menu.status === "active" &&
-                            "bg-green-500/10 text-green-700 hover:bg-green-500/20",
-                          menu.status === "inactive" &&
-                            "bg-red-500/10 text-red-700 hover:bg-red-500/20"
-                        )}
-                      >
-                        {menu.status === "active" ? "Actif" : menu.status === "inactive" ? "Inactif" : menu.status}
-                      </Badge>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setMenuToEdit(menu);
-                              setEditDialogOpen(true);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setMenuToDelete(menu.id);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
                         </div>
-                      </TableCell>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="h-8 bg-muted rounded" />
+                          <div className="h-8 bg-muted rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : paginatedMenus.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Scissors className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Aucune prestation trouvee</p>
+                    {(searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
+                      <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
                     )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                    {isAdmin && (
+                      <Button onClick={openAdd} className="mt-4">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ajouter une prestation
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  paginatedMenus.map((menu) => (
+                    <TreatmentCard
+                      key={menu.id}
+                      treatment={menu}
+                      hotel={getHotelInfo(menu.hotel_id)}
+                      isAdmin={isAdmin}
+                      onView={() => openView(menu.id)}
+                      onEdit={() => openEdit(menu.id)}
+                      onDuplicate={() => handleDuplicate(menu.id)}
+                      onDelete={() => openDelete(menu.id)}
+                    />
+                  ))
+                )}
+              </div>
+            ) : (
+              /* Desktop: Table View */
+              <div className="overflow-x-auto h-full">
+                <Table className="text-xs w-full table-fixed min-w-[700px]">
+                  <TableHeader>
+                    <TableRow className="bg-muted/20 h-8">
+                      <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">
+                        Prestation
+                      </SortableTableHead>
+                      <SortableTableHead column="duration" sortDirection={getSortDirection("duration")} onSort={toggleSort} align="center" className="w-[70px]">
+                        Duree
+                      </SortableTableHead>
+                      <SortableTableHead column="price" sortDirection={getSortDirection("price")} onSort={toggleSort} align="center" className="w-[60px]">
+                        Tarif
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
+                      <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
+                        Categorie
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
+                        Statut
+                      </SortableTableHead>
+                      {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right w-[70px]">Actions</TableHead>}
+                    </TableRow>
+                  </TableHeader>
+                  {isLoading ? (
+                    <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+                  ) : paginatedMenus.length === 0 ? (
+                    <TableEmptyState
+                      colSpan={columnCount}
+                      icon={Scissors}
+                      message="Aucune prestation trouvee"
+                      description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                      actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
+                      onAction={isAdmin ? openAdd : undefined}
+                    />
+                  ) : (
+                    <TableBody>
+                      {paginatedMenus.map((menu) => {
+                        const hotel = getHotelInfo(menu.hotel_id);
+                        return (
+                          <TableRow
+                            key={menu.id}
+                            className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                            onClick={() => openView(menu.id)}
+                          >
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <div className="flex items-center gap-2 whitespace-nowrap">
+                                {menu.image ? (
+                                  <img
+                                    src={menu.image}
+                                    alt={menu.name}
+                                    className="w-6 h-6 rounded object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
+                                    💆
+                                  </div>
+                                )}
+                                <span className="truncate font-medium text-foreground">{menu.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">
+                                {menu.price_on_request ? "Sur demande" : formatDuration(menu.duration)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">
+                                {menu.price_on_request ? "Sur demande" : formatPrice(menu.price, menu.currency || 'EUR', { decimals: 0 })}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="text-xs">
+                                {menu.service_for === "Male"
+                                  ? "👨"
+                                  : menu.service_for === "Female"
+                                  ? "👩"
+                                  : "👥"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <span className="truncate block text-foreground">{menu.category}</span>
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                              <HotelCell hotel={hotel} />
+                            </TableCell>
+                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                              <Badge
+                                variant={menu.status === "active" ? "default" : "secondary"}
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5",
+                                  menu.status === "active" &&
+                                    "bg-green-500/10 text-green-700 hover:bg-green-500/20",
+                                  menu.status === "inactive" &&
+                                    "bg-red-500/10 text-red-700 hover:bg-red-500/20"
+                                )}
+                              >
+                                {menu.status === "active" ? "Actif" : menu.status === "inactive" ? "Inactif" : menu.status}
+                              </Badge>
+                            </TableCell>
+                            {isAdmin && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEdit(menu.id);
+                                    }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDuplicate(menu.id);
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openDelete(menu.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  )}
+                </Table>
+              </div>
+            )}
           </div>
 
           {needsPagination && (
@@ -408,13 +510,13 @@ export default function TreatmentMenus() {
         </div>
       </div>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={!!deleteMenuId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce menu de soins ? Cette action est
-              irréversible.
+              Etes-vous sur de vouloir supprimer ce menu de soins ? Cette action est
+              irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -425,16 +527,37 @@ export default function TreatmentMenus() {
       </AlertDialog>
 
       <AddTreatmentMenuDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        open={isAddOpen}
+        onOpenChange={(open) => !open && closeAdd()}
         onSuccess={refetch}
       />
 
-      <EditTreatmentMenuDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        menu={menuToEdit}
-        onSuccess={refetch}
+      {editedMenu && (
+        <EditTreatmentMenuDialog
+          open={!!editMenuId}
+          onOpenChange={(open) => !open && closeEdit()}
+          menu={editedMenu}
+          onSuccess={refetch}
+        />
+      )}
+
+      <TreatmentDetailDialog
+        open={!!viewMenuId}
+        onOpenChange={(open) => !open && closeView()}
+        treatment={viewedMenu}
+        hotel={viewedMenu ? getHotelInfo(viewedMenu.hotel_id) : null}
+        onEdit={isAdmin ? () => {
+          if (viewMenuId) {
+            closeView();
+            openEdit(viewMenuId);
+          }
+        } : undefined}
+        onDuplicate={isAdmin ? () => {
+          if (viewMenuId) {
+            closeView();
+            handleDuplicate(viewMenuId);
+          }
+        } : undefined}
       />
     </div>
   );

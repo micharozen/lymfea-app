@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -29,10 +29,15 @@ import { EditConciergeDialog } from "@/components/EditConciergeDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { ConciergeDetailDialog } from "@/components/admin/details/ConciergeDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface Concierge {
   id: string;
@@ -65,11 +70,28 @@ export default function Concierges() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, editId: editConciergeId, openEdit, closeEdit, deleteId: deleteConciergeId, openDelete, closeDelete } = useDialogState<string>();
+  const { isAddOpen, openAdd, closeAdd, viewId: viewConciergeId, openView, closeView, editId: editConciergeId, openEdit, closeEdit, deleteId: deleteConciergeId, openDelete, closeDelete } = useDialogState<string>();
+  const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
+
+  // Sort concierges
+  const sortedConcierges = useMemo(() => {
+    return sortItems(filteredConcierges, (concierge, column) => {
+      switch (column) {
+        case "name": return `${concierge.first_name} ${concierge.last_name}`;
+        case "email": return concierge.email;
+        case "status": return concierge.status;
+        default: return null;
+      }
+    });
+  }, [filteredConcierges, sortItems]);
+
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedConcierges, needsPagination } = usePagination({
-    items: filteredConcierges,
+    items: sortedConcierges,
     itemsPerPage,
   });
+
+  // Get viewed concierge
+  const viewedConcierge = viewConciergeId ? concierges.find(c => c.id === viewConciergeId) || null : null;
 
   // Control overflow when pagination is needed
   useOverflowControl(!loading && needsPagination);
@@ -189,25 +211,19 @@ export default function Concierges() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    );
-  }
+  const columnCount = userRole === "admin" ? 6 : 5;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
             🛎️ Concierges
           </h1>
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative w-64">
@@ -250,83 +266,109 @@ export default function Concierges() {
                 className="ml-auto bg-foreground text-background hover:bg-foreground/90"
                 onClick={openAdd}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un concierge
+                <Plus className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Ajouter un concierge</span>
               </Button>
             )}
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <Table className="text-xs w-full table-fixed">
+            <div className="overflow-x-auto h-full">
+            <Table className="text-xs w-full table-fixed min-w-[600px]">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Email</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Téléphone</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                    Nom
+                  </SortableTableHead>
+                  <SortableTableHead column="email" sortDirection={getSortDirection("email")} onSort={toggleSort}>
+                    Email
+                  </SortableTableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
+                    Telephone
+                  </TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
+                    Hotel
+                  </TableHead>
+                  <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                    Statut
+                  </SortableTableHead>
                   {userRole === "admin" && (
-                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>
+                    <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">
+                      Actions
+                    </TableHead>
                   )}
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {paginatedConcierges.length === 0 ? (
-                  <TableRow className="h-10">
-                    <TableCell
-                      colSpan={userRole === "admin" ? 6 : 5}
-                      className="py-0 px-2 h-10 text-center text-muted-foreground"
+              {loading ? (
+                <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+              ) : paginatedConcierges.length === 0 ? (
+                <TableEmptyState
+                  colSpan={columnCount}
+                  icon={Users}
+                  message="Aucun concierge trouve"
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                  actionLabel={userRole === "admin" ? "Ajouter un concierge" : undefined}
+                  onAction={userRole === "admin" ? openAdd : undefined}
+                />
+              ) : (
+                <TableBody>
+                  {paginatedConcierges.map((concierge) => (
+                    <TableRow
+                      key={concierge.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                      onClick={() => openView(concierge.id)}
                     >
-                      Aucun concierge trouvé
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedConcierges.map((concierge) => (
-                  <TableRow key={concierge.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <PersonCell person={concierge} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">{concierge.email}</span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <span className="truncate block text-foreground">
-                        {concierge.country_code} {concierge.phone}
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
-                    </TableCell>
-                    <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                      <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
-                    </TableCell>
-                    {userRole === "admin" && (
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => openEdit(concierge.id)}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => openDelete(concierge.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <PersonCell person={concierge} />
                       </TableCell>
-                    )}
-                  </TableRow>
-                  ))
-                )}
-              </TableBody>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">{concierge.email}</span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">
+                          {concierge.country_code} {concierge.phone}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                      </TableCell>
+                      {userRole === "admin" && (
+                        <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(concierge.id);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDelete(concierge.id);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
             </Table>
+            </div>
           </div>
 
           {needsPagination && (
@@ -376,6 +418,19 @@ export default function Concierges() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConciergeDetailDialog
+        open={!!viewConciergeId}
+        onOpenChange={(open) => !open && closeView()}
+        concierge={viewedConcierge}
+        hotels={hotels}
+        onEdit={() => {
+          if (viewConciergeId) {
+            closeView();
+            openEdit(viewConciergeId);
+          }
+        }}
+      />
     </div>
   );
 }

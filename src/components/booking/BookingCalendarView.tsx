@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities } from "@/lib/utils";
-import type { BookingWithTreatments } from "@/hooks/booking";
+import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
 interface BookingCalendarViewProps {
   weekDays: Date[];
@@ -24,6 +24,7 @@ interface BookingCalendarViewProps {
   hours: number[];
   hourHeight: number;
   startHour: number;
+  getHotelInfo: (hotelId: string | null) => Hotel | null;
 }
 
 export function BookingCalendarView({
@@ -42,6 +43,7 @@ export function BookingCalendarView({
   hours,
   hourHeight,
   startHour,
+  getHotelInfo,
 }: BookingCalendarViewProps) {
   return (
     <div className="p-2 md:p-6 flex flex-col h-full overflow-hidden">
@@ -257,7 +259,7 @@ export function BookingCalendarView({
                                               <li key={idx} className="flex justify-between gap-2">
                                                 <span>{treatment.name}</span>
                                                 <span className="text-muted-foreground whitespace-nowrap">
-                                                  {tDurationFormatted} • {formatPrice(treatment.price || 0)}
+                                                  {tDurationFormatted} • {formatPrice(treatment.price || 0, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}
                                                 </span>
                                               </li>
                                             );
@@ -272,7 +274,7 @@ export function BookingCalendarView({
 
                                 <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
                                   <Euro className="h-3 w-3" />
-                                  <span>Total: {formatPrice(totalPrice)}</span>
+                                  <span>Total: {formatPrice(totalPrice, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}</span>
                                 </div>
                               </div>
                             </TooltipContent>

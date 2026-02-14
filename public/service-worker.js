@@ -52,7 +52,7 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/pwa/bookings';
+  const urlToOpen = event.notification.data?.url || '/';
   
   event.waitUntil(
     self.clients.matchAll({

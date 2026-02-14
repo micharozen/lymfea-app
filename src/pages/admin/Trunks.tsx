@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,12 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Plus } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, Briefcase } from "lucide-react";
 import { AddTrunkDialog } from "@/components/AddTrunkDialog";
 import { EditTrunkDialog } from "@/components/EditTrunkDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
+import { TableSkeleton } from "@/components/table/TableSkeleton";
+import { TableEmptyState } from "@/components/table/TableEmptyState";
+import { SortableTableHead } from "@/components/table/SortableTableHead";
+import { TrunkDetailDialog } from "@/components/admin/details/TrunkDetailDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,20 +43,20 @@ import {
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
+import { useDialogState } from "@/hooks/useDialogState";
+import { useTableSort } from "@/hooks/useTableSort";
 
 export default function Trunks() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedTrunk, setSelectedTrunk] = useState<any>(null);
   const queryClient = useQueryClient();
   const [userRole, setUserRole] = useState<string | null>(null);
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
+  const { isAddOpen, openAdd, closeAdd, viewId: viewTrunkId, openView, closeView, editId: editTrunkId, openEdit, closeEdit, deleteId: deleteTrunkId, openDelete, closeDelete } = useDialogState<string>();
+  const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -140,9 +144,8 @@ export default function Trunks() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trunks"] });
-      toast.success("Trunk supprimé avec succès");
-      setIsDeleteDialogOpen(false);
-      setSelectedTrunk(null);
+      toast.success("Trunk supprime avec succes");
+      closeDelete();
     },
     onError: () => {
       toast.error("Erreur lors de la suppression du trunk");
@@ -161,56 +164,56 @@ export default function Trunks() {
     return matchesSearch && matchesStatus && matchesHotel;
   }) || [];
 
+  // Sort trunks
+  const sortedTrunks = useMemo(() => {
+    return sortItems(filteredTrunks, (trunk, column) => {
+      switch (column) {
+        case "name": return trunk.name;
+        case "model": return trunk.trunk_model;
+        case "status": return trunk.status;
+        default: return null;
+      }
+    });
+  }, [filteredTrunks, sortItems]);
+
   // Use pagination hook
   const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTrunks, needsPagination } = usePagination({
-    items: filteredTrunks,
+    items: sortedTrunks,
     itemsPerPage,
   });
 
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  const handleEdit = (trunk: any) => {
-    setSelectedTrunk(trunk);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = (trunk: any) => {
-    setSelectedTrunk(trunk);
-    setIsDeleteDialogOpen(true);
-  };
+  // Get viewed/edited trunk
+  const viewedTrunk = viewTrunkId ? trunks?.find(t => t.id === viewTrunkId) || null : null;
+  const editedTrunk = editTrunkId ? trunks?.find(t => t.id === editTrunkId) || null : null;
 
   const confirmDelete = () => {
-    if (selectedTrunk) {
-      deleteMutation.mutate(selectedTrunk.id);
+    if (deleteTrunkId) {
+      deleteMutation.mutate(deleteTrunkId);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    );
-  }
+  const columnCount = isAdmin ? 7 : 6;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
-      <div className="flex-shrink-0 px-6 pt-6" ref={headerRef}>
+      <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
             🧳 Trunks (Malles)
           </h1>
           {isAdmin && (
-            <Button onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un trunk
+            <Button onClick={openAdd}>
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter un trunk</span>
             </Button>
           )}
         </div>
       </div>
 
-      <div className={cn("flex-1 px-6 pb-6", needsPagination ? "overflow-hidden" : "")}>
+      <div className={cn("flex-1 px-4 md:px-6 pb-4 md:pb-6", needsPagination ? "overflow-hidden" : "")}>
         <div className={cn("bg-card rounded-lg border border-border flex flex-col", needsPagination ? "h-full" : "")}>
           <div ref={filtersRef} className="p-4 border-b border-border flex flex-wrap gap-4 items-center flex-shrink-0">
             <div className="relative flex-1 min-w-[200px]">
@@ -253,23 +256,44 @@ export default function Trunks() {
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            <Table className="text-xs w-full table-fixed">
+            <div className="overflow-x-auto h-full">
+            <Table className="text-xs w-full table-fixed min-w-[650px]">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Nom</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Modèle</TableHead>
-                  
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+                  <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
+                    Nom
+                  </SortableTableHead>
+                  <SortableTableHead column="model" sortDirection={getSortDirection("model")} onSort={toggleSort}>
+                    Modele
+                  </SortableTableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine rés.</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine res.</TableHead>
+                  <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
+                    Statut
+                  </SortableTableHead>
                   {isAdmin && <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {paginatedTrunks && paginatedTrunks.length > 0 ? (
-                  paginatedTrunks.map((trunk) => (
-                    <TableRow key={trunk.id} className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10">
+              {isLoading ? (
+                <TableSkeleton rows={itemsPerPage} columns={columnCount} />
+              ) : paginatedTrunks.length === 0 ? (
+                <TableEmptyState
+                  colSpan={columnCount}
+                  icon={Briefcase}
+                  message="Aucun trunk trouve"
+                  description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
+                  actionLabel={isAdmin ? "Ajouter un trunk" : undefined}
+                  onAction={isAdmin ? openAdd : undefined}
+                />
+              ) : (
+                <TableBody>
+                  {paginatedTrunks.map((trunk) => (
+                    <TableRow
+                      key={trunk.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                      onClick={() => openView(trunk.id)}
+                    >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center gap-2 whitespace-nowrap">
                           {trunk.image ? (
@@ -320,7 +344,10 @@ export default function Trunks() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => handleEdit(trunk)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(trunk.id);
+                              }}
                             >
                               <Pencil className="h-3 w-3" />
                             </Button>
@@ -328,7 +355,10 @@ export default function Trunks() {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6"
-                              onClick={() => handleDelete(trunk)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDelete(trunk.id);
+                              }}
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -336,16 +366,11 @@ export default function Trunks() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow className="h-10 max-h-10">
-                    <TableCell colSpan={7} className="py-0 px-2 h-10 text-center text-muted-foreground">
-                      Aucun trunk trouvé
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
+                  ))}
+                </TableBody>
+              )}
             </Table>
+            </div>
           </div>
 
           {needsPagination && (
@@ -362,31 +387,31 @@ export default function Trunks() {
       </div>
 
       <AddTrunkDialog
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        open={isAddOpen}
+        onOpenChange={(open) => !open && closeAdd()}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["trunks"] });
         }}
       />
 
-      {selectedTrunk && (
+      {editedTrunk && (
         <EditTrunkDialog
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          trunk={selectedTrunk}
+          open={!!editTrunkId}
+          onOpenChange={(open) => !open && closeEdit()}
+          trunk={editedTrunk}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["trunks"] });
           }}
         />
       )}
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={!!deleteTrunkId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce trunk ? Cette action est
-              irréversible.
+              Etes-vous sur de vouloir supprimer ce trunk ? Cette action est
+              irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -400,6 +425,20 @@ export default function Trunks() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TrunkDetailDialog
+        open={!!viewTrunkId}
+        onOpenChange={(open) => !open && closeView()}
+        trunk={viewedTrunk}
+        hotel={viewedTrunk ? getHotelInfo(viewedTrunk.hotel_id) : null}
+        nextBooking={viewedTrunk ? getNextBooking(viewedTrunk.id) : null}
+        onEdit={() => {
+          if (viewTrunkId) {
+            closeView();
+            openEdit(viewTrunkId);
+          }
+        }}
+      />
     </div>
   );
 }

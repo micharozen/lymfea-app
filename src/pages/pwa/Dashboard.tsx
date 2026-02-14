@@ -45,7 +45,15 @@ interface Booking {
       duration: number;
     } | null;
   }>;
-  hotels?: { image: string | null } | { image: string | null }[] | null;
+  hotels?: { image: string | null; currency: string | null } | { image: string | null; currency: string | null }[] | null;
+  proposed_slots?: {
+    slot_1_date: string;
+    slot_1_time: string;
+    slot_2_date?: string | null;
+    slot_2_time?: string | null;
+    slot_3_date?: string | null;
+    slot_3_time?: string | null;
+  } | null;
 }
 
 // Helper to get hotel image from booking (handles both object and array)
@@ -57,18 +65,27 @@ const getHotelImage = (booking: Booking): string | null => {
   return booking.hotels.image;
 };
 
-const getPaymentStatusBadge = (paymentStatus?: string | null, paymentMethod?: string | null) => {
+// Helper to get hotel currency from booking (handles both object and array)
+const getHotelCurrency = (booking: Booking): string => {
+  if (!booking.hotels) return 'EUR';
+  if (Array.isArray(booking.hotels)) {
+    return booking.hotels[0]?.currency || 'EUR';
+  }
+  return booking.hotels.currency || 'EUR';
+};
+
+const getPaymentStatusBadge = (paymentStatus: string | null | undefined, paymentMethod: string | null | undefined, t: (key: string) => string) => {
   if (!paymentStatus) return null;
-  
+
   switch (paymentStatus) {
     case 'paid':
-      return { label: 'Payé', className: 'bg-green-100 text-green-700' };
+      return { label: t('dashboard.paymentPaid'), className: 'bg-green-100 text-green-700' };
     case 'charged_to_room':
-      return { label: 'Chambre', className: 'bg-blue-100 text-blue-700' };
+      return { label: t('dashboard.paymentRoom'), className: 'bg-blue-100 text-blue-700' };
     case 'pending':
-      return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
+      return { label: t('dashboard.paymentPending'), className: 'bg-yellow-100 text-yellow-700' };
     case 'failed':
-      return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+      return { label: t('dashboard.paymentFailed'), className: 'bg-red-100 text-red-700' };
     default:
       return null;
   }
@@ -116,7 +133,8 @@ const PwaDashboard = () => {
     if (cachedMyBookings || cachedPendingBookings) {
       console.log('📦 Using cached bookings data');
       const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
-      const sortedData = allData.sort((a, b) => {
+      const uniqueData = Array.from(new Map(allData.map((b: any) => [b.id, b])).values());
+      const sortedData = uniqueData.sort((a: any, b: any) => {
         const dateCompare = a.booking_date.localeCompare(b.booking_date);
         if (dateCompare !== 0) return dateCompare;
         return a.booking_time.localeCompare(b.booking_time);
@@ -153,18 +171,18 @@ const PwaDashboard = () => {
           // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
           if (newData.hairdresser_id !== null && 
               newData.hairdresser_id !== hairdresser.id &&
-              (newData.status === 'pending' || newData.status === 'confirmed')) {
+              (newData.status === 'pending' || newData.status === 'confirmed' || newData.status === 'awaiting_hairdresser_selection')) {
             console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
             if (oldData.hairdresser_id === null) {
-              toast.info(`Réservation #${newData.booking_id} prise par un autre coiffeur`);
+              toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
             }
             return;
           }
           
           // Cas 2: Réservation non assignée mais statut change (refusée, annulée, etc.) - retirer
-          if (newData.hairdresser_id === null && newData.status !== 'pending') {
+          if (newData.hairdresser_id === null && newData.status !== 'pending' && newData.status !== 'awaiting_hairdresser_selection') {
             console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             return;
@@ -237,7 +255,7 @@ const PwaDashboard = () => {
         .single();
 
       if (error || !hairdresserData) {
-        toast.error("Profil introuvable");
+        toast.error(t('dashboard.profileNotFound'));
         await supabase.auth.signOut();
         navigate("/pwa/login");
         return;
@@ -291,13 +309,13 @@ const PwaDashboard = () => {
       : [];
     console.log('🧳 Hairdresser trunk IDs:', hairdresserTrunkIds);
 
-    // Fetch hotel images separately (no FK relationship)
-    const { data: hotelImages } = await supabase
+    // Fetch hotel images and currency separately (no FK relationship)
+    const { data: hotelData } = await supabase
       .from("hotels")
-      .select("id, image")
+      .select("id, image, currency")
       .in("id", hotelIds);
-    
-    const hotelImageMap = new Map(hotelImages?.map(h => [h.id, h.image]) || []);
+
+    const hotelDataMap = new Map(hotelData?.map(h => [h.id, { image: h.image, currency: h.currency }]) || []);
 
     // 1. Get bookings assigned to this hairdresser (any status)
     const { data: myBookings, error: myError } = await supabase
@@ -317,7 +335,7 @@ const PwaDashboard = () => {
     // Add hotel images to bookings
     const myBookingsWithImages = myBookings?.map(b => ({
       ...b,
-      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
     })) || [];
 
     if (myError) {
@@ -343,13 +361,15 @@ const PwaDashboard = () => {
       `)
       .in("hotel_id", hotelIds)
       .is("hairdresser_id", null)
-      .in("status", ["pending"]);
+      .in("status", ["pending", "awaiting_hairdresser_selection"]);
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
 
     // Filter pending bookings by hairdresser's trunk assignments
     // Only show bookings where trunk_id matches one of the hairdresser's trunks
     const filteredPendingBookings = pendingBookings?.filter(b => {
+      // Bookings awaiting hairdresser selection: show to all hairdressers at the hotel
+      if (b.status === "awaiting_hairdresser_selection") return true;
       // If hairdresser has no trunk assignments, show bookings from their hotels (legacy behavior)
       if (hairdresserTrunkIds.length === 0) return true;
       // If booking has no trunk, show it (legacy data)
@@ -360,10 +380,28 @@ const PwaDashboard = () => {
 
     console.log('🔍 Filtered pending bookings by trunk:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
 
-    // Add hotel images to pending bookings
+    // Fetch proposed slots for awaiting_hairdresser_selection bookings
+    const awaitingBookingIds = filteredPendingBookings
+      .filter(b => b.status === "awaiting_hairdresser_selection")
+      .map(b => b.id);
+
+    let slotsMap = new Map<string, any>();
+    if (awaitingBookingIds.length > 0) {
+      const { data: slotsData } = await supabase
+        .from("booking_proposed_slots")
+        .select("booking_id, slot_1_date, slot_1_time, slot_2_date, slot_2_time, slot_3_date, slot_3_time")
+        .in("booking_id", awaitingBookingIds);
+
+      if (slotsData) {
+        slotsMap = new Map(slotsData.map(s => [s.booking_id, s]));
+      }
+    }
+
+    // Add hotel images and proposed slots to pending bookings
     const pendingBookingsWithImages = filteredPendingBookings.map(b => ({
       ...b,
-      hotels: { image: hotelImageMap.get(b.hotel_id) || null }
+      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null },
+      proposed_slots: slotsMap.get(b.id) || null,
     }));
 
     if (pendingError) {
@@ -383,9 +421,10 @@ const PwaDashboard = () => {
       return;
     }
 
-    // Combine and sort both sets of bookings
+    // Combine, deduplicate, and sort both sets of bookings
     const allData = [...myBookingsWithImages, ...pendingBookingsWithImages];
-    const sortedData = allData.sort((a, b) => {
+    const uniqueData = Array.from(new Map(allData.map(b => [b.id, b])).values());
+    const sortedData = uniqueData.sort((a, b) => {
       const dateCompare = a.booking_date.localeCompare(b.booking_date);
       if (dateCompare !== 0) return dateCompare;
       return a.booking_time.localeCompare(b.booking_time);
@@ -469,7 +508,7 @@ const PwaDashboard = () => {
       const result = data as { success: boolean; error?: string } | null;
       
       if (result && !result.success) {
-        toast.error("Réservation déjà prise par un autre coiffeur");
+        toast.error(t('dashboard.bookingAlreadyTaken'));
         fetchAllBookings(hairdresser.id);
         return;
       }
@@ -483,11 +522,11 @@ const PwaDashboard = () => {
         console.error("Email notification error (non-blocking):", notifError);
       }
 
-      toast.success("Réservation acceptée !");
+      toast.success(t('dashboard.bookingAccepted'));
       fetchAllBookings(hairdresser.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
-      toast.error("Erreur lors de l'acceptation");
+      toast.error(t('dashboard.acceptError'));
     }
   };
 
@@ -511,11 +550,11 @@ const PwaDashboard = () => {
 
       if (error) throw error;
 
-      toast.success("Réservation refusée");
+      toast.success(t('dashboard.bookingDeclined'));
       fetchAllBookings(hairdresser.id, true); // Force refresh
     } catch (error) {
       console.error("Error declining booking:", error);
-      toast.error("Erreur");
+      toast.error(t('dashboard.error'));
     }
   };
 
@@ -547,7 +586,7 @@ const PwaDashboard = () => {
 
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
-      const isStatusPending = b.status === "pending";
+      const isStatusPending = b.status === "pending" || b.status === "awaiting_hairdresser_selection";
       const isUnassigned = b.hairdresser_id === null;
       
       // Exclure les réservations que ce coiffeur a déjà refusées
@@ -726,7 +765,7 @@ const PwaDashboard = () => {
                           </Badge>
                         )}
                         {(() => {
-                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method);
+                          const paymentBadge = getPaymentStatusBadge(booking.payment_status, booking.payment_method, t);
                           return paymentBadge ? (
                             <Badge className={`text-[8px] px-1 py-0 h-3 ${paymentBadge.className}`}>
                               {paymentBadge.label}
@@ -735,7 +774,7 @@ const PwaDashboard = () => {
                         })()}
                       </div>
                       <p className="text-[11px] text-gray-500">
-                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
+                        {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
@@ -824,10 +863,28 @@ const PwaDashboard = () => {
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
-                            <p className="text-[11px] text-gray-500">
-                              {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking))}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
+                              {booking.proposed_slots && (booking.proposed_slots.slot_2_date || booking.proposed_slots.slot_3_date) && (
+                                <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3 bg-purple-100 text-purple-700 flex-shrink-0">
+                                  {t('dashboard.slots', { count: [true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length })}
+                                </Badge>
+                              )}
+                            </div>
+                            {booking.proposed_slots ? (
+                              <p className="text-[11px] text-gray-500">
+                                {format(new Date(booking.proposed_slots.slot_1_date + "T00:00:00"), "d/MM")} {booking.proposed_slots.slot_1_time.substring(0, 5)}
+                                {booking.proposed_slots.slot_2_date && booking.proposed_slots.slot_2_time &&
+                                  ` / ${format(new Date(booking.proposed_slots.slot_2_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_2_time.substring(0, 5)}`}
+                                {booking.proposed_slots.slot_3_date && booking.proposed_slots.slot_3_time &&
+                                  ` / ${format(new Date(booking.proposed_slots.slot_3_date + "T00:00:00"), "d/MM")} ${booking.proposed_slots.slot_3_time.substring(0, 5)}`}
+                                {" "}• {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-gray-500">
+                                {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
+                              </p>
+                            )}
                           </div>
                           <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                         </div>

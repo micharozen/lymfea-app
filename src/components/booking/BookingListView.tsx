@@ -73,8 +73,8 @@ export function BookingListView({
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-hidden bg-card">
-        <Table className="text-xs w-full table-fixed h-full">
+      <div className="flex-1 overflow-hidden overflow-x-auto bg-card">
+        <Table className="text-xs w-full table-fixed h-full min-w-[900px]">
           <colgroup>
             <col className="w-[7%]" />
             <col className="w-[10%]" />
@@ -134,7 +134,7 @@ export function BookingListView({
                   <span className="truncate block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{formatPrice(booking.total_price)}</span>
+                  <span className="truncate block leading-none">{formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}</span>
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                   <HotelCell hotel={getHotelInfo(booking.hotel_id)} />

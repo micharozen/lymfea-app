@@ -17,7 +17,10 @@
     "equipmentIncluded": "Équipement professionnel complet inclus",
     "howItWorks": "Comment ça marche ?",
     "ourExperts": "NOS EXPERTS",
-    "expertHairdresser": "Expert Coiffeur"
+    "expertHairdresser": "Expert Coiffeur",
+    "enterpriseWellnessTitle": "Le bien-être, directement dans vos bureaux",
+    "nextSession": "Prochaine session :",
+    "booking": "Réserver un soin"
   },
   "menu": {
     "title": "Menu",
@@ -28,6 +31,10 @@
     "item": "article",
     "items": "articles",
     "duration": "{{duration}} min",
+    "bestsellers": "Incontournables",
+    "bestsellersSubtitle": "Nos soins les plus populaires",
+    "forWomen": "Femmes",
+    "forMen": "Hommes",
     "noTreatments": "Aucun soin disponible",
     "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
     "categories": {
@@ -124,7 +131,7 @@
     "quoteRequiredDesc": "Votre panier contient des prestations sur devis. Un conseiller vous contactera pour confirmer le prix final.",
     "onQuote": "Sur devis",
     "plusQuote": "+ devis",
-    "requestQuote": "Demander un devis"
+    "requestQuote": "Envoyer la demande"
   },
   "confirmation": {
     "title": "Réservation confirmée",
@@ -133,6 +140,73 @@
     "quotePendingTitle": "Demande de devis envoyée",
     "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails."
   },
+  "paymentConfirmation": {
+    "label": "Confirmation de paiement",
+    "title": "Merci pour votre",
+    "titleHighlight": "paiement",
+    "message": "Votre réservation est maintenant confirmée. Vous recevrez un email avec tous les détails.",
+    "discoverServices": "DÉCOUVRIR NOS SERVICES"
+  },
   "hotelNotFound": "Hôtel non trouvé",
-  "checkQrCode": "Veuillez vérifier votre code QR"
+  "checkQrCode": "Veuillez vérifier votre code QR",
+  "venueNotFound": "Lieu non trouvé",
+  "venue": {
+    "hotel": "Hôtel",
+    "coworking": "Espace de coworking",
+    "room": "Chambre",
+    "workspace": "Espace de travail",
+    "roomNumber": "Numéro de chambre",
+    "workspaceNumber": "Numéro d'espace",
+    "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
+    "inWorkspaceDisclaimer": "Prestation réalisée à votre espace de travail.",
+    "addToRoom": "Ajouter à la chambre",
+    "addToRoomDesc": "Ajouté à votre note de chambre",
+    "addToWorkspace": "Ajouter au compte",
+    "addToWorkspaceDesc": "Ajouté à votre compte",
+    "exclusiveRoomService": "SERVICE EN CHAMBRE EXCLUSIF",
+    "exclusiveWorkspaceService": "SERVICE EXCLUSIF",
+    "exclusiveEnterpriseService": "EXPÉRIENCE BIEN-ÊTRE EN ENTREPRISE",
+    "roomServiceDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
+    "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous.",
+    "enterpriseServiceDescription": "Offrez-vous un vrai moment de déconnexion. Nos experts coiffeurs et barbiers s'installent directement dans vos locaux — sans déplacement, sans stress, juste du soin.",
+    "enterprise": "Entreprise",
+    "inEnterpriseDisclaimer": "Notre équipe se déplace directement dans vos locaux."
+  },
+  "enterpriseDashboard": {
+    "label": "TABLEAU DE BORD BIEN-ÊTRE",
+    "subtitle": "Votre espace bien-être",
+    "sessionSelector": {
+      "title": "SESSION",
+      "noSessions": "Aucune session programmée pour le moment.",
+      "nextSession": "Session suivante",
+      "previousSession": "Session précédente"
+    },
+    "metrics": {
+      "totalSlots": "Créneaux",
+      "bookedSlots": "Réservés",
+      "fillRate": "Taux de remplissage",
+      "uniqueClients": "Participants"
+    },
+    "timeline": {
+      "title": "Planning de la journée",
+      "available": "Disponible",
+      "blocked": "Indisponible",
+      "booked": "Réservé"
+    },
+    "popularServices": {
+      "title": "Services les plus demandés",
+      "bookings": "réservations",
+      "noData": "Aucune réservation sur cette session"
+    },
+    "footer": {
+      "cta": "Envie de planifier votre prochaine session bien-être ?",
+      "contact": "Nous contacter",
+      "poweredBy": "Propulsé par"
+    },
+    "error": {
+      "notFound": "Lieu non trouvé",
+      "notFoundDesc": "Ce lien ne correspond à aucun lieu. Vérifiez l'URL ou contactez votre représentant OOM.",
+      "notDeployed": "Aucune session prévue à cette date."
+    }
+  }
 }

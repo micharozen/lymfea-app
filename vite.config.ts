@@ -10,6 +10,27 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React ecosystem
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // Data fetching
+          'vendor-query': ['@tanstack/react-query'],
+          // Form handling
+          'vendor-form': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Date utilities
+          'vendor-date': ['date-fns', 'date-fns-tz'],
+          // PDF export (only loaded when needed in admin)
+          'pdf-export': ['html2pdf.js'],
+          // Charts (only loaded on admin dashboard)
+          'charts': ['recharts'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500, // Warn if chunks exceed 500KB
+  },
   plugins: [
     react(), 
     mode === "development" && componentTagger(),

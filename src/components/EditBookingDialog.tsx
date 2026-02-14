@@ -26,13 +26,15 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
-import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2 } from "lucide-react";
+import { X, CalendarIcon, ChevronDown, User, Plus, Minus, AlertTriangle, Globe, Loader2, Send, Pencil } from "lucide-react";
 import { cn, decodeHtmlEntities } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getCurrentOffset } from "@/lib/timezones";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +45,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 
 const countries = [
   { code: "+27", label: "Afrique du Sud", flag: "🇿🇦" },
@@ -185,6 +188,9 @@ export default function EditBookingDialog({
   // Quote pending states
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteDuration, setQuoteDuration] = useState<string>("");
+
+  // Payment link dialog state
+  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   
 
   // Pre-fill form when booking changes
@@ -250,7 +256,7 @@ export default function EditBookingDialog({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, timezone")
+        .select("id, name, timezone, currency")
         .order("name");
       if (error) throw error;
       return data;
@@ -948,11 +954,86 @@ export default function EditBookingDialog({
       onOpenChange(open);
       if (!open) setViewMode("view");
     }}>
-      <DialogContent className="max-w-md p-0 gap-0">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader className="px-4 py-3 border-b shrink-0">
-          <DialogTitle className="text-lg font-semibold">
-            {viewMode === "view" ? "Détails de la réservation" : viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
-          </DialogTitle>
+          {viewMode === "view" ? (
+            <div className="flex items-start justify-between">
+              <div>
+                <DialogTitle className="text-lg font-semibold">
+                  Détails de la réservation
+                </DialogTitle>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
+                    {getBookingStatusConfig(booking?.status || 'pending').label}
+                  </Badge>
+                  {booking?.payment_status &&
+                   booking?.status !== 'quote_pending' &&
+                   booking?.status !== 'waiting_approval' && (
+                    <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
+                      {getPaymentStatusConfig(booking.payment_status).label}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {!showAssignHairdresser && (
+                <ButtonGroup className="pr-10">
+                  {booking?.payment_status !== 'paid' &&
+                   booking?.payment_status !== 'charged_to_room' &&
+                   booking?.payment_method === 'card' &&
+                   booking?.status !== 'cancelled' && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setIsPaymentLinkDialogOpen(true)}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Lien paiement</TooltipContent>
+                    </Tooltip>
+                  )}
+                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => setShowDeleteDialog(true)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Annuler</TooltipContent>
+                    </Tooltip>
+                  )}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Modifier</TooltipContent>
+                  </Tooltip>
+                </ButtonGroup>
+              )}
+            </div>
+          ) : (
+            <DialogTitle className="text-lg font-semibold">
+              {viewMode === "quote" ? "Valider le devis" : "Modifier la réservation"}
+            </DialogTitle>
+          )}
         </DialogHeader>
 
         {/* QUOTE VIEW */}
@@ -1034,27 +1115,13 @@ export default function EditBookingDialog({
             {/* BODY */}
             <div className="px-4 py-3 space-y-2">
               {/* En-tête */}
-              <div className="flex items-center justify-between pb-3 border-b">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
-                    <CalendarIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">#{booking?.booking_id}</p>
-                    <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
-                  </div>
+              <div className="flex items-center gap-3 pb-3 border-b">
+                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
+                  <CalendarIcon className="w-5 h-5" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={getBookingStatusConfig(booking?.status || 'pending').badgeClass}>
-                    {getBookingStatusConfig(booking?.status || 'pending').label}
-                  </Badge>
-                  {booking?.payment_status && 
-                   booking?.status !== 'quote_pending' && 
-                   booking?.status !== 'waiting_approval' && (
-                    <Badge variant="outline" className={`text-xs ${getPaymentStatusConfig(booking.payment_status).badgeClass}`}>
-                      {getPaymentStatusConfig(booking.payment_status).label}
-                    </Badge>
-                  )}
+                <div>
+                  <p className="text-sm font-semibold">#{booking?.booking_id}</p>
+                  <p className="text-xs text-muted-foreground">{booking?.hotel_name}</p>
                 </div>
               </div>
 
@@ -1083,7 +1150,7 @@ export default function EditBookingDialog({
                             : 0;
                         const customPrice = booking?.total_price;
                         const value = customPrice && customPrice > 0 ? customPrice : treatmentsPrice;
-                        return formatPrice(value);
+                        return formatPrice(value, selectedHotel?.currency || 'EUR');
                       })()}
                     </p>
                   </div>
@@ -1125,7 +1192,7 @@ export default function EditBookingDialog({
                         ))}
                         <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                           <span className="font-semibold">Total</span>
-                          <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                          <span className="font-semibold">{formatPrice(displayTotal, selectedHotel?.currency || 'EUR')}</span>
                         </div>
                       </div>
                     </div>
@@ -1139,12 +1206,12 @@ export default function EditBookingDialog({
                       {bookingTreatments.map((treatment) => (
                         <div key={treatment.id} className="flex items-center justify-between text-sm">
                           <span>{treatment.name}</span>
-                          <span className="font-medium">{formatPrice(treatment.price || 0)}</span>
+                          <span className="font-medium">{formatPrice(treatment.price || 0, selectedHotel?.currency || 'EUR')}</span>
                         </div>
                       ))}
                       <div className="flex items-center justify-between text-sm pt-2 mt-2 border-t border-border/50">
                         <span className="font-semibold">Total</span>
-                        <span className="font-semibold">{formatPrice(displayTotal)}</span>
+                        <span className="font-semibold">{formatPrice(displayTotal, selectedHotel?.currency || 'EUR')}</span>
                       </div>
                     </div>
                   </div>
@@ -1261,11 +1328,10 @@ export default function EditBookingDialog({
             </div>
 
             {/* FOOTER */}
-            <div className="px-4 py-3 border-t bg-muted/30 flex flex-row justify-between gap-3">
+            <div className="px-4 py-3 border-t bg-muted/30 flex flex-row gap-3">
               {booking?.status === "quote_pending" && isAdmin ? (
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={() => setViewMode("quote")}
                   className="border-orange-400 bg-orange-500 text-white hover:bg-orange-600 hover:text-white"
                 >
@@ -1283,29 +1349,9 @@ export default function EditBookingDialog({
                   {approveQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               ) : (
-                <Button type="button" variant="outline" onClick={handleClose}>
-                  Fermer
-                </Button>
-              )}
-              
-              {!showAssignHairdresser && (
-                <div className="flex gap-2">
-                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
-                    <Button 
-                      type="button" 
-                      variant="destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="gap-2"
-                    >
-                      <X className="h-4 w-4" />
-                      Annuler
-                    </Button>
-                  )}
-                  <Button 
-                    type="button" 
-                    onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
-                  >
-                    Modifier
+                <div className="flex-1 flex justify-end">
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    Fermer
                   </Button>
                 </div>
               )}
@@ -1763,6 +1809,31 @@ export default function EditBookingDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {booking && (
+        <SendPaymentLinkDialog
+          open={isPaymentLinkDialogOpen}
+          onOpenChange={setIsPaymentLinkDialogOpen}
+          booking={{
+            id: booking.id,
+            booking_id: booking.booking_id,
+            client_first_name: booking.client_first_name,
+            client_last_name: booking.client_last_name,
+            client_email: undefined,
+            phone: booking.phone,
+            room_number: booking.room_number || undefined,
+            booking_date: booking.booking_date,
+            booking_time: booking.booking_time,
+            total_price: booking.total_price || 0,
+            hotel_name: booking.hotel_name || undefined,
+            treatments: bookingTreatments?.map(t => ({
+              name: t.name || 'Service',
+              price: t.price || 0,
+            })) || [],
+            currency: selectedHotel?.currency || 'EUR',
+          }}
+        />
+      )}
 
     </Dialog>
   );

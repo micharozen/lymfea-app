@@ -21,6 +21,7 @@ interface BookingConfirmationEmailProps {
   treatments: string[]
   totalPrice: number
   currency: string
+  venueType?: 'hotel' | 'coworking' | 'enterprise'
 }
 
 export const BookingConfirmationEmail = ({
@@ -33,7 +34,12 @@ export const BookingConfirmationEmail = ({
   treatments,
   totalPrice,
   currency,
-}: BookingConfirmationEmailProps) => (
+  venueType = 'hotel',
+}: BookingConfirmationEmailProps) => {
+  // Get venue-specific terminology
+  const locationLabel = venueType === 'coworking' ? 'Workspace' : 'Room';
+
+  return (
   <Html>
     <Head />
     <Preview>Booking Confirmation #{bookingNumber} - OOM World</Preview>
@@ -68,7 +74,7 @@ export const BookingConfirmationEmail = ({
             <Section style={detailsSection}>
               <Text style={label}>Location</Text>
               <Text style={value}>{hotelName}</Text>
-              {roomNumber && <Text style={subValue}>Room {roomNumber}</Text>}
+              {roomNumber && <Text style={subValue}>{locationLabel} {roomNumber}</Text>}
             </Section>
 
             <Hr style={divider} />
@@ -114,7 +120,8 @@ export const BookingConfirmationEmail = ({
       </Container>
     </Body>
   </Html>
-)
+  );
+}
 
 export default BookingConfirmationEmail
 

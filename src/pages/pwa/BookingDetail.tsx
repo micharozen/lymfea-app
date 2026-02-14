@@ -3,11 +3,13 @@ import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { formatPrice } from "@/lib/formatPrice";
 import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { AddTreatmentDialog } from "./AddTreatmentDialog";
+import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
@@ -55,6 +57,7 @@ interface Booking {
   payment_status?: string | null;
   payment_method?: string | null;
   hairdresser_commission?: number;
+  hotel_currency?: string;
 }
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
@@ -114,6 +117,9 @@ const PwaBookingDetail = () => {
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [pendingSlotNumber, setPendingSlotNumber] = useState<1 | 2 | 3 | null>(null);
+  const [showProposeAlternativeDialog, setShowProposeAlternativeDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
@@ -124,6 +130,13 @@ const PwaBookingDetail = () => {
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
   const isAcceptingRef = useRef(false);
+  // Proposed slots for awaiting_hairdresser_selection status
+  const [proposedSlots, setProposedSlots] = useState<{
+    slot_1_date: string; slot_1_time: string;
+    slot_2_date?: string | null; slot_2_time?: string | null;
+    slot_3_date?: string | null; slot_3_time?: string | null;
+  } | null>(null);
+  const [validatingSlot, setValidatingSlot] = useState<number | null>(null);
 
   // Fetch booking detail when ID changes - keep existing data while loading new booking
   useEffect(() => {
@@ -193,7 +206,7 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat, hairdresser_commission")
+          .select("image, address, city, vat, hairdresser_commission, currency")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
@@ -205,7 +218,8 @@ const PwaBookingDetail = () => {
         hotel_address: hotelData?.address,
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
-        hairdresser_commission: hotelData?.hairdresser_commission || 70
+        hairdresser_commission: hotelData?.hairdresser_commission || 70,
+        hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
 
@@ -241,6 +255,20 @@ const PwaBookingDetail = () => {
         }
       }
 
+      // Fetch proposed slots if awaiting hairdresser selection
+      if (bookingData.status === "awaiting_hairdresser_selection") {
+        const { data: slotsData } = await supabase
+          .from("booking_proposed_slots")
+          .select("*")
+          .eq("booking_id", id)
+          .single();
+        if (slotsData) {
+          setProposedSlots(slotsData);
+        }
+      } else {
+        setProposedSlots(null);
+      }
+
       // Fetch concierge contact
       const { data: conciergeData } = await supabase
         .from("concierge_hotels")
@@ -264,7 +292,7 @@ const PwaBookingDetail = () => {
       const { data: adminData } = await supabase
         .from("admins")
         .select("phone, country_code, first_name, last_name")
-        .eq("status", "Actif")
+        .in("status", ["active", "Actif"])
         .limit(1)
         .maybeSingle();
 
@@ -353,6 +381,46 @@ const PwaBookingDetail = () => {
   const handlePaymentComplete = () => {
     toast.success("Paiement finalisé !");
     navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+  };
+
+  const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
+    if (!booking) return;
+
+    // Get current hairdresser's ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: hairdresserData } = await supabase
+      .from("hairdressers")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!hairdresserData) {
+      toast.error("Profil coiffeur introuvable");
+      return;
+    }
+
+    setValidatingSlot(slotNumber);
+    try {
+      const { data, error } = await invokeEdgeFunction("validate-booking-slot", {
+        body: {
+          bookingId: booking.id,
+          slotNumber,
+          hairdresserId: hairdresserData.id,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success("Créneau validé ! Le lien de paiement a été envoyé au client.");
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      console.error("Error validating slot:", error);
+      toast.error(error?.message || "Erreur lors de la validation du créneau");
+    } finally {
+      setValidatingSlot(null);
+    }
   };
 
   const handleUnassignBooking = async () => {
@@ -659,8 +727,11 @@ const PwaBookingDetail = () => {
     : (treatmentsTotalDuration > 0 ? treatmentsTotalDuration : 60);
   const totalPrice = booking.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotalPrice;
   
-  const estimatedEarnings = booking.hairdresser_commission 
-    ? Math.round(totalPrice * (booking.hairdresser_commission / 100) * 100) / 100
+  // Calculate earnings on HT (before VAT), matching finalize-payment logic
+  const vatRate = booking.hotel_vat || 20;
+  const totalHT = totalPrice / (1 + vatRate / 100);
+  const estimatedEarnings = booking.hairdresser_commission
+    ? Math.round(totalHT * (booking.hairdresser_commission / 100) * 100) / 100
     : 0;
 
   return (
@@ -728,17 +799,21 @@ const PwaBookingDetail = () => {
               <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('booking.date')}</span>
               <span className="text-xs font-medium text-foreground ml-auto">
-                {format(new Date(booking.booking_date), "d MMM yyyy")}
+                {booking.status === "awaiting_hairdresser_selection" && proposedSlots
+                  ? "Voir créneaux ci-dessous"
+                  : format(new Date(booking.booking_date), "d MMM yyyy")}
               </span>
             </div>
 
-            <div className="flex items-center gap-3 py-2 border-b border-border/50">
-              <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">
-                {booking.booking_time.substring(0, 5)}
-              </span>
-            </div>
+            {!(booking.status === "awaiting_hairdresser_selection" && proposedSlots) && (
+              <div className="flex items-center gap-3 py-2 border-b border-border/50">
+                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
+                <span className="text-xs font-medium text-foreground ml-auto">
+                  {booking.booking_time.substring(0, 5)}
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -749,7 +824,7 @@ const PwaBookingDetail = () => {
             <div className="flex items-center gap-3 py-2 border-b border-border/50">
               <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground w-16">{t('bookingDetail.price')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">{totalPrice}€</span>
+              <span className="text-xs font-medium text-foreground ml-auto">{formatPrice(totalPrice, booking.hotel_currency)}</span>
             </div>
           </div>
 
@@ -759,7 +834,7 @@ const PwaBookingDetail = () => {
               <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
               <span className="text-xs text-green-600 dark:text-green-500 font-medium">{t('bookingDetail.yourEarnings')}</span>
               <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
-                {estimatedEarnings}€
+                {formatPrice(estimatedEarnings, booking.hotel_currency)}
               </span>
             </div>
           )}
@@ -814,7 +889,7 @@ const PwaBookingDetail = () => {
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">{treatment.treatment_menus?.name || 'Treatment'}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        {treatment.treatment_menus?.price || 0}€ • {treatment.treatment_menus?.duration || 0}min
+                        {formatPrice(treatment.treatment_menus?.price || 0, booking.hotel_currency)} • {treatment.treatment_menus?.duration || 0}min
                       </p>
                     </div>
                     {(booking.status !== "completed" && booking.status !== "pending") && (
@@ -834,9 +909,77 @@ const PwaBookingDetail = () => {
 
         {/* Bottom Actions - Compact */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
-          <div className="flex items-center gap-2">
-            {/* For Pending Requests (not assigned to anyone) */}
-            {booking.status === "pending" && !booking.hairdresser_id ? (
+          <div className="flex flex-col gap-2">
+            {/* For Awaiting Hairdresser Selection (concierge flow with proposed slots) */}
+            {booking.status === "awaiting_hairdresser_selection" && proposedSlots ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-center text-muted-foreground">Choisissez un créneau</p>
+                {/* Slot 1 - Preferred */}
+                <button
+                  onClick={() => setPendingSlotNumber(1)}
+                  disabled={validatingSlot !== null}
+                  className="w-full p-3 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 flex items-center justify-between transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_1_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_1_time.substring(0, 5)}</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-primary/10 text-primary text-[10px] border-0">Préféré</Badge>
+                </button>
+
+                {/* Slot 2 */}
+                {proposedSlots.slot_2_date && proposedSlots.slot_2_time && (
+                  <button
+                    onClick={() => setPendingSlotNumber(2)}
+                    disabled={validatingSlot !== null}
+                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">2</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_2_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_2_time.substring(0, 5)}</p>
+                    </div>
+                  </button>
+                )}
+
+                {/* Slot 3 */}
+                {proposedSlots.slot_3_date && proposedSlots.slot_3_time && (
+                  <button
+                    onClick={() => setPendingSlotNumber(3)}
+                    disabled={validatingSlot !== null}
+                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">3</span>
+                    <div className="text-left">
+                      <p className="font-semibold text-sm">
+                        {format(new Date(proposedSlots.slot_3_date + "T00:00:00"), "EEE d MMM")}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_3_time.substring(0, 5)}</p>
+                    </div>
+                  </button>
+                )}
+
+                {validatingSlot && (
+                  <p className="text-xs text-center text-muted-foreground animate-pulse">Validation en cours...</p>
+                )}
+
+                {/* Decline button for multi-slot bookings */}
+                <button
+                  onClick={() => setShowDeclineDialog(true)}
+                  disabled={updating || validatingSlot !== null}
+                  className="w-full py-2.5 rounded-full border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-[0.98] mt-2"
+                >
+                  Refuser cette demande
+                </button>
+              </div>
+            ) : booking.status === "pending" && !booking.hairdresser_id ? (
               <>
                 {/* Decline Button */}
                 <button
@@ -867,15 +1010,25 @@ const PwaBookingDetail = () => {
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
-                      <a
-                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                      </a>
+                      {booking.phone ? (
+                        <a
+                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-4 h-4 text-primary" />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{t('booking.contactClient')}</span>
+                            <span className="text-xs text-muted-foreground">{booking.phone}</span>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
+                          <Phone className="w-4 h-4" />
+                          <span className="text-sm">{t('booking.contactClient')} - N/A</span>
+                        </div>
+                      )}
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
@@ -885,6 +1038,16 @@ const PwaBookingDetail = () => {
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
                       </a>
+                      <div className="border-t my-2" />
+                      <DrawerClose asChild>
+                        <button
+                          onClick={() => setShowProposeAlternativeDialog(true)}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
+                        >
+                          <Clock className="w-4 h-4 text-orange-500" />
+                          <span className="text-sm font-medium">Proposer un autre créneau</span>
+                        </button>
+                      </DrawerClose>
                     </div>
                   </DrawerContent>
                 </Drawer>
@@ -895,7 +1058,7 @@ const PwaBookingDetail = () => {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleAcceptBooking();
+                    setShowAcceptDialog(true);
                   }}
                   disabled={updating}
                   className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
@@ -927,16 +1090,26 @@ const PwaBookingDetail = () => {
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
                         </a>
                       )}
-                      <a
-                        href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <Phone className="w-4 h-4 text-primary" />
-                        <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                      </a>
+                      {booking.phone ? (
+                        <a
+                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setShowContactDrawer(false)}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        >
+                          <Phone className="w-4 h-4 text-primary" />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium">{t('booking.contactClient')}</span>
+                            <span className="text-xs text-muted-foreground">{booking.phone}</span>
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
+                          <Phone className="w-4 h-4" />
+                          <span className="text-sm">{t('booking.contactClient')} - N/A</span>
+                        </div>
+                      )}
                       <a
                         href="https://wa.me/33769627754"
                         target="_blank"
@@ -973,7 +1146,7 @@ const PwaBookingDetail = () => {
                     className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     <Wallet className="w-4 h-4" />
-                    Finaliser ({totalPrice}€)
+                    Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
                   </button>
                 )}
                 
@@ -1031,6 +1204,24 @@ const PwaBookingDetail = () => {
         bookingId={booking.id}
         hotelId={booking.hotel_id}
         onTreatmentsAdded={fetchBookingDetail}
+      />
+
+      {/* Propose Alternative Dialog */}
+      <ProposeAlternativeDialog
+        open={showProposeAlternativeDialog}
+        onOpenChange={setShowProposeAlternativeDialog}
+        booking={{
+          id: booking.id,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          phone: booking.phone,
+        }}
+        onProposalSent={() => {
+          fetchBookingDetail();
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+        }}
       />
 
       {/* Signature Dialog */}
@@ -1109,6 +1300,65 @@ const PwaBookingDetail = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Accept Booking Confirmation Dialog */}
+      <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('bookingDetail.acceptTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('bookingDetail.acceptDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAcceptBooking}
+              disabled={updating}
+            >
+              {t('bookingDetail.confirmAccept')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Validate Slot Confirmation Dialog */}
+      <AlertDialog open={pendingSlotNumber !== null} onOpenChange={(open) => { if (!open) setPendingSlotNumber(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('bookingDetail.validateSlotTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSlotNumber && proposedSlots ? t('bookingDetail.validateSlotDesc', {
+                date: format(
+                  new Date(
+                    (pendingSlotNumber === 1 ? proposedSlots.slot_1_date :
+                     pendingSlotNumber === 2 ? proposedSlots.slot_2_date :
+                     proposedSlots.slot_3_date) + "T00:00:00"
+                  ),
+                  "EEE d MMM"
+                ),
+                time: (pendingSlotNumber === 1 ? proposedSlots.slot_1_time :
+                       pendingSlotNumber === 2 ? proposedSlots.slot_2_time :
+                       proposedSlots.slot_3_time)?.substring(0, 5)
+              }) : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSlotNumber) {
+                  handleValidateSlot(pendingSlotNumber);
+                  setPendingSlotNumber(null);
+                }
+              }}
+              disabled={validatingSlot !== null}
+            >
+              {t('bookingDetail.confirmSlot')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Payment Selection Drawer - Smart Cashier */}
       <PaymentSelectionDrawer
         open={showPaymentSelection}
@@ -1116,6 +1366,7 @@ const PwaBookingDetail = () => {
         bookingId={booking.id}
         bookingNumber={booking.booking_id}
         totalPrice={totalPrice}
+        currency={booking.hotel_currency}
         treatments={treatments.map(t => ({
           name: t.treatment_menus?.name || "Treatment",
           duration: t.treatment_menus?.duration || 0,

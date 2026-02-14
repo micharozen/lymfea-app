@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
@@ -14,6 +14,8 @@ import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
 import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
 
 // Lazy load all page components for code splitting
 
@@ -32,6 +34,7 @@ const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
+const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 
@@ -46,6 +49,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
 const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
+const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
 
 // PWA Pages
 const PwaLogin = lazy(() => import("./pages/pwa/Login"));
@@ -63,6 +67,16 @@ const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
+const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
+
+// Admin PWA Layout & Pages
+const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
+const AdminPwaDashboard = lazy(() => import("./pages/admin-pwa/Dashboard"));
+const AdminPwaBookingDetail = lazy(() => import("./pages/admin-pwa/BookingDetail"));
+const AdminPwaCreateBooking = lazy(() => import("./pages/admin-pwa/CreateBooking"));
+const AdminPwaNotifications = lazy(() => import("./pages/admin-pwa/Notifications"));
+const AdminPwaAccueil = lazy(() => import("./pages/admin-pwa/Accueil"));
+const AdminPwaInstall = lazy(() => import("./pages/admin-pwa/Install"));
 
 // Client Pages
 const Welcome = lazy(() => import("./pages/client/Welcome"));
@@ -74,6 +88,9 @@ const GuestInfo = lazy(() => import("./pages/client/GuestInfo"));
 const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
+
+// Enterprise Dashboard
+const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +106,17 @@ const queryClient = new QueryClient({
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
+
+// Client-specific loader
+const ClientPageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen bg-white">
+    <img
+      src="/images/oom-logo-email-white.png"
+      alt="OOM"
+      className="h-16 animate-pulse"
+    />
   </div>
 );
 
@@ -165,32 +193,36 @@ const App = () => {
             {/* Root - Smart redirect based on user type */}
             <Route path="/" element={<Home />} />
             
+            {/* Enterprise Dashboard (Public - QR Code) */}
+            <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
+
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId" element={
-              <ClientFlowWrapper>
-                <Welcome />
-              </ClientFlowWrapper>
-            } />
             <Route path="/client/:hotelId/*" element={
-              <ClientFlowWrapper>
-                <CartProvider hotelId={window.location.pathname.split('/')[2]}>
-                  <Routes>
-                    <Route path="/treatments" element={<ClientTreatments />} />
-                    {/* Cart page removed from flow - direct navigation to schedule */}
-                    {/* <Route path="/cart" element={<Cart />} /> */}
-                    <Route path="/schedule" element={<Schedule />} />
-                    <Route path="/guest-info" element={<GuestInfo />} />
-                    <Route path="/payment" element={<Payment />} />
-                    <Route path="/checkout" element={<Checkout />} />
-                    <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
-                  </Routes>
-                </CartProvider>
-              </ClientFlowWrapper>
+              <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
+                <Suspense fallback={<ClientPageLoader />}>
+                  <ClientFlowWrapper>
+                    <CartProvider hotelId={window.location.pathname.split('/')[2]}>
+                      <Routes>
+                        <Route index element={<Welcome />} />
+                        <Route path="/treatments" element={<ClientTreatments />} />
+                        <Route path="/schedule" element={<Schedule />} />
+                        <Route path="/guest-info" element={<GuestInfo />} />
+                        <Route path="/payment" element={<Payment />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                      </Routes>
+                    </CartProvider>
+                  </ClientFlowWrapper>
+                </Suspense>
+              </ErrorBoundary>
             } />
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
-            
+
+            {/* Payment Link Confirmation (Public) */}
+            <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />
+
             {/* Rating Page (Public) */}
             <Route path="/rate/:token" element={<RateHairdresser />} />
             
@@ -256,6 +288,7 @@ const App = () => {
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
               <Route path="wallet" element={<PwaWallet />} />
+              <Route path="new-booking" element={<PwaNewBooking />} />
             </Route>
             {/* PWA routes without TabBar (still protected) */}
             <Route
@@ -291,15 +324,43 @@ const App = () => {
               }
             />
             
+            {/* Admin PWA Public Routes */}
+            <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
+
+            {/* Admin PWA Routes with TabBar */}
+            <Route
+              path="/admin-pwa"
+              element={
+                <AdminProtectedRoute>
+                  <AdminPwaLayout />
+                </AdminProtectedRoute>
+              }
+            >
+              <Route index element={<Navigate to="/admin-pwa/accueil" replace />} />
+              <Route path="accueil" element={<AdminPwaAccueil />} />
+              <Route path="dashboard" element={<AdminPwaDashboard />} />
+              <Route path="booking/:id" element={<AdminPwaBookingDetail />} />
+              <Route path="create" element={<AdminPwaCreateBooking />} />
+              <Route path="notifications" element={<AdminPwaNotifications />} />
+            </Route>
+
             {/* Admin Dashboard Routes */}
             <Route
               path="/admin/*"
               element={
                 <AdminProtectedRoute>
+                  {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
+                    ? <Navigate to="/admin-pwa/accueil" replace />
+                    : (
                   <SidebarProvider>
                     <div className="flex min-h-screen w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col">
+                        {/* Mobile header with menu trigger */}
+                        <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+                          <SidebarTrigger className="mr-2" />
+                          <span className="font-semibold">OOM Admin</span>
+                        </header>
                         <main className="flex-1">
                           <Routes>
                             <Route path="/" element={<Dashboard />} />
@@ -314,6 +375,7 @@ const App = () => {
                             <Route path="/orders" element={<Orders />} />
                             <Route path="/finance" element={<Finance />} />
                             <Route path="/transactions" element={<Transactions />} />
+                            <Route path="/analytics" element={<Analytics />} />
                             <Route path="/settings" element={<Settings />} />
                             <Route path="/profile" element={<AdminProfile />} />
                             <Route path="*" element={<NotFound />} />
@@ -322,6 +384,7 @@ const App = () => {
                       </div>
                     </div>
                   </SidebarProvider>
+                    )}
                 </AdminProtectedRoute>
               }
             />
