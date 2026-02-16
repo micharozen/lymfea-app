@@ -41,6 +41,7 @@ serve(async (req) => {
 
     const paymentMethod = booking.payment_method || 'room';
     const isRoomPayment = paymentMethod === 'room';
+    const isTapToPay = paymentMethod === 'tap_to_pay';
     
     console.log('[notify-concierge-completion] Processing completion for booking #', booking.booking_id, '- Payment method:', paymentMethod);
 
@@ -97,7 +98,7 @@ serve(async (req) => {
     // Dynamic subject based on payment method
     const emailSubject = isRoomPayment
       ? `⚠️ A FACTURER : Rapport prestation - Chambre ${roomNumber}`
-      : `✅ TERMINÉ (Payé CB) : Rapport prestation - Chambre ${roomNumber}`;
+      : `✅ TERMINÉ${isTapToPay ? '' : ' (Payé CB)'} : Rapport prestation - Chambre ${roomNumber}`;
 
     // Generate Invoice PDF HTML
     const generateInvoicePdfHtml = () => {
@@ -154,7 +155,7 @@ serve(async (req) => {
       <div style="font-size:14px;"><strong>Date:</strong> ${formattedDate}</div>
       <div style="font-size:14px;margin-top:4px;"><strong>Heure:</strong> ${formattedTime}</div>
       ${booking.hairdresser_name ? `<div style="font-size:14px;margin-top:4px;"><strong>Coiffeur:</strong> ${booking.hairdresser_name}</div>` : ''}
-      <div style="font-size:14px;margin-top:4px;"><strong>Paiement:</strong> ${isRoomPayment ? 'Facturation chambre' : 'Carte bancaire (déjà payé)'}</div>
+      <div style="font-size:14px;margin-top:4px;"><strong>Paiement:</strong> ${isRoomPayment ? 'Facturation chambre' : 'Réglé'}</div>
     </div>
     
     <!-- Treatments Table -->
@@ -214,7 +215,7 @@ serve(async (req) => {
       const headerBorderColor = isRoomPayment ? '#f59e0b' : '#10b981';
       const headerTextColor = isRoomPayment ? '#92400e' : '#047857';
       const badgeColor = isRoomPayment ? '#f59e0b' : '#10b981';
-      const badgeText = isRoomPayment ? '⚠️ ACTION REQUISE' : '✅ PAYÉ PAR CB';
+      const badgeText = isRoomPayment ? '⚠️ ACTION REQUISE' : '✅ RÉGLÉ';
       
       // Billing instruction block
       const billingInstruction = isRoomPayment
@@ -236,16 +237,16 @@ serve(async (req) => {
           </table>
         `
         : `
-          <!-- CARD PAYMENT - No Action Required -->
+          <!-- PAYMENT RECEIVED - No Action Required -->
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#ecfdf5;border:3px solid #10b981;border-radius:12px;margin-bottom:20px;">
             <tr>
               <td style="padding:20px;text-align:center;">
-                <p style="margin:0;font-size:14px;color:#047857;font-weight:700;text-transform:uppercase;">✅ PAYÉ PAR CARTE BANCAIRE</p>
+                <p style="margin:0;font-size:14px;color:#047857;font-weight:700;text-transform:uppercase;">✅ RÉGLÉ</p>
                 <p style="margin:12px 0 0;font-size:36px;font-weight:bold;color:#047857;">${totalAmount} ${currencySymbol}</p>
                 <p style="margin:8px 0 0;font-size:13px;color:#059669;">Chambre ${roomNumber}</p>
                 <div style="margin-top:16px;padding:12px;background:#fff;border-radius:8px;border:1px solid #a7f3d0;">
                   <p style="margin:0;font-size:14px;color:#047857;font-weight:600;">
-                    ℹ️ Le client a réglé par Carte Bancaire.<br/>
+                    ℹ️ Le client a déjà réglé.<br/>
                     <strong style="color:#dc2626;">NE PAS DÉBITER LA CHAMBRE</strong>
                   </p>
                 </div>

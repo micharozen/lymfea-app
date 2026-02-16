@@ -284,7 +284,13 @@
     "errorCreating": "Erreur lors de la création du paiement",
     "errorCancelling": "Erreur lors de l'annulation",
     "totalHT": "Total HT",
-    "vat": "TVA"
+    "vat": "TVA",
+    "tapToPay": "Tap to Pay",
+    "tapToPayDescription": "Le client a payé via le terminal de paiement",
+    "tapToPayConfirmTitle": "Confirmer le paiement ?",
+    "tapToPayConfirmDesc": "Confirmez-vous que le client a payé {{amount}} via Tap to Pay ? La prestation sera marquée comme terminée.",
+    "tapToPayConfirmButton": "Confirmer le paiement",
+    "tapToPaySuccess": "Paiement confirmé ! Prestation terminée."
   },
   "wallet": {
     "myEarnings": "Mes revenus",

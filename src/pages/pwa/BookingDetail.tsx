@@ -129,6 +129,8 @@ const PwaBookingDetail = () => {
   const [signingLoading, setSigningLoading] = useState(false);
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
+  const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
+  const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const isAcceptingRef = useRef(false);
   // Proposed slots for awaiting_hairdresser_selection status
   const [proposedSlots, setProposedSlots] = useState<{
@@ -381,6 +383,41 @@ const PwaBookingDetail = () => {
   const handlePaymentComplete = () => {
     toast.success("Paiement finalisé !");
     navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+  };
+
+  const handleTapToPayConfirm = async () => {
+    console.log("[TapToPay] Handler called", { bookingId: booking?.id, totalPrice });
+    if (!booking) return;
+
+    setTapToPayLoading(true);
+    try {
+      console.log("[TapToPay] Invoking edge function...");
+      const { data, error } = await invokeEdgeFunction(
+        'mark-tap-to-pay-paid',
+        {
+          body: {
+            booking_id: booking.id,
+            final_amount: totalPrice,
+          },
+        }
+      );
+
+      console.log("[TapToPay] Response:", JSON.stringify({ data, error }));
+
+      if (error) throw error;
+      if (!(data as any)?.success) {
+        throw new Error((data as any)?.error || "Payment finalization failed");
+      }
+
+      toast.success(t('payment.tapToPaySuccess'));
+      setShowTapToPayDialog(false);
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      console.error("[TapToPay] Error:", error);
+      toast.error(error.message || t('common:errors.generic'));
+    } finally {
+      setTapToPayLoading(false);
+    }
   };
 
   const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
@@ -1375,7 +1412,40 @@ const PwaBookingDetail = () => {
         vatRate={booking.hotel_vat || 20}
         onSignatureRequired={handleRoomPaymentSignature}
         onPaymentComplete={handlePaymentComplete}
+        onTapToPayRequested={() => {
+          setShowPaymentSelection(false);
+          setShowTapToPayDialog(true);
+        }}
       />
+
+      {/* Tap to Pay Confirmation Dialog */}
+      <AlertDialog open={showTapToPayDialog} onOpenChange={(open) => {
+        if (!tapToPayLoading) setShowTapToPayDialog(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('payment.tapToPayConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('payment.tapToPayConfirmDesc', { amount: formatPrice(totalPrice, booking.hotel_currency) })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={tapToPayLoading}>
+              {t('common:buttons.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleTapToPayConfirm();
+              }}
+              disabled={tapToPayLoading}
+              className="bg-green-600 text-white hover:bg-green-700"
+            >
+              {tapToPayLoading ? "..." : t('payment.tapToPayConfirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
