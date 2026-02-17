@@ -240,7 +240,8 @@ const App = () => {
             <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />
             <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/hair-dresser" element={<Navigate to="/admin/hairdressers" replace />} />
-            <Route path="/hotels" element={<Navigate to="/admin/hotels" replace />} />
+            <Route path="/hotels" element={<Navigate to="/admin/places" replace />} />
+            <Route path="/admin/hotels" element={<Navigate to="/admin/places" replace />} />
             <Route path="/treatment-menus" element={<Navigate to="/admin/treatments" replace />} />
             <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
             <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
@@ -367,7 +368,7 @@ const App = () => {
                             <Route path="/dashboard" element={<Dashboard />} />
                             <Route path="/bookings" element={<Bookings />} />
                             <Route path="/hairdressers" element={<Hairdressers />} />
-                            <Route path="/hotels" element={<AdminHotels />} />
+                            <Route path="/places" element={<AdminHotels />} />
                             <Route path="/treatments" element={<AdminTreatments />} />
                             <Route path="/trunks" element={<Trunks />} />
                             <Route path="/concierges" element={<Concierges />} />

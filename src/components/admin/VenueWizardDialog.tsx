@@ -659,115 +659,81 @@ export function VenueWizardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">{dialogTitle}</DialogTitle>
-          <VenueWizardStepper currentStep={currentStep} />
-        </DialogHeader>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <Form {...form}>
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
-              {currentStep === 1 && (
-                <VenueGeneralInfoStep
-                  form={form}
-                  mode={mode}
-                  trunks={trunks}
-                  selectedTrunkIds={selectedTrunkIds}
-                  setSelectedTrunkIds={setSelectedTrunkIds}
-                  hotelImage={hotelImage}
-                  coverImage={coverImage}
-                  uploadingHotel={uploadingHotel}
-                  uploadingCover={uploadingCover}
-                  hotelImageRef={hotelImageRef}
-                  coverImageRef={coverImageRef}
-                  handleHotelImageUpload={handleHotelImageUpload}
-                  handleCoverImageUpload={handleCoverImageUpload}
-                  triggerHotelImageSelect={triggerHotelImageSelect}
-                  triggerCoverImageSelect={triggerCoverImageSelect}
-                />
-              )}
-
-              {currentStep === 2 && (
-                <VenueDeploymentStep
-                  form={form}
-                  state={deploymentState}
-                  onChange={setDeploymentState}
-                  blockedSlots={blockedSlots}
-                  onBlockedSlotsChange={setBlockedSlots}
-                />
-              )}
-
-              {currentStep === 3 && (
-                <VenueCategoriesStep hotelId={savedHotelId || hotelId || null} />
-              )}
-
-              <div className="flex justify-between gap-3 pt-4 border-t">
-                {currentStep === 1 && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                    >
-                      Annuler
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleNextStep}
-                      className="bg-foreground text-background hover:bg-foreground/90"
-                    >
-                      Suivant
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {currentStep === 2 && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePreviousStep}
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Retour
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleNextStep}
-                      disabled={saving}
-                      className="bg-foreground text-background hover:bg-foreground/90"
-                    >
-                      {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Suivant
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-                {currentStep === 3 && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handlePreviousStep}
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Retour
-                    </Button>
-                    <div className="flex gap-2">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        {/* Sticky header with title, buttons, and stepper */}
+        <div className="flex-shrink-0 border-b px-6 pt-6 pb-4">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-8">
+              <DialogTitle className="text-xl font-semibold">{dialogTitle}</DialogTitle>
+              {!loading && (
+                <div className="flex items-center gap-2">
+                  {currentStep === 1 && (
+                    <>
                       <Button
                         type="button"
                         variant="outline"
+                        size="sm"
                         onClick={() => onOpenChange(false)}
                       >
                         Annuler
                       </Button>
                       <Button
                         type="button"
+                        size="sm"
+                        onClick={handleNextStep}
+                        className="bg-foreground text-background hover:bg-foreground/90"
+                      >
+                        Suivant
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {currentStep === 2 && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousStep}
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Retour
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleNextStep}
+                        disabled={saving}
+                        className="bg-foreground text-background hover:bg-foreground/90"
+                      >
+                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Suivant
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  {currentStep === 3 && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousStep}
+                      >
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Retour
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        Annuler
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
                         onClick={handleSubmit}
                         disabled={saving}
                         className="bg-foreground text-background hover:bg-foreground/90"
@@ -775,13 +741,61 @@ export function VenueWizardDialog({
                         {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Enregistrer
                       </Button>
-                    </div>
-                  </>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <VenueWizardStepper currentStep={currentStep} />
+          </DialogHeader>
+        </div>
+
+        {/* Scrollable form content */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Form {...form}>
+              <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                {currentStep === 1 && (
+                  <VenueGeneralInfoStep
+                    form={form}
+                    mode={mode}
+                    trunks={trunks}
+                    selectedTrunkIds={selectedTrunkIds}
+                    setSelectedTrunkIds={setSelectedTrunkIds}
+                    hotelImage={hotelImage}
+                    coverImage={coverImage}
+                    uploadingHotel={uploadingHotel}
+                    uploadingCover={uploadingCover}
+                    hotelImageRef={hotelImageRef}
+                    coverImageRef={coverImageRef}
+                    handleHotelImageUpload={handleHotelImageUpload}
+                    handleCoverImageUpload={handleCoverImageUpload}
+                    triggerHotelImageSelect={triggerHotelImageSelect}
+                    triggerCoverImageSelect={triggerCoverImageSelect}
+                  />
                 )}
-              </div>
-            </form>
-          </Form>
-        )}
+
+                {currentStep === 2 && (
+                  <VenueDeploymentStep
+                    form={form}
+                    state={deploymentState}
+                    onChange={setDeploymentState}
+                    blockedSlots={blockedSlots}
+                    onBlockedSlotsChange={setBlockedSlots}
+                  />
+                )}
+
+                {currentStep === 3 && (
+                  <VenueCategoriesStep hotelId={savedHotelId || hotelId || null} />
+                )}
+              </form>
+            </Form>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
