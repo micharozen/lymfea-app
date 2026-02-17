@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -39,6 +39,7 @@ export default function Payment() {
 
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
+  const isOffert = !!hotel?.offert;
 
   // Coworking spaces don't support room payment
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
@@ -82,7 +83,39 @@ export default function Payment() {
     setIsProcessing(true);
 
     try {
-      if (selectedMethod === 'card' && !hasPriceOnRequest) {
+      if (isOffert) {
+        // Offert mode - create booking directly with zero price
+        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+            },
+            bookingData: {
+              date: bookingDateTime.date,
+              time: bookingDateTime.time,
+            },
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+            paymentMethod: 'offert',
+            totalPrice: 0,
+          },
+        });
+
+        if (error) throw error;
+
+        clearBasket();
+        clearFlow();
+        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+      } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
         // Stripe payment flow
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
           body: {
@@ -189,8 +222,23 @@ export default function Payment() {
           </h2>
         </div>
 
+        {/* Offert Banner */}
+        {isOffert && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex items-start gap-3">
+              <Gift className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="font-medium text-emerald-700 mb-1">{t('offert.banner')}</h3>
+                <p className="text-sm text-emerald-600/70">
+                  {t('offert.bannerDesc')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quote Warning Banner */}
-        {hasPriceOnRequest && (
+        {!isOffert && hasPriceOnRequest && (
           <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-fade-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
@@ -210,40 +258,68 @@ export default function Payment() {
             {t('payment.orderSummary')}
           </h4>
 
-          {/* Fixed Price Items */}
-          {fixedItems.length > 0 && (
+          {/* All Items (offert mode shows all together) */}
+          {isOffert ? (
             <div className="space-y-3">
-              {fixedItems.map(item => (
+              {items.map(item => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <span className="text-gray-600">
                     {item.name} <span className="text-gray-400">x{item.quantity}</span>
                   </span>
-                  <span className="text-gray-900 font-light">
-                    {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
+                  <span className="inline-flex items-baseline gap-1.5">
+                    <span className="text-xs text-gray-400 line-through font-light">
+                      {item.isPriceOnRequest ? t('payment.onQuote') : formatPrice(item.price * item.quantity, item.currency || 'EUR')}
+                    </span>
+                    <span className="text-sm font-medium text-emerald-600">
+                      {formatPrice(0, item.currency || 'EUR')}
+                    </span>
                   </span>
                 </div>
               ))}
             </div>
-          )}
+          ) : (
+            <>
+              {/* Fixed Price Items */}
+              {fixedItems.length > 0 && (
+                <div className="space-y-3">
+                  {fixedItems.map(item => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        {item.name} <span className="text-gray-400">x{item.quantity}</span>
+                      </span>
+                      <span className="text-gray-900 font-light">
+                        {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          {/* Variable Price Items (Quote Required) */}
-          {variableItems.length > 0 && (
-            <div className="space-y-3 pt-4 border-t border-gray-200">
-              {variableItems.map(item => (
-                <div key={item.id} className="flex justify-between text-sm items-center">
-                  <span className="text-gray-600">
-                    {item.name} <span className="text-gray-400">x{item.quantity}</span>
-                  </span>
-                  <span className="text-amber-400 text-xs font-medium">{t('payment.onQuote')}</span>
+              {/* Variable Price Items (Quote Required) */}
+              {variableItems.length > 0 && (
+                <div className="space-y-3 pt-4 border-t border-gray-200">
+                  {variableItems.map(item => (
+                    <div key={item.id} className="flex justify-between text-sm items-center">
+                      <span className="text-gray-600">
+                        {item.name} <span className="text-gray-400">x{item.quantity}</span>
+                      </span>
+                      <span className="text-amber-400 text-xs font-medium">{t('payment.onQuote')}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
 
           {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t border-gray-200">
             <span className="text-gray-500 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
-            {hasPriceOnRequest ? (
+            {isOffert ? (
+              <span className="inline-flex items-baseline gap-1.5">
+                <span className="text-sm text-gray-400 line-through font-light">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
+                <span className="text-emerald-600 text-xl font-serif">{formatPrice(0, items[0]?.currency || 'EUR')}</span>
+              </span>
+            ) : hasPriceOnRequest ? (
               <div className="text-right">
                 <span className="text-gray-900 text-lg font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
                 <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
@@ -254,8 +330,8 @@ export default function Payment() {
           </div>
         </div>
 
-        {/* Payment Method Selection - Only show if no quote required */}
-        {!hasPriceOnRequest && (
+        {/* Payment Method Selection - Only show if no quote required and not offert */}
+        {!isOffert && !hasPriceOnRequest && (
           <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
               {t('payment.paymentMethod')}
@@ -329,9 +405,11 @@ export default function Payment() {
           disabled={isProcessing}
           className={cn(
             "w-full h-12 sm:h-14 md:h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400",
-            hasPriceOnRequest
-              ? "bg-amber-500 text-black hover:bg-amber-400"
-              : "bg-gray-900 text-white hover:bg-gray-800"
+            isOffert
+              ? "bg-emerald-600 text-white hover:bg-emerald-500"
+              : hasPriceOnRequest
+                ? "bg-amber-500 text-black hover:bg-amber-400"
+                : "bg-gray-900 text-white hover:bg-gray-800"
           )}
         >
           {isProcessing ? (
@@ -339,6 +417,8 @@ export default function Payment() {
               <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
               {t('payment.processing')}
             </>
+          ) : isOffert ? (
+            t('offert.confirmFreeBooking')
           ) : hasPriceOnRequest ? (
             t('payment.requestQuote')
           ) : selectedMethod === 'card' ? (

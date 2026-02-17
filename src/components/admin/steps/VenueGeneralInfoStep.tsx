@@ -602,6 +602,27 @@ export function VenueGeneralInfoStep({
             </FormItem>
           )}
         />
+
+        <FormField
+          control={form.control}
+          name="offert"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Journée offerte (Démo)</FormLabel>
+                <p className="text-sm text-muted-foreground">
+                  Si activé, tous les soins seront affichés comme gratuits pour les clients. Idéal pour une journée de démonstration.
+                </p>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       </div>
     </div>
   );

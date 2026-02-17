@@ -208,5 +208,11 @@
       "notFoundDesc": "Ce lien ne correspond à aucun lieu. Vérifiez l'URL ou contactez votre représentant OOM.",
       "notDeployed": "Aucune session prévue à cette date."
     }
+  },
+  "offert": {
+    "banner": "Journée offerte",
+    "bannerDesc": "Tous les soins sont offerts aujourd'hui !",
+    "free": "Offert",
+    "confirmFreeBooking": "Confirmer la réservation"
   }
 }

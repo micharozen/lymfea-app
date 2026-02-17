@@ -52,7 +52,7 @@ const requestSchema = z.object({
   clientData: clientDataSchema,
   bookingData: bookingDataSchema,
   treatments: z.array(treatmentSchema).min(1, 'At least one treatment is required').max(20, 'Maximum 20 treatments allowed'),
-  paymentMethod: z.enum(['room', 'card', 'cash']).optional().default('room'),
+  paymentMethod: z.enum(['room', 'card', 'cash', 'offert']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
 });
 
@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency')
+      .select('name, venue_type, auto_validate_bookings, currency, offert')
       .eq('id', hotelId)
       .single();
 
@@ -253,8 +253,12 @@ serve(async (req) => {
 
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
-    const bookingStatus = hasPriceOnRequest ? 'quote_pending' : 'pending';
-    console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest);
+    const isOffert = !!hotel.offert;
+    const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
+    const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    const effectivePaymentMethod = isOffert ? 'offert' : paymentMethod;
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+    console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Calculate total duration from treatments (considering quantities)
     let totalDuration = 0;
@@ -283,9 +287,9 @@ serve(async (req) => {
         status: bookingStatus,
         hairdresser_id: null,
         trunk_id: availableTrunkId, // Assign trunk
-        payment_method: paymentMethod,
-        payment_status: paymentMethod === 'room' ? 'charged_to_room' : 'pending',
-        total_price: hasPriceOnRequest ? 0 : totalPrice,
+        payment_method: effectivePaymentMethod,
+        payment_status: effectivePaymentStatus,
+        total_price: effectiveTotalPrice,
         duration: totalDuration > 0 ? totalDuration : null,
       })
       .select()

@@ -284,7 +284,13 @@
     "errorCreating": "Error creating payment",
     "errorCancelling": "Error cancelling",
     "totalHT": "Subtotal",
-    "vat": "VAT"
+    "vat": "VAT",
+    "tapToPay": "Tap to Pay",
+    "tapToPayDescription": "Client paid via payment terminal",
+    "tapToPayConfirmTitle": "Confirm payment?",
+    "tapToPayConfirmDesc": "Do you confirm the client paid {{amount}} via Tap to Pay? The service will be marked as completed.",
+    "tapToPayConfirmButton": "Confirm payment",
+    "tapToPaySuccess": "Payment confirmed! Service completed."
   },
   "wallet": {
     "myEarnings": "My earnings",

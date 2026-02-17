@@ -381,7 +381,9 @@ export function BookingDetailDialog({
                       ? "Note de chambre"
                       : booking.payment_method === "card"
                         ? "Carte bancaire"
-                        : booking.payment_method || "Non défini"}
+                        : booking.payment_method === "tap_to_pay"
+                          ? "Tap to Pay"
+                          : booking.payment_method || "Non défini"}
                   </p>
                 </div>
                 <div className="text-right">

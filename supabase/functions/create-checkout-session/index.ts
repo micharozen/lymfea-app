@@ -79,7 +79,7 @@ serve(async (req) => {
     // Fetch hotel info for currency
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('currency, name')
+      .select('currency, name, offert')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -90,6 +90,14 @@ serve(async (req) => {
 
     if (!hotel) {
       throw new Error("Hotel not found");
+    }
+
+    // Block Stripe checkout for offert venues
+    if (hotel.offert) {
+      return new Response(
+        JSON.stringify({ error: "Ce lieu propose actuellement des soins offerts. Utilisez la réservation directe." }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
 
     const currency = hotel?.currency?.toLowerCase() || 'eur';

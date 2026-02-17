@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { CreditCard, Hotel, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2 } from "lucide-react";
+import { CreditCard, Hotel, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2, Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import {
@@ -176,6 +176,7 @@ interface PaymentSelectionDrawerProps {
   currency?: string;
   onSignatureRequired: () => void;
   onPaymentComplete: () => void;
+  onTapToPayRequested: () => void;
 }
 
 type PaymentStep = 'selection' | 'card-processing' | 'card-ready' | 'room-processing' | 'success';
@@ -192,6 +193,7 @@ export const PaymentSelectionDrawer = ({
   currency = 'EUR',
   onSignatureRequired,
   onPaymentComplete,
+  onTapToPayRequested,
 }: PaymentSelectionDrawerProps) => {
   // Coworking spaces don't support room payment
   const supportsRoomPayment = venueType !== 'coworking';
@@ -469,6 +471,21 @@ export const PaymentSelectionDrawer = ({
                     </div>
                   </button>
                 )}
+
+                {/* Tap to Pay Button */}
+                <button
+                  onClick={onTapToPayRequested}
+                  disabled={processing}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-green-700 hover:to-green-600 transition-all active:scale-[0.98] disabled:opacity-50"
+                >
+                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Smartphone className="w-7 h-7" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="font-bold text-lg">📱 {t('payment.tapToPay')}</p>
+                    <p className="text-sm text-white/80">{t('payment.tapToPayDescription')}</p>
+                  </div>
+                </button>
               </div>
             )}
 

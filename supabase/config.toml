@@ -104,3 +104,9 @@ verify_jwt = false
 
 [functions.resend-invite]
 verify_jwt = false
+
+[functions.validate-booking-slot]
+verify_jwt = false
+
+[functions.mark-tap-to-pay-paid]
+verify_jwt = false

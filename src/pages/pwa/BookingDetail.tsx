@@ -129,6 +129,8 @@ const PwaBookingDetail = () => {
   const [signingLoading, setSigningLoading] = useState(false);
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
+  const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
+  const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const isAcceptingRef = useRef(false);
   // Proposed slots for awaiting_hairdresser_selection status
   const [proposedSlots, setProposedSlots] = useState<{
@@ -381,6 +383,41 @@ const PwaBookingDetail = () => {
   const handlePaymentComplete = () => {
     toast.success("Paiement finalisé !");
     navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+  };
+
+  const handleTapToPayConfirm = async () => {
+    console.log("[TapToPay] Handler called", { bookingId: booking?.id, totalPrice });
+    if (!booking) return;
+
+    setTapToPayLoading(true);
+    try {
+      console.log("[TapToPay] Invoking edge function...");
+      const { data, error } = await invokeEdgeFunction(
+        'mark-tap-to-pay-paid',
+        {
+          body: {
+            booking_id: booking.id,
+            final_amount: totalPrice,
+          },
+        }
+      );
+
+      console.log("[TapToPay] Response:", JSON.stringify({ data, error }));
+
+      if (error) throw error;
+      if (!(data as any)?.success) {
+        throw new Error((data as any)?.error || "Payment finalization failed");
+      }
+
+      toast.success(t('payment.tapToPaySuccess'));
+      setShowTapToPayDialog(false);
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      console.error("[TapToPay] Error:", error);
+      toast.error(error.message || t('common:errors.generic'));
+    } finally {
+      setTapToPayLoading(false);
+    }
   };
 
   const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
@@ -1000,44 +1037,38 @@ const PwaBookingDetail = () => {
                   <DrawerContent className="pb-safe">
                     <div className="p-4 space-y-1">
                       {conciergeContact && (
-                        <a
-                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </a>
+                        </button>
                       )}
                       {booking.phone ? (
-                        <a
-                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-start">
                             <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                             <span className="text-xs text-muted-foreground">{booking.phone}</span>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
                           <Phone className="w-4 h-4" />
                           <span className="text-sm">{t('booking.contactClient')} - N/A</span>
                         </div>
                       )}
-                      <a
-                        href="https://wa.me/33769627754"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                      <button
+                        onClick={() => window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer')}
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
-                      </a>
+                      </button>
                       <div className="border-t my-2" />
                       <DrawerClose asChild>
                         <button
@@ -1079,47 +1110,47 @@ const PwaBookingDetail = () => {
                   <DrawerContent className="pb-safe">
                     <div className="p-4 space-y-1">
                       {conciergeContact && (
-                        <a
-                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShowContactDrawer(false)}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => {
+                            setShowContactDrawer(false);
+                            window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </a>
+                        </button>
                       )}
                       {booking.phone ? (
-                        <a
-                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShowContactDrawer(false)}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => {
+                            setShowContactDrawer(false);
+                            window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-start">
                             <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                             <span className="text-xs text-muted-foreground">{booking.phone}</span>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
                           <Phone className="w-4 h-4" />
                           <span className="text-sm">{t('booking.contactClient')} - N/A</span>
                         </div>
                       )}
-                      <a
-                        href="https://wa.me/33769627754"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                      <button
+                        onClick={() => {
+                          setShowContactDrawer(false);
+                          window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer');
+                        }}
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
-                      </a>
+                      </button>
                       
                       <div className="h-px bg-border my-1" />
                       
@@ -1375,7 +1406,40 @@ const PwaBookingDetail = () => {
         vatRate={booking.hotel_vat || 20}
         onSignatureRequired={handleRoomPaymentSignature}
         onPaymentComplete={handlePaymentComplete}
+        onTapToPayRequested={() => {
+          setShowPaymentSelection(false);
+          setShowTapToPayDialog(true);
+        }}
       />
+
+      {/* Tap to Pay Confirmation Dialog */}
+      <AlertDialog open={showTapToPayDialog} onOpenChange={(open) => {
+        if (!tapToPayLoading) setShowTapToPayDialog(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('payment.tapToPayConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('payment.tapToPayConfirmDesc', { amount: formatPrice(totalPrice, booking.hotel_currency) })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={tapToPayLoading}>
+              {t('common:buttons.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleTapToPayConfirm();
+              }}
+              disabled={tapToPayLoading}
+              className="bg-green-600 text-white hover:bg-green-700"
+            >
+              {tapToPayLoading ? "..." : t('payment.tapToPayConfirmButton')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
