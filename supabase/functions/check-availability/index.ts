@@ -152,7 +152,7 @@ serve(async (req) => {
       .from('trunks')
       .select('id')
       .eq('hotel_id', hotelId)
-      .eq('status', 'active');
+      .in('status', ['active', 'Actif']);
 
     if (trunksError) {
       console.error('Error fetching trunks:', trunksError);

@@ -78,7 +78,7 @@ async function findAvailableTrunk(
     .from('trunks')
     .select('id')
     .eq('hotel_id', hotelId)
-    .eq('status', 'active');
+    .in('status', ['active', 'Actif']);
 
   if (trunksError || !trunks || trunks.length === 0) {
     console.log('No active trunks found for hotel:', hotelId);
