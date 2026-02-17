@@ -323,11 +323,16 @@ export default function Welcome() {
           )}
         </div>
 
-        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+        <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="font-serif text-sm sm:text-base font-medium leading-tight text-gray-900">
               {treatment.name}
             </h3>
+            {treatment.description && (
+              <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light mt-0.5">
+                {treatment.description}
+              </p>
+            )}
             <div className="flex items-baseline gap-2 mt-0.5">
               {treatment.price_on_request ? (
                 <Badge className="text-[10px] px-1.5 py-0.5 font-medium w-fit bg-gray-100 text-gold-600 border-gold-300/30">
