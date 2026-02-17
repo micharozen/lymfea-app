@@ -53,23 +53,24 @@ export default function Schedule() {
       if (error) throw error;
       const hotel = data?.[0];
 
-      // Parse hours, default to 6AM-11PM if not set
-      const openingHour = hotel?.opening_time
-        ? parseInt(hotel.opening_time.split(':')[0], 10)
-        : 6;
-      const closingHour = hotel?.closing_time
-        ? parseInt(hotel.closing_time.split(':')[0], 10)
-        : 23;
+      // Parse opening/closing times as total minutes, default to 6:00-23:00 if not set
+      const openingMinutes = hotel?.opening_time
+        ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
+        : 6 * 60;
+      const closingMinutes = hotel?.closing_time
+        ? parseInt(hotel.closing_time.split(':')[0], 10) * 60 + parseInt(hotel.closing_time.split(':')[1] || '0', 10)
+        : 23 * 60;
 
       // Determine max days based on schedule
-      // If recurring schedule with less than 5 days/week, extend to 90 days
+      // Extend to 90 days for one_time schedules or recurring with < 5 days/week
+      const isOneTime = hotel?.schedule_type === 'one_time';
       const isRecurring = hotel?.schedule_type === 'specific_days';
       const daysPerWeek = hotel?.days_of_week?.length ?? 7;
-      const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
+      const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 14;
 
       const slotInterval = hotel?.slot_interval || 30;
 
-      return { openingHour, closingHour, maxDaysAhead, slotInterval };
+      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000, // 30 minutes - opening hours rarely change
@@ -143,12 +144,9 @@ export default function Schedule() {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    const openingHour = venueData?.openingHour ?? 6;
-    const closingHour = venueData?.closingHour ?? 23;
+    const openingMinutes = venueData?.openingMinutes ?? 6 * 60;
+    const closingMinutes = venueData?.closingMinutes ?? 23 * 60;
     const slotInterval = venueData?.slotInterval ?? 30;
-
-    const openingMinutes = openingHour * 60;
-    const closingMinutes = closingHour * 60;
 
     for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
       const hour = Math.floor(minutes / 60);
