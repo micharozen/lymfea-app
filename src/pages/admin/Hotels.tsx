@@ -411,6 +411,18 @@ export default function Hotels() {
               /* Desktop: Table View */
               <div className="overflow-x-auto h-full">
                 <Table className="text-xs w-full table-fixed min-w-[800px]">
+                  <colgroup>
+                    <col className="w-[18%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[12%]" />
+                    <col className="w-[8%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[5%]" />
+                    <col className="w-[6%]" />
+                    {isAdmin && <col className="w-[7%]" />}
+                  </colgroup>
                   <TableHeader>
                     <TableRow className="bg-muted/20 h-8">
                       <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
@@ -453,23 +465,23 @@ export default function Hotels() {
                       {paginatedHotels.map((hotel) => (
                         <TableRow
                           key={hotel.id}
-                          className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
+                          className="cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => openView(hotel.id)}
                         >
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <div className="flex items-center gap-2 whitespace-nowrap">
+                          <TableCell className="py-1 px-2">
+                            <div className="flex items-start gap-2">
                               {hotel.image ? (
                                 <img
                                   src={hotel.image}
                                   alt={hotel.name}
-                                  className="w-6 h-6 rounded object-cover flex-shrink-0"
+                                  className="w-6 h-6 rounded object-cover flex-shrink-0 mt-0.5"
                                 />
                               ) : (
-                                <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground">
+                                <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-[10px] font-medium text-muted-foreground mt-0.5">
                                   {hotel.name.substring(0, 2).toUpperCase()}
                                 </div>
                               )}
-                              <span className="truncate font-medium text-foreground">{hotel.name}</span>
+                              <span className="font-medium text-foreground break-words leading-tight">{hotel.name}</span>
                             </div>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
@@ -512,10 +524,10 @@ export default function Hotels() {
                               {hotel.status === "active" ? "Actif" : hotel.status === "pending" ? "En attente" : hotel.status}
                             </Badge>
                           </TableCell>
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
                             <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
                           </TableCell>
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
                             <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
