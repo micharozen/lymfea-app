@@ -99,6 +99,7 @@ export default function Welcome() {
   const isHotel = venueType === 'hotel' || (!venueType && !hotel?.venue_type);
   const isEnterprise = venueType === 'enterprise';
   const venueTerms = useVenueTerms(venueType);
+  const isCompanyOffered = !!hotel?.company_offered;
 
 
   // Fetch next available date for enterprise venues
@@ -333,24 +334,32 @@ export default function Welcome() {
                 {treatment.description}
               </p>
             )}
-            <div className="flex items-baseline gap-2 mt-0.5">
-              {treatment.price_on_request ? (
-                <Badge className="text-[10px] px-1.5 py-0.5 font-medium w-fit bg-gray-100 text-gold-600 border-gold-300/30">
-                  {t('payment.onQuote')}
-                </Badge>
-              ) : (
-                <>
-                  <span className="text-sm font-light text-gray-700">
-                    {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                  </span>
-                  {treatment.duration && (
-                    <span className="text-[11px] font-light text-gray-400">
-                      • {treatment.duration} min
+            {isCompanyOffered ? (
+              treatment.duration ? (
+                <span className="text-[11px] font-light text-gray-400 mt-0.5">
+                  {treatment.duration} min
+                </span>
+              ) : null
+            ) : (
+              <div className="flex items-baseline gap-2 mt-0.5">
+                {treatment.price_on_request ? (
+                  <Badge className="text-[10px] px-1.5 py-0.5 font-medium w-fit bg-gray-100 text-gold-600 border-gold-300/30">
+                    {t('payment.onQuote')}
+                  </Badge>
+                ) : (
+                  <>
+                    <span className="text-sm font-light text-gray-700">
+                      {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
                     </span>
-                  )}
-                </>
-              )}
-            </div>
+                    {treatment.duration && (
+                      <span className="text-[11px] font-light text-gray-400">
+                        • {treatment.duration} min
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quantity Controls */}

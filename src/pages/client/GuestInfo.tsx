@@ -94,6 +94,7 @@ export default function GuestInfo() {
   });
 
   const isOffert = !!hotel?.offert;
+  const isCompanyOffered = !!hotel?.company_offered;
   const venueType = hotel?.venue_type as VenueType | null;
 
   // Get venue-specific terminology
@@ -136,7 +137,7 @@ export default function GuestInfo() {
     setIsSubmitting(true);
     try {
       setClientInfo(data);
-      if (isOffert && bookingDateTime) {
+      if ((isOffert || isCompanyOffered) && bookingDateTime) {
         await createOffertBooking(data, bookingDateTime);
       } else {
         navigate(`/client/${hotelId}/payment`);

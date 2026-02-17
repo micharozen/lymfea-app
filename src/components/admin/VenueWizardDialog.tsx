@@ -58,6 +58,7 @@ const createFormSchema = (t: TFunction) => z.object({
   slot_interval: z.number().default(30),
   auto_validate_bookings: z.boolean().default(false),
   offert: z.boolean().default(false),
+  company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -151,6 +152,7 @@ export function VenueWizardDialog({
       slot_interval: 30,
       auto_validate_bookings: false,
       offert: false,
+      company_offered: false,
       landing_subtitle: "",
     },
   });
@@ -232,6 +234,7 @@ export function VenueWizardDialog({
           slot_interval: hotel.slot_interval || 30,
           auto_validate_bookings: hotel.auto_validate_bookings || false,
           offert: hotel.offert || false,
+          company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
         });
 
@@ -390,6 +393,7 @@ export function VenueWizardDialog({
           slot_interval: values.slot_interval,
           auto_validate_bookings: values.auto_validate_bookings,
           offert: values.offert,
+          company_offered: values.company_offered,
           landing_subtitle: values.landing_subtitle || null,
         })
         .select('id')
@@ -476,6 +480,7 @@ export function VenueWizardDialog({
             slot_interval: values.slot_interval,
             auto_validate_bookings: values.auto_validate_bookings,
             offert: values.offert,
+          company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,
           })
           .select('id')
@@ -524,6 +529,7 @@ export function VenueWizardDialog({
             slot_interval: values.slot_interval,
             auto_validate_bookings: values.auto_validate_bookings,
             offert: values.offert,
+          company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,
           })
           .eq("id", hotelId);

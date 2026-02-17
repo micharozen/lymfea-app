@@ -623,6 +623,26 @@ export function VenueGeneralInfoStep({
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="company_offered"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">Offert par l'entreprise</FormLabel>
+                <p className="text-sm text-muted-foreground">
+                  Si activé, les prix sont masqués pour les clients. Les réservations sont créées comme offertes.
+                </p>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       </div>
     </div>
   );

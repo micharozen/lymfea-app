@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered')
       .eq('id', hotelId)
       .single();
 
@@ -253,7 +253,7 @@ serve(async (req) => {
 
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
-    const isOffert = !!hotel.offert;
+    const isOffert = !!hotel.offert || !!hotel.company_offered;
     const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
     const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const effectivePaymentMethod = isOffert ? 'offert' : paymentMethod;

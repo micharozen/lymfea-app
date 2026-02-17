@@ -214,5 +214,9 @@
     "bannerDesc": "Tous les soins sont offerts aujourd'hui !",
     "free": "Offert",
     "confirmFreeBooking": "Confirmer la réservation"
+  },
+  "companyOffered": {
+    "banner": "Offert par votre entreprise",
+    "bannerDesc": "Tous les soins sont pris en charge par votre entreprise."
   }
 }
