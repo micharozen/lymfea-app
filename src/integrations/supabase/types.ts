@@ -620,6 +620,7 @@ export type Database = {
           id: string
           image: string | null
           name: string
+          offert: boolean | null
           opening_time: string | null
           postal_code: string | null
           status: string | null
@@ -643,6 +644,7 @@ export type Database = {
           id?: string
           image?: string | null
           name: string
+          offert?: boolean | null
           opening_time?: string | null
           postal_code?: string | null
           status?: string | null
@@ -666,6 +668,7 @@ export type Database = {
           id?: string
           image?: string | null
           name?: string
+          offert?: boolean | null
           opening_time?: string | null
           postal_code?: string | null
           status?: string | null

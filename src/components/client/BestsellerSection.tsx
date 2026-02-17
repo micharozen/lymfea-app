@@ -24,6 +24,7 @@ interface BestsellerSectionProps {
   onAddToBasket: (treatment: Treatment) => void;
   getItemQuantity: (id: string) => number;
   onUpdateQuantity: (id: string, quantity: number) => void;
+  isOffert?: boolean;
 }
 
 export function BestsellerSection({
@@ -31,6 +32,7 @@ export function BestsellerSection({
   onAddToBasket,
   getItemQuantity,
   onUpdateQuantity,
+  isOffert = false,
 }: BestsellerSectionProps) {
   const { t } = useTranslation('client');
   const reveal = useScrollReveal();
@@ -124,7 +126,16 @@ export function BestsellerSection({
                   {treatment.name}
                 </h3>
 
-                {treatment.price_on_request ? (
+                {isOffert ? (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[8px] text-gray-400 line-through font-light">
+                      {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+                    </span>
+                    <span className="text-xs font-medium text-emerald-600">
+                      {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+                    </span>
+                  </div>
+                ) : treatment.price_on_request ? (
                   <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
                     {t('payment.onQuote')}
                   </Badge>

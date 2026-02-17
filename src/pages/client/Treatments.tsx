@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown, Gift } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
@@ -94,6 +94,7 @@ export default function Treatments() {
   // No need for a separate query that could fail due to RLS policies
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
+  const isOffert = !!hotel?.offert;
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
 
@@ -244,6 +245,21 @@ export default function Treatments() {
           </p>
       </div> */}
 
+      {/* Offert Banner */}
+      {isOffert && (
+        <div className="px-4 py-3 bg-emerald-50 flex items-center justify-center gap-2 border-b border-emerald-100">
+          <Gift className="w-4 h-4 text-emerald-600" />
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700 font-semibold">
+              {t('offert.banner')}
+            </p>
+            <p className="text-[9px] text-emerald-600 font-light">
+              {t('offert.bannerDesc')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Sections */}
       <div className="flex-1 overflow-y-auto">
         {/* Bestseller Section - only for hotels */}
@@ -253,6 +269,7 @@ export default function Treatments() {
             onAddToBasket={handleAddToBasket}
             getItemQuantity={getItemQuantity}
             onUpdateQuantity={updateBasketQuantity}
+            isOffert={isOffert}
           />
         )}
 
@@ -325,7 +342,19 @@ export default function Treatments() {
 
                       <div className="flex items-end justify-between mt-2">
                          <div className="flex flex-col">
-                            {treatment.price_on_request ? (
+                            {isOffert ? (
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-xs text-gray-400 line-through font-light">
+                                        {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+                                    </span>
+                                    <span className="text-base sm:text-lg font-medium text-emerald-600">
+                                        {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+                                    </span>
+                                    {treatment.duration && (
+                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
+                                    )}
+                                </div>
+                            ) : treatment.price_on_request ? (
                                 <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
                                     {t('payment.onQuote')}
                                 </Badge>
@@ -462,7 +491,19 @@ export default function Treatments() {
 
                       <div className="flex items-end justify-between mt-2">
                          <div className="flex flex-col">
-                            {treatment.price_on_request ? (
+                            {isOffert ? (
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-xs text-gray-400 line-through font-light">
+                                        {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+                                    </span>
+                                    <span className="text-base sm:text-lg font-medium text-emerald-600">
+                                        {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+                                    </span>
+                                    {treatment.duration && (
+                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
+                                    )}
+                                </div>
+                            ) : treatment.price_on_request ? (
                                 <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
                                     {t('payment.onQuote')}
                                 </Badge>
@@ -544,7 +585,7 @@ export default function Treatments() {
       )}
 
       {/* Cart Drawer */}
-      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} isOffert={isOffert} />
 
       {/* On Request Form Drawer */}
       <OnRequestFormDrawer

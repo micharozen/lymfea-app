@@ -1037,44 +1037,38 @@ const PwaBookingDetail = () => {
                   <DrawerContent className="pb-safe">
                     <div className="p-4 space-y-1">
                       {conciergeContact && (
-                        <a
-                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </a>
+                        </button>
                       )}
                       {booking.phone ? (
-                        <a
-                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer')}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-start">
                             <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                             <span className="text-xs text-muted-foreground">{booking.phone}</span>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
                           <Phone className="w-4 h-4" />
                           <span className="text-sm">{t('booking.contactClient')} - N/A</span>
                         </div>
                       )}
-                      <a
-                        href="https://wa.me/33769627754"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                      <button
+                        onClick={() => window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer')}
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
-                      </a>
+                      </button>
                       <div className="border-t my-2" />
                       <DrawerClose asChild>
                         <button
@@ -1116,47 +1110,47 @@ const PwaBookingDetail = () => {
                   <DrawerContent className="pb-safe">
                     <div className="p-4 space-y-1">
                       {conciergeContact && (
-                        <a
-                          href={`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShowContactDrawer(false)}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => {
+                            setShowContactDrawer(false);
+                            window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
                           <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </a>
+                        </button>
                       )}
                       {booking.phone ? (
-                        <a
-                          href={`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setShowContactDrawer(false)}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                        <button
+                          onClick={() => {
+                            setShowContactDrawer(false);
+                            window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                         >
                           <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col">
+                          <div className="flex flex-col items-start">
                             <span className="text-sm font-medium">{t('booking.contactClient')}</span>
                             <span className="text-xs text-muted-foreground">{booking.phone}</span>
                           </div>
-                        </a>
+                        </button>
                       ) : (
                         <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
                           <Phone className="w-4 h-4" />
                           <span className="text-sm">{t('booking.contactClient')} - N/A</span>
                         </div>
                       )}
-                      <a
-                        href="https://wa.me/33769627754"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setShowContactDrawer(false)}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors"
+                      <button
+                        onClick={() => {
+                          setShowContactDrawer(false);
+                          window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer');
+                        }}
+                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
                         <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
-                      </a>
+                      </button>
                       
                       <div className="h-px bg-border my-1" />
                       

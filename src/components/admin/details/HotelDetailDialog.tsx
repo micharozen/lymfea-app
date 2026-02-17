@@ -111,6 +111,7 @@ interface Hotel {
   opening_time?: string | null;
   closing_time?: string | null;
   auto_validate_bookings?: boolean | null;
+  offert?: boolean | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
@@ -183,6 +184,14 @@ export function HotelDetailDialog({
                     className="text-xs bg-emerald-500/10 text-emerald-700 border-emerald-200"
                   >
                     Auto-validation
+                  </Badge>
+                )}
+                {hotel.offert && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-pink-500/10 text-pink-700 border-pink-200"
+                  >
+                    Offert (Démo)
                   </Badge>
                 )}
               </div>

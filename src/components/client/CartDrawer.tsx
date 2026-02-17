@@ -14,9 +14,10 @@ import {
 interface CartDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isOffert?: boolean;
 }
 
-export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
+export function CartDrawer({ open, onOpenChange, isOffert = false }: CartDrawerProps) {
   const { items, updateQuantity, removeItem, total } = useBasket();
   const { t } = useTranslation('client');
 
@@ -86,7 +87,16 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
                       </Button>
                     </div>
                     <span className="text-sm font-medium text-gray-700">
-                      {item.isPriceOnRequest
+                      {isOffert ? (
+                        <span className="inline-flex items-baseline gap-1">
+                          <span className="text-xs text-gray-400 line-through font-light">
+                            {item.isPriceOnRequest ? t('payment.onQuote') : formatPrice(item.price * item.quantity, item.currency || 'EUR', { decimals: 0 })}
+                          </span>
+                          <span className="text-sm font-medium text-emerald-600">
+                            {formatPrice(0, item.currency || 'EUR', { decimals: 0 })}
+                          </span>
+                        </span>
+                      ) : item.isPriceOnRequest
                         ? t('payment.onQuote')
                         : formatPrice(item.price * item.quantity, item.currency || 'EUR', { decimals: 0 })}
                     </span>
@@ -99,7 +109,16 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-500">{t('basket.subtotal')}</span>
                 <span className="text-lg font-semibold text-gray-900">
-                  {formatPrice(total, items[0]?.currency || 'EUR', { decimals: 0 })}
+                  {isOffert ? (
+                    <span className="inline-flex items-baseline gap-1.5">
+                      <span className="text-sm text-gray-400 line-through font-light">
+                        {formatPrice(total, items[0]?.currency || 'EUR', { decimals: 0 })}
+                      </span>
+                      <span className="text-lg font-semibold text-emerald-600">
+                        {formatPrice(0, items[0]?.currency || 'EUR', { decimals: 0 })}
+                      </span>
+                    </span>
+                  ) : formatPrice(total, items[0]?.currency || 'EUR', { decimals: 0 })}
                 </span>
               </div>
             </div>

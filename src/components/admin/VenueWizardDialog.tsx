@@ -56,6 +56,7 @@ const createFormSchema = (t: TFunction) => z.object({
   opening_time: z.string().default("06:00"),
   closing_time: z.string().default("23:00"),
   auto_validate_bookings: z.boolean().default(false),
+  offert: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -147,6 +148,7 @@ export function VenueWizardDialog({
       opening_time: "06:00",
       closing_time: "23:00",
       auto_validate_bookings: false,
+      offert: false,
       landing_subtitle: "",
     },
   });
@@ -226,6 +228,7 @@ export function VenueWizardDialog({
           opening_time: hotel.opening_time?.substring(0, 5) || "06:00",
           closing_time: hotel.closing_time?.substring(0, 5) || "23:00",
           auto_validate_bookings: hotel.auto_validate_bookings || false,
+          offert: hotel.offert || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
         });
 
@@ -382,6 +385,7 @@ export function VenueWizardDialog({
           opening_time: values.opening_time + ':00',
           closing_time: values.closing_time + ':00',
           auto_validate_bookings: values.auto_validate_bookings,
+          offert: values.offert,
           landing_subtitle: values.landing_subtitle || null,
         })
         .select('id')
