@@ -470,6 +470,7 @@ export function VenueWizardDialog({
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
             auto_validate_bookings: values.auto_validate_bookings,
+            offert: values.offert,
             landing_subtitle: values.landing_subtitle || null,
           })
           .select('id')
@@ -516,6 +517,7 @@ export function VenueWizardDialog({
             opening_time: values.opening_time + ':00',
             closing_time: values.closing_time + ':00',
             auto_validate_bookings: values.auto_validate_bookings,
+            offert: values.offert,
             landing_subtitle: values.landing_subtitle || null,
           })
           .eq("id", hotelId);
