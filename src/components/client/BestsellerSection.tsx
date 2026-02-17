@@ -25,6 +25,7 @@ interface BestsellerSectionProps {
   getItemQuantity: (id: string) => number;
   onUpdateQuantity: (id: string, quantity: number) => void;
   isOffert?: boolean;
+  isCompanyOffered?: boolean;
 }
 
 export function BestsellerSection({
@@ -33,6 +34,7 @@ export function BestsellerSection({
   getItemQuantity,
   onUpdateQuantity,
   isOffert = false,
+  isCompanyOffered = false,
 }: BestsellerSectionProps) {
   const { t } = useTranslation('client');
   const reveal = useScrollReveal();
@@ -126,7 +128,13 @@ export function BestsellerSection({
                   {treatment.name}
                 </h3>
 
-                {isOffert ? (
+                {isCompanyOffered ? (
+                  treatment.duration ? (
+                    <span className="text-[8px] text-gray-400 font-light">
+                      {treatment.duration} min
+                    </span>
+                  ) : null
+                ) : isOffert ? (
                   <div className="flex items-baseline gap-1">
                     <span className="text-[8px] text-gray-400 line-through font-light">
                       {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}

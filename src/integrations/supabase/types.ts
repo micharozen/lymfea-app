@@ -610,6 +610,7 @@ export type Database = {
           auto_validate_bookings: boolean | null
           city: string | null
           closing_time: string | null
+          company_offered: boolean | null
           country: string | null
           country_code: string | null
           cover_image: string | null
@@ -635,6 +636,7 @@ export type Database = {
           auto_validate_bookings?: boolean | null
           city?: string | null
           closing_time?: string | null
+          company_offered?: boolean | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -660,6 +662,7 @@ export type Database = {
           auto_validate_bookings?: boolean | null
           city?: string | null
           closing_time?: string | null
+          company_offered?: boolean | null
           country?: string | null
           country_code?: string | null
           cover_image?: string | null
@@ -1146,6 +1149,7 @@ export type Database = {
           landing_subtitle: string
           offert: boolean
           slot_interval: number
+          company_offered: boolean
         }[]
       }
       get_public_hotels: {

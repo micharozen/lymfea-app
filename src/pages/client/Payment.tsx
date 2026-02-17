@@ -41,7 +41,7 @@ export default function Payment() {
 
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
-  const isOffert = !!hotel?.offert;
+  const isOffert = !!hotel?.offert || !!hotel?.company_offered;
 
   // Coworking spaces don't support room payment
   const supportsRoomPayment = venueTerms.supportsRoomPayment;

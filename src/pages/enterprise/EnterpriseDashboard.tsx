@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
 import { useEnterpriseDashboard, useAvailableDates } from './hooks/useEnterpriseDashboard';
@@ -15,8 +15,10 @@ import { AlertCircle, CalendarOff } from 'lucide-react';
 
 export default function EnterpriseDashboard() {
   const { hotelId } = useParams<{ hotelId: string }>();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation('client');
   const today = useMemo(() => new Date(), []);
+  const urlDate = searchParams.get('date');
 
   // Auto-detect language based on venue country (FR for France/Belgium/etc, EN otherwise)
   useVenueDefaultLanguage(hotelId);
@@ -24,8 +26,11 @@ export default function EnterpriseDashboard() {
   // Fetch available dates (180 days past + future)
   const { data: availableDates = [], isLoading: isDatesLoading } = useAvailableDates(hotelId, today);
 
-  // Find closest date to today from available dates
+  // Find closest date to today from available dates (or use URL date if provided)
   const initialDate = useMemo(() => {
+    // If a date is provided via URL query param, use it directly
+    if (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)) return urlDate;
+
     if (availableDates.length === 0) return format(today, 'yyyy-MM-dd');
     const todayStr = format(today, 'yyyy-MM-dd');
 
@@ -35,7 +40,7 @@ export default function EnterpriseDashboard() {
 
     // All dates are in the past, pick the most recent
     return availableDates[availableDates.length - 1];
-  }, [availableDates, today]);
+  }, [availableDates, today, urlDate]);
 
   const [selectedDate, setSelectedDate] = useState<string>('');
 

@@ -214,5 +214,9 @@
     "bannerDesc": "All treatments are complimentary today!",
     "free": "Free",
     "confirmFreeBooking": "Confirm Booking"
+  },
+  "companyOffered": {
+    "banner": "Offered by your company",
+    "bannerDesc": "All treatments are covered by your company."
   }
 }

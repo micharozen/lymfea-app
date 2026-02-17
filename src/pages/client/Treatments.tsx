@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown, Gift } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown, Gift, Building } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
@@ -95,6 +95,7 @@ export default function Treatments() {
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
   const isOffert = !!hotel?.offert;
+  const isCompanyOffered = !!hotel?.company_offered;
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
 
@@ -245,8 +246,23 @@ export default function Treatments() {
           </p>
       </div> */}
 
+      {/* Company Offered Banner */}
+      {isCompanyOffered && (
+        <div className="px-4 py-3 bg-blue-50 flex items-center justify-center gap-2 border-b border-blue-100">
+          <Building className="w-4 h-4 text-blue-600" />
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-blue-700 font-semibold">
+              {t('companyOffered.banner')}
+            </p>
+            <p className="text-[9px] text-blue-600 font-light">
+              {t('companyOffered.bannerDesc')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Offert Banner */}
-      {isOffert && (
+      {isOffert && !isCompanyOffered && (
         <div className="px-4 py-3 bg-emerald-50 flex items-center justify-center gap-2 border-b border-emerald-100">
           <Gift className="w-4 h-4 text-emerald-600" />
           <div className="text-center">
@@ -270,6 +286,7 @@ export default function Treatments() {
             getItemQuantity={getItemQuantity}
             onUpdateQuantity={updateBasketQuantity}
             isOffert={isOffert}
+            isCompanyOffered={isCompanyOffered}
           />
         )}
 
@@ -342,7 +359,11 @@ export default function Treatments() {
 
                       <div className="flex items-end justify-between mt-2">
                          <div className="flex flex-col">
-                            {isOffert ? (
+                            {isCompanyOffered ? (
+                                treatment.duration ? (
+                                    <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+                                ) : null
+                            ) : isOffert ? (
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-xs text-gray-400 line-through font-light">
                                         {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
@@ -491,7 +512,11 @@ export default function Treatments() {
 
                       <div className="flex items-end justify-between mt-2">
                          <div className="flex flex-col">
-                            {isOffert ? (
+                            {isCompanyOffered ? (
+                                treatment.duration ? (
+                                    <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+                                ) : null
+                            ) : isOffert ? (
                                 <div className="flex items-baseline gap-2">
                                     <span className="text-xs text-gray-400 line-through font-light">
                                         {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
@@ -585,7 +610,7 @@ export default function Treatments() {
       )}
 
       {/* Cart Drawer */}
-      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} isOffert={isOffert} />
+      <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} isOffert={isOffert} isCompanyOffered={isCompanyOffered} />
 
       {/* On Request Form Drawer */}
       <OnRequestFormDrawer
