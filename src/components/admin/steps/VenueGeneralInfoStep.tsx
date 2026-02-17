@@ -292,7 +292,7 @@ export function VenueGeneralInfoStep({
               <FormItem>
                 <FormLabel className="flex items-center gap-1.5">
                   <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  {venueTypeValue === 'coworking' ? 'Nom du coworking' : 'Nom de l\'hôtel'}
+                  {venueTypeValue === 'coworking' ? 'Nom du coworking' : venueTypeValue === 'enterprise' ? "Nom de l'entreprise" : "Nom de l'hôtel"}
                 </FormLabel>
                 <FormControl>
                   <Input {...field} />

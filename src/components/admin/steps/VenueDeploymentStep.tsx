@@ -61,7 +61,7 @@ const RECURRENCE_OPTIONS = [
 const generateTimeOptions = () => {
   const options = [];
   for (let hour = 0; hour < 24; hour++) {
-    for (const minute of [0, 15, 30, 45]) {
+    for (const minute of [0, 30]) {
       const value = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       options.push({ value, label: value });
     }
@@ -70,6 +70,10 @@ const generateTimeOptions = () => {
 };
 
 const TIME_OPTIONS = generateTimeOptions();
+
+// Blocked slots use separate hour/minute selects for finer granularity (5-min steps)
+const HOURS = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const MINUTES = Array.from({ length: 12 }, (_, i) => (i * 5).toString().padStart(2, '0'));
 
 // Section header component
 function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
@@ -302,39 +306,65 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-sm">Début</Label>
-                <Select
-                  value={newBlockedSlot.start_time}
-                  onValueChange={(value) => setNewBlockedSlot(prev => ({ ...prev, start_time: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_OPTIONS.map(time => (
-                      <SelectItem key={time.value} value={time.value}>
-                        {time.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select
+                    value={newBlockedSlot.start_time.split(':')[0]}
+                    onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${h}:${prev.start_time.split(':')[1]}` }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="HH" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOURS.map(h => (
+                        <SelectItem key={h} value={h}>{h}h</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={newBlockedSlot.start_time.split(':')[1]}
+                    onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${prev.start_time.split(':')[0]}:${m}` }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="MM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MINUTES.map(m => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm">Fin</Label>
-                <Select
-                  value={newBlockedSlot.end_time}
-                  onValueChange={(value) => setNewBlockedSlot(prev => ({ ...prev, end_time: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_OPTIONS.map(time => (
-                      <SelectItem key={time.value} value={time.value}>
-                        {time.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-1.5">
+                  <Select
+                    value={newBlockedSlot.end_time.split(':')[0]}
+                    onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${h}:${prev.end_time.split(':')[1]}` }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="HH" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {HOURS.map(h => (
+                        <SelectItem key={h} value={h}>{h}h</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={newBlockedSlot.end_time.split(':')[1]}
+                    onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${prev.end_time.split(':')[0]}:${m}` }))}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="MM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MINUTES.map(m => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
 
