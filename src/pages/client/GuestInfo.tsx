@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { useBasket } from './context/CartContext';
+import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,8 +71,9 @@ export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo } = useClientFlow();
+  const { canProceedToStep, setClientInfo, bookingDateTime } = useClientFlow();
   const { itemCount } = useBasket();
+  const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
@@ -91,6 +93,7 @@ export default function GuestInfo() {
     gcTime: 30 * 60 * 1000,
   });
 
+  const isOffert = !!hotel?.offert;
   const venueType = hotel?.venue_type as VenueType | null;
 
   // Get venue-specific terminology
@@ -133,7 +136,11 @@ export default function GuestInfo() {
     setIsSubmitting(true);
     try {
       setClientInfo(data);
-      navigate(`/client/${hotelId}/payment`);
+      if (isOffert && bookingDateTime) {
+        await createOffertBooking(data, bookingDateTime);
+      } else {
+        navigate(`/client/${hotelId}/payment`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -376,13 +383,13 @@ export default function GuestInfo() {
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe">
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isCreating}
               className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
-              {isSubmitting ? (
+              {(isSubmitting || isCreating) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('common:loading')}
+                  {isCreating ? t('payment.processing') : t('common:loading')}
                 </>
               ) : (
                 t('info.continue')

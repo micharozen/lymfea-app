@@ -623,6 +623,7 @@ export type Database = {
           offert: boolean | null
           opening_time: string | null
           postal_code: string | null
+          slot_interval: number | null
           status: string | null
           timezone: string | null
           updated_at: string
@@ -647,6 +648,7 @@ export type Database = {
           offert?: boolean | null
           opening_time?: string | null
           postal_code?: string | null
+          slot_interval?: number | null
           status?: string | null
           timezone?: string | null
           updated_at?: string
@@ -671,6 +673,7 @@ export type Database = {
           offert?: boolean | null
           opening_time?: string | null
           postal_code?: string | null
+          slot_interval?: number | null
           status?: string | null
           timezone?: string | null
           updated_at?: string
@@ -1141,6 +1144,8 @@ export type Database = {
           venue_type: string
           description: string
           landing_subtitle: string
+          offert: boolean
+          slot_interval: number
         }[]
       }
       get_public_hotels: {

@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 
 export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
@@ -22,6 +23,7 @@ export default function Payment() {
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
+  const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
   // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
   const { data: hotel } = useQuery({
@@ -84,37 +86,8 @@ export default function Payment() {
 
     try {
       if (isOffert) {
-        // Offert mode - create booking directly with zero price
-        const { data, error } = await supabase.functions.invoke('create-client-booking', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            paymentMethod: 'offert',
-            totalPrice: 0,
-          },
-        });
-
-        if (error) throw error;
-
-        clearBasket();
-        clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        await createOffertBooking(clientInfo, bookingDateTime);
+        return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
         // Stripe payment flow
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -201,7 +174,7 @@ export default function Payment() {
             variant="ghost"
             size="icon"
             onClick={() => navigate(`/client/${hotelId}/guest-info`)}
-            disabled={isProcessing}
+            disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -402,7 +375,7 @@ export default function Payment() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe">
         <Button
           onClick={handlePayment}
-          disabled={isProcessing}
+          disabled={isProcessing || isOffertProcessing}
           className={cn(
             "w-full h-12 sm:h-14 md:h-16 font-medium tracking-widest text-base rounded-none transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400",
             isOffert
@@ -412,7 +385,7 @@ export default function Payment() {
                 : "bg-gray-900 text-white hover:bg-gray-800"
           )}
         >
-          {isProcessing ? (
+          {(isProcessing || isOffertProcessing) ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
               {t('payment.processing')}

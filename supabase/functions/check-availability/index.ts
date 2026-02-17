@@ -57,10 +57,10 @@ serve(async (req) => {
       );
     }
 
-    // Get hotel opening/closing hours
+    // Get hotel opening/closing hours and slot interval
     const { data: hotelData, error: hotelError } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time')
+      .select('opening_time, closing_time, slot_interval')
       .eq('id', hotelId)
       .single();
 
@@ -76,10 +76,13 @@ serve(async (req) => {
       ? parseInt(hotelData.closing_time.split(':')[0], 10)
       : 23;
 
-    console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00`);
+    const slotInterval = hotelData?.slot_interval || 30;
+
+    console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00, slot interval: ${slotInterval}min`);
     _debug.hotelData = hotelData;
     _debug.openingHour = openingHour;
     _debug.closingHour = closingHour;
+    _debug.slotInterval = slotInterval;
 
     // Fetch active blocked slots for this hotel
     const { data: blockedSlots, error: blockedSlotsError } = await supabase
@@ -149,7 +152,7 @@ serve(async (req) => {
       .from('trunks')
       .select('id')
       .eq('hotel_id', hotelId)
-      .eq('status', 'active');
+      .in('status', ['active', 'Actif']);
 
     if (trunksError) {
       console.error('Error fetching trunks:', trunksError);
@@ -221,12 +224,12 @@ serve(async (req) => {
       return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
     };
 
-    // Function to check if a 30-minute slot overlaps with any blocked time range
+    // Function to check if a slot overlaps with any blocked time range
     const isSlotInBlockedRange = (slotTime: string): boolean => {
       if (!blockedSlots || blockedSlots.length === 0) return false;
 
       const slotStartMinutes = timeToMinutes(slotTime);
-      const slotEndMinutes = slotStartMinutes + 30;
+      const slotEndMinutes = slotStartMinutes + slotInterval;
 
       return blockedSlots.some((block: any) => {
         // Check day of week applicability
@@ -242,13 +245,15 @@ serve(async (req) => {
       });
     };
 
-    // Generate time slots based on venue opening hours (every 30 minutes)
+    // Generate time slots based on venue opening hours and slot interval
     const timeSlots = [];
-    for (let hour = openingHour; hour < closingHour; hour++) {
-      for (const minute of [0, 30]) {
-        const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-        timeSlots.push(time24);
-      }
+    const openingMinutes = openingHour * 60;
+    const closingMinutes = closingHour * 60;
+    for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      const time24 = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
+      timeSlots.push(time24);
     }
 
     console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingHour}:00 - ${closingHour}:00 => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
@@ -265,9 +270,11 @@ serve(async (req) => {
       const earliestTime = new Date(now.getTime() + maxLeadTime * 60 * 1000);
       const earliestHour = earliestTime.getHours();
       const earliestMinute = earliestTime.getMinutes();
-      // Round up to next 30-minute slot
-      const roundedMinute = earliestMinute < 30 ? 30 : 0;
-      const roundedHour = earliestMinute < 30 ? earliestHour : earliestHour + 1;
+      // Round up to next slot interval
+      const totalEarliestMinutes = earliestHour * 60 + earliestMinute;
+      const roundedMinutes = Math.ceil(totalEarliestMinutes / slotInterval) * slotInterval;
+      const roundedHour = Math.floor(roundedMinutes / 60);
+      const roundedMinute = roundedMinutes % 60;
       earliestBookableTime = `${roundedHour.toString().padStart(2, '0')}:${roundedMinute.toString().padStart(2, '0')}:00`;
       console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} (current time + ${maxLeadTime} min)`);
     }

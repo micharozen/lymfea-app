@@ -249,6 +249,35 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="slot_interval"
+          render={({ field }) => (
+            <FormItem className="mt-4">
+              <FormLabel className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                Intervalle des créneaux
+              </FormLabel>
+              <Select
+                value={String(field.value ?? 30)}
+                onValueChange={(val) => field.onChange(Number(val))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[15, 20, 30, 45, 60].map((minutes) => (
+                    <SelectItem key={minutes} value={String(minutes)}>
+                      {minutes} min
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       {/* Blocked time slots section */}
