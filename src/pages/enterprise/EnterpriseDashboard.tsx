@@ -114,6 +114,7 @@ export default function EnterpriseDashboard() {
           <DayTimeline
             openingTime={hotel?.opening_time || '06:00'}
             closingTime={hotel?.closing_time || '23:00'}
+            slotInterval={hotel?.slot_interval || 30}
             bookings={session.bookings}
             blockedSlots={session.blocked_slots}
           />

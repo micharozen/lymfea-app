@@ -67,7 +67,9 @@ export default function Schedule() {
       const daysPerWeek = hotel?.days_of_week?.length ?? 7;
       const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
 
-      return { openingHour, closingHour, maxDaysAhead };
+      const slotInterval = hotel?.slot_interval || 30;
+
+      return { openingHour, closingHour, maxDaysAhead, slotInterval };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000, // 30 minutes - opening hours rarely change
@@ -143,27 +145,32 @@ export default function Schedule() {
 
     const openingHour = venueData?.openingHour ?? 6;
     const closingHour = venueData?.closingHour ?? 23;
+    const slotInterval = venueData?.slotInterval ?? 30;
 
-    for (let hour = openingHour; hour < closingHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 10) {
-        // Skip past times if selected date is today
-        if (selectedDate === todayStr) {
-          if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
-            continue;
-          }
+    const openingMinutes = openingHour * 60;
+    const closingMinutes = closingHour * 60;
+
+    for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
+      const hour = Math.floor(minutes / 60);
+      const minute = minutes % 60;
+
+      // Skip past times if selected date is today
+      if (selectedDate === todayStr) {
+        if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+          continue;
         }
-
-        const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
-
-        slots.push({
-          value: time24,
-          label: time12,
-          hour,
-        });
       }
+
+      const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
+
+      slots.push({
+        value: time24,
+        label: time12,
+        hour,
+      });
     }
     return slots;
   }, [selectedDate, venueData]);

@@ -48,7 +48,15 @@ export default function Checkout() {
       const daysPerWeek = hotel?.days_of_week?.length ?? 7;
       const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
 
-      return { maxDaysAhead, venueType: hotel?.venue_type };
+      const openingHour = hotel?.opening_time
+        ? parseInt(hotel.opening_time.split(':')[0], 10)
+        : 6;
+      const closingHour = hotel?.closing_time
+        ? parseInt(hotel.closing_time.split(':')[0], 10)
+        : 23;
+      const slotInterval = hotel?.slot_interval || 30;
+
+      return { maxDaysAhead, venueType: hotel?.venue_type, openingHour, closingHour, slotInterval };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
@@ -89,24 +97,31 @@ export default function Checkout() {
     return dates;
   }, [maxDaysAhead]);
 
-  // Generate time slots (6AM to 11PM every 30 minutes)
+  // Generate time slots based on venue hours and slot interval
   const timeSlots = useMemo(() => {
     const slots = [];
-    for (let hour = 6; hour < 23; hour++) {
-      for (let minute of [0, 30]) {
-        const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
-        
-        slots.push({
-          value: time24,
-          label: time12,
-        });
-      }
+    const openingHour = venueData?.openingHour ?? 6;
+    const closingHour = venueData?.closingHour ?? 23;
+    const slotInterval = venueData?.slotInterval ?? 30;
+
+    const openingMinutes = openingHour * 60;
+    const closingMinutes = closingHour * 60;
+
+    for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
+      const hour = Math.floor(minutes / 60);
+      const minute = minutes % 60;
+      const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
+
+      slots.push({
+        value: time24,
+        label: time12,
+      });
     }
     return slots;
-  }, []);
+  }, [venueData]);
 
   // Fetch available slots when date changes
   useEffect(() => {

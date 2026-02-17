@@ -7,6 +7,7 @@ import type { SessionBooking, BlockedSlot } from '../hooks/useEnterpriseDashboar
 interface DayTimelineProps {
   openingTime: string;
   closingTime: string;
+  slotInterval?: number;
   bookings: SessionBooking[];
   blockedSlots: BlockedSlot[];
 }
@@ -27,7 +28,7 @@ function formatTime(time: string): string {
   return time.slice(0, 5);
 }
 
-export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }: DayTimelineProps) {
+export function DayTimeline({ openingTime, closingTime, slotInterval = 30, bookings, blockedSlots }: DayTimelineProps) {
   const { t } = useTranslation('client');
 
   const slots = useMemo(() => {
@@ -35,15 +36,15 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
     const closeMin = timeToMinutes(closingTime || '23:00');
     const result: TimeSlot[] = [];
 
-    // Track which 30-min windows are occupied by bookings (considering duration)
+    // Track which slot windows are occupied by bookings (considering duration)
     const bookingMap = new Map<number, SessionBooking>();
     const continuationSet = new Set<number>();
 
     for (const booking of bookings) {
       const startMin = timeToMinutes(booking.booking_time);
-      const durationSlots = Math.ceil(booking.duration / 30);
+      const durationSlots = Math.ceil(booking.duration / slotInterval);
       for (let i = 0; i < durationSlots; i++) {
-        const slotMin = startMin + i * 30;
+        const slotMin = startMin + i * slotInterval;
         if (i === 0) {
           bookingMap.set(slotMin, booking);
         } else {
@@ -61,8 +62,8 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
       });
     };
 
-    // Generate all 30-min slots
-    for (let min = openMin; min < closeMin; min += 30) {
+    // Generate all slots based on interval
+    for (let min = openMin; min < closeMin; min += slotInterval) {
       const timeStr = `${Math.floor(min / 60).toString().padStart(2, '0')}:${(min % 60).toString().padStart(2, '0')}:00`;
 
       if (continuationSet.has(min)) {
@@ -80,7 +81,7 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
     }
 
     return result;
-  }, [openingTime, closingTime, bookings, blockedSlots]);
+  }, [openingTime, closingTime, slotInterval, bookings, blockedSlots]);
 
   return (
     <div className="px-4 sm:px-6 py-6">
@@ -95,7 +96,7 @@ export function DayTimeline({ openingTime, closingTime, bookings, blockedSlots }
             if (slot.type === 'continuation') return null;
 
             const durationSlots = slot.booking
-              ? Math.ceil(slot.booking.duration / 30)
+              ? Math.ceil(slot.booking.duration / slotInterval)
               : 1;
 
             return (

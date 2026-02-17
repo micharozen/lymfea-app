@@ -44,6 +44,7 @@ export interface HotelInfo {
   closing_time: string;
   timezone: string;
   currency: string;
+  slot_interval: number;
 }
 
 export interface EnterpriseDashboardData {
