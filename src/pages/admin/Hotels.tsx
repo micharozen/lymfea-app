@@ -541,7 +541,14 @@ export default function Hotels() {
                                   title="Copier lien dashboard entreprise"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                                    let url = `${window.location.origin}/enterprise/${hotel.id}`;
+                                    if (hotel.deployment_schedule?.schedule_type === 'one_time' && hotel.deployment_schedule.specific_dates?.length) {
+                                      const todayStr = new Date().toISOString().split('T')[0];
+                                      const nextDate = hotel.deployment_schedule.specific_dates
+                                        .filter(d => d >= todayStr)
+                                        .sort()[0] || hotel.deployment_schedule.specific_dates.sort().pop();
+                                      if (nextDate) url += `?date=${nextDate}`;
+                                    }
                                     navigator.clipboard.writeText(url);
                                     toast.success("Lien dashboard copié !");
                                   }}

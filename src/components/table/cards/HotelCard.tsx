@@ -25,6 +25,11 @@ interface HotelStats {
   totalSales: number;
 }
 
+interface DeploymentSchedule {
+  schedule_type: 'always_open' | 'specific_days' | 'one_time';
+  specific_dates: string[] | null;
+}
+
 interface Hotel {
   id: string;
   name: string;
@@ -37,6 +42,7 @@ interface Hotel {
   concierges?: Concierge[];
   trunks?: Trunk[];
   stats?: HotelStats;
+  deployment_schedule?: DeploymentSchedule;
 }
 
 interface HotelCardProps {
@@ -161,7 +167,14 @@ export function HotelCard({
               size="sm"
               className="h-9 px-3"
               onClick={() => {
-                const url = `${window.location.origin}/enterprise/${hotel.id}`;
+                let url = `${window.location.origin}/enterprise/${hotel.id}`;
+                if (hotel.deployment_schedule?.schedule_type === 'one_time' && hotel.deployment_schedule.specific_dates?.length) {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const nextDate = hotel.deployment_schedule.specific_dates
+                    .filter(d => d >= todayStr)
+                    .sort()[0] || hotel.deployment_schedule.specific_dates.sort().pop();
+                  if (nextDate) url += `?date=${nextDate}`;
+                }
                 navigator.clipboard.writeText(url);
                 toast.success("Lien dashboard copié !");
               }}
