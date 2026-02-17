@@ -3,7 +3,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -142,9 +141,10 @@ export function HotelDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <div className="flex-shrink-0 border-b px-6 pt-6 pb-4">
         <DialogHeader>
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-4 pr-8">
             <Avatar className="h-14 w-14 rounded-lg">
               <AvatarImage src={hotel.image || undefined} alt={hotel.name} />
               <AvatarFallback className="rounded-lg bg-muted text-lg font-medium">
@@ -172,10 +172,11 @@ export function HotelDetailDialog({
                     className={cn(
                       "text-xs",
                       hotel.venue_type === "hotel" && "bg-blue-500/10 text-blue-700 border-blue-200",
-                      hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200"
+                      hotel.venue_type === "coworking" && "bg-purple-500/10 text-purple-700 border-purple-200",
+                      hotel.venue_type === "enterprise" && "bg-amber-500/10 text-amber-700 border-amber-200"
                     )}
                   >
-                    {hotel.venue_type === "hotel" ? "Hotel" : "Coworking"}
+                    {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : "Entreprise"}
                   </Badge>
                 )}
                 {hotel.auto_validate_bookings && (
@@ -196,10 +197,30 @@ export function HotelDetailDialog({
                 )}
               </div>
             </div>
+            <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+                Fermer
+              </Button>
+              {onEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    onOpenChange(false);
+                    onEdit();
+                  }}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Modifier
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
+        </div>
 
-        <div className="space-y-5 mt-2">
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="space-y-5">
           {/* Location */}
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
@@ -321,7 +342,9 @@ export function HotelDetailDialog({
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Hôtel</p>
+                <p className="text-xs text-muted-foreground mb-1">
+                  {hotel.venue_type === "hotel" ? "Hôtel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "Lieu"}
+                </p>
                 <p className="text-lg font-semibold">{hotel.hotel_commission}%</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
@@ -340,7 +363,7 @@ export function HotelDetailDialog({
           </div>
 
           {/* Concierges - Hidden for coworking venues */}
-          {hotel.venue_type !== 'coworking' && (
+          {hotel.venue_type === 'hotel' && (
             <>
               <Separator />
               <div className="space-y-2">
@@ -431,23 +454,7 @@ export function HotelDetailDialog({
           </div>
         </div>
 
-        <DialogFooter className="mt-4 gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Fermer
-          </Button>
-          {onEdit && (
-            <Button
-              onClick={() => {
-                onOpenChange(false);
-                onEdit();
-              }}
-              className="bg-foreground text-background hover:bg-foreground/90"
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Modifier
-            </Button>
-          )}
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

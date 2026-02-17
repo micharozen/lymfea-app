@@ -660,92 +660,10 @@ export function VenueWizardDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col overflow-hidden p-0">
-        {/* Sticky header with title, buttons, and stepper */}
+        {/* Header */}
         <div className="flex-shrink-0 border-b px-6 pt-6 pb-4">
           <DialogHeader>
-            <div className="flex items-center justify-between pr-8">
-              <DialogTitle className="text-xl font-semibold">{dialogTitle}</DialogTitle>
-              {!loading && (
-                <div className="flex items-center gap-2">
-                  {currentStep === 1 && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onOpenChange(false)}
-                      >
-                        Annuler
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleNextStep}
-                        className="bg-foreground text-background hover:bg-foreground/90"
-                      >
-                        Suivant
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {currentStep === 2 && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousStep}
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Retour
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleNextStep}
-                        disabled={saving}
-                        className="bg-foreground text-background hover:bg-foreground/90"
-                      >
-                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Suivant
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {currentStep === 3 && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousStep}
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Retour
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onOpenChange(false)}
-                      >
-                        Annuler
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={handleSubmit}
-                        disabled={saving}
-                        className="bg-foreground text-background hover:bg-foreground/90"
-                      >
-                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Enregistrer
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            <DialogTitle className="text-xl font-semibold">{dialogTitle}</DialogTitle>
             <VenueWizardStepper currentStep={currentStep} />
           </DialogHeader>
         </div>
@@ -796,6 +714,83 @@ export function VenueWizardDialog({
             </Form>
           )}
         </div>
+
+        {/* Sticky footer with buttons */}
+        {!loading && (
+          <div className="flex-shrink-0 border-t px-6 py-4 flex justify-between gap-3">
+            {currentStep === 1 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  Suivant
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {currentStep === 2 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePreviousStep}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Retour
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNextStep}
+                  disabled={saving}
+                  className="bg-foreground text-background hover:bg-foreground/90"
+                >
+                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Suivant
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </>
+            )}
+            {currentStep === 3 && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePreviousStep}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Retour
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="bg-foreground text-background hover:bg-foreground/90"
+                  >
+                    {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Enregistrer
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
