@@ -154,5 +154,31 @@
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer ?",
     "yes": "Oui",
     "no": "Non"
+  },
+  "pms": {
+    "title": "Integration PMS",
+    "type": "Type de PMS",
+    "none": "Aucun",
+    "operaCloud": "Oracle Opera Cloud",
+    "credentials": "Identifiants Opera Cloud",
+    "gatewayUrl": "URL Gateway",
+    "clientId": "Client ID",
+    "clientSecret": "Client Secret",
+    "appKey": "Application Key",
+    "enterpriseId": "Enterprise ID",
+    "hotelId": "ID Hotel Opera",
+    "features": "Fonctionnalites",
+    "autoChargeRoom": "Facturation automatique chambre",
+    "autoChargeRoomDesc": "Poster automatiquement les charges spa dans Opera Cloud lors du paiement chambre",
+    "guestLookup": "Recherche client",
+    "guestLookupDesc": "Remplir automatiquement les infos client depuis Opera Cloud quand un numero de chambre est saisi",
+    "testConnection": "Tester la connexion",
+    "testSuccess": "Connexion reussie",
+    "testFailed": "Connexion echouee",
+    "saved": "Parametres PMS sauvegardes",
+    "saveFailed": "Erreur lors de la sauvegarde",
+    "secretUnchanged": "Laisser vide pour conserver le secret actuel",
+    "cancel": "Annuler",
+    "save": "Sauvegarder"
   }
 }
