@@ -4,19 +4,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-OOM is a SaaS platform for booking in-venue beauty/hairdressing services. Three distinct UIs share one codebase:
+Lymfea is a SaaS platform for spa management — booking, scheduling, therapist coordination, and billing. Three distinct UIs share one codebase:
 
-- **Admin Dashboard** (`/admin/*`) — hotel/venue management, bookings calendar, analytics, financial reports
-- **Hairdresser PWA** (`/pwa/*`) — mobile app for hairdressers (appointments, wallet, Stripe Connect payouts)
-- **Client Booking Flow** (`/client/:hotelId/*`) — public QR-code-based booking (no auth, isolated guest session)
+- **Admin Dashboard** (`/admin/*`) — venue management (hotels/spas), bookings calendar, agenda views, analytics, financial reports
+- **Therapist PWA** (`/pwa/*`) — mobile app for therapists (appointments, wallet, Stripe Connect payouts)
+- **Client Booking Flow** (`/client/:hotelId/*`) — public online booking (QR-code or link, no auth, isolated guest session)
 
-Venue types: `hotel`, `coworking`, `enterprise` — each with adapted terminology via `useVenueTerms` hook.
+Venue types: `hotel` (hotel spa), `spa` (independent day spa) — each with adapted terminology via `useVenueTerms` hook.
+
+## Legacy Naming (OOM → Lymfea)
+
+This codebase was forked from OOM (a hairdressing platform). Many database tables, columns, and code identifiers still use OOM naming. Here is the mapping to Lymfea concepts:
+
+| DB / Code name | Lymfea concept | Notes |
+|---|---|---|
+| `hairdressers` table | **Therapists** (thérapeutes) | Table will be renamed in future migration |
+| `hairdresser_id` (in bookings) | **therapist_id** | FK to therapists |
+| `hairdresser_hotels` | **therapist_venues** | Junction table |
+| `hairdresser_payouts` | **therapist_payouts** | Stripe Connect payouts |
+| `hairdresser_ratings` | **therapist_ratings** | Post-treatment ratings |
+| `hairdresser_commission` (in hotels) | **therapist_commission** | Commission % for therapists |
+| `hotel_commission` (in hotels) | **venue_commission** | Commission % for the venue |
+| `trunks` table | **Treatment rooms / Salles de soin** | Will be transformed into room/cabin management |
+| `trunk_id` (in bookings) | **room_id** | Which treatment room is used |
+| `skills[]` (on hairdressers) | **Specializations** | Massage, facial, body wrap, etc. |
+| `app_role: 'hairdresser'` | **therapist** role | Supabase enum value |
+| `HairdresserProtectedRoute` | **TherapistProtectedRoute** | Route guard for therapist PWA |
+| `--oom-safe-bottom` CSS var | iOS safe area variable | Legacy naming, to be renamed |
+| `venue_type: 'coworking'` | **Removed** | Not applicable to Lymfea |
+| `venue_type: 'enterprise'` | **Removed** | Not applicable to Lymfea |
+
+**Rule: When writing new code, use Lymfea naming (therapist, treatment room, etc.). When modifying existing code, keep consistency with surrounding code until the full rename migration happens.**
 
 ## Commands
 
 ```bash
 bun dev              # Vite dev server on port 8080
-bun run build            # Production build
+bun run build        # Production build
 bun lint             # ESLint
 bun run supabase:function  # Serve Edge Functions locally
 ```
@@ -33,7 +57,7 @@ Routes defined in `src/App.tsx`. All pages are lazy-loaded via `React.lazy()`. V
 
 Protected route wrappers:
 - `AdminProtectedRoute` — checks admin/concierge role
-- `HairdresserProtectedRoute` — checks hairdresser role
+- `HairdresserProtectedRoute` — checks therapist role (legacy name: hairdresser)
 - Client flow is public (no auth) — wrapped in `ClientFlowWrapper` which creates a temporary guest session isolated from staff auth
 
 ### State Management
@@ -57,7 +81,11 @@ Namespaces: `common` (default), `admin`, `client`, `pwa`. Files in `src/i18n/loc
 
 ### Venue-Aware Terminology
 
-`src/hooks/useVenueTerms.ts` returns labels adapted per venue type (room vs workspace, payment options, service descriptions). Non-hook version `getVenueTerms()` available for non-component contexts. Always use these instead of hardcoding venue-specific strings.
+`src/hooks/useVenueTerms.ts` returns labels adapted per venue type. Non-hook version `getVenueTerms()` available for non-component contexts. Always use these instead of hardcoding venue-specific strings.
+
+Current venue types:
+- `hotel` — spa within a hotel (supports room billing, "Room Number" field)
+- `spa` — independent day spa (no room billing, standalone booking)
 
 ## Key Conventions
 
@@ -67,13 +95,37 @@ Namespaces: `common` (default), `admin`, `client`, `pwa`. Files in `src/i18n/loc
 - Toasts: Sonner (not shadcn toast)
 - Dialogs: pattern of `useDialogState` hook for open/close management
 - Styling: Tailwind with custom gold palette, dark mode via class strategy, custom Kormelink serif font
-- iOS safe areas: handled via `--oom-safe-bottom` CSS variable and `pb-safe` utility
+- iOS safe areas: handled via `--oom-safe-bottom` CSS variable (legacy name) and `pb-safe` utility
+
+## Roadmap — Key Features (Lymfea)
+
+High-level epics from the product roadmap:
+
+1. **Identity & Branding** — per-venue logo, colors, visual differentiation
+2. **Venue Management** — CRUD venues, treatment rooms (salles), therapist scheduling, opening hours
+3. **Agenda Management** — centralized calendar with views by venue/room/therapist, color codes, min booking delay
+4. **Client Booking Flow** — online reservation → pending → confirmation < 10min, alternative slot proposals
+5. **Therapist Assignment** — broadcast to available therapists (first to accept wins) + manual fallback
+6. **Notifications & Confirmations** — therapist reminders (D-1, H-3), client confirmation + D-1 reminder
+7. **Post-Treatment Feedback** — automatic email + rating form
+8. **Add-on During Treatment** — therapist adds services from mobile, room availability check, auto-payment
+9. **Product Sales** — retail product catalog per venue, add to invoice, hotel room charge notification
+10. **Internal Emails** — configurable recipients per venue, auto-emails on every event
+11. **Daily Reporting** — end-of-day recap with bookings + payment breakdown
+12. **PMS Integration** — Opera Cloud + Mews for room charge and client data sync
+13. **Automatic Invoicing** — monthly invoices to hotels and therapists
+14. **Cancellation & No-show** — configurable cancellation policy, automatic penalties
+15. **Gift Cards & Vouchers** — creation, codes, redemption at booking
+16. **Client History** — persistent client profiles with treatment history and preferences
+17. **Statistics & Dashboard** — occupancy rates, revenue by venue/therapist
+18. **Multi-language** — FR/EN interface and emails
+19. **Website Widget** — embeddable search widget for lymfea.com (search by treatment type, location, date)
 
 ## Context Documentation
 
 Detailed docs live in `docs/claude-context/`:
-- `DATABASE_SCHEMA.md` — all tables, RLS policies, RPC functions
-- `BUSINESS_LOGIC.md` — booking lifecycle, commission system, availability
+- `DATABASE_SCHEMA.md` — all tables, RLS policies, RPC functions, data model adaptation plan
+- `BUSINESS_LOGIC.md` — booking lifecycle, commission system, availability, therapist assignment
 - `FRONTEND_ARCHITECTURE.md` — routes, contexts, component organization
 - `SUPABASE_FUNCTIONS.md` — edge functions reference
 - `PROJECT_OVERVIEW.md` — high-level overview
