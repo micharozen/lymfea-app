@@ -465,6 +465,73 @@ export function BookingDetailDialog({
             </>
           )}
 
+          {/* PMS Charge Status */}
+          {booking.payment_method === 'room' && (booking as any).pms_charge_status && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Statut PMS
+                </h3>
+                <div className={`rounded-lg p-3 border ${
+                  (booking as any).pms_charge_status === 'posted'
+                    ? 'bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-900'
+                    : (booking as any).pms_charge_status === 'failed'
+                      ? 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900'
+                      : 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-900'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className={`text-sm font-medium ${
+                        (booking as any).pms_charge_status === 'posted'
+                          ? 'text-green-700 dark:text-green-400'
+                          : (booking as any).pms_charge_status === 'failed'
+                            ? 'text-red-700 dark:text-red-400'
+                            : 'text-yellow-700 dark:text-yellow-400'
+                      }`}>
+                        {(booking as any).pms_charge_status === 'posted' && 'Charge postee dans Opera Cloud'}
+                        {(booking as any).pms_charge_status === 'failed' && 'Echec de la charge PMS'}
+                        {(booking as any).pms_charge_status === 'pending' && 'Charge PMS en cours...'}
+                      </p>
+                      {(booking as any).pms_charge_id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Ref: {(booking as any).pms_charge_id}
+                        </p>
+                      )}
+                      {(booking as any).pms_error_message && (
+                        <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                          {(booking as any).pms_error_message}
+                        </p>
+                      )}
+                    </div>
+                    {(booking as any).pms_charge_status === 'failed' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const { data, error } = await invokeEdgeFunction('opera-cloud-post-charge', {
+                            body: { bookingId: booking.id },
+                          });
+                          if (error) {
+                            toast({ title: 'Erreur', description: error.message, variant: 'destructive' });
+                          } else if ((data as any)?.success) {
+                            toast({ title: 'Charge PMS postee avec succes' });
+                            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                          } else {
+                            toast({ title: 'Echec', description: (data as any)?.error || 'Erreur inconnue', variant: 'destructive' });
+                          }
+                        }}
+                      >
+                        Reessayer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* Cancellation reason */}
           {booking.status === "cancelled" && booking.cancellation_reason && (
             <>

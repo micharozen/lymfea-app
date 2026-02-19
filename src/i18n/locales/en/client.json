@@ -218,5 +218,8 @@
   "companyOffered": {
     "banner": "Offered by your company",
     "bannerDesc": "All treatments are covered by your company."
+  },
+  "guestLookup": {
+    "found": "Guest information found"
   }
 }

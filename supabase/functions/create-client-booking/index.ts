@@ -170,7 +170,7 @@ serve(async (req) => {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room')
       .eq('id', hotelId)
       .single();
 
@@ -530,6 +530,25 @@ serve(async (req) => {
       } catch (conciergeEmailError) {
         console.error('Error sending concierge room payment notification:', conciergeEmailError);
         // Continue even if concierge email fails
+      }
+
+      // Attempt PMS auto-charge (non-blocking, concierge already notified as fallback)
+      if (hotel.pms_auto_charge_room && hotel.pms_type === 'opera_cloud') {
+        try {
+          console.log('Attempting Opera Cloud auto-charge for booking:', booking.id);
+          const pmsResponse = await supabase.functions.invoke('opera-cloud-post-charge', {
+            body: { bookingId: booking.id }
+          });
+
+          if (pmsResponse.error || pmsResponse.data?.fallbackToManual) {
+            console.log('PMS auto-charge failed, manual process required:', pmsResponse.error || pmsResponse.data?.error);
+          } else {
+            console.log('PMS charge posted successfully:', pmsResponse.data?.chargeId);
+          }
+        } catch (pmsError) {
+          console.error('Error during PMS auto-charge:', pmsError);
+          // Silent fail — concierge notification already sent
+        }
       }
     }
 

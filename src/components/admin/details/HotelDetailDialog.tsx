@@ -23,7 +23,10 @@ import {
   Pencil,
   Clock,
   CalendarDays,
+  Plug,
 } from "lucide-react";
+import { useState } from "react";
+import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 
 // Days of week mapping
 const DAYS_OF_WEEK: Record<number, string> = {
@@ -111,6 +114,9 @@ interface Hotel {
   closing_time?: string | null;
   auto_validate_bookings?: boolean | null;
   offert?: boolean | null;
+  pms_type?: string | null;
+  pms_auto_charge_room?: boolean | null;
+  pms_guest_lookup_enabled?: boolean | null;
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
@@ -132,6 +138,8 @@ export function HotelDetailDialog({
   hotel,
   onEdit,
 }: HotelDetailDialogProps) {
+  const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
+
   if (!hotel) return null;
 
   const oomCommission = Math.max(
@@ -431,6 +439,50 @@ export function HotelDetailDialog({
             )}
           </div>
 
+          {/* PMS Integration - Hotel venues only */}
+          {hotel.venue_type === 'hotel' && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                  <Plug className="h-4 w-4" />
+                  Integration PMS
+                </h3>
+                <div className="bg-muted/50 rounded-lg p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">
+                        {hotel.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : 'Non configure'}
+                      </p>
+                      {hotel.pms_type && (
+                        <div className="flex gap-2">
+                          {hotel.pms_auto_charge_room && (
+                            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
+                              Auto-charge
+                            </Badge>
+                          )}
+                          {hotel.pms_guest_lookup_enabled && (
+                            <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 border-blue-200">
+                              Guest lookup
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPmsDialogOpen(true)}
+                    >
+                      <Plug className="h-4 w-4 mr-2" />
+                      Configurer
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
           <Separator />
 
           {/* Statistics */}
@@ -456,6 +508,15 @@ export function HotelDetailDialog({
 
         </div>
       </DialogContent>
+
+      {hotel.venue_type === 'hotel' && (
+        <PmsConfigDialog
+          open={pmsDialogOpen}
+          onOpenChange={setPmsDialogOpen}
+          hotelId={hotel.id}
+          hotelName={hotel.name}
+        />
+      )}
     </Dialog>
   );
 }

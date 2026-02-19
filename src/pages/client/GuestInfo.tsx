@@ -8,8 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Loader2, ChevronDown, ShoppingBag } from 'lucide-react';
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { ArrowLeft, Loader2, ChevronDown, ShoppingBag, CheckCircle2 } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { useBasket } from './context/CartContext';
@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+import { usePmsGuestLookup } from '@/hooks/usePmsGuestLookup';
 import {
   Form,
   FormControl,
@@ -125,6 +126,27 @@ export default function GuestInfo() {
       note: '',
     },
   });
+
+  // PMS guest lookup (auto-fill from Opera Cloud when room number is entered)
+  const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
+
+  const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
+    if (!roomNumber || roomNumber.length === 0) return;
+
+    const result = await lookupGuest(roomNumber);
+    if (result?.found && result.guest) {
+      if (!form.getValues('firstName')) {
+        form.setValue('firstName', result.guest.firstName);
+      }
+      if (!form.getValues('lastName')) {
+        form.setValue('lastName', result.guest.lastName);
+      }
+      if (!form.getValues('email') && result.guest.email) {
+        form.setValue('email', result.guest.email);
+      }
+      toast.success(t('guestLookup.found'));
+    }
+  }, [lookupGuest, form, t]);
 
   useEffect(() => {
     if (!canProceedToStep('info')) {
@@ -347,11 +369,23 @@ export default function GuestInfo() {
                   <FormItem>
                     <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
                     <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="102"
-                        className={inputStyles}
-                      />
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            handleRoomNumberBlur(e.target.value);
+                          }}
+                          placeholder="102"
+                          className={inputStyles}
+                        />
+                        {isLookingUpGuest && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-400" />
+                        )}
+                        {guestData?.found && !isLookingUpGuest && (
+                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage className="text-red-400 text-xs" />
                   </FormItem>

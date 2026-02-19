@@ -218,5 +218,8 @@
   "companyOffered": {
     "banner": "Offert par votre entreprise",
     "bannerDesc": "Tous les soins sont pris en charge par votre entreprise."
+  },
+  "guestLookup": {
+    "found": "Information client trouvee"
   }
 }
