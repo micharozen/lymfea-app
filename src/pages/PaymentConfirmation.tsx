@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import oomLogo from '@/assets/oom-monogram-white-client.svg';
+import { brand, brandLogos } from '@/config/brand';
 
 export default function PaymentConfirmation() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -29,7 +29,7 @@ export default function PaymentConfirmation() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6">
-        <img src={oomLogo} alt="OOM" className="h-16 animate-pulse" />
+        <img src={brandLogos.monogramWhiteClient} alt={brand.name} className="h-16 animate-pulse" />
       </div>
     );
   }
@@ -42,9 +42,9 @@ export default function PaymentConfirmation() {
       {/* Content */}
       <div className="relative z-10 w-full flex flex-col items-center max-w-lg mx-auto px-6 animate-fade-in">
 
-        {/* OOM Logo */}
-        <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
-          <img src={oomLogo} alt="OOM" className="h-14 w-14 mb-12" />
+        {/* Brand Logo */}
+        <a href={brand.website} target="_blank" rel="noopener noreferrer">
+          <img src={brandLogos.monogramWhiteClient} alt={brand.name} className="h-14 w-14 mb-12" />
         </a>
 
         {/* Success Icon */}

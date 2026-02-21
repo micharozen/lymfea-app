@@ -4,10 +4,10 @@
 -- =============================================================
 
 -- Fixed UUIDs for predictability
--- Admin:       00000000-0000-0000-0000-000000000001
--- Hairdresser: 00000000-0000-0000-0000-000000000002
--- Concierge:   00000000-0000-0000-0000-000000000003
--- Hotel:       00000000-0000-0000-0000-000000000010
+-- Admin:      00000000-0000-0000-0000-000000000001
+-- Therapist:  00000000-0000-0000-0000-000000000002
+-- Concierge:  00000000-0000-0000-0000-000000000003
+-- Hotel:      00000000-0000-0000-0000-000000000010
 
 -- 1) Auth users (password: "password" for all)
 -- GoTrue requires empty strings (not NULL) for token/change columns
@@ -37,7 +37,7 @@ INSERT INTO auth.users (
     '00000000-0000-0000-0000-000000000000',
     '00000000-0000-0000-0000-000000000002',
     'authenticated', 'authenticated',
-    'hairdresser@oom.dev',
+    'therapist@lymfea.dev',
     crypt('password', gen_salt('bf')),
     NOW(), NOW(), NOW(),
     '', '',
@@ -76,7 +76,7 @@ INSERT INTO auth.identities (
   (
     gen_random_uuid(),
     '00000000-0000-0000-0000-000000000002',
-    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000002', 'email', 'hairdresser@oom.dev'),
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000002', 'email', 'therapist@lymfea.dev'),
     'email',
     '00000000-0000-0000-0000-000000000002',
     NOW(), NOW(), NOW()
@@ -113,13 +113,13 @@ VALUES (
   '+33'
 );
 
--- 5) Hairdresser record
-INSERT INTO public.hairdressers (id, user_id, email, first_name, last_name, phone, status, password_set, country_code)
+-- 5) Therapist record
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code)
 VALUES (
   '00000000-0000-0000-0000-000000000102',
   '00000000-0000-0000-0000-000000000002',
-  'hairdresser@oom.dev',
-  'Dev', 'Hairdresser',
+  'therapist@lymfea.dev',
+  'Dev', 'Therapist',
   '0600000002',
   'Actif',
   true,
@@ -148,8 +148,8 @@ VALUES (
   '00000000-0000-0000-0000-000000000010'
 );
 
--- 8) Link hairdresser to test hotel
-INSERT INTO public.hairdresser_hotels (id, hairdresser_id, hotel_id)
+-- 8) Link therapist to test hotel
+INSERT INTO public.therapist_venues (id, therapist_id, hotel_id)
 VALUES (
   gen_random_uuid(),
   '00000000-0000-0000-0000-000000000102',
@@ -179,22 +179,22 @@ VALUES (
   'Brushing classique tous types de cheveux'
 );
 
--- 10) Trunk assigned to test hotel
-INSERT INTO public.trunks (id, name, trunk_id, trunk_model, status, hotel_id, hotel_name, hairdresser_name)
+-- 10) Treatment room assigned to test hotel
+INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
 VALUES (
   '00000000-0000-0000-0000-000000000030',
-  'Malle Dev #1',
-  'TRUNK-DEV-001',
-  'Standard',
+  'Salle de Massage #1',
+  'ROOM-DEV-001',
+  'Massage',
   'Actif',
   '00000000-0000-0000-0000-000000000010',
   'Hotel Dev Test',
-  'Dev Hairdresser'
+  1
 );
 
 -- 11) User roles
 INSERT INTO public.user_roles (id, user_id, role)
 VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'admin'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'hairdresser'),
+ (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'therapist'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000003', 'concierge');

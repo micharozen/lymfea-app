@@ -25,18 +25,18 @@ self.addEventListener('push', (event) => {
   } catch (e) {
     console.error('[SW] Failed to parse notification data:', e);
     notificationData = {
-      title: 'OOM',
+      title: 'Lymfea',
       body: event.data.text()
     };
   }
 
-  const title = notificationData.title || 'OOM';
+  const title = notificationData.title || 'Lymfea';
   const options = {
     body: notificationData.body || 'Nouvelle notification',
     icon: '/pwa-192x192.png',
     badge: '/pwa-64x64.png',
     data: notificationData.data || {},
-    tag: 'oom-notification-' + Date.now(),
+    tag: 'lymfea-notification-' + Date.now(),
     requireInteraction: true,
     vibrate: [200, 100, 200]
   };

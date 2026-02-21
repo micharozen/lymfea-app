@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 import { z } from "zod";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
@@ -130,10 +130,10 @@ const SetPassword = () => {
           .update({ status: "Actif" })
           .eq("user_id", data.user.id);
 
-        // Also update hairdresser if applicable
+        // Also update therapist if applicable
         await supabase
-          .from("hairdressers")
-          .update({ password_set: true })
+          .from("therapists")
+          .update({ status: "Actif" })
           .eq("user_id", data.user.id);
       }
 
@@ -176,14 +176,14 @@ const SetPassword = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={oomLogo} alt="OOM Logo" className="h-24 w-auto" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
         </div>
 
         {/* Title */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-semibold text-foreground">Créez votre mot de passe</h1>
           <p className="text-muted-foreground">
-            Bienvenue dans l'équipe OOM ! Choisissez un mot de passe sécurisé pour protéger votre compte.
+            Bienvenue dans l'équipe {brand.name} ! Choisissez un mot de passe sécurisé pour protéger votre compte.
           </p>
         </div>
 

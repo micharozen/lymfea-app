@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import oomLogo from '@/assets/oom-monogram-white-client.svg';
+import { brandLogos } from '@/config/brand';
 
 interface PractitionerCardProps {
   firstName: string;
@@ -25,7 +25,7 @@ export function PractitionerCard({ firstName, profileImage, skills }: Practition
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center p-4 sm:p-6">
-            <img src={oomLogo} className="w-full opacity-20" alt="" />
+            <img src={brandLogos.monogramWhiteClient} className="w-full opacity-20" alt="" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />

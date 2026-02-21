@@ -31,7 +31,7 @@ export default function Schedule() {
   const [selectedTime, setSelectedTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
-  const [noHairdressers, setNoHairdressers] = useState(false);
+  const [noTherapists, setNoTherapists] = useState(false);
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
 
@@ -179,7 +179,7 @@ export default function Schedule() {
       if (!selectedDate || !hotelId) return;
 
       setLoadingAvailability(true);
-      setNoHairdressers(false);
+      setNoTherapists(false);
       try {
         const { data, error } = await supabase.functions.invoke('check-availability', {
           body: { hotelId, date: selectedDate }
@@ -191,7 +191,7 @@ export default function Schedule() {
         setAvailableSlots(slots);
 
         if (slots.length === 0 && data) {
-          setNoHairdressers(true);
+          setNoTherapists(true);
         }
 
         if (selectedTime && !slots.includes(selectedTime)) {
@@ -348,7 +348,7 @@ export default function Schedule() {
             <div className="flex justify-center py-12">
               <ClientSpinner size="md" />
             </div>
-          ) : noHairdressers || availableSlots.length === 0 ? (
+          ) : noTherapists || availableSlots.length === 0 ? (
             <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
               <Clock className="w-10 h-10 sm:w-12 sm:h-12 text-gray-200 mx-auto mb-4" />
               <p className="text-gray-500 text-sm mb-2">{t('datetime.noSlots')}</p>

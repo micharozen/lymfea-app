@@ -1,7 +1,7 @@
 {
-  "name": "OOM Admin",
-  "short_name": "OOM Admin",
-  "description": "OOM Admin - Gestion des réservations",
+  "name": "Lymfea Admin",
+  "short_name": "Lymfea Admin",
+  "description": "Lymfea Admin - Gestion des réservations",
   "id": "/admin-pwa/v1",
   "theme_color": "#000000",
   "background_color": "#ffffff",

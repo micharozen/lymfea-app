@@ -20,16 +20,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Plus, Briefcase } from "lucide-react";
-import { AddTrunkDialog } from "@/components/AddTrunkDialog";
-import { EditTrunkDialog } from "@/components/EditTrunkDialog";
+import { Search, Pencil, Trash2, Plus, DoorOpen } from "lucide-react";
+import { AddTreatmentRoomDialog } from "@/components/AddTreatmentRoomDialog";
+import { EditTreatmentRoomDialog } from "@/components/EditTreatmentRoomDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
-import { TrunkDetailDialog } from "@/components/admin/details/TrunkDetailDialog";
+import { TreatmentRoomDetailDialog } from "@/components/admin/details/TreatmentRoomDetailDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +46,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 
-export default function Trunks() {
+export default function TreatmentRooms() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -55,7 +55,7 @@ export default function Trunks() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, viewId: viewTrunkId, openView, closeView, editId: editTrunkId, openEdit, closeEdit, deleteId: deleteTrunkId, openDelete, closeDelete } = useDialogState<string>();
+  const { isAddOpen, openAdd, closeAdd, viewId: viewRoomId, openView, closeView, editId: editRoomId, openEdit, closeEdit, deleteId: deleteRoomId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
   useEffect(() => {
@@ -73,17 +73,17 @@ export default function Trunks() {
         setUserRole(data.role);
       }
     };
-    
+
     fetchUserRole();
   }, []);
 
   const isAdmin = userRole === "admin";
 
-  const { data: trunks, isLoading } = useQuery({
-    queryKey: ["trunks"],
+  const { data: rooms, isLoading } = useQuery({
+    queryKey: ["treatment-rooms"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("trunks")
+        .from("treatment_rooms")
         .select("*")
         .order("created_at", { ascending: false });
 
@@ -92,15 +92,15 @@ export default function Trunks() {
     },
   });
 
-  // Fetch upcoming bookings for each trunk
+  // Fetch upcoming bookings for each room
   const { data: upcomingBookings } = useQuery({
-    queryKey: ["trunk-upcoming-bookings"],
+    queryKey: ["treatment-room-upcoming-bookings"],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from("bookings")
-        .select("trunk_id, booking_date, booking_time")
-        .not("trunk_id", "is", null)
+        .select("room_id, booking_date, booking_time")
+        .not("room_id", "is", null)
         .gte("booking_date", today)
         .not("status", "in", '("cancelled","completed")')
         .order("booking_date", { ascending: true })
@@ -111,10 +111,10 @@ export default function Trunks() {
     },
   });
 
-  // Get the next booking for a trunk
-  const getNextBooking = (trunkId: string) => {
+  // Get the next booking for a room
+  const getNextBooking = (roomId: string) => {
     if (!upcomingBookings) return null;
-    const booking = upcomingBookings.find(b => b.trunk_id === trunkId);
+    const booking = upcomingBookings.find(b => b.room_id === roomId);
     if (!booking) return null;
     return `${booking.booking_date} ${booking.booking_time}`;
   };
@@ -139,75 +139,75 @@ export default function Trunks() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("trunks").delete().eq("id", id);
+      const { error } = await supabase.from("treatment_rooms").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["trunks"] });
-      toast.success("Trunk supprime avec succes");
+      queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
+      toast.success("Salle de soin supprimee avec succes");
       closeDelete();
     },
     onError: () => {
-      toast.error("Erreur lors de la suppression du trunk");
+      toast.error("Erreur lors de la suppression de la salle de soin");
     },
   });
 
-  const filteredTrunks = trunks?.filter((trunk) => {
+  const filteredRooms = rooms?.filter((room) => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch =
-      trunk.name?.toLowerCase().includes(searchLower) ||
-      trunk.trunk_model?.toLowerCase().includes(searchLower);
+      room.name?.toLowerCase().includes(searchLower) ||
+      room.room_type?.toLowerCase().includes(searchLower);
 
-    const matchesStatus = statusFilter === "all" || trunk.status === statusFilter;
-    const matchesHotel = hotelFilter === "all" || trunk.hotel_id === hotelFilter;
+    const matchesStatus = statusFilter === "all" || room.status === statusFilter;
+    const matchesHotel = hotelFilter === "all" || room.hotel_id === hotelFilter;
 
     return matchesSearch && matchesStatus && matchesHotel;
   }) || [];
 
-  // Sort trunks
-  const sortedTrunks = useMemo(() => {
-    return sortItems(filteredTrunks, (trunk, column) => {
+  // Sort rooms
+  const sortedRooms = useMemo(() => {
+    return sortItems(filteredRooms, (room, column) => {
       switch (column) {
-        case "name": return trunk.name;
-        case "model": return trunk.trunk_model;
-        case "status": return trunk.status;
+        case "name": return room.name;
+        case "type": return room.room_type;
+        case "status": return room.status;
         default: return null;
       }
     });
-  }, [filteredTrunks, sortItems]);
+  }, [filteredRooms, sortItems]);
 
   // Use pagination hook
-  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedTrunks, needsPagination } = usePagination({
-    items: sortedTrunks,
+  const { currentPage, setCurrentPage, totalPages, paginatedItems: paginatedRooms, needsPagination } = usePagination({
+    items: sortedRooms,
     itemsPerPage,
   });
 
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  // Get viewed/edited trunk
-  const viewedTrunk = viewTrunkId ? trunks?.find(t => t.id === viewTrunkId) || null : null;
-  const editedTrunk = editTrunkId ? trunks?.find(t => t.id === editTrunkId) || null : null;
+  // Get viewed/edited room
+  const viewedRoom = viewRoomId ? rooms?.find(r => r.id === viewRoomId) || null : null;
+  const editedRoom = editRoomId ? rooms?.find(r => r.id === editRoomId) || null : null;
 
   const confirmDelete = () => {
-    if (deleteTrunkId) {
-      deleteMutation.mutate(deleteTrunkId);
+    if (deleteRoomId) {
+      deleteMutation.mutate(deleteRoomId);
     }
   };
 
-  const columnCount = isAdmin ? 7 : 6;
+  const columnCount = isAdmin ? 6 : 5;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
-            🧳 Trunks (Malles)
+            Salles de soin
           </h1>
           {isAdmin && (
             <Button onClick={openAdd}>
               <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ajouter un trunk</span>
+              <span className="hidden md:inline">Ajouter une salle</span>
             </Button>
           )}
         </div>
@@ -225,7 +225,7 @@ export default function Trunks() {
                 className="pl-9"
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Tous les statuts" />
@@ -241,10 +241,10 @@ export default function Trunks() {
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
                 <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Tous les hôtels" />
+                  <SelectValue placeholder="Tous les hotels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les hôtels</SelectItem>
+                  <SelectItem value="all">Tous les hotels</SelectItem>
                   {hotels?.map((hotel) => (
                     <SelectItem key={hotel.id} value={hotel.id}>
                       {hotel.name}
@@ -263,11 +263,10 @@ export default function Trunks() {
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
                     Nom
                   </SortableTableHead>
-                  <SortableTableHead column="model" sortDirection={getSortDirection("model")} onSort={toggleSort}>
-                    Modele
+                  <SortableTableHead column="type" sortDirection={getSortDirection("type")} onSort={toggleSort}>
+                    Type
                   </SortableTableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
-                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prochaine res.</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                     Statut
@@ -277,52 +276,49 @@ export default function Trunks() {
               </TableHeader>
               {isLoading ? (
                 <TableSkeleton rows={itemsPerPage} columns={columnCount} />
-              ) : paginatedTrunks.length === 0 ? (
+              ) : paginatedRooms.length === 0 ? (
                 <TableEmptyState
                   colSpan={columnCount}
-                  icon={Briefcase}
-                  message="Aucun trunk trouve"
+                  icon={DoorOpen}
+                  message="Aucune salle de soin trouvee"
                   description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={isAdmin ? "Ajouter un trunk" : undefined}
+                  actionLabel={isAdmin ? "Ajouter une salle" : undefined}
                   onAction={isAdmin ? openAdd : undefined}
                 />
               ) : (
                 <TableBody>
-                  {paginatedTrunks.map((trunk) => (
+                  {paginatedRooms.map((room) => (
                     <TableRow
-                      key={trunk.id}
+                      key={room.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                      onClick={() => openView(trunk.id)}
+                      onClick={() => openView(room.id)}
                     >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center gap-2 whitespace-nowrap">
-                          {trunk.image ? (
+                          {room.image ? (
                             <img
-                              src={trunk.image}
-                              alt={trunk.name}
+                              src={room.image}
+                              alt={room.name}
                               className="w-6 h-6 rounded object-cover flex-shrink-0"
                             />
                           ) : (
                             <div className="w-6 h-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs">
-                              🧳
+                              🚪
                             </div>
                           )}
-                          <span className="truncate font-medium text-foreground">{trunk.name}</span>
+                          <span className="truncate font-medium text-foreground">{room.name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{trunk.trunk_model}</span>
+                        <span className="truncate block text-foreground">{room.room_type}</span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <HotelCell hotel={getHotelInfo(trunk.hotel_id)} />
-                      </TableCell>
-                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <span className="truncate block text-foreground">{trunk.hairdresser_name || "-"}</span>
+                        <HotelCell hotel={getHotelInfo(room.hotel_id)} />
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">
                           {(() => {
-                            const nextBooking = getNextBooking(trunk.id);
+                            const nextBooking = getNextBooking(room.id);
                             if (!nextBooking) return "-";
                             return new Date(nextBooking).toLocaleString("fr-FR", {
                               day: "2-digit",
@@ -335,7 +331,7 @@ export default function Trunks() {
                         </span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                        <StatusBadge status={trunk.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                        <StatusBadge status={room.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
                       {isAdmin && (
                         <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
@@ -346,7 +342,7 @@ export default function Trunks() {
                               className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openEdit(trunk.id);
+                                openEdit(room.id);
                               }}
                             >
                               <Pencil className="h-3 w-3" />
@@ -357,7 +353,7 @@ export default function Trunks() {
                               className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openDelete(trunk.id);
+                                openDelete(room.id);
                               }}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -377,40 +373,40 @@ export default function Trunks() {
             <TablePagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredTrunks.length}
+              totalItems={filteredRooms.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="trunks"
+              itemName="salles"
             />
           )}
         </div>
       </div>
 
-      <AddTrunkDialog
+      <AddTreatmentRoomDialog
         open={isAddOpen}
         onOpenChange={(open) => !open && closeAdd()}
         onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["trunks"] });
+          queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
         }}
       />
 
-      {editedTrunk && (
-        <EditTrunkDialog
-          open={!!editTrunkId}
+      {editedRoom && (
+        <EditTreatmentRoomDialog
+          open={!!editRoomId}
           onOpenChange={(open) => !open && closeEdit()}
-          trunk={editedTrunk}
+          room={editedRoom}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["trunks"] });
+            queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
           }}
         />
       )}
 
-      <AlertDialog open={!!deleteTrunkId} onOpenChange={(open) => !open && closeDelete()}>
+      <AlertDialog open={!!deleteRoomId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Etes-vous sur de vouloir supprimer ce trunk ? Cette action est
+              Etes-vous sur de vouloir supprimer cette salle de soin ? Cette action est
               irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -426,16 +422,16 @@ export default function Trunks() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <TrunkDetailDialog
-        open={!!viewTrunkId}
+      <TreatmentRoomDetailDialog
+        open={!!viewRoomId}
         onOpenChange={(open) => !open && closeView()}
-        trunk={viewedTrunk}
-        hotel={viewedTrunk ? getHotelInfo(viewedTrunk.hotel_id) : null}
-        nextBooking={viewedTrunk ? getNextBooking(viewedTrunk.id) : null}
+        room={viewedRoom}
+        hotel={viewedRoom ? getHotelInfo(viewedRoom.hotel_id) : null}
+        nextBooking={viewedRoom ? getNextBooking(viewedRoom.id) : null}
         onEdit={() => {
-          if (viewTrunkId) {
+          if (viewRoomId) {
             closeView();
-            openEdit(viewTrunkId);
+            openEdit(viewRoomId);
           }
         }}
       />

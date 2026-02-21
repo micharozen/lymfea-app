@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Share, Menu, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { brand } from '@/config/brand';
 
 export default function PwaInstall() {
   const navigate = useNavigate();
@@ -57,7 +58,7 @@ export default function PwaInstall() {
           </div>
           <h1 className="text-2xl font-bold">App installée !</h1>
           <p className="text-muted-foreground">
-            L'application OOM est maintenant sur votre écran d'accueil
+            L'application {brand.name} est maintenant sur votre écran d'accueil
           </p>
           <Button onClick={() => navigate('/pwa')} className="w-full">
             Ouvrir l'application
@@ -87,9 +88,9 @@ export default function PwaInstall() {
         {/* Logo */}
         <div className="text-center space-y-4">
           <div className="w-24 h-24 mx-auto bg-black rounded-2xl flex items-center justify-center">
-            <span className="text-white text-3xl font-bold">oom</span>
+            <span className="text-white text-3xl font-bold">{brand.name.toLowerCase()}</span>
           </div>
-          <h2 className="text-2xl font-bold">OOM Coiffure</h2>
+          <h2 className="text-2xl font-bold">{brand.name}</h2>
           <p className="text-muted-foreground">
             Installez l'app pour un accès rapide à vos réservations
           </p>

@@ -3,15 +3,15 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
 
-interface HairdresserProtectedRouteProps {
+interface TherapistProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps) => {
+const TherapistProtectedRoute = ({ children }: TherapistProtectedRouteProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isHairdresser, setIsHairdresser] = useState<boolean>(false);
+  const [isTherapist, setIsTherapist] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -25,12 +25,12 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
       }
     }, 5000);
 
-    const checkHairdresserRole = async (userId: string) => {
+    const checkTherapistRole = async (userId: string) => {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
-        .eq('role', 'hairdresser')
+        .eq('role', 'therapist')
         .maybeSingle();
       return !!roleData;
     };
@@ -51,10 +51,10 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
         setSession(session);
         setUser(session.user);
 
-        const hasRole = await checkHairdresserRole(session.user.id);
+        const hasRole = await checkTherapistRole(session.user.id);
         
         if (mounted) {
-          setIsHairdresser(hasRole);
+          setIsTherapist(hasRole);
           setLoading(false);
           initialized = true;
           clearTimeout(safetyTimeout);
@@ -85,13 +85,13 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
         if (newSession && event === 'SIGNED_IN') {
           setTimeout(async () => {
             if (!mounted) return;
-            const hasRole = await checkHairdresserRole(newSession.user.id);
+            const hasRole = await checkTherapistRole(newSession.user.id);
             if (mounted) {
-              setIsHairdresser(hasRole);
+              setIsTherapist(hasRole);
             }
           }, 0);
         } else if (!newSession) {
-          setIsHairdresser(false);
+          setIsTherapist(false);
         }
       }
     );
@@ -118,11 +118,11 @@ const HairdresserProtectedRoute = ({ children }: HairdresserProtectedRouteProps)
     return <Navigate to="/pwa/login" replace />;
   }
 
-  if (!isHairdresser) {
+  if (!isTherapist) {
     return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
 };
 
-export default HairdresserProtectedRoute;
+export default TherapistProtectedRoute;

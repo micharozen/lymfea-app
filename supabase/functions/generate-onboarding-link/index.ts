@@ -41,24 +41,24 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
     logStep("User authenticated", { userId: user.id });
 
-    // Get hairdresser profile with stripe account
-    const { data: hairdresser, error: hairdresserError } = await supabaseClient
-      .from("hairdressers")
+    // Get therapist profile with stripe account
+    const { data: therapist, error: therapistError } = await supabaseClient
+      .from("therapists")
       .select("id, stripe_account_id")
       .eq("user_id", user.id)
       .single();
 
-    if (hairdresserError || !hairdresser) {
-      throw new Error("Hairdresser profile not found");
+    if (therapistError || !therapist) {
+      throw new Error("Therapist profile not found");
     }
 
-    if (!hairdresser.stripe_account_id) {
+    if (!therapist.stripe_account_id) {
       throw new Error("No Stripe account found. Please create one first.");
     }
 
-    logStep("Hairdresser found", { 
-      hairdresserId: hairdresser.id, 
-      stripeAccountId: hairdresser.stripe_account_id 
+    logStep("Therapist found", {
+      therapistId: therapist.id,
+      stripeAccountId: therapist.stripe_account_id
     });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
@@ -68,7 +68,7 @@ serve(async (req) => {
     
     // Create onboarding link using V2 compatible method
     const accountLink = await stripe.accountLinks.create({
-      account: hairdresser.stripe_account_id,
+      account: therapist.stripe_account_id,
       refresh_url: `${origin}/pwa/wallet?refresh=true`,
       return_url: `${origin}/pwa/wallet?success=true`,
       type: "account_onboarding",

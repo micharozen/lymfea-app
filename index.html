@@ -3,15 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
-    <title>OOM - Luxury in Motion</title>
-    <meta name="description" content="Application coiffeur OOM - Réservez vos rendez-vous beauté" />
-    <meta name="author" content="OOM" />
-    
+    <title>{{brand.fullName}}</title>
+    <meta name="description" content="{{brand.description.fr}}" />
+    <meta name="author" content="{{brand.name}}" />
+
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#ffffff" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="OOM - Luxury in Motion" />
+    <meta name="apple-mobile-web-app-title" content="{{brand.fullName}}" />
 
     <!-- Favicons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -34,13 +34,13 @@
     <link rel="preconnect" href="https://api.onesignal.com" crossorigin />
     <link rel="dns-prefetch" href="https://api.onesignal.com" />
 
-    <meta property="og:title" content="OOM - Luxury in Motion" />
-    <meta property="og:description" content="Application coiffeur OOM - Réservez vos rendez-vous beauté" />
+    <meta property="og:title" content="{{brand.fullName}}" />
+    <meta property="og:description" content="{{brand.description.fr}}" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/images/oom-logo-secondary.png" />
+    <meta property="og:image" content="{{brand.logos.ogImage}}" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="/images/oom-logo-secondary.png" />
+    <meta name="twitter:image" content="{{brand.logos.ogImage}}" />
   </head>
 
   <body>

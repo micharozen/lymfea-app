@@ -5,9 +5,9 @@
     "womensMenu": "Menu Femmes",
     "mensMenu": "Menu Hommes",
     "exclusiveService": "SERVICE EN CHAMBRE EXCLUSIF",
-    "artOfHairdressing": "L'art de la coiffure",
+    "artOfHairdressing": "L'art du bien-être",
     "at": "chez",
-    "luxuryDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
+    "luxuryDescription": "L'excellence du bien-être, dans l'intimité de votre chambre. Nos thérapeutes experts se déplacent dans votre suite.",
     "officialPartners": "Partenaires officiels",
     "ourServices": "Nos Prestations",
     "seeAll": "Voir tout",
@@ -17,7 +17,7 @@
     "equipmentIncluded": "Équipement professionnel complet inclus",
     "howItWorks": "Comment ça marche ?",
     "ourExperts": "NOS EXPERTS",
-    "expertHairdresser": "Expert Coiffeur",
+    "expertHairdresser": "Thérapeute Expert",
     "enterpriseWellnessTitle": "Le bien-être, directement dans vos bureaux",
     "nextSession": "Prochaine session :",
     "booking": "Réserver un soin"
@@ -166,9 +166,9 @@
     "exclusiveRoomService": "SERVICE EN CHAMBRE EXCLUSIF",
     "exclusiveWorkspaceService": "SERVICE EXCLUSIF",
     "exclusiveEnterpriseService": "EXPÉRIENCE BIEN-ÊTRE EN ENTREPRISE",
-    "roomServiceDescription": "L'excellence de la haute coiffure, dans l'intimité de votre chambre. Nos experts coiffeurs et barbiers se déplacent dans votre suite.",
-    "workspaceServiceDescription": "L'excellence de la haute coiffure, à votre espace de travail. Nos experts coiffeurs et barbiers se déplacent vers vous.",
-    "enterpriseServiceDescription": "Offrez-vous un vrai moment de déconnexion. Nos experts coiffeurs et barbiers s'installent directement dans vos locaux — sans déplacement, sans stress, juste du soin.",
+    "roomServiceDescription": "L'excellence du bien-être, dans l'intimité de votre chambre. Nos thérapeutes experts se déplacent dans votre suite.",
+    "workspaceServiceDescription": "L'excellence du bien-être, à votre espace de travail. Nos thérapeutes experts se déplacent vers vous.",
+    "enterpriseServiceDescription": "Offrez-vous un vrai moment de déconnexion. Nos thérapeutes experts s'installent directement dans vos locaux — sans déplacement, sans stress, juste du soin.",
     "enterprise": "Entreprise",
     "inEnterpriseDisclaimer": "Notre équipe se déplace directement dans vos locaux."
   },
@@ -205,7 +205,7 @@
     },
     "error": {
       "notFound": "Lieu non trouvé",
-      "notFoundDesc": "Ce lien ne correspond à aucun lieu. Vérifiez l'URL ou contactez votre représentant OOM.",
+      "notFoundDesc": "Ce lien ne correspond à aucun lieu. Vérifiez l'URL ou contactez votre représentant {{brandName}}.",
       "notDeployed": "Aucune session prévue à cette date."
     }
   },

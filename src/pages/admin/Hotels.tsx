@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
-import { ConciergesCell, TrunksCell } from "@/components/table/EntityCell";
+import { ConciergesCell, TreatmentRoomsCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
@@ -49,10 +49,10 @@ interface Concierge {
   profile_image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
 }
 
@@ -81,7 +81,7 @@ interface Hotel {
   currency: string;
   vat: number;
   hotel_commission: number;
-  hairdresser_commission: number;
+  therapist_commission: number;
   status: string;
   venue_type: 'hotel' | 'coworking' | 'enterprise' | null;
   opening_time: string | null;
@@ -89,7 +89,7 @@ interface Hotel {
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
-  trunks?: Trunk[];
+  treatment_rooms?: TreatmentRoom[];
   stats?: HotelStats;
   deployment_schedule?: DeploymentSchedule;
 }
@@ -188,12 +188,12 @@ export default function Hotels() {
 
       if (conciergesError) throw conciergesError;
 
-      // Fetch all trunks
-      const { data: trunksData, error: trunksError } = await supabase
-        .from("trunks")
-        .select("id, name, trunk_id, image, hotel_id");
+      // Fetch all treatment rooms
+      const { data: roomsData, error: roomsError } = await supabase
+        .from("treatment_rooms")
+        .select("id, name, room_number, image, hotel_id");
 
-      if (trunksError) throw trunksError;
+      if (roomsError) throw roomsError;
 
       // Fetch bookings stats per hotel (completed bookings only for sales)
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -234,7 +234,7 @@ export default function Hotels() {
         }
       });
 
-      // Map concierges, trunks and stats to hotels
+      // Map concierges, treatment rooms and stats to hotels
       const hotelsWithData = (hotelsData || []).map((hotel) => {
         const hotelConcierges = (conciergeMappings || [])
           .filter((mapping) => mapping.hotel_id === hotel.id)
@@ -243,19 +243,19 @@ export default function Hotels() {
           })
           .filter((c): c is Concierge => c !== undefined);
 
-        const hotelTrunks = (trunksData || [])
-          .filter((trunk) => trunk.hotel_id === hotel.id)
-          .map((trunk): Trunk => ({
-            id: trunk.id,
-            name: trunk.name,
-            trunk_id: trunk.trunk_id,
-            image: trunk.image,
+        const hotelRooms = (roomsData || [])
+          .filter((room) => room.hotel_id === hotel.id)
+          .map((room): TreatmentRoom => ({
+            id: room.id,
+            name: room.name,
+            room_number: room.room_number,
+            image: room.image,
           }));
 
         return {
           ...hotel,
           concierges: hotelConcierges,
-          trunks: hotelTrunks,
+          treatment_rooms: hotelRooms,
           stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
           deployment_schedule: hotelSchedules[hotel.id],
         };
@@ -433,7 +433,7 @@ export default function Hotels() {
                         Localisation
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Trunks</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                         Statut
                       </SortableTableHead>
@@ -510,7 +510,7 @@ export default function Hotels() {
                             )}
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <TrunksCell trunks={hotel.trunks || []} />
+                            <TreatmentRoomsCell rooms={hotel.treatment_rooms || []} />
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <Badge

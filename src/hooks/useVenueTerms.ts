@@ -2,7 +2,7 @@
  * Venue Terms Hook
  *
  * This hook provides venue-type-aware terminology for the UI.
- * It returns the appropriate terms based on whether the venue is a hotel or coworking space.
+ * It returns the appropriate terms based on the venue type (hotel or spa).
  */
 
 import { useTranslation } from 'react-i18next';
@@ -78,10 +78,10 @@ export const useVenueTerms = (venueType: VenueType | null | undefined): VenueTer
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert therapists set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
-      ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
-      : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
+      ? t('venue.workspaceServiceDescription', 'High-end wellness excellence, at your workspace. Our expert therapists come to you.')
+      : t('venue.roomServiceDescription', 'High-end wellness excellence, in the privacy of your room. Our expert therapists come to your suite.'),
   };
 };
 
@@ -130,9 +130,9 @@ export const getVenueTerms = (
       ? t('venue.exclusiveWorkspaceService', 'EXCLUSIVE WORKSPACE SERVICE')
       : t('venue.exclusiveRoomService', 'EXCLUSIVE ROOM SERVICE'),
     serviceDescription: isEnterprise
-      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.')
+      ? t('venue.enterpriseServiceDescription', 'Treat yourself to a real moment of disconnection. Our expert therapists set up directly in your offices — no commute, no stress, just care.')
       : isCoworking
-      ? t('venue.workspaceServiceDescription', 'High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.')
-      : t('venue.roomServiceDescription', 'High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.'),
+      ? t('venue.workspaceServiceDescription', 'High-end wellness excellence, at your workspace. Our expert therapists come to you.')
+      : t('venue.roomServiceDescription', 'High-end wellness excellence, in the privacy of your room. Our expert therapists come to your suite.'),
   };
 };

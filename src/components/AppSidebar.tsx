@@ -3,7 +3,7 @@ import { NavLink } from "@/components/NavLink";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 import {
   Home,
   Calendar,
@@ -49,12 +49,12 @@ const conciergeMenuItems = [
 
 const adminSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
-  { title: "Coiffeurs", url: "/admin/hairdressers", emoji: "💇‍♂️" },
   { title: "Lieux", url: "/admin/places", emoji: "📍" },
+  { title: "Thérapeutes", url: "/admin/therapists", emoji: "💇‍♂️" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
-  { title: "Trunks", url: "/admin/trunks", emoji: "🧳" },
+  { title: "Salles de soin", url: "/admin/treatment-rooms", emoji: "🚪" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
-  { title: "Produits OOM", url: "/admin/products", emoji: "💈" },
+  { title: `Produits ${brand.name}`, url: "/admin/products", emoji: "💈" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
   { title: "Analytics", url: "/admin/analytics", emoji: "📊" },
@@ -322,10 +322,10 @@ export function AppSidebar() {
         <div className="mt-auto border-t border-sidebar-border">
           <div className="flex items-center justify-center p-4">
             {!isCollapsed && (
-              <img src={oomLogo} alt="OOM" className="h-10 w-auto" />
+              <img src={brandLogos.primary} alt={brand.name} className="h-10 w-auto" />
             )}
             {isCollapsed && (
-              <img src={oomLogo} alt="OOM" className="h-6 w-auto" />
+              <img src={brandLogos.primary} alt={brand.name} className="h-6 w-auto" />
             )}
           </div>
         </div>

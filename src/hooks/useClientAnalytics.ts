@@ -1,8 +1,9 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { brand } from '@/config/brand';
 
-const SESSION_KEY = 'oom-analytics-session';
-const TRACKED_PAGES_KEY = 'oom-tracked-pages';
+const SESSION_KEY = brand.storageKeys.analyticsSession;
+const TRACKED_PAGES_KEY = brand.storageKeys.trackedPages;
 
 interface AnalyticsMetadata {
   [key: string]: string | number | boolean | null | undefined;

@@ -13,7 +13,7 @@ const corsHeaders = {
 
 interface ProposeAlternativeRequest {
   bookingId: string;
-  hairdresserId: string;
+  therapistId: string;
   alternative1: {
     date: string; // YYYY-MM-DD
     time: string; // HH:MM
@@ -35,12 +35,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: ProposeAlternativeRequest = await req.json();
-    const { bookingId, hairdresserId, alternative1, alternative2 } = body;
+    const { bookingId, therapistId, alternative1, alternative2 } = body;
 
     console.log("Proposing alternative for booking:", bookingId);
 
     // Validate required fields
-    if (!bookingId || !hairdresserId || !alternative1 || !alternative2) {
+    if (!bookingId || !therapistId || !alternative1 || !alternative2) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -98,7 +98,7 @@ serve(async (req) => {
       .from("booking_alternative_proposals")
       .insert({
         booking_id: bookingId,
-        hairdresser_id: hairdresserId,
+        therapist_id: therapistId,
         original_date: booking.booking_date,
         original_time: booking.booking_time,
         alternative_1_date: alternative1.date,

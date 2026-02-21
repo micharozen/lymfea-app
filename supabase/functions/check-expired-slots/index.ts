@@ -65,7 +65,7 @@ serve(async (req) => {
             hotelName: booking.hotel_name || "",
             bookingDate: slot.slot_1_date,
             bookingTime: slot.slot_1_time,
-            hairdresserName: "Aucun coiffeur (expiration 2h)",
+            therapistName: "Aucun thérapeute (expiration 2h)",
             totalPrice: 0,
             currency: "EUR",
           },

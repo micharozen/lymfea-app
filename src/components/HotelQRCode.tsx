@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { brand } from '@/config/brand';
 import { Button } from '@/components/ui/button';
 import { Download, QrCode as QrCodeIcon, ExternalLink, Copy, Check } from 'lucide-react';
 import {
@@ -23,7 +24,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Production domain for public QR codes
-  const PRODUCTION_DOMAIN = 'https://oom-clone-genesis.lovable.app';
+  const PRODUCTION_DOMAIN = `https://${brand.appDomain}`;
 
   const getPublicBaseUrl = () => {
     const { hostname } = window.location;

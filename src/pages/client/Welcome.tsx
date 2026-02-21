@@ -12,7 +12,7 @@ import { VideoDialog } from '@/components/client/VideoDialog';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
 import welcomeBgCoworking from '@/assets/background-coworking.jpg';
-import oomLogo from '@/assets/oom-monogram-white-client.svg';
+import { brand, brandLogos } from '@/config/brand';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useBasket } from './context/CartContext';
@@ -238,10 +238,10 @@ export default function Welcome() {
 
         {/* Top Bar */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
-          <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+          <a href={brand.website} target="_blank" rel="noopener noreferrer">
             <img
-              src={oomLogo}
-              alt="OOM"
+              src={brandLogos.monogramWhiteClient}
+              alt={brand.name}
               className="h-10 w-10 sm:h-12 sm:w-12"
             />
           </a>
@@ -506,10 +506,10 @@ export default function Welcome() {
           <div className="px-4 sm:px-6 animate-fade-in">
             {isEnterprise && hotel?.image ? (
               <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+                <a href={brand.website} target="_blank" rel="noopener noreferrer">
                   <img
-                    src={oomLogo}
-                    alt="OOM"
+                    src={brandLogos.monogramWhiteClient}
+                    alt={brand.name}
                     className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
                   />
                 </a>
@@ -521,10 +521,10 @@ export default function Welcome() {
                 />
               </div>
             ) : (
-              <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+              <a href={brand.website} target="_blank" rel="noopener noreferrer">
                 <img
-                  src={oomLogo}
-                  alt="OOM"
+                  src={brandLogos.monogramWhiteClient}
+                  alt={brand.name}
                   className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6"
                 />
               </a>

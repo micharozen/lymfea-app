@@ -58,7 +58,7 @@ const PwaWallet = () => {
   const { data: earnings, isLoading } = useQuery({
     queryKey: ["wallet-earnings", period],
     queryFn: async (): Promise<EarningsData> => {
-      const { data, error } = await invokeEdgeFunction<{ period: string }, EarningsData>('get-hairdresser-earnings', {
+      const { data, error } = await invokeEdgeFunction<{ period: string }, EarningsData>('get-therapist-earnings', {
         body: { period },
       });
 

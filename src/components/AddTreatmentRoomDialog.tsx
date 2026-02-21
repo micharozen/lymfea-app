@@ -40,59 +40,63 @@ import { toast } from "sonner";
 import { Upload, ChevronDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const TRUNK_MODELS = [
-  { value: "Edo", label: "Edo" },
-  { value: "Regency", label: "Regency" },
-  { value: "Revolution", label: "Revolution" },
+const ROOM_TYPES = [
+  { value: "Massage", label: "Massage" },
+  { value: "Facial", label: "Soin visage" },
+  { value: "Hammam", label: "Hammam" },
+  { value: "Jacuzzi", label: "Jacuzzi" },
+  { value: "Sauna", label: "Sauna" },
+  { value: "Body Wrap", label: "Enveloppement" },
+  { value: "Multi-purpose", label: "Polyvalente" },
 ];
 
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
-  trunk_model: z.string().min(1, t('errors.validation.trunkModelRequired')),
+  room_type: z.string().min(1, t('errors.validation.roomTypeRequired')),
   hotel_id: z.string().optional(),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
-const generateTrunkId = () => {
+const generateRoomNumber = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = 'TRK-';
+  let result = 'ROOM-';
   for (let i = 0; i < 6; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
 };
 
-interface AddTrunkDialogProps {
+interface AddTreatmentRoomDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function AddTrunkDialog({
+export function AddTreatmentRoomDialog({
   open,
   onOpenChange,
   onSuccess,
-}: AddTrunkDialogProps) {
+}: AddTreatmentRoomDialogProps) {
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
-  const [modelPopoverOpen, setModelPopoverOpen] = useState(false);
+  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
 
   const {
-    url: trunkImage,
-    setUrl: setTrunkImage,
+    url: roomImage,
+    setUrl: setRoomImage,
     uploading: isUploading,
     fileInputRef,
     handleUpload: handleImageUpload,
     triggerFileSelect,
-  } = useFileUpload({ path: "trunks/" });
+  } = useFileUpload({ path: "treatment-rooms/" });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      trunk_model: "",
+      room_type: "",
       hotel_id: "",
     },
   });
@@ -114,24 +118,24 @@ export function AddTrunkDialog({
     // Find hotel name if hotel_id is selected
     const selectedHotel = hotels?.find(h => h.id === values.hotel_id);
 
-    const { error } = await supabase.from("trunks").insert({
+    const { error } = await supabase.from("treatment_rooms").insert({
       name: values.name,
-      trunk_model: values.trunk_model,
-      trunk_id: generateTrunkId(),
+      room_type: values.room_type,
+      room_number: generateRoomNumber(),
       hotel_id: values.hotel_id || null,
       hotel_name: selectedHotel?.name || null,
-      image: trunkImage || null,
+      image: roomImage || null,
       status: "active",
     });
 
     if (error) {
-      toast.error("Erreur lors de l'ajout du trunk");
+      toast.error("Erreur lors de l'ajout de la salle de soin");
       return;
     }
 
-    toast.success("Trunk ajouté avec succès");
+    toast.success("Salle de soin ajoutee avec succes");
     form.reset();
-    setTrunkImage("");
+    setRoomImage("");
     onOpenChange(false);
     onSuccess();
   };
@@ -140,19 +144,19 @@ export function AddTrunkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter un trunk</DialogTitle>
+          <DialogTitle>Ajouter une salle de soin</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="flex flex-col gap-3">
-              <FormLabel>Image du trunk</FormLabel>
+              <FormLabel>Image de la salle</FormLabel>
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 rounded-md border border-border flex items-center justify-center overflow-hidden bg-muted">
-                  {trunkImage ? (
+                  {roomImage ? (
                     <img
-                      src={trunkImage}
-                      alt="Trunk preview"
+                      src={roomImage}
+                      alt="Room preview"
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -166,7 +170,7 @@ export function AddTrunkDialog({
                   disabled={isUploading}
                   onClick={triggerFileSelect}
                 >
-                  {isUploading ? "Téléchargement..." : "Télécharger"}
+                  {isUploading ? "Telechargement..." : "Telecharger"}
                   {isUploading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
                 <input
@@ -184,9 +188,9 @@ export function AddTrunkDialog({
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du trunk</FormLabel>
+                  <FormLabel>Nom de la salle</FormLabel>
                   <FormControl>
-                    <Input placeholder="OOM Trunk" {...field} />
+                    <Input placeholder="Salle Zen" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -195,11 +199,11 @@ export function AddTrunkDialog({
 
             <FormField
               control={form.control}
-              name="trunk_model"
+              name="room_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Modèle du trunk</FormLabel>
-                  <Popover open={modelPopoverOpen} onOpenChange={setModelPopoverOpen}>
+                  <FormLabel>Type de salle</FormLabel>
+                  <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
@@ -210,7 +214,7 @@ export function AddTrunkDialog({
                           )}
                         >
                           <span className="truncate">
-                            {field.value || "Sélectionner"}
+                            {ROOM_TYPES.find(t => t.value === field.value)?.label || "Selectionner"}
                           </span>
                           <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
@@ -220,17 +224,17 @@ export function AddTrunkDialog({
                       className="w-48 p-0"
                       align="start"
                     >
-                      <ScrollArea className="h-32">
+                      <ScrollArea className="h-48">
                         <div className="p-1">
-                          {TRUNK_MODELS.map((model) => {
-                            const isSelected = field.value === model.value;
+                          {ROOM_TYPES.map((type) => {
+                            const isSelected = field.value === type.value;
                             return (
                               <button
-                                key={model.value}
+                                key={type.value}
                                 type="button"
                                 onClick={() => {
-                                  field.onChange(model.value);
-                                  setModelPopoverOpen(false);
+                                  field.onChange(type.value);
+                                  setTypePopoverOpen(false);
                                 }}
                                 className={cn(
                                   "w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm",
@@ -239,7 +243,7 @@ export function AddTrunkDialog({
                                   isSelected && "font-medium"
                                 )}
                               >
-                                <span className="min-w-0 truncate text-left">{model.label}</span>
+                                <span className="min-w-0 truncate text-left">{type.label}</span>
                                 {isSelected ? (
                                   <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
                                     <Check className="h-3 w-3" strokeWidth={3} />
@@ -264,11 +268,11 @@ export function AddTrunkDialog({
               name="hotel_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel</FormLabel>
+                  <FormLabel>Hotel</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionner" />
+                        <SelectValue placeholder="Selectionner" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

@@ -135,8 +135,8 @@ interface Booking {
   booking_date: string;
   booking_time: string;
   status: string;
-  hairdresser_id: string | null;
-  hairdresser_name: string | null;
+  therapist_id: string | null;
+  therapist_name: string | null;
   assigned_at: string | null;
   total_price?: number | null;
   duration?: number | null;
@@ -170,7 +170,7 @@ export default function EditBookingDialog({
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
-  const [hairdresserId, setHairdresserId] = useState("");
+  const [therapistId, setTherapistId] = useState("");
   const [cart, setCart] = useState<{ treatmentId: string; quantity: number }[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
@@ -178,8 +178,8 @@ export default function EditBookingDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
-  const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
-  const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
+  const [showAssignTherapist, setShowAssignTherapist] = useState(false);
+  const [selectedTherapistId, setSelectedTherapistId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
@@ -214,7 +214,7 @@ export default function EditBookingDialog({
       setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
       setTime(booking.booking_time);
       setStatus(booking.status);
-      setHairdresserId(booking.hairdresser_id || "");
+      setTherapistId(booking.therapist_id || "");
     }
   }, [booking]);
 
@@ -266,16 +266,16 @@ export default function EditBookingDialog({
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers", booking?.hotel_id],
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists", booking?.hotel_id],
     enabled: !!booking?.hotel_id,
     queryFn: async () => {
-      // Récupérer les coiffeurs assignés à l'hôtel de cette réservation
+      // Récupérer les thérapeutes assignés à l'hôtel de cette réservation
       const { data, error } = await supabase
-        .from("hairdresser_hotels")
+        .from("therapist_venues")
         .select(`
-          hairdresser_id,
-          hairdressers (
+          therapist_id,
+          therapists (
             id,
             first_name,
             last_name,
@@ -286,17 +286,17 @@ export default function EditBookingDialog({
 
       if (error) throw error;
       
-      // Filtrer pour ne garder que les coiffeurs actifs
+      // Filtrer pour ne garder que les thérapeutes actifs
       return data
-        ?.map((hh: any) => hh.hairdressers)
+        ?.map((hh: any) => hh.therapists)
         .filter((h: any) => h && h.status === "active")
         .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
 
-  // Query to get hairdresser availability for the selected date/time
-  const { data: hairdresserAvailability } = useQuery({
-    queryKey: ["hairdresser-availability", booking?.hotel_id, date, time, cart, booking?.id],
+  // Query to get therapist availability for the selected date/time
+  const { data: therapistAvailability } = useQuery({
+    queryKey: ["therapist-availability", booking?.hotel_id, date, time, cart, booking?.id],
     enabled: !!booking?.hotel_id && !!date && !!time && viewMode === "edit",
     queryFn: async () => {
       if (!date || !time) return {};
@@ -319,7 +319,7 @@ export default function EditBookingDialog({
         .from("bookings")
         .select(`
           id,
-          hairdresser_id,
+          therapist_id,
           booking_time,
           booking_treatments (
             treatment_menus (
@@ -329,7 +329,7 @@ export default function EditBookingDialog({
         `)
         .eq("booking_date", selectedDate)
         .neq("id", booking!.id)
-        .not("hairdresser_id", "is", null);
+        .not("therapist_id", "is", null);
       
       if (error) {
         console.error("Error fetching availability:", error);
@@ -339,14 +339,14 @@ export default function EditBookingDialog({
       // Build availability map
       const availability: Record<string, { available: boolean; conflict?: string }> = {};
       
-      // Initialize all hairdressers as available
-      hairdressers?.forEach(h => {
+      // Initialize all therapists as available
+      therapists?.forEach(h => {
         availability[h.id] = { available: true };
       });
       
       // Check each existing booking for conflicts
       existingBookings?.forEach((existingBooking) => {
-        if (!existingBooking.hairdresser_id) return;
+        if (!existingBooking.therapist_id) return;
         
         const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
         const existingStartTime = existingHours * 60 + existingMinutes;
@@ -362,9 +362,9 @@ export default function EditBookingDialog({
           (endTime > existingStartTime && endTime <= existingEndTime) ||
           (startTime <= existingStartTime && endTime >= existingEndTime);
         
-        if (hasOverlap && availability[existingBooking.hairdresser_id]) {
+        if (hasOverlap && availability[existingBooking.therapist_id]) {
           const conflictTime = `${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')}-${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}`;
-          availability[existingBooking.hairdresser_id] = { 
+          availability[existingBooking.therapist_id] = { 
             available: false, 
             conflict: conflictTime 
           };
@@ -477,35 +477,36 @@ export default function EditBookingDialog({
     mutationFn: async (bookingData: any) => {
       if (!booking?.id) return { wasAssigned: false };
 
-      const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
-      
+      const therapist = therapists?.find((h) => h.id === bookingData.therapist_id);
+
       // Gestion du statut et de assigned_at
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
-      
-      // Track if a hairdresser was newly assigned OR changed
-      const wasAssigned = bookingData.hairdresser_id && !booking.hairdresser_id;
-      const hairdresserChanged = bookingData.hairdresser_id && booking.hairdresser_id && 
-                                  bookingData.hairdresser_id !== booking.hairdresser_id;
+
+      // Track if a therapist was newly assigned OR changed
+      const wasAssigned = bookingData.therapist_id && !booking.therapist_id;
+      const therapistChanged = bookingData.therapist_id && booking.therapist_id &&
+                                  bookingData.therapist_id !== booking.therapist_id;
       // Track if booking was cancelled
       const wasCancelled = bookingData.status === "cancelled" && booking.status !== "cancelled";
-      
-      // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
-      if (bookingData.hairdresser_id && booking.status === "En attente") {
+
+      // Si on assigne un thérapeute pour la première fois (statut "En attente"), passer à "Assigné"
+      if (bookingData.therapist_id && booking.status === "En attente") {
         newStatus = "Assigné";
         assignedAt = new Date().toISOString();
       }
       
-      // Si on change de coiffeur (nouveau coiffeur différent de l'ancien), mettre à jour assigned_at
-      if (bookingData.hairdresser_id && booking.hairdresser_id && 
-          bookingData.hairdresser_id !== booking.hairdresser_id && 
+      // Si on change de thérapeute (nouveau thérapeute différent de l'ancien), mettre à jour assigned_at
+      if (bookingData.therapist_id && booking.therapist_id && 
+          bookingData.therapist_id !== booking.therapist_id && 
           booking.status === "Assigné") {
         // Le statut reste "Assigné" mais on met à jour la date d'assignation
+
         assignedAt = new Date().toISOString();
       }
       
-      // Si on retire le coiffeur d'une réservation "Assigné", remettre à "En attente"
-      if (!bookingData.hairdresser_id && booking.status === "Assigné") {
+      // Si on retire le thérapeute d'une réservation "Assigné", remettre à "En attente"
+      if (!bookingData.therapist_id && booking.status === "Assigné") {
         newStatus = "En attente";
         assignedAt = null;
       }
@@ -520,8 +521,8 @@ export default function EditBookingDialog({
           room_number: bookingData.room_number,
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
-          hairdresser_id: bookingData.hairdresser_id || null,
-          hairdresser_name: bookingData.hairdresser_id && hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+          therapist_id: bookingData.therapist_id || null,
+          therapist_name: bookingData.therapist_id && therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
           total_price: bookingData.total_price,
           status: newStatus,
           assigned_at: assignedAt,
@@ -550,13 +551,13 @@ export default function EditBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
       
-      return { wasAssigned, hairdresserChanged, wasCancelled };
+      return { wasAssigned, therapistChanged, wasCancelled };
     },
     onSuccess: async (result) => {
-      console.log("Update success - wasAssigned:", result?.wasAssigned, "hairdresserChanged:", result?.hairdresserChanged, "wasCancelled:", result?.wasCancelled, "bookingId:", booking?.id);
-      
-      // Send push notification if hairdresser was newly assigned OR changed
-      if ((result?.wasAssigned || result?.hairdresserChanged) && booking?.id) {
+      console.log("Update success - wasAssigned:", result?.wasAssigned, "therapistChanged:", result?.therapistChanged, "wasCancelled:", result?.wasCancelled, "bookingId:", booking?.id);
+
+      // Send push notification if therapist was newly assigned OR changed
+      if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
         console.log("Triggering push notification for booking:", booking.id);
         try {
           const { data, error } = await invokeEdgeFunction('trigger-new-booking-notifications', {
@@ -591,15 +592,15 @@ export default function EditBookingDialog({
       
       // Build success message
       let description = "La réservation a été modifiée avec succès";
-      if (result?.hairdresserChanged && hairdressers) {
-        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
-        if (newHairdresser) {
-          description = `Réservation réassignée à ${newHairdresser.first_name} ${newHairdresser.last_name}`;
+      if (result?.therapistChanged && therapists) {
+        const newTherapist = therapists.find(h => h.id === therapistId);
+        if (newTherapist) {
+          description = `Réservation réassignée à ${newTherapist.first_name} ${newTherapist.last_name}`;
         }
-      } else if (result?.wasAssigned && hairdressers) {
-        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
-        if (newHairdresser) {
-          description = `Coiffeur ${newHairdresser.first_name} ${newHairdresser.last_name} assigné avec succès`;
+      } else if (result?.wasAssigned && therapists) {
+        const newTherapist = therapists.find(h => h.id === therapistId);
+        if (newTherapist) {
+          description = `Thérapeute ${newTherapist.first_name} ${newTherapist.last_name} assigné avec succès`;
         }
       }
       
@@ -769,7 +770,7 @@ export default function EditBookingDialog({
 
       if (error) throw error;
 
-      // Trigger notifications for hairdressers
+      // Trigger notifications for therapists
       await invokeEdgeFunction("trigger-new-booking-notifications", {
         body: { bookingId: booking.id },
       });
@@ -780,7 +781,7 @@ export default function EditBookingDialog({
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: "Devis accepté",
-        description: "La réservation est maintenant en attente d'un coiffeur.",
+        description: "La réservation est maintenant en attente d'un thérapeute.",
       });
       onOpenChange(false);
     },
@@ -833,12 +834,12 @@ export default function EditBookingDialog({
       return;
     }
 
-    // Vérifier les chevauchements SEULEMENT si on change le coiffeur ou l'heure
-    const hairdresserChanged = hairdresserId !== booking?.hairdresser_id;
+    // Vérifier les chevauchements SEULEMENT si on change le thérapeute ou l'heure
+    const therapistChanged = therapistId !== booking?.therapist_id;
     const timeChanged = time !== booking?.booking_time;
     const dateChanged = date && format(date, "yyyy-MM-dd") !== booking?.booking_date;
-    
-    if (hairdresserId && cart.length > 0 && (hairdresserChanged || timeChanged || dateChanged)) {
+
+    if (therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
@@ -849,7 +850,7 @@ export default function EditBookingDialog({
       const startTime = hours * 60 + minutes;
       const endTime = startTime + calcDuration;
 
-      // Vérifier les réservations existantes pour ce coiffeur
+      // Vérifier les réservations existantes pour ce thérapeute
       const { data: existingBookings, error } = await supabase
         .from("bookings")
         .select(`
@@ -862,7 +863,7 @@ export default function EditBookingDialog({
             )
           )
         `)
-        .eq("hairdresser_id", hairdresserId)
+        .eq("therapist_id", therapistId)
         .eq("booking_date", format(date, "yyyy-MM-dd"))
         .neq("id", booking?.id); // Exclure la réservation actuelle
 
@@ -887,7 +888,7 @@ export default function EditBookingDialog({
           ) {
             toast({
               title: "Chevauchement détecté",
-              description: `Ce coiffeur a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
+              description: `Ce thérapeute a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
               variant: "destructive",
             });
             return;
@@ -904,7 +905,7 @@ export default function EditBookingDialog({
       room_number: roomNumber,
       booking_date: date ? format(date, "yyyy-MM-dd") : "",
       booking_time: time,
-      hairdresser_id: hairdresserId,
+      therapist_id: therapistId,
       total_price: totalPrice,
       treatments: cart.flatMap(item => Array(item.quantity).fill(item.treatmentId)),
       status: status,
@@ -975,7 +976,7 @@ export default function EditBookingDialog({
                   )}
                 </div>
               </div>
-              {!showAssignHairdresser && (
+              {!showAssignTherapist && (
                 <ButtonGroup className="pr-10">
                   {booking?.payment_status !== 'paid' &&
                    booking?.payment_status !== 'charged_to_room' &&
@@ -1218,79 +1219,79 @@ export default function EditBookingDialog({
                 );
               })()}
 
-              {/* Coiffeur */}
+              {/* Thérapeute */}
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
-                {booking?.hairdresser_name ? (
+                <p className="text-xs text-muted-foreground mb-2">Thérapeute</p>
+                {booking?.therapist_name ? (
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+                    <p className="font-medium text-sm">{booking.therapist_name}</p>
                   </div>
                 ) : isAdmin ? (
-                  showAssignHairdresser ? (
+                  showAssignTherapist ? (
                     <div className="space-y-2">
-                      <Select value={selectedHairdresserId || "none"} onValueChange={setSelectedHairdresserId}>
+                      <Select value={selectedTherapistId || "none"} onValueChange={setSelectedTherapistId}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Sélectionner un coiffeur" />
+                          <SelectValue placeholder="Sélectionner un thérapeute" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Aucun coiffeur</SelectItem>
-                          {hairdressers?.map((hairdresser) => (
-                            <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                              {hairdresser.first_name} {hairdresser.last_name}
+                          <SelectItem value="none">Aucun thérapeute</SelectItem>
+                          {therapists?.map((therapist) => (
+                            <SelectItem key={therapist.id} value={therapist.id}>
+                              {therapist.first_name} {therapist.last_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <div className="flex gap-2">
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={async () => {
-                            const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
-                            const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
-                            
+                            const therapistId = selectedTherapistId === "none" ? null : selectedTherapistId;
+                            const therapist = therapists?.find(h => h.id === therapistId);
+
                             let assignedAt = booking!.assigned_at;
-                            
-                            if (hairdresserId) {
+
+                            if (therapistId) {
                               assignedAt = new Date().toISOString();
                             } else {
                               assignedAt = null;
                             }
-                            
+
                             const { error } = await supabase
                               .from("bookings")
                               .update({
-                                hairdresser_id: hairdresserId,
-                                hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+                                therapist_id: therapistId,
+                                therapist_name: therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
                                 assigned_at: assignedAt,
                               })
                               .eq("id", booking!.id);
-                              
+
                             if (error) {
-                              toast({ title: "Erreur", description: "Impossible d'assigner le coiffeur", variant: "destructive" });
+                              toast({ title: "Erreur", description: "Impossible d'assigner le thérapeute", variant: "destructive" });
                             } else {
-                              const wasAssigned = hairdresserId && !booking!.hairdresser_id;
-                              const hairdresserChanged = hairdresserId && booking!.hairdresser_id && hairdresserId !== booking!.hairdresser_id;
-                              
-                              if (wasAssigned || hairdresserChanged) {
+                              const wasAssigned = therapistId && !booking!.therapist_id;
+                              const therapistChanged = therapistId && booking!.therapist_id && therapistId !== booking!.therapist_id;
+
+                              if (wasAssigned || therapistChanged) {
                                 try {
                                   await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
                                 } catch (e) { console.error(e); }
                               }
-                              
-                              toast({ title: "Succès", description: hairdresserId ? "Coiffeur assigné" : "Coiffeur retiré" });
+
+                              toast({ title: "Succès", description: therapistId ? "Thérapeute assigné" : "Thérapeute retiré" });
                               await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-                              setShowAssignHairdresser(false);
+                              setShowAssignTherapist(false);
                             }
                           }}
                           className="flex-1"
                         >
                           Confirmer
                         </Button>
-                        <Button 
+                        <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setShowAssignHairdresser(false); setSelectedHairdresserId(booking?.hairdresser_id || ""); }}
+                          onClick={() => { setShowAssignTherapist(false); setSelectedTherapistId(booking?.therapist_id || ""); }}
                           className="flex-1"
                         >
                           Annuler
@@ -1298,17 +1299,17 @@ export default function EditBookingDialog({
                       </div>
                     </div>
                   ) : (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => { setShowAssignHairdresser(true); setSelectedHairdresserId(""); }}
+                      onClick={() => { setShowAssignTherapist(true); setSelectedTherapistId(""); }}
                       className="h-8 text-xs"
                     >
-                      Assigner un coiffeur
+                      Assigner un thérapeute
                     </Button>
                   )
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
+                  <p className="text-sm text-muted-foreground">Aucun thérapeute assigné</p>
                 )}
               </div>
 
@@ -1379,47 +1380,47 @@ export default function EditBookingDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="edit-hairdresser" className="text-xs">Coiffeur / Prestataire</Label>
+                  <Label htmlFor="edit-therapist" className="text-xs">Thérapeute / Prestataire</Label>
                   <Select
-                    value={hairdresserId || "none"}
+                    value={therapistId || "none"}
                     onValueChange={(value) => {
                       const newValue = value === "none" ? "" : value;
-                      setHairdresserId(newValue);
+                      setTherapistId(newValue);
                     }}
                   >
-                    <SelectTrigger id="edit-hairdresser" className="h-9">
-                      <SelectValue placeholder="Sélectionner un coiffeur" />
+                    <SelectTrigger id="edit-therapist" className="h-9">
+                      <SelectValue placeholder="Sélectionner un thérapeute" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="none">Aucun coiffeur</SelectItem>
-                      {/* Show current hairdresser if not in list */}
-                      {booking?.hairdresser_id && booking?.hairdresser_name &&
-                       !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
-                        <SelectItem value={booking.hairdresser_id}>
-                          {booking.hairdresser_name} (Actuel)
+                      <SelectItem value="none">Aucun thérapeute</SelectItem>
+                      {/* Show current therapist if not in list */}
+                      {booking?.therapist_id && booking?.therapist_name &&
+                       !therapists?.find(h => h.id === booking.therapist_id) && (
+                        <SelectItem value={booking.therapist_id}>
+                          {booking.therapist_name} (Actuel)
                         </SelectItem>
                       )}
-                      {hairdressers?.map((hairdresser) => {
-                        const availability = hairdresserAvailability?.[hairdresser.id];
+                      {therapists?.map((therapist) => {
+                        const availability = therapistAvailability?.[therapist.id];
                         const isUnavailable = availability && !availability.available;
-                        const isCurrentHairdresser = hairdresser.id === booking?.hairdresser_id;
+                        const isCurrentTherapist = therapist.id === booking?.therapist_id;
 
                         return (
                           <SelectItem
-                            key={hairdresser.id}
-                            value={hairdresser.id}
-                            disabled={isUnavailable && !isCurrentHairdresser}
+                            key={therapist.id}
+                            value={therapist.id}
+                            disabled={isUnavailable && !isCurrentTherapist}
                           >
-                            {hairdresser.first_name} {hairdresser.last_name}
-                            {isCurrentHairdresser && " (Actuel)"}
-                            {isUnavailable && !isCurrentHairdresser && " - Occupé"}
+                            {therapist.first_name} {therapist.last_name}
+                            {isCurrentTherapist && " (Actuel)"}
+                            {isUnavailable && !isCurrentTherapist && " - Occupé"}
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
                   <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
-                    Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
+                    Seuls les thérapeutes disponibles pour ce créneau sont sélectionnables.
                   </p>
                 </div>
               </div>

@@ -71,7 +71,7 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     hexColor: '#f97316',
   },
   awaiting_hairdresser_selection: {
-    label: 'Attente coiffeur',
+    label: 'Attente thérapeute',
     badgeClass: 'bg-violet-100 text-violet-800 border border-violet-300',
     cardClass: 'bg-violet-500 text-white',
     hexColor: '#8b5cf6',
@@ -113,7 +113,7 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   },
 };
 
-// Entity Status Configuration (Hairdressers, Concierges, Admins, Treatments, Trunks)
+// Entity Status Configuration (Therapists, Concierges, Admins, Treatments, Treatment Rooms)
 export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
   active: {
     label: 'Actif',

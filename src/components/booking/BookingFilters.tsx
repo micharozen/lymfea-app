@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Calendar as CalendarIcon, List, Search } from "lucide-react";
-import type { Hotel, Hairdresser } from "@/hooks/booking";
+import type { Hotel, Therapist } from "@/hooks/booking";
 
 interface BookingFiltersProps {
   searchQuery: string;
@@ -19,13 +19,13 @@ interface BookingFiltersProps {
   onStatusChange: (value: string) => void;
   hotelFilter: string;
   onHotelChange: (value: string) => void;
-  hairdresserFilter: string;
-  onHairdresserChange: (value: string) => void;
+  therapistFilter: string;
+  onTherapistChange: (value: string) => void;
   view: "calendar" | "list";
   onViewChange: (view: "calendar" | "list") => void;
   isAdmin: boolean;
   hotels: Hotel[] | undefined;
-  hairdressers: Hairdresser[] | undefined;
+  therapists: Therapist[] | undefined;
 }
 
 export function BookingFilters({
@@ -35,13 +35,13 @@ export function BookingFilters({
   onStatusChange,
   hotelFilter,
   onHotelChange,
-  hairdresserFilter,
-  onHairdresserChange,
+  therapistFilter,
+  onTherapistChange,
   view,
   onViewChange,
   isAdmin,
   hotels,
-  hairdressers,
+  therapists,
 }: BookingFiltersProps) {
   return (
     <div className="flex flex-wrap items-center gap-4 pb-4 border-b border-border">
@@ -87,15 +87,15 @@ export function BookingFilters({
       )}
 
       {isAdmin && (
-        <Select value={hairdresserFilter} onValueChange={onHairdresserChange}>
+        <Select value={therapistFilter} onValueChange={onTherapistChange}>
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Tous les coiffeurs" />
+            <SelectValue placeholder="Tous les thérapeutes" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les coiffeurs</SelectItem>
-            {hairdressers?.map((hairdresser) => (
-              <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                {hairdresser.first_name} {hairdresser.last_name}
+            <SelectItem value="all">Tous les thérapeutes</SelectItem>
+            {therapists?.map((therapist) => (
+              <SelectItem key={therapist.id} value={therapist.id}>
+                {therapist.first_name} {therapist.last_name}
               </SelectItem>
             ))}
           </SelectContent>

@@ -4,12 +4,12 @@
     "settings": "Settings & Access",
     "menu": "Menu",
     "bookings": "Bookings",
-    "hairdressers": "Hairdressers",
+    "therapists": "Therapists",
     "hotels": "Venues",
     "treatments": "Treatment Menus",
     "boxes": "Boxes",
     "concierges": "Concierges",
-    "products": "OOM Products",
+    "products": "{{brandName}} Products",
     "orders": "Orders",
     "logout": "Log out"
   },
@@ -43,7 +43,7 @@
       "time": "Time",
       "status": "Status",
       "total": "Total",
-      "hairdresser": "Hairdresser"
+      "therapist": "Therapist"
     },
     "status": {
       "pending": "Pending",
@@ -71,11 +71,11 @@
     "coworking": "Coworking",
     "enterprise": "Enterprise"
   },
-  "hairdressers": {
-    "title": "Hairdressers",
-    "add": "Add Hairdresser",
-    "edit": "Edit Hairdresser",
-    "noHairdressers": "No hairdressers",
+  "therapists": {
+    "title": "Therapists",
+    "add": "Add Therapist",
+    "edit": "Edit Therapist",
+    "noTherapists": "No therapists",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",

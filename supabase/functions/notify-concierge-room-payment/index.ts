@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,10 +66,10 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#fef3c7;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
-    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
-    
+    const logoUrl = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+
     // Deep link URL for booking details
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
+    const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     // Compact concierge email with CTA
@@ -84,7 +85,7 @@ serve(async (req) => {
           <!-- Header -->
           <tr>
             <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
               <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">💳 Facturer chambre</span>
             </td>
           </tr>
@@ -141,7 +142,7 @@ serve(async (req) => {
           <!-- Footer -->
           <tr>
             <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">
-              OOM · Merci de facturer sur la note du client
+              ${brand.name} · Merci de facturer sur la note du client
             </td>
           </tr>
         </table>
@@ -173,7 +174,7 @@ serve(async (req) => {
         for (const concierge of concierges) {
           try {
             const { error: emailError } = await resend.emails.send({
-              from: 'OOM <booking@oomworld.com>',
+              from: brand.emails.from.default,
               to: [concierge.email],
               subject: `💳 Ch.${booking.room_number} · ${booking.total_price}€ · #${booking.booking_id}`,
               html: createConciergeEmailHtml(),

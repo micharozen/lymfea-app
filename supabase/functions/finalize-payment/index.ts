@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,9 +26,9 @@ interface CommissionBreakdown {
   tvaRate: number;
   hotelCommission: number;
   hotelCommissionRate: number;
-  hairdresserShare: number;
-  hairdresserCommissionRate: number;
-  oomShare: number;
+  therapistShare: number;
+  therapistCommissionRate: number;
+  lymfeaShare: number;
 }
 
 // Upload signature to Supabase Storage and return public URL
@@ -113,7 +114,7 @@ serve(async (req) => {
         id,
         booking_id,
         hotel_id,
-        hairdresser_id,
+        therapist_id,
         client_email,
         client_first_name,
         client_last_name,
@@ -126,11 +127,11 @@ serve(async (req) => {
           name,
           vat,
           hotel_commission,
-          hairdresser_commission,
+          therapist_commission,
           currency,
           venue_type
         ),
-        hairdressers(
+        therapists(
           first_name,
           last_name,
           stripe_account_id
@@ -145,7 +146,7 @@ serve(async (req) => {
     }
 
     const hotel = booking.hotels;
-    const hairdresser = booking.hairdressers;
+    const therapist = booking.therapists;
 
     if (!hotel) {
       log("Hotel not found in booking relation");
@@ -156,7 +157,7 @@ serve(async (req) => {
       booking_id: booking.booking_id,
       hotel_id: booking.hotel_id,
       hotel_name: hotel.name,
-      hairdresser: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : 'none'
+      therapist: therapist ? `${therapist.first_name} ${therapist.last_name}` : 'none'
     });
 
     // Coworking spaces don't support room payment
@@ -170,7 +171,7 @@ serve(async (req) => {
     // 4. Calculer les commissions
     const vatRate = hotel.vat || 20;
     const hotelCommissionRate = hotel.hotel_commission || 10;
-    const hairdresserCommissionRate = hotel.hairdresser_commission || 70;
+    const therapistCommissionRate = hotel.therapist_commission || 70;
 
     const totalTTC = final_amount;
     const totalHT = totalTTC / (1 + vatRate / 100);
@@ -178,8 +179,8 @@ serve(async (req) => {
 
     // Commissions calculées sur le HT
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
-    const hairdresserShare = totalHT * (hairdresserCommissionRate / 100);
-    const oomShare = totalHT - hotelCommission - hairdresserShare;
+    const therapistShare = totalHT * (therapistCommissionRate / 100);
+    const lymfeaShare = totalHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
       totalTTC,
@@ -188,9 +189,9 @@ serve(async (req) => {
       tvaRate: vatRate,
       hotelCommission: Math.round(hotelCommission * 100) / 100,
       hotelCommissionRate,
-      hairdresserShare: Math.round(hairdresserShare * 100) / 100,
-      hairdresserCommissionRate,
-      oomShare: Math.round(oomShare * 100) / 100,
+      therapistShare: Math.round(therapistShare * 100) / 100,
+      therapistCommissionRate,
+      lymfeaShare: Math.round(lymfeaShare * 100) / 100,
     };
 
     log("Commission breakdown", breakdown);
@@ -212,9 +213,9 @@ serve(async (req) => {
       const treatmentNames = booking.booking_treatments
         ?.map((bt: any) => bt.treatment_menus?.name)
         .filter(Boolean)
-        .join(', ') || 'Prestation OOM';
+        .join(', ') || `Prestation ${brand.name}`;
 
-      const siteUrl = Deno.env.get("SITE_URL") || "https://oomworld.com";
+      const siteUrl = Deno.env.get("SITE_URL") || brand.website;
 
       // Create Stripe Payment Link (no customer/email required)
       const paymentLink = await stripe.paymentLinks.create({
@@ -222,7 +223,7 @@ serve(async (req) => {
           price_data: {
             currency: currency,
             product_data: {
-              name: 'Prestations bien-être OOM World',
+              name: `Prestations bien-être ${brand.name}`,
               description: treatmentNames,
             },
             unit_amount: Math.round(totalTTC * 100),
@@ -233,10 +234,10 @@ serve(async (req) => {
           booking_id: booking.id,
           booking_number: booking.booking_id.toString(),
           hotel_id: booking.hotel_id,
-          hairdresser_id: booking.hairdresser_id || '',
-          hairdresser_share: breakdown.hairdresserShare.toString(),
+          therapist_id: booking.therapist_id || '',
+          therapist_share: breakdown.therapistShare.toString(),
           hotel_commission: breakdown.hotelCommission.toString(),
-          oom_share: breakdown.oomShare.toString(),
+          lymfea_share: breakdown.lymfeaShare.toString(),
           total_ht: breakdown.totalHT.toString(),
           source: 'finalize-payment',
         },
@@ -312,7 +313,7 @@ serve(async (req) => {
           booking_id: booking.id,
           booking_number: booking.booking_id.toString(),
           hotel_id: booking.hotel_id,
-          hairdresser_id: booking.hairdresser_id || '',
+          therapist_id: booking.therapist_id || '',
           payment_method: 'room',
           signature_url: signaturePublicUrl || '',
         },
@@ -335,7 +336,7 @@ serve(async (req) => {
         invoice: invoice.id,
         amount: Math.round(totalTTC * 100),
         currency: currency,
-        description: `Prestation OOM - Réservation #${booking.booking_id} - ${hotel.name} - Chambre ${booking.room_number || 'N/A'}`,
+        description: `Prestation ${brand.name} - Réservation #${booking.booking_id} - ${hotel.name} - Chambre ${booking.room_number || 'N/A'}`,
       });
 
       // Finalize the invoice
@@ -363,19 +364,19 @@ serve(async (req) => {
         })
         .eq('id', booking_id);
 
-      // Cash Advance: Transférer immédiatement au coiffeur
+      // Cash Advance: Transférer immédiatement au thérapeute
       let transferResult = null;
-      if (hairdresser?.stripe_account_id && breakdown.hairdresserShare > 0) {
+      if (therapist?.stripe_account_id && breakdown.therapistShare > 0) {
         try {
-          log("Initiating cash advance transfer to hairdresser", {
-            amount: breakdown.hairdresserShare,
-            destination: hairdresser.stripe_account_id,
+          log("Initiating cash advance transfer to therapist", {
+            amount: breakdown.therapistShare,
+            destination: therapist.stripe_account_id,
           });
 
           const transfer = await stripe.transfers.create({
-            amount: Math.round(breakdown.hairdresserShare * 100), // En centimes
+            amount: Math.round(breakdown.therapistShare * 100), // En centimes
             currency: currency,
-            destination: hairdresser.stripe_account_id,
+            destination: therapist.stripe_account_id,
             transfer_group: `booking_${booking.booking_id}`,
             metadata: {
               booking_id: booking.id,
@@ -389,11 +390,11 @@ serve(async (req) => {
 
           // Enregistrer le payout
           await supabase
-            .from('hairdresser_payouts')
+            .from('therapist_payouts')
             .insert({
-              hairdresser_id: booking.hairdresser_id,
+              therapist_id: booking.therapist_id,
               booking_id: booking.id,
-              amount: breakdown.hairdresserShare,
+              amount: breakdown.therapistShare,
               stripe_transfer_id: transfer.id,
               status: 'completed',
             });
@@ -401,18 +402,18 @@ serve(async (req) => {
           transferResult = {
             success: true,
             transfer_id: transfer.id,
-            amount: breakdown.hairdresserShare,
+            amount: breakdown.therapistShare,
           };
         } catch (transferError: any) {
           log("Transfer failed", { error: transferError.message });
           
           // Enregistrer l'échec
           await supabase
-            .from('hairdresser_payouts')
+            .from('therapist_payouts')
             .insert({
-              hairdresser_id: booking.hairdresser_id,
+              therapist_id: booking.therapist_id,
               booking_id: booking.id,
-              amount: breakdown.hairdresserShare,
+              amount: breakdown.therapistShare,
               status: 'failed',
               error_message: transferError.message,
             });
@@ -423,16 +424,16 @@ serve(async (req) => {
           };
         }
       } else {
-        log("No hairdresser Stripe account or zero share, skipping transfer");
+        log("No therapist Stripe account or zero share, skipping transfer");
         transferResult = {
           success: false,
-          error: hairdresser?.stripe_account_id 
-            ? "Hairdresser share is zero" 
-            : "Hairdresser has no Stripe account connected",
+          error: therapist?.stripe_account_id
+            ? "Therapist share is zero"
+            : "Therapist has no Stripe account connected",
         };
       }
 
-      // Ajouter au Ledger (Hôtel doit à OOM)
+      // Ajouter au Ledger (Hôtel doit à Lymfea)
       // Formula: ledgerDebt = total - (baseHT * hotelCommissionRate * (1 + vatRate))
       // This ensures hotel keeps its commission TTC, rest goes to OOM
       const hotelCommissionTTC = breakdown.hotelCommission * (1 + vatRate / 100);
@@ -479,7 +480,7 @@ serve(async (req) => {
         ledger_amount: ledgerAmount,
         invoice_url: paidInvoice.hosted_invoice_url,
         invoice_pdf: paidInvoice.invoice_pdf,
-        message: "Room payment finalized. Stripe Invoice created. Hairdresser paid (cash advance). Concierge notified.",
+        message: "Room payment finalized. Stripe Invoice created. Therapist paid (cash advance). Concierge notified.",
       };
     }
 

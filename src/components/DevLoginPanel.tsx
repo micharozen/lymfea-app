@@ -28,10 +28,10 @@ const DEV_USERS: DevUser[] = [
     description: "Vue concierge (hôtel)",
   },
   {
-    label: "Hairdresser (PWA)",
-    email: "hairdresser@oom.dev",
+    label: "Therapist (PWA)",
+    email: "therapist@lymfea.dev",
     password: "password",
-    description: "Mobile app hairdresser",
+    description: "Mobile app therapist",
   },
 ];
 

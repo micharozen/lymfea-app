@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 
 const ManageBooking = () => {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -85,7 +85,7 @@ const ManageBooking = () => {
     },
     onSuccess: () => {
       // Note: The database trigger automatically calls handle-booking-cancellation
-      // which sends notifications to hairdresser, concierge, and client
+      // which sends notifications to therapist, concierge, and client
       queryClient.invalidateQueries({ queryKey: ["client-booking", bookingId] });
       toast({
         title: "Réservation annulée",
@@ -123,7 +123,7 @@ const ManageBooking = () => {
   if (error || !booking) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
-        <img src={oomLogo} alt="OOM" className="h-12 mb-6" />
+        <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-6" />
         <Card className="w-full max-w-[92vw] sm:max-w-sm md:max-w-md">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="h-10 w-10 sm:h-12 sm:w-12 text-destructive mx-auto mb-4" />
@@ -145,7 +145,7 @@ const ManageBooking = () => {
       {/* Compact Header */}
       <div className="bg-primary text-primary-foreground p-3 sm:p-4">
         <div className="max-w-[92vw] sm:max-w-sm md:max-w-md mx-auto flex items-center justify-between">
-          <img src={oomLogo} alt="OOM" className="h-5 sm:h-6 brightness-0 invert" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-5 sm:h-6 brightness-0 invert" />
           <span className="text-sm opacity-80">#{booking.booking_id}</span>
         </div>
       </div>

@@ -32,7 +32,7 @@ interface BookingInfoStepProps {
   isConcierge: boolean;
   hotelIds: string[];
   hotels: Array<{ id: string; name: string; timezone?: string | null; currency?: string | null }> | undefined;
-  hairdressers: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
+  therapists: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
   hotelTimezone: string;
   hotelId: string;
   countryCode: string;
@@ -48,7 +48,7 @@ export function BookingInfoStep({
   isConcierge,
   hotelIds,
   hotels,
-  hairdressers,
+  therapists,
   hotelTimezone,
   hotelId,
   countryCode,
@@ -112,23 +112,23 @@ export function BookingInfoStep({
         {isAdmin && (
           <FormField
             control={form.control}
-            name="hairdresserId"
+            name="therapistId"
             render={({ field }) => (
               <FormItem className="space-y-1">
-                <FormLabel className="text-xs">Coiffeur / Prestataire *</FormLabel>
+                <FormLabel className="text-xs">Thérapeute / Prestataire *</FormLabel>
                 <Select
                   value={field.value || "none"}
                   onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
                 >
                   <FormControl>
                     <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un coiffeur" />
+                      <SelectValue placeholder="Sélectionner un thérapeute" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="bg-background border shadow-lg">
-                    {hairdressers?.map((hairdresser) => (
-                      <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                        {hairdresser.first_name} {hairdresser.last_name}
+                    {therapists?.map((therapist) => (
+                      <SelectItem key={therapist.id} value={therapist.id}>
+                        {therapist.first_name} {therapist.last_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -145,7 +145,7 @@ export function BookingInfoStep({
         <div className="flex gap-2 items-start rounded-lg border border-violet-200 bg-violet-50 p-3">
           <Info className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
           <p className="text-xs text-violet-800">
-            Cette réservation sera soumise à la confirmation d'un coiffeur. Les coiffeurs disponibles seront notifiés et le premier à valider un créneau confirmera la réservation.
+            Cette réservation sera soumise à la confirmation d'un thérapeute. Les thérapeutes disponibles seront notifiés et le premier à valider un créneau confirmera la réservation.
           </p>
         </div>
       )}

@@ -18,10 +18,10 @@ export function PractitionerCarousel({ hotelId }: PractitionerCarouselProps) {
   const { t } = useTranslation('client');
 
   const { data: practitioners = [], isLoading } = useQuery({
-    queryKey: ['public-hairdressers', hotelId],
+    queryKey: ['public-therapists', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .rpc('get_public_hairdressers', { _hotel_id: hotelId });
+        .rpc('get_public_therapists', { _hotel_id: hotelId });
 
       if (error) throw error;
       return (data || []) as Practitioner[];

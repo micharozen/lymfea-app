@@ -4,12 +4,12 @@
     "settings": "Paramètres & Accès",
     "menu": "Menu",
     "bookings": "Réservations",
-    "hairdressers": "Coiffeurs",
+    "therapists": "Thérapeutes",
     "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
     "concierges": "Concierges",
-    "products": "Produits OOM",
+    "products": "Produits {{brandName}}",
     "orders": "Commandes",
     "logout": "Se déconnecter"
   },
@@ -43,7 +43,7 @@
       "time": "Heure",
       "status": "Statut",
       "total": "Total",
-      "hairdresser": "Coiffeur"
+      "therapist": "Thérapeute"
     },
     "status": {
       "pending": "En attente",
@@ -71,11 +71,11 @@
     "coworking": "Coworking",
     "enterprise": "Entreprise"
   },
-  "hairdressers": {
-    "title": "Coiffeurs",
-    "add": "Ajouter un Coiffeur",
-    "edit": "Modifier Coiffeur",
-    "noHairdressers": "Aucun coiffeur",
+  "therapists": {
+    "title": "Thérapeutes",
+    "add": "Ajouter un Thérapeute",
+    "edit": "Modifier Thérapeute",
+    "noTherapists": "Aucun thérapeute",
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",

@@ -1,0 +1,80 @@
+{
+  "name": "Lymfea",
+  "tagline": "Luxury in Motion",
+  "fullName": "Lymfea - Luxury in Motion",
+  "description": {
+    "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
+    "en": "Spa management platform - Book your wellness treatments"
+  },
+  "website": "https://lymfea.com",
+  "appDomain": "app.lymfea.com",
+
+  "legal": {
+    "companyName": "LYMFEA SAS",
+    "companyType": "SAS (Société par Actions Simplifiée)",
+    "companyTypeEn": "SAS (Simplified Joint Stock Company)",
+    "capital": "1 258,57 €",
+    "siren": "900 979 592",
+    "siret": "900 979 592 00012",
+    "rcs": "900 979 592",
+    "vatNumber": "FR32900979592",
+    "address": "38 rue de Grenelle, 75007 Paris, France",
+    "director": "Tom Uzan",
+    "contactEmail": "contact@lymfea.com",
+    "bookingEmail": "booking@lymfea.com",
+    "phone": "+33 6 74 67 82 93",
+    "host": {
+      "name": "OVHcloud",
+      "address": "2 rue Kellermann, 59100 Roubaix, France"
+    }
+  },
+
+  "emails": {
+    "from": {
+      "default": "Lymfea <booking@lymfea.com>",
+      "noreply": "Lymfea <noreply@lymfea.com>",
+      "transactional": "Lymfea Booking <noreply@transactional.lymfea.com>"
+    },
+    "adminRecipient": "tom@lymfea.com",
+    "bookingRecipient": "booking@lymfea.com"
+  },
+
+  "logos": {
+    "primary": "/assets/brand-logo.svg",
+    "monogram": "/assets/brand-monogram.svg",
+    "monogramWhite": "/assets/brand-monogram-white.svg",
+    "monogramBlack": "/assets/brand-monogram-black.svg",
+    "monogramWhiteClient": "/assets/brand-monogram-white-client.svg",
+    "emailLogo": "/images/brand-logo-email.png",
+    "emailLogoWhite": "/images/brand-logo-email-white.png",
+    "ogImage": "/images/brand-og-image.png",
+    "secondaryBlack": "/images/brand-logo-secondary-black.svg"
+  },
+
+  "pwa": {
+    "therapist": {
+      "name": "Lymfea - Luxury in Motion",
+      "shortName": "Lymfea",
+      "description": {
+        "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
+        "en": "Spa management platform - Book your wellness treatments"
+      }
+    },
+    "admin": {
+      "name": "Lymfea Admin",
+      "shortName": "Lymfea Admin",
+      "description": {
+        "fr": "Lymfea Admin - Gestion des réservations",
+        "en": "Lymfea Admin - Booking Management"
+      }
+    }
+  },
+
+  "storageKeys": {
+    "guestSession": "lymfea-guest-session",
+    "analyticsSession": "lymfea-analytics-session",
+    "trackedPages": "lymfea-tracked-pages",
+    "debug": "lymfea-debug",
+    "venueLangPrefix": "lymfea-venue-lang-applied"
+  }
+}

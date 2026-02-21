@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +56,7 @@ serve(async (req) => {
 
     const ONESIGNAL_APP_ID = Deno.env.get("ONESIGNAL_APP_ID");
     const ONESIGNAL_REST_API_KEY = Deno.env.get("ONESIGNAL_REST_API_KEY");
-    const SITE_URL = Deno.env.get("SITE_URL") || "https://oom-clone-genesis.lovable.app";
+    const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
 
     if (!ONESIGNAL_APP_ID || !ONESIGNAL_REST_API_KEY) {
       throw new Error("OneSignal credentials not configured");
@@ -74,7 +75,7 @@ serve(async (req) => {
     // Send notification via OneSignal REST API
     const notificationPayload = {
       app_id: ONESIGNAL_APP_ID,
-      headings: { en: title || "OOM" },
+      headings: { en: title || brand.name },
       contents: { en: body || "Nouvelle notification" },
       // Primary URL for notification click (OneSignal REST API uses 'url')
       url: clickUrl,

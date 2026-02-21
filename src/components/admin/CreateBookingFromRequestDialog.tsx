@@ -61,7 +61,7 @@ export default function CreateBookingFromRequestDialog({
   const queryClient = useQueryClient();
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState("");
-  const [hairdresserId, setHairdresserId] = useState("");
+  const [therapistId, setTherapistId] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("");
   const [hourOpen, setHourOpen] = useState(false);
@@ -102,11 +102,11 @@ export default function CreateBookingFromRequestDialog({
 
   const hotelTimezone = hotel?.timezone || "Europe/Paris";
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers"],
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .select("id, first_name, last_name")
         .eq("status", "Actif")
         .order("first_name");
@@ -136,36 +136,36 @@ export default function CreateBookingFromRequestDialog({
         throw new Error("Missing required fields");
       }
 
-      const hairdresser = hairdressers?.find((h) => h.id === hairdresserId);
-      const initialStatus = hairdresserId ? "confirmed" : "pending";
-      const assignedAt = hairdresserId ? new Date().toISOString() : null;
+      const therapist = therapists?.find((h) => h.id === therapistId);
+      const initialStatus = therapistId ? "confirmed" : "pending";
+      const assignedAt = therapistId ? new Date().toISOString() : null;
       const formattedDate = format(date, "yyyy-MM-dd");
 
-      // Auto-assign trunk from hotel
-      let trunkId: string | null = null;
-      const { data: trunks } = await supabase
-        .from("trunks")
+      // Auto-assign treatment room from hotel
+      let roomId: string | null = null;
+      const { data: treatmentRooms } = await supabase
+        .from("treatment_rooms")
         .select("id")
         .eq("hotel_id", request.hotel_id)
         .eq("status", "active");
-      
-      if (trunks && trunks.length > 0) {
-        // Get bookings at this time slot that have trunks assigned
-        const { data: bookingsWithTrunks } = await supabase
+
+      if (treatmentRooms && treatmentRooms.length > 0) {
+        // Get bookings at this time slot that have rooms assigned
+        const { data: bookingsWithRooms } = await supabase
           .from("bookings")
-          .select("trunk_id")
+          .select("room_id")
           .eq("hotel_id", request.hotel_id)
           .eq("booking_date", formattedDate)
           .eq("booking_time", time)
-          .not("trunk_id", "is", null)
+          .not("room_id", "is", null)
           .not("status", "in", '("Annulé","Terminé","cancelled")');
-        
-        const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
-        
-        // Find first available trunk
-        for (const trunk of trunks) {
-          if (!usedTrunkIds.has(trunk.id)) {
-            trunkId = trunk.id;
+
+        const usedRoomIds = new Set(bookingsWithRooms?.map(b => b.room_id) || []);
+
+        // Find first available room
+        for (const room of treatmentRooms) {
+          if (!usedRoomIds.has(room.id)) {
+            roomId = room.id;
             break;
           }
         }
@@ -184,16 +184,16 @@ export default function CreateBookingFromRequestDialog({
           room_number: request.room_number,
           booking_date: formattedDate,
           booking_time: time,
-          hairdresser_id: hairdresserId || null,
-          hairdresser_name: hairdresser
-            ? `${hairdresser.first_name} ${hairdresser.last_name}`
+          therapist_id: therapistId || null,
+          therapist_name: therapist
+            ? `${therapist.first_name} ${therapist.last_name}`
             : null,
           status: initialStatus,
           assigned_at: assignedAt,
           total_price: price ? parseFloat(price) : null,
           duration: duration ? parseInt(duration) : null,
           client_note: request.description,
-          trunk_id: trunkId,
+          room_id: roomId,
         })
         .select()
         .single();
@@ -269,7 +269,7 @@ export default function CreateBookingFromRequestDialog({
   const handleClose = () => {
     setDate(undefined);
     setTime("");
-    setHairdresserId("");
+    setTherapistId("");
     setPrice("");
     setDuration("");
     onOpenChange(false);
@@ -438,17 +438,17 @@ export default function CreateBookingFromRequestDialog({
             </div>
           </div>
 
-          {/* Hairdresser */}
+          {/* Therapist */}
           <div className="space-y-2">
-            <Label>Coiffeur (optionnel)</Label>
-            <Select value={hairdresserId} onValueChange={setHairdresserId}>
+            <Label>Thérapeute (optionnel)</Label>
+            <Select value={therapistId} onValueChange={setTherapistId}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un coiffeur" />
+                <SelectValue placeholder="Sélectionner un thérapeute" />
               </SelectTrigger>
               <SelectContent>
-                {hairdressers?.map((hairdresser) => (
-                  <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                    {hairdresser.first_name} {hairdresser.last_name}
+                {therapists?.map((therapist) => (
+                  <SelectItem key={therapist.id} value={therapist.id}>
+                    {therapist.first_name} {therapist.last_name}
                   </SelectItem>
                 ))}
               </SelectContent>

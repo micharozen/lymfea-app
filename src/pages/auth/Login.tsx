@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Loader2 } from "lucide-react";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 import { DevLoginPanel } from "@/components/DevLoginPanel";
 
@@ -360,12 +360,12 @@ const Auth = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={oomLogo} alt="OOM Logo" className="h-24 w-auto" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
         </div>
 
         {/* Title */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Connexion avec OOM</h1>
+          <h1 className="text-3xl font-semibold text-foreground">Connexion avec {brand.name}</h1>
           <p className="text-muted-foreground">Entrez votre numéro de téléphone ou email</p>
         </div>
 

@@ -3,7 +3,7 @@ import { TFunction } from "i18next";
 
 export const createFormSchema = (t: TFunction) => z.object({
   hotelId: z.string().min(1, t('errors.validation.hotelRequired')),
-  hairdresserId: z.string().default(""),
+  therapistId: z.string().default(""),
   date: z.date({ required_error: t('errors.validation.dateRequired') }),
   time: z.string().min(1, t('errors.validation.timeRequired')),
   // Alternative slots (concierge only)

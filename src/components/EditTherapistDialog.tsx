@@ -42,10 +42,10 @@ const countries = [
   { code: "+377", label: "Monaco", flag: "🇲🇨" },
 ];
 
-interface EditHairDresserDialogProps {
+interface EditTherapistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hairdresser: {
+  therapist: {
     id: string;
     first_name: string;
     last_name: string;
@@ -56,7 +56,7 @@ interface EditHairDresserDialogProps {
     status: string;
     skills: string[];
     profile_image: string | null;
-    hairdresser_hotels?: { hotel_id: string }[];
+    therapist_venues?: { hotel_id: string }[];
   };
   onSuccess: () => void;
 }
@@ -67,10 +67,10 @@ interface Hotel {
   image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
 }
 
@@ -81,22 +81,22 @@ const SKILLS_OPTIONS = [
   { value: "beauty", label: "💅 Beauté" },
 ];
 
-export default function EditHairDresserDialog({
+export default function EditTherapistDialog({
   open,
   onOpenChange,
-  hairdresser,
+  therapist,
   onSuccess,
-}: EditHairDresserDialogProps) {
+}: EditTherapistDialogProps) {
   const { t } = useTranslation('common');
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [trunks, setTrunks] = useState<Trunk[]>([]);
+  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
-    hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
+    therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
   );
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
-    hairdresser.skills || []
+    therapist.skills || []
   );
-  const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const {
     url: profileImage,
     setUrl: setProfileImage,
@@ -104,39 +104,39 @@ export default function EditHairDresserDialog({
     fileInputRef,
     handleUpload: handleImageUpload,
     triggerFileSelect,
-  } = useFileUpload({ initialUrl: hairdresser.profile_image || "" });
+  } = useFileUpload({ initialUrl: therapist.profile_image || "" });
   const [formData, setFormData] = useState({
-    first_name: hairdresser.first_name,
-    last_name: hairdresser.last_name,
-    email: hairdresser.email,
-    country_code: hairdresser.country_code,
-    phone: hairdresser.phone,
-    status: hairdresser.status,
+    first_name: therapist.first_name,
+    last_name: therapist.last_name,
+    email: therapist.email,
+    country_code: therapist.country_code,
+    phone: therapist.phone,
+    status: therapist.status,
   });
 
   useEffect(() => {
     if (open) {
       fetchHotels();
-      fetchTrunks();
+      fetchRooms();
       setFormData({
-        first_name: hairdresser.first_name,
-        last_name: hairdresser.last_name,
-        email: hairdresser.email,
-        country_code: hairdresser.country_code,
-        phone: hairdresser.phone,
-        status: hairdresser.status,
+        first_name: therapist.first_name,
+        last_name: therapist.last_name,
+        email: therapist.email,
+        country_code: therapist.country_code,
+        phone: therapist.phone,
+        status: therapist.status,
       });
       setSelectedHotels(
-        hairdresser.hairdresser_hotels?.map((hh) => hh.hotel_id) || []
+        therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
       );
-      setSelectedSkills(hairdresser.skills || []);
-      // Parse trunk IDs from stored string (now stores real trunk IDs)
-      setSelectedTrunks(
-        hairdresser.trunks ? hairdresser.trunks.split(", ").filter(t => t.length > 0) : []
+      setSelectedSkills(therapist.skills || []);
+      // Parse room IDs from stored string (now stores real room IDs)
+      setSelectedRooms(
+        therapist.trunks ? therapist.trunks.split(", ").filter(t => t.length > 0) : []
       );
-      setProfileImage(hairdresser.profile_image);
+      setProfileImage(therapist.profile_image);
     }
-  }, [open, hairdresser]);
+  }, [open, therapist]);
 
   const fetchHotels = async () => {
     const { data, error } = await supabase
@@ -152,63 +152,63 @@ export default function EditHairDresserDialog({
     setHotels(data || []);
   };
 
-  const fetchTrunks = async () => {
+  const fetchRooms = async () => {
     const { data, error } = await supabase
-      .from("trunks")
-      .select("id, name, trunk_id, image")
+      .from("treatment_rooms")
+      .select("id, name, room_number, image")
       .order("name");
 
     if (error) {
-      toast.error("Erreur lors du chargement des trunks");
+      toast.error("Erreur lors du chargement des salles de soin");
       return;
     }
 
     const list = data || [];
-    setTrunks(list);
-    // Remove any legacy/unknown trunk values that might still be stored on the hairdresser
-    setSelectedTrunks((prev) => prev.filter((id) => list.some((t) => t.id === id)));
+    setRooms(list);
+    // Remove any legacy/unknown room values that might still be stored on the therapist
+    setSelectedRooms((prev) => prev.filter((id) => list.some((r) => r.id === id)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const validSelectedTrunks = selectedTrunks.filter((id) => trunks.some((t) => t.id === id));
+    const validSelectedRooms = selectedRooms.filter((id) => rooms.some((r) => r.id === id));
 
     const { error } = await supabase
-      .from("hairdressers")
+      .from("therapists")
       .update({
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        trunks: validSelectedTrunks.join(", ") || null,
+        trunks: validSelectedRooms.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
         profile_image: profileImage,
       })
-      .eq("id", hairdresser.id);
+      .eq("id", therapist.id);
 
     if (error) {
-      toast.error("Erreur lors de la modification du coiffeur");
+      toast.error("Erreur lors de la modification du thérapeute");
       return;
     }
 
     // Delete existing hotel relationships
     await supabase
-      .from("hairdresser_hotels")
+      .from("therapist_venues")
       .delete()
-      .eq("hairdresser_id", hairdresser.id);
+      .eq("therapist_id", therapist.id);
 
     // Insert new hotel relationships
     if (selectedHotels.length > 0) {
       const hotelRelations = selectedHotels.map((hotelId) => ({
-        hairdresser_id: hairdresser.id,
+        therapist_id: therapist.id,
         hotel_id: hotelId,
       }));
 
       const { error: relationError } = await supabase
-        .from("hairdresser_hotels")
+        .from("therapist_venues")
         .insert(hotelRelations);
 
       if (relationError) {
@@ -217,7 +217,7 @@ export default function EditHairDresserDialog({
       }
     }
 
-    toast.success("Coiffeur modifié avec succès");
+    toast.success("Thérapeute modifié avec succès");
     onOpenChange(false);
     onSuccess();
   };
@@ -226,7 +226,7 @@ export default function EditHairDresserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Modifier le coiffeur</DialogTitle>
+          <DialogTitle>Modifier le thérapeute</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -372,7 +372,7 @@ export default function EditHairDresserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Trunk (Malle)</Label>
+            <Label>Salle de soin</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -381,10 +381,10 @@ export default function EditHairDresserDialog({
                 >
                   <span className="truncate">
                     {(() => {
-                      const validTrunks = trunks.filter((t) => selectedTrunks.includes(t.id));
-                      return validTrunks.length === 0
-                        ? "Sélectionner des trunks"
-                        : validTrunks.map((t) => t.name).join(", ");
+                      const validRooms = rooms.filter((r) => selectedRooms.includes(r.id));
+                      return validRooms.length === 0
+                        ? "Sélectionner des salles"
+                        : validRooms.map((r) => r.name).join(", ");
                     })()}
                   </span>
                   <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -400,22 +400,22 @@ export default function EditHairDresserDialog({
               >
                 <ScrollArea className="h-40 touch-pan-y">
                   <div className="p-1">
-                    {trunks.map((trunk) => {
-                      const isSelected = selectedTrunks.includes(trunk.id);
+                    {rooms.map((room) => {
+                      const isSelected = selectedRooms.includes(room.id);
                       return (
                         <button
-                          key={trunk.id}
+                          key={room.id}
                           type="button"
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedTrunks(selectedTrunks.filter((t) => t !== trunk.id));
+                              setSelectedRooms(selectedRooms.filter((r) => r !== room.id));
                             } else {
-                              setSelectedTrunks([...selectedTrunks, trunk.id]);
+                              setSelectedRooms([...selectedRooms, room.id]);
                             }
                           }}
                           className="w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm px-3 py-1.5 text-sm text-popover-foreground transition-colors hover:bg-foreground/5"
                         >
-                          <span className="min-w-0 truncate text-left">{trunk.name}</span>
+                          <span className="min-w-0 truncate text-left">{room.name}</span>
                           {isSelected ? (
                             <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
                               <Check className="h-3 w-3" strokeWidth={3} />

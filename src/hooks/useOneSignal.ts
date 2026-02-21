@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
+import { brand } from '@/config/brand';
 
 const PENDING_URL_KEY = 'onesignal_pending_url';
 
@@ -101,9 +102,8 @@ export const useOneSignal = () => {
 
       // Check if we're on a supported domain for OneSignal
       const allowedDomains = [
-        'oom-clone-genesis.lovable.app',
+        brand.appDomain,
         'localhost',
-        'app.oomworld.com',
       ];
       const currentHost = window.location.hostname;
       const isAllowedDomain = allowedDomains.some(domain => currentHost.includes(domain));

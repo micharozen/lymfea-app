@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { brand } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const SITE_URL = Deno.env.get("SITE_URL") || "https://oom.lovable.app";
+const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,7 +28,7 @@ function escapeHtml(unsafe: string): string {
 
 // Generate beautiful email HTML
 function generateEmailHtml(emailOrPhone: string): string {
-  const adminUrl = `${SITE_URL}/admin/hairdressers`;
+  const adminUrl = `${SITE_URL}/admin/therapists`;
   
   return `
 <!DOCTYPE html>
@@ -35,7 +36,7 @@ function generateEmailHtml(emailOrPhone: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Demande d'accès OOM</title>
+  <title>Demande d'accès ${brand.name}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5; padding: 40px 20px;">
@@ -45,7 +46,7 @@ function generateEmailHtml(emailOrPhone: string): string {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px 40px; text-align: center;">
-              <img src="${SITE_URL}/images/oom-logo-email.png" alt="OOM" width="120" style="display: block; margin: 0 auto 12px auto;" />
+              <img src="https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="${brand.name}" width="120" style="display: block; margin: 0 auto 12px auto;" />
               <p style="margin: 0; color: #cccccc; font-size: 14px;">Panel Administrateur</p>
             </td>
           </tr>
@@ -65,7 +66,7 @@ function generateEmailHtml(emailOrPhone: string): string {
               </h2>
               
               <p style="margin: 0 0 30px 0; color: #666666; font-size: 15px; line-height: 1.6; text-align: center;">
-                Une personne a tenté de se connecter au panel OOM mais n'a pas de compte actif.
+                Une personne a tenté de se connecter au panel ${brand.name} mais n'a pas de compte actif.
               </p>
               
               <!-- Info Box -->
@@ -86,7 +87,7 @@ function generateEmailHtml(emailOrPhone: string): string {
               </div>
               
               <p style="margin: 0; color: #999999; font-size: 13px; text-align: center; line-height: 1.5;">
-                Si vous reconnaissez cette personne, vous pouvez créer un compte administrateur, concierge ou coiffeur depuis le panel.
+                Si vous reconnaissez cette personne, vous pouvez créer un compte administrateur, concierge ou thérapeute depuis le panel.
               </p>
             </td>
           </tr>
@@ -95,7 +96,7 @@ function generateEmailHtml(emailOrPhone: string): string {
           <tr>
             <td style="background-color: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e5e5e5;">
               <p style="margin: 0; color: #888888; font-size: 12px;">
-                © ${new Date().getFullYear()} OOM World • Cet email a été envoyé automatiquement
+                © ${new Date().getFullYear()} ${brand.legal.companyName} • Cet email a été envoyé automatiquement
               </p>
             </td>
           </tr>
@@ -137,9 +138,9 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "OOM App <booking@oomworld.com>",
-        to: ["tom@oomworld.com"],
-        subject: "🔐 Demande d'accès au panel OOM",
+        from: brand.emails.from.default,
+        to: [brand.emails.adminRecipient],
+        subject: `🔐 Demande d'accès au panel ${brand.name}`,
         html: generateEmailHtml(safeEmailOrPhone),
       }),
     });

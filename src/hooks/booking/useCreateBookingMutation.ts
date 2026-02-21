@@ -9,7 +9,7 @@ interface Hotel {
   [key: string]: unknown;
 }
 
-interface Hairdresser {
+interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -25,7 +25,7 @@ export interface CreateBookingPayload {
   roomNumber: string;
   date: string;
   time: string;
-  hairdresserId: string;
+  therapistId: string;
   slot2Date: string | null;
   slot2Time: string | null;
   slot3Date: string | null;
@@ -38,56 +38,56 @@ export interface CreateBookingPayload {
 
 interface UseCreateBookingMutationOptions {
   hotels: Hotel[] | undefined;
-  hairdressers: Hairdresser[] | undefined;
+  therapists: Therapist[] | undefined;
   onSuccess: (data: any) => void;
 }
 
-export function useCreateBookingMutation({ hotels, hairdressers, onSuccess }: UseCreateBookingMutationOptions) {
+export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseCreateBookingMutationOptions) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (d: CreateBookingPayload) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
-      const hd = hairdressers?.find(h => h.id === d.hairdresserId);
+      const therapist = therapists?.find(h => h.id === d.therapistId);
 
-      // Determine status and hairdresser based on role
+      // Determine status and therapist based on role
       let status: string;
-      let finalHairdresserId = d.hairdresserId || null;
-      let finalHairdresserName = hd ? `${hd.first_name} ${hd.last_name}` : null;
+      let finalTherapistId = d.therapistId || null;
+      let finalTherapistName = therapist ? `${therapist.first_name} ${therapist.last_name}` : null;
 
       if (d.isAdmin) {
-        // Admin: hairdresser is required, immediate confirmation
+        // Admin: therapist is required, immediate confirmation
         status = "confirmed";
       } else {
-        // Concierge: no hairdresser, awaiting hairdresser selection
+        // Concierge: no therapist, awaiting therapist selection
         status = "awaiting_hairdresser_selection";
-        finalHairdresserId = null;
-        finalHairdresserName = null;
+        finalTherapistId = null;
+        finalTherapistName = null;
       }
 
-      // Auto-assign trunk from hotel
-      let trunkId: string | null = null;
-      const { data: trunks } = await supabase
-        .from("trunks")
+      // Auto-assign treatment room from hotel
+      let roomId: string | null = null;
+      const { data: treatmentRooms } = await supabase
+        .from("treatment_rooms")
         .select("id")
         .eq("hotel_id", d.hotelId)
         .eq("status", "active");
 
-      if (trunks && trunks.length > 0) {
-        const { data: bookingsWithTrunks } = await supabase
+      if (treatmentRooms && treatmentRooms.length > 0) {
+        const { data: bookingsWithRooms } = await supabase
           .from("bookings")
-          .select("trunk_id")
+          .select("room_id")
           .eq("hotel_id", d.hotelId)
           .eq("booking_date", d.date)
           .eq("booking_time", d.time)
-          .not("trunk_id", "is", null)
+          .not("room_id", "is", null)
           .not("status", "in", '("Annulé","Terminé","cancelled")');
 
-        const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
+        const usedRoomIds = new Set(bookingsWithRooms?.map(b => b.room_id) || []);
 
-        for (const trunk of trunks) {
-          if (!usedTrunkIds.has(trunk.id)) {
-            trunkId = trunk.id;
+        for (const room of treatmentRooms) {
+          if (!usedRoomIds.has(room.id)) {
+            roomId = room.id;
             break;
           }
         }
@@ -102,12 +102,12 @@ export function useCreateBookingMutation({ hotels, hairdressers, onSuccess }: Us
         room_number: d.roomNumber,
         booking_date: d.date,
         booking_time: d.time,
-        hairdresser_id: finalHairdresserId,
-        hairdresser_name: finalHairdresserName,
+        therapist_id: finalTherapistId,
+        therapist_name: finalTherapistName,
         status,
-        assigned_at: finalHairdresserId ? new Date().toISOString() : null,
+        assigned_at: finalTherapistId ? new Date().toISOString() : null,
         total_price: d.totalPrice,
-        trunk_id: trunkId,
+        room_id: roomId,
         duration: d.totalDuration,
       }).select().single();
 
@@ -136,10 +136,10 @@ export function useCreateBookingMutation({ hotels, hairdressers, onSuccess }: Us
 
       try {
         if (d.isAdmin) {
-          // Admin: notify the assigned hairdresser only
+          // Admin: notify the assigned therapist only
           await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
         } else {
-          // Concierge: notify ALL hairdressers at this hotel
+          // Concierge: notify ALL therapists at this venue
           await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true } });
         }
       } catch {}
@@ -149,7 +149,7 @@ export function useCreateBookingMutation({ hotels, hairdressers, onSuccess }: Us
     onSuccess: (data, variables) => {
       const message = variables.isAdmin
         ? "Réservation créée"
-        : "Demande envoyée aux coiffeurs";
+        : "Demande envoyée aux thérapeutes";
       toast({ title: message });
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       onSuccess(data);

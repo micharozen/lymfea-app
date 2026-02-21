@@ -221,10 +221,10 @@ export function BookingCalendarView({
                                   )}
                                 </div>
 
-                                {booking.hairdresser_name && (
+                                {booking.therapist_name && (
                                   <div className="flex items-center gap-2 text-xs">
                                     <Users className="h-3 w-3" />
-                                    <span>Coiffeur: {booking.hairdresser_name}</span>
+                                    <span>Thérapeute : {booking.therapist_name}</span>
                                   </div>
                                 )}
 

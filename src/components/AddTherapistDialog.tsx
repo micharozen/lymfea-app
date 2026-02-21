@@ -39,7 +39,7 @@ const countries = [
   { code: "+377", label: "Monaco", flag: "🇲🇨" },
 ];
 
-interface AddHairDresserDialogProps {
+interface AddTherapistDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
@@ -51,10 +51,10 @@ interface Hotel {
   image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
 }
 
@@ -74,19 +74,19 @@ const createFormSchema = (t: TFunction) => z.object({
   status: z.string(),
 });
 
-export default function AddHairDresserDialog({
+export default function AddTherapistDialog({
   open,
   onOpenChange,
   onSuccess,
-}: AddHairDresserDialogProps) {
+}: AddTherapistDialogProps) {
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [hotels, setHotels] = useState<Hotel[]>([]);
-  const [trunks, setTrunks] = useState<Trunk[]>([]);
+  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedTrunks, setSelectedTrunks] = useState<string[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const {
     url: profileImage,
     setUrl: setProfileImage,
@@ -107,7 +107,7 @@ export default function AddHairDresserDialog({
   useEffect(() => {
     if (open) {
       fetchHotels();
-      fetchTrunks();
+      fetchRooms();
     }
   }, [open]);
 
@@ -125,18 +125,18 @@ export default function AddHairDresserDialog({
     setHotels(data || []);
   };
 
-  const fetchTrunks = async () => {
+  const fetchRooms = async () => {
     const { data, error } = await supabase
-      .from("trunks")
-      .select("id, name, trunk_id, image")
+      .from("treatment_rooms")
+      .select("id, name, room_number, image")
       .order("name");
 
     if (error) {
-      toast.error("Erreur lors du chargement des trunks");
+      toast.error("Erreur lors du chargement des salles de soin");
       return;
     }
 
-    setTrunks(data || []);
+    setRooms(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -152,15 +152,15 @@ export default function AddHairDresserDialog({
       }
     }
 
-    const { data: hairdresser, error } = await supabase
-      .from("hairdressers")
+    const { data: therapist, error } = await supabase
+      .from("therapists")
       .insert({
         first_name: formData.first_name,
         last_name: formData.last_name,
         email: formData.email,
         country_code: formData.country_code,
         phone: formData.phone,
-        trunks: selectedTrunks.join(", ") || null,
+        trunks: selectedRooms.join(", ") || null,
         status: formData.status,
         skills: selectedSkills,
         profile_image: profileImage,
@@ -169,19 +169,19 @@ export default function AddHairDresserDialog({
       .single();
 
     if (error) {
-      toast.error("Erreur lors de l'ajout du coiffeur");
+      toast.error("Erreur lors de l'ajout du thérapeute");
       return;
     }
 
-    // Insert hairdresser-hotel relationships
+    // Insert therapist-hotel relationships
     if (selectedHotels.length > 0) {
       const hotelRelations = selectedHotels.map((hotelId) => ({
-        hairdresser_id: hairdresser.id,
+        therapist_id: therapist.id,
         hotel_id: hotelId,
       }));
 
       const { error: relationError } = await supabase
-        .from("hairdresser_hotels")
+        .from("therapist_venues")
         .insert(hotelRelations);
 
       if (relationError) {
@@ -197,7 +197,7 @@ export default function AddHairDresserDialog({
 
       if (sessionError || !sessionData.session) {
         console.error("No valid session found:", sessionError);
-        toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé (session expirée)");
+        toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé (session expirée)");
       } else {
         const accessToken = sessionData.session.access_token;
         console.log("Session found, access token present:", !!accessToken);
@@ -205,14 +205,14 @@ export default function AddHairDresserDialog({
 
         // Call the Edge Function directly with fetch to have more control
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const response = await fetch(`${supabaseUrl}/functions/v1/invite-hairdresser`, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/invite-therapist`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            hairdresserId: hairdresser.id,
+            therapistId: therapist.id,
             email: formData.email,
             firstName: formData.first_name,
             lastName: formData.last_name,
@@ -225,14 +225,14 @@ export default function AddHairDresserDialog({
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           console.error("Error sending welcome email:", response.status, errorData);
-          toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+          toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé");
         } else {
-          toast.success("Coiffeur ajouté et email de bienvenue envoyé");
+          toast.success("Thérapeute ajouté et email de bienvenue envoyé");
         }
       }
     } catch (emailErr) {
-      console.error("Error invoking invite-hairdresser:", emailErr);
-      toast.warning("Coiffeur ajouté mais l'email de bienvenue n'a pas pu être envoyé");
+      console.error("Error invoking invite-therapist:", emailErr);
+      toast.warning("Thérapeute ajouté mais l'email de bienvenue n'a pas pu être envoyé");
     }
 
     onOpenChange(false);
@@ -251,7 +251,7 @@ export default function AddHairDresserDialog({
     });
     setSelectedHotels([]);
     setSelectedSkills([]);
-    setSelectedTrunks([]);
+    setSelectedRooms([]);
     setProfileImage(null);
   };
 
@@ -259,7 +259,7 @@ export default function AddHairDresserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter un coiffeur</DialogTitle>
+          <DialogTitle>Ajouter un thérapeute</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="flex items-center gap-3">
@@ -355,11 +355,11 @@ export default function AddHairDresserDialog({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Trunk</Label>
+              <Label className="text-xs">Salle de soin</Label>
               <MultiSelectPopover
-                selected={selectedTrunks}
-                onChange={setSelectedTrunks}
-                options={trunks.map((t) => ({ value: t.id, label: t.name }))}
+                selected={selectedRooms}
+                onChange={setSelectedRooms}
+                options={rooms.map((r) => ({ value: r.id, label: r.name }))}
                 popoverWidthClassName="w-48"
                 popoverMaxHeightClassName="h-40"
               />

@@ -6,6 +6,7 @@ import {
   buildPaymentConfirmedTemplateMessage,
   formatDateForWhatsApp,
 } from '../_shared/whatsapp-meta.ts';
+import { brand } from "../_shared/brand.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -184,7 +185,7 @@ serve(async (req) => {
         // Fetch hotel info with both commissions
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('name, currency, hairdresser_commission, hotel_commission')
+          .select('name, currency, therapist_commission, hotel_commission')
           .eq('id', metadata.hotel_id)
           .maybeSingle();
 
@@ -260,16 +261,16 @@ serve(async (req) => {
         // Create ledger entries so Finance shows all transactions
         // For card payments: OOM receives full amount, then owes hotel their commission
         try {
-          const hairdresserCommissionPercent = hotel?.hairdresser_commission ?? 70;
+          const therapistCommissionPercent = hotel?.therapist_commission ?? 70;
           const hotelCommissionPercent = hotel?.hotel_commission ?? 10;
-          const oomCommissionPercent = Math.max(0, 100 - hairdresserCommissionPercent - hotelCommissionPercent);
+          const oomCommissionPercent = Math.max(0, 100 - therapistCommissionPercent - hotelCommissionPercent);
           const totalPrice = parseFloat(metadata.verified_total_price || '0');
           
           const oomAmount = (totalPrice * oomCommissionPercent) / 100;
           const hotelAmount = (totalPrice * hotelCommissionPercent) / 100;
-          const hairdresserAmount = (totalPrice * hairdresserCommissionPercent) / 100;
+          const therapistAmount = (totalPrice * therapistCommissionPercent) / 100;
 
-          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Hairdresser ${hairdresserCommissionPercent}% (${hairdresserAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
+          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Therapist ${therapistCommissionPercent}% (${therapistAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
           console.log(`[STRIPE-WEBHOOK] Total: ${totalPrice}€`);
 
           // Entry 1: OOM commission (what OOM keeps)
@@ -280,7 +281,7 @@ serve(async (req) => {
               booking_id: booking.id,
               amount: oomAmount,
               status: 'pending',
-              description: `Commission OOM (${oomCommissionPercent}%) - Réservation #${booking.booking_id}`,
+              description: `Commission ${brand.name} (${oomCommissionPercent}%) - Réservation #${booking.booking_id}`,
             });
 
           if (oomLedgerError) {
@@ -348,7 +349,7 @@ serve(async (req) => {
           console.error("[STRIPE-WEBHOOK] Admin notification error:", adminError);
         }
 
-        // Trigger push notifications to hairdressers
+        // Trigger push notifications to therapists
         try {
           await supabase.functions.invoke('trigger-new-booking-notifications', {
             body: { bookingId: booking.id }
@@ -378,13 +379,13 @@ serve(async (req) => {
         
         if (!bookingId) continue;
 
-        // Fetch booking with hairdresser and hotel info
+        // Fetch booking with therapist and hotel info
         const { data: booking, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
-            hairdresser:hairdressers(id, stripe_account_id),
-            hotel:hotels(hairdresser_commission)
+            therapist:therapists(id, stripe_account_id),
+            hotel:hotels(therapist_commission)
           `)
           .eq('id', bookingId)
           .single();
@@ -396,9 +397,9 @@ serve(async (req) => {
 
         console.log(`[STRIPE-WEBHOOK] Processing booking ${booking.booking_id}`);
 
-        // Check hairdresser has Stripe Connect
-        if (!booking.hairdresser?.stripe_account_id) {
-          console.log(`[STRIPE-WEBHOOK] Hairdresser has no Stripe Connect account for booking ${booking.booking_id}`);
+        // Check therapist has Stripe Connect
+        if (!booking.therapist?.stripe_account_id) {
+          console.log(`[STRIPE-WEBHOOK] Therapist has no Stripe Connect account for booking ${booking.booking_id}`);
           // Still update payment status
           await supabase
             .from('bookings')
@@ -407,17 +408,17 @@ serve(async (req) => {
           continue;
         }
 
-        // Calculate hairdresser share
-        const hairdresserCommission = booking.hotel?.hairdresser_commission || 70;
-        const hairdresserAmount = Math.round((booking.total_price * hairdresserCommission) / 100);
-        const oomCommission = booking.total_price - hairdresserAmount;
+        // Calculate therapist share
+        const therapistCommission = booking.hotel?.therapist_commission || 70;
+        const therapistAmount = Math.round((booking.total_price * therapistCommission) / 100);
+        const oomCommission = booking.total_price - therapistAmount;
 
         try {
-          // Transfer to hairdresser via Stripe Connect
+          // Transfer to therapist via Stripe Connect
           const transfer = await stripe.transfers.create({
-            amount: hairdresserAmount * 100, // Stripe uses cents
+            amount: therapistAmount * 100, // Stripe uses cents
             currency: invoice.currency,
-            destination: booking.hairdresser.stripe_account_id,
+            destination: booking.therapist.stripe_account_id,
             description: `Paiement pour réservation #${booking.booking_id}`,
             metadata: {
               booking_id: booking.id,
@@ -425,15 +426,15 @@ serve(async (req) => {
             },
           });
 
-          console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${hairdresserAmount}€`);
+          console.log(`[STRIPE-WEBHOOK] Transfer created: ${transfer.id} - ${therapistAmount}€`);
 
           // Record payout
           await supabase
-            .from('hairdresser_payouts')
+            .from('therapist_payouts')
             .insert({
-              hairdresser_id: booking.hairdresser.id,
+              therapist_id: booking.therapist.id,
               booking_id: booking.id,
-              amount: hairdresserAmount,
+              amount: therapistAmount,
               status: 'completed',
               stripe_transfer_id: transfer.id,
             });
@@ -466,11 +467,11 @@ serve(async (req) => {
           
           // Record failed payout
           await supabase
-            .from('hairdresser_payouts')
+            .from('therapist_payouts')
             .insert({
-              hairdresser_id: booking.hairdresser.id,
+              therapist_id: booking.therapist.id,
               booking_id: booking.id,
-              amount: hairdresserAmount,
+              amount: therapistAmount,
               status: 'failed',
               error_message: transferError instanceof Error ? transferError.message : String(transferError),
             });

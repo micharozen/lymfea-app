@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Check, Bell, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 
 const PwaOnboarding = () => {
   const { t } = useTranslation('pwa');
@@ -53,11 +53,11 @@ const PwaOnboarding = () => {
         }
       }
 
-      // Update hairdresser to mark password as set
+      // Update therapist to mark password as set
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
-          .from("hairdressers")
+          .from("therapists")
           .update({ password_set: true })
           .eq("user_id", user.id);
       }
@@ -81,13 +81,13 @@ const PwaOnboarding = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
-      let { data: hairdresser } = await supabase
-        .from("hairdressers")
+      let { data: therapist } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (!hairdresser) {
+      if (!therapist) {
         const fullPhone = user.user_metadata?.phone || "";
         let countryCode = "+33";
         let phoneNumber = "";
@@ -100,8 +100,8 @@ const PwaOnboarding = () => {
           }
         }
 
-        const { data: newHairdresser, error: createError } = await supabase
-          .from("hairdressers")
+        const { data: newTherapist, error: createError } = await supabase
+          .from("therapists")
           .insert({
             user_id: user.id,
             email: user.email!,
@@ -115,13 +115,13 @@ const PwaOnboarding = () => {
           .single();
 
         if (createError) throw createError;
-        hairdresser = newHairdresser;
+        therapist = newTherapist;
       }
 
-      if (!hairdresser) throw new Error("Failed to get or create hairdresser");
+      if (!therapist) throw new Error("Failed to get or create therapist");
 
       const fileExt = file.name.split(".").pop();
-      const fileName = `${hairdresser.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${therapist.id}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
@@ -134,9 +134,9 @@ const PwaOnboarding = () => {
         .getPublicUrl(fileName);
 
       const { error: updateError } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .update({ profile_image: publicUrl })
-        .eq("id", hairdresser.id);
+        .eq("id", therapist.id);
 
       if (updateError) throw updateError;
 
@@ -156,7 +156,7 @@ const PwaOnboarding = () => {
       if (!user) return;
 
       await supabase
-        .from("hairdressers")
+        .from("therapists")
         .update({ status: "Actif" })
         .eq("user_id", user.id);
 
@@ -181,7 +181,7 @@ const PwaOnboarding = () => {
     return (
       <div className="min-h-screen flex flex-col bg-white">
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <img src={oomLogo} alt="OOM" className="h-12 mb-12" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-12" />
           
           <div className="w-16 h-16 rounded-full bg-black flex items-center justify-center mb-6">
             <Check className="h-8 w-8 text-white" strokeWidth={3} />

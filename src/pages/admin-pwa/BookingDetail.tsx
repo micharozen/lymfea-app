@@ -204,9 +204,9 @@ export default function AdminPwaBookingDetail() {
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <Scissors className="h-3.5 w-3.5" /> Coiffeur
+                  <Scissors className="h-3.5 w-3.5" /> Thérapeute
                 </div>
-                <p className="font-medium text-sm">{booking.hairdresser_name || "Non assigné"}</p>
+                <p className="font-medium text-sm">{booking.therapist_name || "Non assigné"}</p>
               </div>
             </div>
           </div>

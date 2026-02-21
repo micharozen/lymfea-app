@@ -42,7 +42,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     resolver: zodResolver(formSchema),
     defaultValues: {
       hotelId: isConcierge && hotelIds.length > 0 ? hotelIds[0] : "",
-      hairdresserId: "",
+      therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -89,15 +89,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers-for-hotel", hotelId],
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists-for-hotel", hotelId],
     queryFn: async () => {
       if (!hotelId) {
-        const { data } = await supabase.from("hairdressers").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
+        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
         return data || [];
       }
-      const { data } = await supabase.from("hairdresser_hotels").select(`hairdresser_id, hairdressers (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
-      return data?.map((hh: any) => hh.hairdressers).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
+      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
+      return data?.map((hh: any) => hh.therapists).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
 
@@ -133,7 +133,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const mutation = useCreateBookingMutation({
     hotels,
-    hairdressers,
+    therapists,
     onSuccess: (data) => {
       if (data) {
         setCreatedBooking({
@@ -153,8 +153,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
     ];
     const result = await form.trigger(fields);
-    if (isAdmin && !form.getValues("hairdresserId")) {
-      form.setError("hairdresserId", { message: "Veuillez sélectionner un coiffeur" });
+    if (isAdmin && !form.getValues("therapistId")) {
+      form.setError("therapistId", { message: "Veuillez sélectionner un thérapeute" });
       return false;
     }
     const now = new Date();
@@ -221,7 +221,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       roomNumber: values.roomNumber,
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
       time: values.time,
-      hairdresserId: values.hairdresserId,
+      therapistId: values.therapistId,
       slot2Date: values.slot2Date ? format(values.slot2Date, "yyyy-MM-dd") : null,
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
@@ -251,7 +251,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setActiveTab("info");
     form.reset({
       hotelId: "",
-      hairdresserId: "",
+      therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -294,7 +294,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isConcierge={isConcierge}
                   hotelIds={hotelIds}
                   hotels={hotels}
-                  hairdressers={hairdressers}
+                  therapists={therapists}
                   hotelTimezone={hotelTimezone}
                   hotelId={hotelId}
                   countryCode={countryCode}

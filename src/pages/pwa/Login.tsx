@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { brand } from "@/config/brand";
 
 const countryCodes = [
   { code: "+33", name: "France", flag: "🇫🇷" },
@@ -54,19 +55,19 @@ const PwaLogin = () => {
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
-          .eq('role', 'hairdresser')
+          .eq('role', 'therapist')
           .maybeSingle();
 
         if (roles) {
-          // User is a hairdresser - redirect to PWA
-          const { data: hairdresser } = await supabase
-            .from('hairdressers')
+          // User is a therapist - redirect to PWA
+          const { data: therapist } = await supabase
+            .from('therapists')
             .select('status')
             .eq('user_id', session.user.id)
             .single();
 
-          if (hairdresser) {
-            if (hairdresser.status === "pending") {
+          if (therapist) {
+            if (therapist.status === "pending") {
               navigate("/pwa/onboarding", { replace: true });
             } else {
               navigate("/pwa/dashboard", { replace: true });
@@ -125,7 +126,7 @@ const PwaLogin = () => {
 
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error(
-            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
           );
         } else {
@@ -138,7 +139,7 @@ const PwaLogin = () => {
       if (data && (data as any).success === false) {
         const msg = (data as any).error || t('common:errors.generic');
         toast.error(
-          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
           { duration: 8000 },
         );
         console.warn('send-otp rejected:', msg);
@@ -155,7 +156,7 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+        toast.error(`Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`, {
           duration: 8000,
         });
       } else {
@@ -184,7 +185,7 @@ const PwaLogin = () => {
 
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error(
-            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
           );
         } else {
@@ -195,7 +196,7 @@ const PwaLogin = () => {
 
       if (data && (data as any).success === false) {
         toast.error(
-          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
           { duration: 8000 },
         );
         return;
@@ -212,7 +213,7 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+        toast.error(`Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`, {
           duration: 8000,
         });
       } else {
@@ -296,7 +297,7 @@ const PwaLogin = () => {
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      if (data.hairdresser.status === "pending") {
+      if (data.therapist.status === "pending") {
         navigate("/pwa/onboarding", { replace: true });
       } else {
         navigate("/pwa/dashboard", { replace: true });

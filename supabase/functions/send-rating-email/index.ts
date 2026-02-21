@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,8 +43,8 @@ serve(async (req: Request): Promise<Response> => {
         client_email,
         client_first_name,
         client_last_name,
-        hairdresser_id,
-        hairdresser_name,
+        therapist_id,
+        therapist_name,
         hotel_name
       `)
       .eq("id", bookingId)
@@ -64,12 +65,12 @@ serve(async (req: Request): Promise<Response> => {
     // Generate unique rating token
     const ratingToken = crypto.randomUUID();
 
-    // Store the token in hairdresser_ratings table (pre-create record)
+    // Store the token in therapist_ratings table (pre-create record)
     const { error: insertError } = await supabaseClient
-      .from("hairdresser_ratings")
+      .from("therapist_ratings")
       .insert({
         booking_id: booking.id,
-        hairdresser_id: booking.hairdresser_id,
+        therapist_id: booking.therapist_id,
         rating: 5, // Default, will be updated when client rates
         rating_token: ratingToken,
       });
@@ -80,16 +81,16 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Build rating URL
-    const siteUrl = Deno.env.get("SITE_URL") || "https://oom.lovable.app";
+    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const ratingUrl = `${siteUrl}/rate/${ratingToken}`;
 
     // Send email
     const resend = new Resend(resendKey);
     
     const emailResponse = await resend.emails.send({
-      from: "OOM <noreply@resend.dev>",
+      from: brand.emails.from.default,
       to: [booking.client_email],
-      subject: `Rate your experience with ${booking.hairdresser_name || "your hairdresser"}`,
+      subject: `Rate your experience with ${booking.therapist_name || "your therapist"}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -104,7 +105,7 @@ serve(async (req: Request): Promise<Response> => {
             </h1>
             <p style="font-size: 16px; color: #666; line-height: 1.6; margin: 0 0 24px 0;">
               We hope you enjoyed your experience at <strong>${booking.hotel_name}</strong> with 
-              <strong>${booking.hairdresser_name || "your hairdresser"}</strong>.
+              <strong>${booking.therapist_name || "your therapist"}</strong>.
             </p>
             <p style="font-size: 16px; color: #666; line-height: 1.6; margin: 0 0 32px 0;">
               Your feedback helps us provide the best service. Please take a moment to rate your experience.
@@ -114,7 +115,7 @@ serve(async (req: Request): Promise<Response> => {
               Rate your experience
             </a>
             <p style="font-size: 14px; color: #999; margin: 32px 0 0 0;">
-              Thank you for choosing OOM.
+              Thank you for choosing ${brand.name}.
             </p>
           </div>
         </body>

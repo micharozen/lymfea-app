@@ -97,7 +97,7 @@ export function BookingListView({
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Coiffeur</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
             </TableRow>
           </TableHeader>
@@ -140,7 +140,7 @@ export function BookingListView({
                   <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{booking.hairdresser_name || "-"}</span>
+                  <span className="truncate block leading-none">{booking.therapist_name || "-"}</span>
                 </TableCell>
                 <TableCell className="h-12 py-0 px-2 overflow-hidden text-center">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {

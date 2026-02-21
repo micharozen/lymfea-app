@@ -48,12 +48,12 @@ serve(async (req) => {
       proposedSlots = slots;
     }
 
-    // Get all hairdressers for this hotel
-    const { data: hairdressers, error: hairdressersError } = await supabaseClient
-      .from("hairdresser_hotels")
+    // Get all therapists for this hotel
+    const { data: therapists, error: therapistsError } = await supabaseClient
+      .from("therapist_venues")
       .select(`
-        hairdresser_id,
-        hairdressers!inner(
+        therapist_id,
+        therapists!inner(
           id,
           user_id,
           status,
@@ -63,39 +63,39 @@ serve(async (req) => {
       `)
       .eq("hotel_id", booking.hotel_id);
 
-    if (hairdressersError) {
-      console.error("Error fetching hairdressers:", hairdressersError);
-      throw hairdressersError;
+    if (therapistsError) {
+      console.error("Error fetching therapists:", therapistsError);
+      throw therapistsError;
     }
 
-    if (!hairdressers || hairdressers.length === 0) {
-      console.log("No hairdressers found for hotel:", booking.hotel_id);
+    if (!therapists || therapists.length === 0) {
+      console.log("No therapists found for hotel:", booking.hotel_id);
       return new Response(
-        JSON.stringify({ success: true, message: "No hairdressers to notify" }),
+        JSON.stringify({ success: true, message: "No therapists to notify" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Filter active hairdressers who haven't declined this booking
-    let eligibleHairdressers = hairdressers.filter(hh => {
-      const h = hh.hairdressers as any;
-      const statusLower = (h?.status || "").toLowerCase();
-      return h &&
-             h.user_id &&
+    // Filter active therapists who haven't declined this booking
+    let eligibleTherapists = therapists.filter(th => {
+      const t = th.therapists as any;
+      const statusLower = (t?.status || "").toLowerCase();
+      return t &&
+             t.user_id &&
              (statusLower === "active" || statusLower === "actif") &&
-             !(booking.declined_by || []).includes(h.id);
+             !(booking.declined_by || []).includes(t.id);
     });
 
-    // notifyAll = true (concierge flow): notify ALL hairdressers at this hotel
-    // notifyAll = false/undefined (admin flow): notify only assigned hairdresser
-    if (!notifyAll && booking.hairdresser_id) {
-      eligibleHairdressers = eligibleHairdressers.filter(hh => {
-        const h = hh.hairdressers as any;
-        return h && h.id === booking.hairdresser_id;
+    // notifyAll = true (concierge flow): notify ALL therapists at this hotel
+    // notifyAll = false/undefined (admin flow): notify only assigned therapist
+    if (!notifyAll && booking.therapist_id) {
+      eligibleTherapists = eligibleTherapists.filter(th => {
+        const t = th.therapists as any;
+        return t && t.id === booking.therapist_id;
       });
-      console.log(`Notifying assigned hairdresser only`);
+      console.log(`Notifying assigned therapist only`);
     } else {
-      console.log(`Notifying all ${eligibleHairdressers.length} eligible hairdressers`);
+      console.log(`Notifying all ${eligibleTherapists.length} eligible therapists`);
     }
 
     // Build notification body with proposed slots if available
@@ -114,12 +114,12 @@ serve(async (req) => {
       notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formatDate(booking.booking_date)} à ${booking.booking_time}`;
     }
 
-    // Send push notifications to each hairdresser (with DB deduplication)
+    // Send push notifications to each therapist (with DB deduplication)
     let notificationsSent = 0;
     let skippedDuplicates = 0;
 
-    for (const hh of eligibleHairdressers) {
-      const h = hh.hairdressers as any;
+    for (const th of eligibleTherapists) {
+      const h = th.therapists as any;
       if (!h || !h.user_id) continue;
 
       // Check if notification already sent for this booking+user
@@ -198,13 +198,13 @@ serve(async (req) => {
         return menu?.name || '';
       }).filter(Boolean) || [];
 
-      // Get assigned hairdresser name if any
-      let hairdresserName = null;
-      if (booking.hairdresser_id && eligibleHairdressers.length > 0) {
-        const assigned = eligibleHairdressers.find(hh => (hh.hairdressers as any)?.id === booking.hairdresser_id);
+      // Get assigned therapist name if any
+      let therapistName = null;
+      if (booking.therapist_id && eligibleTherapists.length > 0) {
+        const assigned = eligibleTherapists.find(th => (th.therapists as any)?.id === booking.therapist_id);
         if (assigned) {
-          const h = assigned.hairdressers as any;
-          hairdresserName = `${h.first_name} ${h.last_name}`;
+          const t = assigned.therapists as any;
+          therapistName = `${t.first_name} ${t.last_name}`;
         }
       }
 
@@ -217,7 +217,7 @@ serve(async (req) => {
           hotelName: booking.hotel_name || '',
           bookingDate: booking.booking_date,
           bookingTime: booking.booking_time,
-          hairdresserName: hairdresserName || booking.hairdresser_name,
+          therapistName: therapistName || booking.therapist_name,
           totalPrice: booking.total_price,
           currency: '€',
           treatments: treatments,
@@ -237,7 +237,7 @@ serve(async (req) => {
         success: true,
         notificationsSent,
         skippedDuplicates,
-        totalEligible: eligibleHairdressers.length,
+        totalEligible: eligibleTherapists.length,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

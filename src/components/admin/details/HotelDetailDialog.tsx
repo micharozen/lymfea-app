@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
+import { brand } from "@/config/brand";
 
 // Days of week mapping
 const DAYS_OF_WEEK: Record<number, string> = {
@@ -75,10 +76,10 @@ interface Concierge {
   profile_image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
 }
 
@@ -107,7 +108,7 @@ interface Hotel {
   currency: string;
   vat: number;
   hotel_commission: number;
-  hairdresser_commission: number;
+  therapist_commission: number;
   status: string;
   venue_type?: 'hotel' | 'coworking' | 'enterprise' | null;
   opening_time?: string | null;
@@ -120,7 +121,7 @@ interface Hotel {
   created_at: string;
   updated_at: string;
   concierges?: Concierge[];
-  trunks?: Trunk[];
+  treatment_rooms?: TreatmentRoom[];
   stats?: HotelStats;
   deployment_schedule?: DeploymentSchedule;
 }
@@ -142,9 +143,9 @@ export function HotelDetailDialog({
 
   if (!hotel) return null;
 
-  const oomCommission = Math.max(
+  const lymfeaCommission = Math.max(
     0,
-    100 - (hotel.hotel_commission || 0) - (hotel.hairdresser_commission || 0)
+    100 - (hotel.hotel_commission || 0) - (hotel.therapist_commission || 0)
   );
 
   return (
@@ -356,12 +357,12 @@ export function HotelDetailDialog({
                 <p className="text-lg font-semibold">{hotel.hotel_commission}%</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Coiffeur</p>
-                <p className="text-lg font-semibold">{hotel.hairdresser_commission}%</p>
+                <p className="text-xs text-muted-foreground mb-1">Thérapeute</p>
+                <p className="text-lg font-semibold">{hotel.therapist_commission}%</p>
               </div>
               <div className="bg-muted/50 rounded-lg p-3 text-center">
-                <p className="text-xs text-muted-foreground mb-1">OOM</p>
-                <p className="text-lg font-semibold">{oomCommission.toFixed(0)}%</p>
+                <p className="text-xs text-muted-foreground mb-1">{brand.name}</p>
+                <p className="text-lg font-semibold">{lymfeaCommission.toFixed(0)}%</p>
               </div>
             </div>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -408,34 +409,34 @@ export function HotelDetailDialog({
 
           <Separator />
 
-          {/* Trunks */}
+          {/* Treatment Rooms */}
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
               <Briefcase className="h-4 w-4" />
-              Malles ({hotel.trunks?.length || 0})
+              Salles de soin ({hotel.treatment_rooms?.length || 0})
             </h3>
-            {hotel.trunks && hotel.trunks.length > 0 ? (
+            {hotel.treatment_rooms && hotel.treatment_rooms.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {hotel.trunks.map((trunk) => (
+                {hotel.treatment_rooms.map((room) => (
                   <div
-                    key={trunk.id}
+                    key={room.id}
                     className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2"
                   >
-                    {trunk.image ? (
+                    {room.image ? (
                       <img
-                        src={trunk.image}
-                        alt={trunk.name}
+                        src={room.image}
+                        alt={room.name}
                         className="w-6 h-6 rounded object-cover"
                       />
                     ) : (
                       <Briefcase className="h-4 w-4 text-muted-foreground" />
                     )}
-                    <span className="text-sm font-medium">{trunk.name}</span>
+                    <span className="text-sm font-medium">{room.name}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucune malle assignée</p>
+              <p className="text-sm text-muted-foreground">Aucune salle de soin assignée</p>
             )}
           </div>
 

@@ -317,19 +317,19 @@ serve(async (req) => {
 
     console.log('✅ OTP verified successfully');
 
-    // Find hairdresser by phone number
+    // Find therapist by phone number
     // Use the same normalized phone for database lookup
-    const { data: hairdresser, error: dbError } = await supabase
-      .from('hairdressers')
+    const { data: therapist, error: dbError } = await supabase
+      .from('therapists')
       .select('*')
       .eq('country_code', countryCode)
       .or(`phone.eq.${normalizedPhone},phone.eq.${phoneNumber}`)
       .maybeSingle();
 
-    if (dbError || !hairdresser) {
-      console.error('Hairdresser not found:', dbError);
+    if (dbError || !therapist) {
+      console.error('Therapist not found:', dbError);
       return new Response(
-        JSON.stringify({ error: 'No hairdresser account found with this phone number' }),
+        JSON.stringify({ error: 'No therapist account found with this phone number' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -337,9 +337,9 @@ serve(async (req) => {
     // Sign in or create user with Supabase Auth
     let authUser;
     
-    if (hairdresser.user_id) {
+    if (therapist.user_id) {
       // User already exists, get their session
-      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(hairdresser.user_id);
+      const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(therapist.user_id);
       
       if (userError) {
         console.error('Error fetching user:', userError);
@@ -353,26 +353,26 @@ serve(async (req) => {
     } else {
       // First, check if a user with this email already exists
       const { data: existingUsers } = await supabase.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find((u: any) => u.email === hairdresser.email);
-      
+      const existingUser = existingUsers?.users?.find((u: any) => u.email === therapist.email);
+
       if (existingUser) {
-        console.log('Found existing user with email:', hairdresser.email);
-        // Link the existing user to the hairdresser
+        console.log('Found existing user with email:', therapist.email);
+        // Link the existing user to the therapist
         await supabase
-          .from('hairdressers')
+          .from('therapists')
           .update({ user_id: existingUser.id })
-          .eq('id', hairdresser.id);
+          .eq('id', therapist.id);
         
         authUser = existingUser;
       } else {
         // Create new auth user
         const { data: { user }, error: createError } = await supabase.auth.admin.createUser({
-          email: hairdresser.email,
+          email: therapist.email,
           email_confirm: true,
           user_metadata: {
             phone: fullPhoneNumber,
-            first_name: hairdresser.first_name,
-            last_name: hairdresser.last_name,
+            first_name: therapist.first_name,
+            last_name: therapist.last_name,
           }
         });
 
@@ -384,11 +384,11 @@ serve(async (req) => {
           );
         }
 
-        // Update hairdresser with user_id
+        // Update therapist with user_id
         await supabase
-          .from('hairdressers')
+          .from('therapists')
           .update({ user_id: user.id })
-          .eq('id', hairdresser.id);
+          .eq('id', therapist.id);
 
         authUser = user;
       }
@@ -446,12 +446,12 @@ serve(async (req) => {
           access_token: verifyData.session.access_token,
           refresh_token: verifyData.session.refresh_token,
         },
-        hairdresser: {
-          id: hairdresser.id,
-          status: hairdresser.status,
-          first_name: hairdresser.first_name,
-          last_name: hairdresser.last_name,
-          password_set: hairdresser.password_set || false,
+        therapist: {
+          id: therapist.id,
+          status: therapist.status,
+          first_name: therapist.first_name,
+          last_name: therapist.last_name,
+          password_set: therapist.password_set || false,
         }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

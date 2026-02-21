@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
+import { brand } from '@/config/brand';
 
 const FRENCH_COUNTRIES = [
   'france',
@@ -43,7 +44,7 @@ export function useVenueDefaultLanguage(hotelId: string | undefined) {
   useEffect(() => {
     if (!hotelId || !hotel || hasApplied.current) return;
 
-    const storageKey = `oom-venue-lang-applied:${hotelId}`;
+    const storageKey = `${brand.storageKeys.venueLangPrefix}:${hotelId}`;
     const stored = sessionStorage.getItem(storageKey);
     const defaultLang = getVenueDefaultLanguage(hotel.venue_type, hotel.country);
 

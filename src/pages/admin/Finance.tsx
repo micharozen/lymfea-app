@@ -21,6 +21,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { brand } from "@/config/brand";
 
 interface LedgerEntry {
   id: string;
@@ -43,13 +44,13 @@ interface LedgerEntry {
 
 interface PayoutEntry {
   id: string;
-  hairdresser_id: string;
+  therapist_id: string;
   booking_id: string;
   amount: number;
   stripe_transfer_id: string | null;
   status: string;
   created_at: string;
-  hairdressers?: {
+  therapists?: {
     first_name: string;
     last_name: string;
     profile_image: string | null;
@@ -69,8 +70,8 @@ interface HotelNetting {
 }
 
 interface FinanceSummary {
-  totalReceivables: number; // Positive ledger entries (hotels owe OOM)
-  totalPayouts: number; // Money paid to hairdressers
+  totalReceivables: number; // Positive ledger entries (hotels owe Lymfea)
+  totalPayouts: number; // Money paid to therapists
   netProfit: number; // Receivables - Payouts
   pendingPayouts: number;
 }
@@ -105,12 +106,12 @@ const Finance = () => {
       if (ledgerError) throw ledgerError;
       setLedgerEntries(ledgerData || []);
 
-      // Fetch payout entries with hairdresser info
+      // Fetch payout entries with therapist info
       const { data: payoutData, error: payoutError } = await supabase
-        .from('hairdresser_payouts')
+        .from('therapist_payouts')
         .select(`
           *,
-          hairdressers (first_name, last_name, profile_image),
+          therapists (first_name, last_name, profile_image),
           bookings (booking_id, hotel_name)
         `)
         .order('created_at', { ascending: false })
@@ -184,7 +185,7 @@ const Finance = () => {
 
     const payoutChannel = supabase
       .channel('payout-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hairdresser_payouts' }, fetchFinanceData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'therapist_payouts' }, fetchFinanceData)
       .subscribe();
 
     return () => {
@@ -231,7 +232,7 @@ const Finance = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">💰 Finance</h1>
-          <p className="text-muted-foreground">Suivi des revenus, netting hôtels et paiements coiffeurs</p>
+          <p className="text-muted-foreground">Suivi des revenus, netting hôtels et paiements thérapeutes</p>
         </div>
         <Button 
           variant="outline" 
@@ -275,7 +276,7 @@ const Finance = () => {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Avances Coiffeurs
+              Avances Thérapeutes
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -296,7 +297,7 @@ const Finance = () => {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2 text-primary">
               <Wallet className="w-4 h-4" />
-              Profit Net OOM
+              {`Profit Net ${brand.name}`}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -342,7 +343,7 @@ const Finance = () => {
         <TabsList>
           <TabsTrigger value="netting">🏨 Netting Hôtels</TabsTrigger>
           <TabsTrigger value="ledger">📒 Grand Livre</TabsTrigger>
-          <TabsTrigger value="payouts">💇 Payouts Coiffeurs</TabsTrigger>
+          <TabsTrigger value="payouts">💆 Payouts Thérapeutes</TabsTrigger>
         </TabsList>
 
         {/* Netting Tab */}
@@ -351,7 +352,7 @@ const Finance = () => {
             <CardHeader>
               <CardTitle>Soldes par Hôtel</CardTitle>
               <CardDescription>
-                Montants en attente de règlement avec chaque hôtel (positif = l'hôtel doit à OOM)
+                {`Montants en attente de règlement avec chaque hôtel (positif = l'hôtel doit à ${brand.name})`}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -470,7 +471,7 @@ const Finance = () => {
             <CardHeader>
               <CardTitle>Historique des Payouts</CardTitle>
               <CardDescription>
-                Transferts vers les comptes Stripe des coiffeurs
+                Transferts vers les comptes Stripe des thérapeutes
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -485,7 +486,7 @@ const Finance = () => {
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Date</th>
-                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Coiffeur</th>
+                        <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Thérapeute</th>
                         <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Réservation</th>
                         <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">Montant</th>
                         <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Statut</th>
@@ -505,16 +506,16 @@ const Finance = () => {
                           <td className="py-2 px-2 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                                {entry.hairdressers?.profile_image ? (
-                                  <img src={entry.hairdressers.profile_image} alt="" className="w-full h-full object-cover" />
+                                {entry.therapists?.profile_image ? (
+                                  <img src={entry.therapists.profile_image} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                   <span className="text-xs font-medium">
-                                    {entry.hairdressers?.first_name?.[0]}{entry.hairdressers?.last_name?.[0]}
+                                    {entry.therapists?.first_name?.[0]}{entry.therapists?.last_name?.[0]}
                                   </span>
                                 )}
                               </div>
                               <span className="text-sm font-medium">
-                                {entry.hairdressers?.first_name} {entry.hairdressers?.last_name}
+                                {entry.therapists?.first_name} {entry.therapists?.last_name}
                               </span>
                             </div>
                           </td>

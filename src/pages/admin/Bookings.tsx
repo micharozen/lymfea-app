@@ -29,7 +29,7 @@ export default function Booking() {
   const { activeTimezone } = useTimezone();
 
   // Data
-  const { bookings, hotels, hairdressers, getHotelInfo, refetch } = useBookingData();
+  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
@@ -59,8 +59,8 @@ export default function Booking() {
     setStatusFilter,
     hotelFilter,
     setHotelFilter,
-    hairdresserFilter,
-    setHairdresserFilter,
+    therapistFilter,
+    setTherapistFilter,
     filteredBookings,
   } = useBookingFilters(bookings);
 
@@ -195,13 +195,13 @@ export default function Booking() {
           onStatusChange={handleFilterChange(setStatusFilter)}
           hotelFilter={hotelFilter}
           onHotelChange={handleFilterChange(setHotelFilter)}
-          hairdresserFilter={hairdresserFilter}
-          onHairdresserChange={handleFilterChange(setHairdresserFilter)}
+          therapistFilter={therapistFilter}
+          onTherapistChange={handleFilterChange(setTherapistFilter)}
           view={view}
           onViewChange={setView}
           isAdmin={isAdmin}
           hotels={hotels}
-          hairdressers={hairdressers}
+          therapists={therapists}
         />
       </div>
 

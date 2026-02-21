@@ -40,23 +40,23 @@ const PwaHotels = ({ standalone = false }: PwaHotelsProps) => {
         return;
       }
 
-      // Get hairdresser's hotels
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      // Get therapist's hotels
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) {
+      if (!therapistData) {
         toast.error(t('common:errors.generic'));
         return;
       }
 
-      // Get hotels associated with this hairdresser
+      // Get hotels associated with this therapist
       const { data: hotelAssociations } = await supabase
-        .from("hairdresser_hotels")
+        .from("therapist_venues")
         .select("hotel_id")
-        .eq("hairdresser_id", hairdresserData.id);
+        .eq("therapist_id", therapistData.id);
 
       if (!hotelAssociations || hotelAssociations.length === 0) {
         setHotels([]);
