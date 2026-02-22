@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,14 +27,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { VenueWizardDialog } from "@/components/admin/VenueWizardDialog";
 import { HotelQRCode } from "@/components/HotelQRCode";
 import { ConciergesCell, TreatmentRoomsCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
-import { HotelDetailDialog } from "@/components/admin/details/HotelDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
@@ -95,6 +94,7 @@ interface Hotel {
 }
 
 export default function Hotels() {
+  const navigate = useNavigate();
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [filteredHotels, setFilteredHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,9 +105,6 @@ export default function Hotels() {
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const {
-    isAddOpen, openAdd, closeAdd,
-    viewId: viewHotelId, openView, closeView,
-    editId: editHotelId, openEdit, closeEdit,
     deleteId: deleteHotelId, openDelete, closeDelete
   } = useDialogState<string>();
   const { sortConfig, toggleSort, getSortDirection, sortItems } = useTableSort<string>();
@@ -131,9 +128,6 @@ export default function Hotels() {
     items: sortedHotels,
     itemsPerPage,
   });
-
-  // Find the hotel being viewed
-  const viewedHotel = viewHotelId ? hotels.find(h => h.id === viewHotelId) || null : null;
 
   // Control overflow when pagination is needed
   useOverflowControl(!loading && needsPagination);
@@ -348,7 +342,7 @@ export default function Hotels() {
 
             <Button
               className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-              onClick={openAdd}
+              onClick={() => navigate('/admin/places/new')}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
               <Plus className="h-4 w-4 md:mr-2" />
@@ -388,7 +382,7 @@ export default function Hotels() {
                       <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
                     )}
                     {isAdmin && (
-                      <Button onClick={openAdd} className="mt-4">
+                      <Button onClick={() => navigate('/admin/places/new')} className="mt-4">
                         <Plus className="h-4 w-4 mr-2" />
                         Ajouter un lieu
                       </Button>
@@ -400,8 +394,8 @@ export default function Hotels() {
                       key={hotel.id}
                       hotel={hotel}
                       isAdmin={isAdmin}
-                      onView={() => openView(hotel.id)}
-                      onEdit={() => openEdit(hotel.id)}
+                      onView={() => navigate(`/admin/places/${hotel.id}`)}
+                      onEdit={() => navigate(`/admin/places/${hotel.id}`)}
                       onDelete={() => openDelete(hotel.id)}
                     />
                   ))
@@ -458,7 +452,7 @@ export default function Hotels() {
                       message="Aucun lieu trouve"
                       description={searchQuery || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
                       actionLabel={isAdmin ? "Ajouter un lieu" : undefined}
-                      onAction={isAdmin ? openAdd : undefined}
+                      onAction={isAdmin ? () => navigate('/admin/places/new') : undefined}
                     />
                   ) : (
                     <TableBody>
@@ -466,7 +460,7 @@ export default function Hotels() {
                         <TableRow
                           key={hotel.id}
                           className="cursor-pointer hover:bg-muted/50 transition-colors"
-                          onClick={() => openView(hotel.id)}
+                          onClick={() => navigate(`/admin/places/${hotel.id}`)}
                         >
                           <TableCell className="py-1 px-2">
                             <div className="flex items-start gap-2">
@@ -567,7 +561,7 @@ export default function Hotels() {
                                   className="h-6 w-6"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    openEdit(hotel.id);
+                                    navigate(`/admin/places/${hotel.id}`);
                                   }}
                                 >
                                   <Pencil className="h-3 w-3" />
@@ -607,35 +601,6 @@ export default function Hotels() {
           )}
         </div>
       </div>
-
-      <VenueWizardDialog
-        open={isAddOpen}
-        onOpenChange={(open) => !open && closeAdd()}
-        onSuccess={fetchHotels}
-        mode="add"
-      />
-
-      <HotelDetailDialog
-        open={!!viewHotelId}
-        onOpenChange={(open) => !open && closeView()}
-        hotel={viewedHotel}
-        onEdit={() => {
-          if (viewHotelId) {
-            closeView();
-            openEdit(viewHotelId);
-          }
-        }}
-      />
-
-      {editHotelId && (
-        <VenueWizardDialog
-          open={!!editHotelId}
-          onOpenChange={(open) => !open && closeEdit()}
-          onSuccess={fetchHotels}
-          mode="edit"
-          hotelId={editHotelId}
-        />
-      )}
 
       <AlertDialog open={!!deleteHotelId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>

@@ -155,6 +155,56 @@
     "yes": "Yes",
     "no": "No"
   },
+  "venue": {
+    "tabs": {
+      "general": "General",
+      "planning": "Planning",
+      "rooms": "Treatment Rooms",
+      "therapists": "Therapists",
+      "categories": "Categories",
+      "overview": "Overview",
+      "clientPreview": "Client Preview"
+    },
+    "backToList": "Back to venues",
+    "edit": "Edit",
+    "cancelEdit": "Cancel",
+    "clientPreview": {
+      "copyUrl": "Copy link",
+      "urlCopied": "Link copied!",
+      "openInNewTab": "Open in new tab"
+    },
+    "save": "Save",
+    "saving": "Saving...",
+    "newVenue": "New venue",
+    "treatmentRooms": {
+      "title": "Treatment Rooms",
+      "assigned": "Assigned rooms",
+      "unassigned": "Available rooms",
+      "assign": "Assign",
+      "unassign": "Unassign",
+      "create": "Create a room",
+      "delete": "Delete",
+      "name": "Name",
+      "type": "Type",
+      "noRooms": "No rooms assigned",
+      "assignSuccess": "Room(s) assigned",
+      "unassignSuccess": "Room unassigned",
+      "createSuccess": "Room created",
+      "deleteSuccess": "Room deleted"
+    },
+    "therapists": {
+      "title": "Therapists",
+      "assigned": "Assigned therapists",
+      "assign": "Assign",
+      "unassign": "Unassign",
+      "create": "Create a therapist",
+      "noTherapists": "No therapists assigned",
+      "assignSuccess": "Therapist(s) assigned",
+      "unassignSuccess": "Therapist unassigned",
+      "createSuccess": "Therapist created and assigned",
+      "inviteWarning": "Therapist created but the email invitation failed"
+    }
+  },
   "pms": {
     "title": "PMS Integration",
     "type": "PMS Type",

@@ -16,6 +16,7 @@ import {
   ShoppingCart,
   Settings,
   ChevronDown,
+  ChevronsLeft,
   User,
   LogOut,
 } from "lucide-react";
@@ -50,11 +51,11 @@ const conciergeMenuItems = [
 const adminSubMenuItems = [
   { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Lieux", url: "/admin/places", emoji: "📍" },
-  { title: "Thérapeutes", url: "/admin/therapists", emoji: "💇‍♂️" },
+  { title: "Thérapeutes", url: "/admin/therapists", emoji: "💆" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Salles de soin", url: "/admin/treatment-rooms", emoji: "🚪" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
-  { title: `Produits ${brand.name}`, url: "/admin/products", emoji: "💈" },
+  { title: `Produits ${brand.name}`, url: "/admin/products", emoji: "🧴" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
   { title: "Analytics", url: "/admin/analytics", emoji: "📊" },
@@ -67,7 +68,7 @@ const conciergeSubMenuItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -206,13 +207,13 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"}>
+    <Sidebar collapsible="icon" expandOnHover>
       <SidebarContent className="flex flex-col h-full">
         {/* Profil utilisateur en haut avec dropdown */}
-        <div className="px-3 py-4 border-b border-sidebar-border">
+        <div className="px-3 py-4 border-b border-sidebar-border group-data-[collapsible=icon]:px-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent/50 p-1 rounded-lg transition-colors">
+              <button className="flex items-center gap-3 w-full hover:bg-sidebar-accent/50 p-1 rounded-lg transition-colors group-data-[collapsible=icon]:justify-center">
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-medium flex-shrink-0 overflow-hidden">
                   {adminInfo?.profileImage ? (
                     <img 
@@ -226,17 +227,15 @@ export function AppSidebar() {
                     <span className="text-xs">...</span>
                   )}
                 </div>
-                {!isCollapsed && (
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center gap-1">
-                      <p className="text-sm font-medium text-sidebar-foreground">
-                        {adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : '...'}
-                      </p>
-                      <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
-                    </div>
-                    <p className="text-xs text-sidebar-foreground/60">{userRole}</p>
+                <div className="flex-1 min-w-0 text-left group-data-[collapsible=icon]:hidden">
+                  <div className="flex items-center gap-1">
+                    <p className="text-sm font-medium text-sidebar-foreground">
+                      {adminInfo ? `${adminInfo.firstName} ${adminInfo.lastName}` : '...'}
+                    </p>
+                    <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40" />
                   </div>
-                )}
+                  <p className="text-xs text-sidebar-foreground/60">{userRole}</p>
+                </div>
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
@@ -275,7 +274,7 @@ export function AppSidebar() {
                         }`}
                       >
                         <item.icon className="h-5 w-5 flex-shrink-0" />
-                        {!isCollapsed && <span>{item.title}</span>}
+                        <span>{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -290,7 +289,7 @@ export function AppSidebar() {
         
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/50 px-3 py-2">
-            {!isCollapsed && "Menu"}
+            Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -308,7 +307,7 @@ export function AppSidebar() {
                         }`}
                       >
                         <span className="text-lg flex-shrink-0">{item.emoji}</span>
-                        {!isCollapsed && <span className="whitespace-nowrap">{item.title}</span>}
+                        <span className="whitespace-nowrap">{item.title}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -318,15 +317,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Logo en bas */}
+        {/* Footer with logo and toggle */}
         <div className="mt-auto border-t border-sidebar-border">
-          <div className="flex items-center justify-center p-4">
-            {!isCollapsed && (
-              <img src={brandLogos.primary} alt={brand.name} className="h-10 w-auto" />
-            )}
-            {isCollapsed && (
-              <img src={brandLogos.primary} alt={brand.name} className="h-6 w-auto" />
-            )}
+          <div className="flex items-center justify-between p-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
+            <img src={brandLogos.primary} alt={brand.name} className="h-8 w-auto group-data-[collapsible=icon]:hidden" />
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-md text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+            >
+              <ChevronsLeft className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} />
+            </button>
           </div>
         </div>
       </SidebarContent>

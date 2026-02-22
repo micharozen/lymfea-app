@@ -155,6 +155,56 @@
     "yes": "Oui",
     "no": "Non"
   },
+  "venue": {
+    "tabs": {
+      "general": "Général",
+      "planning": "Planning",
+      "rooms": "Salles de soin",
+      "therapists": "Thérapeutes",
+      "categories": "Catégories",
+      "overview": "Aperçu",
+      "clientPreview": "Aperçu client"
+    },
+    "backToList": "Retour aux lieux",
+    "edit": "Modifier",
+    "cancelEdit": "Annuler",
+    "clientPreview": {
+      "copyUrl": "Copier le lien",
+      "urlCopied": "Lien copié !",
+      "openInNewTab": "Ouvrir dans un nouvel onglet"
+    },
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "newVenue": "Nouveau lieu",
+    "treatmentRooms": {
+      "title": "Salles de soin",
+      "assigned": "Salles assignées",
+      "unassigned": "Salles disponibles",
+      "assign": "Assigner",
+      "unassign": "Désassigner",
+      "create": "Créer une salle",
+      "delete": "Supprimer",
+      "name": "Nom",
+      "type": "Type",
+      "noRooms": "Aucune salle assignée",
+      "assignSuccess": "Salle(s) assignée(s)",
+      "unassignSuccess": "Salle désassignée",
+      "createSuccess": "Salle créée",
+      "deleteSuccess": "Salle supprimée"
+    },
+    "therapists": {
+      "title": "Thérapeutes",
+      "assigned": "Thérapeutes assignés",
+      "assign": "Assigner",
+      "unassign": "Désassigner",
+      "create": "Créer un thérapeute",
+      "noTherapists": "Aucun thérapeute assigné",
+      "assignSuccess": "Thérapeute(s) assigné(s)",
+      "unassignSuccess": "Thérapeute désassigné",
+      "createSuccess": "Thérapeute créé et assigné",
+      "inviteWarning": "Thérapeute créé mais l'invitation email a échoué"
+    }
+  },
   "pms": {
     "title": "Integration PMS",
     "type": "Type de PMS",
