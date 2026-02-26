@@ -1,6 +1,6 @@
-project_id = "jpvgfxchupfukverhcgt"
+project_id = "xfkujlgettlxdgrnqluw"
 
-[functions.get-hairdresser-earnings]
+[functions.get-therapist-earnings]
 verify_jwt = true
 
 [functions.create-stripe-connect-account]
@@ -93,7 +93,7 @@ verify_jwt = false
 [functions.handle-quote-response]
 verify_jwt = false
 
-[functions.invite-hairdresser]
+[functions.invite-therapist]
 verify_jwt = false
 
 [functions.invite-concierge]

@@ -54,36 +54,36 @@ serve(async (req) => {
       console.error("[CHECKOUT-SUCCESS] Hotel fetch error:", hotelError);
     }
 
-    // Find available trunk for this booking
-    const { data: trunks } = await supabase
-      .from('trunks')
+    // Find available treatment room for this booking
+    const { data: rooms } = await supabase
+      .from('treatment_rooms')
       .select('id')
       .eq('hotel_id', metadata?.hotel_id)
       .eq('status', 'active');
 
-    let trunkId = null;
-    if (trunks && trunks.length > 0) {
-      // Get bookings at this time slot that have trunks assigned
-      const { data: bookingsWithTrunks } = await supabase
+    let roomId = null;
+    if (rooms && rooms.length > 0) {
+      // Get bookings at this time slot that have rooms assigned
+      const { data: bookingsWithRooms } = await supabase
         .from('bookings')
-        .select('trunk_id')
+        .select('room_id')
         .eq('hotel_id', metadata?.hotel_id)
         .eq('booking_date', metadata?.booking_date)
         .eq('booking_time', metadata?.booking_time)
-        .not('trunk_id', 'is', null)
+        .not('room_id', 'is', null)
         .not('status', 'in', '("Annulé","Terminé","cancelled")');
 
-      const usedTrunkIds = new Set(bookingsWithTrunks?.map(b => b.trunk_id) || []);
-      
-      // Find first available trunk
-      for (const trunk of trunks) {
-        if (!usedTrunkIds.has(trunk.id)) {
-          trunkId = trunk.id;
+      const usedRoomIds = new Set(bookingsWithRooms?.map(b => b.room_id) || []);
+
+      // Find first available room
+      for (const room of rooms) {
+        if (!usedRoomIds.has(room.id)) {
+          roomId = room.id;
           break;
         }
       }
     }
-    console.log("[CHECKOUT-SUCCESS] Assigned trunk:", trunkId);
+    console.log("[CHECKOUT-SUCCESS] Assigned treatment room:", roomId);
 
     // Créer la réservation
     const { data: booking, error: bookingError } = await supabase
@@ -103,7 +103,7 @@ serve(async (req) => {
         payment_method: 'card',
         payment_status: 'paid',
         total_price: parseFloat(metadata?.total_price || '0'),
-        trunk_id: trunkId, // Auto-assign trunk
+        room_id: roomId, // Auto-assign treatment room
       })
       .select()
       .single();
@@ -175,7 +175,7 @@ serve(async (req) => {
       console.error("[CHECKOUT-SUCCESS] Admin notification error:", adminError);
     }
 
-    // Déclencher les notifications push aux coiffeurs
+    // Déclencher les notifications push aux thérapeutes
     try {
       await supabase.functions.invoke('trigger-new-booking-notifications', {
         body: { bookingId: booking.id },

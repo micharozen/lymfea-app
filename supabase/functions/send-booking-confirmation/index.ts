@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,7 +64,8 @@ function generateBookingConfirmationHtml({
     return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${name} - ${priceDisplay}</span>`;
   }).join('');
   
-  const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const logoUrl = EMAIL_LOGO_URL;
+  const brandName = brand.name;
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   
   // Status badge styling
@@ -74,7 +76,7 @@ function generateBookingConfirmationHtml({
   // Message based on status
   const statusMessage = isQuotePending 
     ? "We've received your booking request. We'll send you a quote very soon with the final price for your custom services."
-    : "Your booking has been successfully confirmed. A hairdresser will be assigned to your appointment shortly.";
+    : "Your booking has been successfully confirmed. A therapist will be assigned to your appointment shortly.";
 
   // Total display
   const hasOnQuoteItems = treatments.some(t => t.isPriceOnRequest);
@@ -97,7 +99,7 @@ function generateBookingConfirmationHtml({
           <!-- Header -->
           <tr>
             <td style="background:#fff;padding:20px 16px 12px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:60px;display:block;margin:0 auto 12px;" />
+              <img src="${logoUrl}" alt="${brandName}" style="height:60px;display:block;margin:0 auto 12px;" />
               ${statusBadge}
             </td>
           </tr>
@@ -169,7 +171,7 @@ function generateBookingConfirmationHtml({
           <!-- Footer -->
           <tr>
             <td style="padding:12px;text-align:center;background:#fafafa;border-top:1px solid #f0f0f0;">
-              <p style="margin:0;font-size:11px;color:#9ca3af;">OOM World · Beauty & Wellness</p>
+              <p style="margin:0;font-size:11px;color:#9ca3af;">${brandName} · ${brand.tagline}</p>
             </td>
           </tr>
         </table>
@@ -212,7 +214,7 @@ serve(async (req) => {
     const siteUrl =
       (typeof siteUrlFromBody === 'string' && siteUrlFromBody) ||
       Deno.env.get('SITE_URL') ||
-      'https://oomworld.com';
+      brand.website;
 
     const normalizedTreatments: Treatment[] = (Array.isArray(treatments) ? treatments : []).map(
       (t: IncomingTreatment) => {
@@ -256,7 +258,7 @@ serve(async (req) => {
 
     // Send email to client
     const { data: clientData, error: clientError } = await resend.emails.send({
-      from: 'OOM World <bookings@oomworld.com>',
+      from: brand.emails.from.default,
       to: [email],
       subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
@@ -269,10 +271,10 @@ serve(async (req) => {
 
     console.log('Client email sent successfully:', clientData);
 
-    // Send notification email to booking@oomworld.com
+    // Send notification email to booking recipient
     const { data: adminData, error: adminError } = await resend.emails.send({
-      from: 'OOM World <bookings@oomworld.com>',
-      to: ['booking@oomworld.com'],
+      from: brand.emails.from.default,
+      to: [brand.emails.bookingRecipient],
       subject: `[ADMIN] ${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });

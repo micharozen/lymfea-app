@@ -14,7 +14,8 @@
   },
   "welcome": {
     "title": "Bienvenue",
-    "subtitle": "Gérez vos réservations facilement",
+    "subtitle": "Votre espace bien-être",
+    "description": "Gérez vos rendez-vous en toute simplicité",
     "getStarted": "Commencer",
     "termsIntro": "En continuant, vous acceptez nos",
     "termsOfUse": "Conditions d'utilisation",
@@ -50,9 +51,9 @@
     "paymentRoom": "Chambre",
     "paymentPending": "En attente",
     "paymentFailed": "Échoué",
-    "bookingTakenByOther": "Réservation #{{id}} prise par un autre coiffeur",
+    "bookingTakenByOther": "Réservation #{{id}} prise par un autre thérapeute",
     "profileNotFound": "Profil introuvable",
-    "bookingAlreadyTaken": "Réservation déjà prise par un autre coiffeur",
+    "bookingAlreadyTaken": "Réservation déjà prise par un autre thérapeute",
     "bookingAccepted": "Réservation acceptée !",
     "acceptError": "Erreur lors de l'acceptation",
     "bookingDeclined": "Réservation refusée",
@@ -91,17 +92,17 @@
     "add": "Ajouter",
     "noTreatments": "Aucun traitement ajouté",
     "contactConcierge": "Contacter concierge",
-    "contactOOM": "Contacter OOM",
+    "contactBrand": "Contacter {{brandName}}",
     "unassignBooking": "Se désister de la réservation",
     "chooseApp": "Choisir une application",
     "deleteTreatmentTitle": "Supprimer le traitement ?",
     "deleteTreatmentDesc": "Êtes-vous sûr de vouloir supprimer ce traitement ?",
     "unassignTitle": "Se désister de la réservation ?",
-    "unassignDesc": "La réservation sera remise en attente et proposée à d'autres coiffeurs.",
+    "unassignDesc": "La réservation sera remise en attente et proposée à d'autres thérapeutes.",
     "keepBooking": "Non, garder",
     "confirmUnassign": "Oui, me désister",
     "declineTitle": "Refuser cette réservation ?",
-    "declineDesc": "Êtes-vous sûr de vouloir refuser cette réservation ? Elle restera visible pour les autres coiffeurs.",
+    "declineDesc": "Êtes-vous sûr de vouloir refuser cette réservation ? Elle restera visible pour les autres thérapeutes.",
     "confirmDecline": "Oui, refuser",
     "completed": "Prestation complétée avec succès",
     "notAssigned": "Cette réservation ne vous est pas assignée",
@@ -183,7 +184,7 @@
   },
   "onboarding": {
     "welcome": {
-      "title": "Bienvenue sur OOM",
+      "title": "Bienvenue sur {{brandName}}",
       "accountCreated": "Compte créé !",
       "subtitle": "Votre compte a été créé avec succès. Configurons votre profil pour commencer.",
       "start": "Commencer"
@@ -222,7 +223,7 @@
       "enable": "Activer les notifications",
       "later": "Configurer plus tard"
     },
-    "complete": "Bienvenue sur OOM !"
+    "complete": "Bienvenue sur {{brandName}} !"
   },
   "newBooking": {
     "title": "Nouvelle réservation",
@@ -309,19 +310,19 @@
   "terms": {
     "legalNotice": {
       "title": "1. Mentions légales",
-      "content": "Le présent site et l'application OOM Beauty Room Service sont édités par :\n\nOOM PARIS\nSAS au capital de 1 258,57 €\nSiège social : 38 rue de Grenelle, 75007 Paris\nSIREN : 900 979 592\nSIRET : 900 979 592 00012\nRCS Paris : 900 979 592\nN° TVA intracommunautaire : FR32900979592\n\nDirecteur de la publication : Tom Uzan\nContact : contact@oomworld.com\nTéléphone : 06 74 67 82 93\n\nHébergeur :\nOVHcloud\n2 rue Kellermann, 59100 Roubaix, France"
+      "content": "Le présent site et l'application {{brandName}} sont édités par :\n\n{{companyName}}\n{{companyType}} au capital de {{companyCapital}}\nSiège social : {{companyAddress}}\nSIREN : {{companySiren}}\nSIRET : {{companySiret}}\nRCS Paris : {{companyRcs}}\nN° TVA intracommunautaire : {{companyVat}}\n\nDirecteur de la publication : {{companyDirector}}\nContact : {{contactEmail}}\nTéléphone : {{contactPhone}}\n\nHébergeur :\n{{hostName}}\n{{hostAddress}}"
     },
     "object": {
       "title": "2. Objet",
-      "content": "Les présentes Conditions Générales d'Utilisation (CGU) ont pour objet de définir les modalités et conditions d'utilisation de l'application OOM Beauty Room Service, permettant la réservation de prestations de beauté et bien-être dans les établissements hôteliers partenaires."
+      "content": "Les présentes Conditions Générales d'Utilisation (CGU) ont pour objet de définir les modalités et conditions d'utilisation de l'application {{brandName}}, permettant la réservation de prestations de beauté et bien-être dans les établissements hôteliers partenaires."
     },
     "acceptance": {
       "title": "3. Acceptation des conditions",
-      "content": "L'utilisation de l'application implique l'acceptation pleine et entière des présentes CGU. OOM PARIS se réserve le droit de modifier ces conditions à tout moment. Les utilisateurs seront informés de toute modification par notification dans l'application."
+      "content": "L'utilisation de l'application implique l'acceptation pleine et entière des présentes CGU. {{companyName}} se réserve le droit de modifier ces conditions à tout moment. Les utilisateurs seront informés de toute modification par notification dans l'application."
     },
     "service": {
       "title": "4. Description du service",
-      "content": "OOM Beauty Room Service est une plateforme de mise en relation entre des clients séjournant dans des hôtels partenaires et des professionnels de la beauté. Le service permet de réserver des prestations de coiffure, soins esthétiques et bien-être directement dans la chambre d'hôtel du client."
+      "content": "{{brandName}} est une plateforme de mise en relation entre des clients séjournant dans des hôtels partenaires et des professionnels de la beauté. Le service permet de réserver des prestations de coiffure, soins esthétiques et bien-être directement dans la chambre d'hôtel du client."
     },
     "account": {
       "title": "5. Inscription et compte utilisateur",
@@ -333,19 +334,19 @@
     },
     "liability": {
       "title": "7. Responsabilité",
-      "content": "OOM PARIS agit en qualité d'intermédiaire entre les clients et les prestataires de services. La responsabilité d'OOM PARIS ne saurait être engagée en cas de litige entre un client et un prestataire, ni pour les dommages indirects résultant de l'utilisation du service."
+      "content": "{{companyName}} agit en qualité d'intermédiaire entre les clients et les prestataires de services. La responsabilité de {{companyName}} ne saurait être engagée en cas de litige entre un client et un prestataire, ni pour les dommages indirects résultant de l'utilisation du service."
     },
     "withdrawal": {
       "title": "8. Droit de rétractation",
-      "content": "Conformément aux articles L.221-18 et suivants du Code de la consommation, vous disposez d'un délai de 14 jours à compter de la conclusion du contrat pour exercer votre droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.\n\nToutefois, conformément à l'article L.221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les prestations de services pleinement exécutées avant la fin du délai de rétractation et dont l'exécution a commencé avec l'accord préalable et exprès du consommateur.\n\nPour exercer ce droit, contactez-nous à : contact@oomworld.com"
+      "content": "Conformément aux articles L.221-18 et suivants du Code de la consommation, vous disposez d'un délai de 14 jours à compter de la conclusion du contrat pour exercer votre droit de rétractation, sans avoir à justifier de motifs ni à payer de pénalités.\n\nToutefois, conformément à l'article L.221-28 du Code de la consommation, le droit de rétractation ne peut être exercé pour les prestations de services pleinement exécutées avant la fin du délai de rétractation et dont l'exécution a commencé avec l'accord préalable et exprès du consommateur.\n\nPour exercer ce droit, contactez-nous à : {{contactEmail}}"
     },
     "mediation": {
       "title": "9. Médiation et règlement des litiges",
-      "content": "En cas de litige, vous pouvez recourir gratuitement au service de médiation de la consommation. Conformément aux articles L.611-1 et R.612-1 et suivants du Code de la consommation, vous pouvez contacter le médiateur de la consommation dont nous relevons.\n\nAvant de saisir le médiateur, vous devez d'abord tenter de résoudre votre litige directement avec OOM PARIS en adressant une réclamation écrite à contact@oomworld.com."
+      "content": "En cas de litige, vous pouvez recourir gratuitement au service de médiation de la consommation. Conformément aux articles L.611-1 et R.612-1 et suivants du Code de la consommation, vous pouvez contacter le médiateur de la consommation dont nous relevons.\n\nAvant de saisir le médiateur, vous devez d'abord tenter de résoudre votre litige directement avec {{companyName}} en adressant une réclamation écrite à {{contactEmail}}."
     },
     "ip": {
       "title": "10. Propriété intellectuelle",
-      "content": "L'ensemble des éléments constituant l'application (textes, graphismes, logiciels, photographies, images, sons, plans, logos, marques, créations et œuvres protégeables diverses, bases de données, etc.) ainsi que l'application elle-même, sont la propriété exclusive d'OOM PARIS ou de ses partenaires."
+      "content": "L'ensemble des éléments constituant l'application (textes, graphismes, logiciels, photographies, images, sons, plans, logos, marques, créations et œuvres protégeables diverses, bases de données, etc.) ainsi que l'application elle-même, sont la propriété exclusive de {{companyName}} ou de ses partenaires."
     },
     "law": {
       "title": "11. Loi applicable et juridiction compétente",
@@ -359,7 +360,7 @@
   "privacy": {
     "controller": {
       "title": "1. Responsable du traitement",
-      "content": "Le responsable du traitement de vos données personnelles est :\n\nOOM PARIS\nSAS au capital de 1 258,57 €\n38 rue de Grenelle, 75007 Paris\nEmail : contact@oomworld.com\nTéléphone : 06 74 67 82 93\n\nPour toute question relative à la protection de vos données, vous pouvez nous contacter à l'adresse : contact@oomworld.com"
+      "content": "Le responsable du traitement de vos données personnelles est :\n\n{{companyName}}\n{{companyType}} au capital de {{companyCapital}}\n{{companyAddress}}\nEmail : {{contactEmail}}\nTéléphone : {{contactPhone}}\n\nPour toute question relative à la protection de vos données, vous pouvez nous contacter à l'adresse : {{contactEmail}}"
     },
     "collect": {
       "title": "2. Données collectées",
@@ -379,7 +380,7 @@
     },
     "rights": {
       "title": "6. Vos droits",
-      "content": "Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés, vous disposez des droits suivants :\n\n- Droit d'accès : obtenir la confirmation du traitement de vos données et en recevoir une copie\n- Droit de rectification : faire corriger vos données inexactes ou incomplètes\n- Droit à l'effacement : demander la suppression de vos données dans les cas prévus par la loi\n- Droit à la limitation : demander la suspension du traitement de vos données\n- Droit à la portabilité : recevoir vos données dans un format structuré et lisible\n- Droit d'opposition : vous opposer au traitement de vos données pour motifs légitimes\n- Droit de retirer votre consentement : à tout moment pour les traitements basés sur le consentement\n\nPour exercer ces droits, contactez-nous à : contact@oomworld.com"
+      "content": "Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi Informatique et Libertés, vous disposez des droits suivants :\n\n- Droit d'accès : obtenir la confirmation du traitement de vos données et en recevoir une copie\n- Droit de rectification : faire corriger vos données inexactes ou incomplètes\n- Droit à l'effacement : demander la suppression de vos données dans les cas prévus par la loi\n- Droit à la limitation : demander la suspension du traitement de vos données\n- Droit à la portabilité : recevoir vos données dans un format structuré et lisible\n- Droit d'opposition : vous opposer au traitement de vos données pour motifs légitimes\n- Droit de retirer votre consentement : à tout moment pour les traitements basés sur le consentement\n\nPour exercer ces droits, contactez-nous à : {{contactEmail}}"
     },
     "cnil": {
       "title": "7. Réclamation auprès de la CNIL",
@@ -405,5 +406,33 @@
       "title": "12. Mise à jour de la politique",
       "content": "La présente politique de confidentialité peut être mise à jour à tout moment. La date de dernière mise à jour est indiquée ci-dessous. Nous vous informerons de toute modification substantielle.\n\nDernière mise à jour : Décembre 2024"
     }
+  },
+  "schedule": {
+    "title": "Mon planning",
+    "monthlyView": "Vue mensuelle",
+    "weeklyTemplate": "Modèle hebdo",
+    "applyTemplate": "Appliquer le modèle",
+    "applyToMonth": "Appliquer à {{month}}",
+    "applyConfirm": "Appliquer votre modèle hebdomadaire à {{month}} ? Les jours modifiés manuellement seront préservés.",
+    "applied": "Modèle appliqué à {{count}} jours",
+    "available": "Disponible",
+    "unavailable": "Indisponible",
+    "shifts": "Créneaux",
+    "addShift": "Ajouter un créneau",
+    "removeShift": "Supprimer",
+    "saveDay": "Enregistrer",
+    "daySaved": "Jour mis à jour",
+    "editDayDesc": "Définissez votre disponibilité pour ce jour",
+    "noScheduleYet": "Aucun planning défini pour ce mois",
+    "noScheduleDesc": "Utilisez votre modèle hebdomadaire pour configurer rapidement vos disponibilités",
+    "manuallyEdited": "Modifié manuellement",
+    "monday": "Lundi",
+    "tuesday": "Mardi",
+    "wednesday": "Mercredi",
+    "thursday": "Jeudi",
+    "friday": "Vendredi",
+    "saturday": "Samedi",
+    "sunday": "Dimanche",
+    "templateSaved": "Modèle enregistré"
   }
 }

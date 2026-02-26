@@ -1,5 +1,6 @@
 // Payment link email templates (French and English)
 
+import { brand } from './brand.ts';
 import {
   getBaseEmailTemplate,
   getEmailHeader,
@@ -46,7 +47,7 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
           </p>
 
           <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-            Un professionnel OOM World se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.
+            Un professionnel ${brand.name} se déplacera directement dans votre chambre pour vous offrir un moment de détente. <strong>Vous n'avez rien à faire</strong>, installez-vous confortablement et profitez.
           </p>
 
           <!-- Booking Details Card -->
@@ -93,7 +94,7 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
         </p>
 
         <p style="font-size: 16px; color: #374151; margin: 0 0 24px 0;">
-          An OOM World professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.
+          A ${brand.name} professional will come directly to your hotel room to provide you with a relaxing experience. <strong>You don't have to do anything</strong>, just sit back and enjoy.
         </p>
 
         <!-- Booking Details Card -->
@@ -130,7 +131,7 @@ export const getPaymentLinkWhatsAppMessage = (language: 'fr' | 'en', data: Payme
   const treatmentsList = data.treatments.map(t => `• ${t.name} - ${t.price}${currency}`).join('\n');
 
   if (language === 'fr') {
-    return `💫 OOM World - Lien de paiement
+    return `💫 ${brand.name} - Lien de paiement
 
 Bonjour ${data.clientName} !
 
@@ -150,11 +151,11 @@ ${treatmentsList}
 
 Ce lien expire dans 24h.
 
-L'équipe OOM World`;
+L'équipe ${brand.name}`;
   }
 
   // English version
-  return `💫 OOM World - Payment Link
+  return `💫 ${brand.name} - Payment Link
 
 Hello ${data.clientName}!
 
@@ -174,5 +175,5 @@ ${treatmentsList}
 
 This link expires in 24h.
 
-The OOM World Team`;
+The ${brand.name} Team`;
 };

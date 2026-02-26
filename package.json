@@ -9,7 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "supabase:function": "supabase functions serve"
+    "supabase:function": "supabase functions serve",
+    "sync:brand": "cp src/config/brand.json supabase/functions/_shared/brand.json",
+    "generate:manifests": "node scripts/generate-manifests.js",
+    "rebrand": "npm run sync:brand && npm run generate:manifests"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

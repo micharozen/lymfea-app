@@ -38,14 +38,14 @@ const PwaLayout = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get hairdresser ID for prefetching
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      // Get therapist ID for prefetching
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) return;
+      if (!therapistData) return;
 
       const currentPath = location.pathname;
 
@@ -68,16 +68,16 @@ const PwaLayout = () => {
       if (currentPath === "/pwa/notifications") {
         // Get affiliated hotels
         const { data: affiliatedHotels } = await supabase
-          .from("hairdresser_hotels")
+          .from("therapist_venues")
           .select("hotel_id")
-          .eq("hairdresser_id", hairdresserData.id);
+          .eq("therapist_id", therapistData.id);
 
         if (affiliatedHotels && affiliatedHotels.length > 0) {
           const hotelIds = affiliatedHotels.map(h => h.hotel_id);
 
           // Prefetch my bookings
           queryClient.prefetchQuery({
-            queryKey: ["myBookings", hairdresserData.id],
+            queryKey: ["myBookings", therapistData.id],
             queryFn: async () => {
               const { data } = await supabase
                 .from("bookings")
@@ -90,7 +90,7 @@ const PwaLayout = () => {
                     )
                   )
                 `)
-                .eq("hairdresser_id", hairdresserData.id)
+                .eq("therapist_id", therapistData.id)
                 .in("hotel_id", hotelIds);
               return data;
             },
@@ -98,7 +98,7 @@ const PwaLayout = () => {
 
           // Prefetch pending bookings
           queryClient.prefetchQuery({
-            queryKey: ["pendingBookings", hairdresserData.id],
+            queryKey: ["pendingBookings", therapistData.id],
             queryFn: async () => {
               const { data } = await supabase
                 .from("bookings")
@@ -112,7 +112,7 @@ const PwaLayout = () => {
                   )
                 `)
                 .in("hotel_id", hotelIds)
-                .is("hairdresser_id", null)
+                .is("therapist_id", null)
                 .in("status", ["En attente", "Pending"]);
               return data;
             },

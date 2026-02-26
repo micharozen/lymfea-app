@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { brand } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -9,8 +10,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface InviteHairdresserRequest {
-  hairdresserId: string;
+interface InviteTherapistRequest {
+  therapistId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -20,7 +21,7 @@ interface InviteHairdresserRequest {
 }
 
 serve(async (req: Request): Promise<Response> => {
-  console.log("=== invite-hairdresser function called ===");
+  console.log("=== invite-therapist function called ===");
   console.log("Method:", req.method);
 
   // Handle CORS preflight requests
@@ -103,9 +104,9 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { hairdresserId, email, firstName, lastName, phone, countryCode, hotelIds }: InviteHairdresserRequest = await req.json();
+    const { therapistId, email, firstName, lastName, phone, countryCode, hotelIds }: InviteTherapistRequest = await req.json();
 
-    console.log(`Sending welcome email to hairdresser: ${email}`);
+    console.log(`Sending welcome email to therapist: ${email}`);
 
     // Build app URL
     let appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
@@ -138,12 +139,12 @@ serve(async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bienvenue sur OOM App</title>
+          <title>Bienvenue sur ${brand.name}</title>
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur OOM App</h1>
-            <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Coiffeur</p>
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur ${brand.name}</h1>
+            <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Thérapeute</p>
           </div>
           
           <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none;">
@@ -152,8 +153,8 @@ serve(async (req: Request): Promise<Response> => {
             </p>
             
             <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
-              Vous avez été ajouté(e) en tant que coiffeur pour <strong>${hotelNames}</strong>. 
-              Bienvenue dans l'équipe OOM !
+              Vous avez été ajouté(e) en tant que thérapeute pour <strong>${hotelNames}</strong>. 
+              Bienvenue dans l'équipe ${brand.name} !
             </p>
 
             <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
@@ -202,14 +203,14 @@ serve(async (req: Request): Promise<Response> => {
 
             <p style="font-size: 16px; margin-top: 40px; color: #666;">
               Cordialement,<br>
-              <strong style="color: #000000;">L'équipe OOM App</strong>
+              <strong style="color: #000000;">L'équipe ${brand.name}</strong>
             </p>
           </div>
 
           <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px; border-top: 1px solid #e5e5e5;">
-            <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+            <p style="margin: 0;">© ${new Date().getFullYear()} ${brand.legal.companyName}. Tous droits réservés.</p>
             <p style="margin: 10px 0 0 0;">
-              <a href="${appUrl}" style="color: #666; text-decoration: none;">oomworld.com</a>
+              <a href="${appUrl}" style="color: #666; text-decoration: none;">${brand.appDomain}</a>
             </p>
           </div>
         </body>
@@ -221,9 +222,9 @@ serve(async (req: Request): Promise<Response> => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({ 
-        from: 'OOM App <booking@oomworld.com>', 
-        to: [email], 
-        subject: 'Bienvenue sur OOM App - Accès Coiffeur', 
+        from: brand.emails.from.default,
+        to: [email],
+        subject: `Bienvenue sur ${brand.name} - Accès Praticien`,
         html 
       })
     });
@@ -248,7 +249,7 @@ serve(async (req: Request): Promise<Response> => {
       }
     );
   } catch (error: any) {
-    console.error("Error in invite-hairdresser function:", error);
+    console.error("Error in invite-therapist function:", error);
     return new Response(
       JSON.stringify({ error: error.message || "An error occurred" }),
       {

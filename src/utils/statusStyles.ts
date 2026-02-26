@@ -9,6 +9,7 @@ interface StatusConfig {
   label: string;
   badgeClass: string;
   cardClass: string;
+  calendarCardClass?: string; // Pastel version for calendar cards
   hexColor: string; // For emails
   pulse?: boolean; // For animated badges
 }
@@ -19,18 +20,21 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     label: 'En attente',
     badgeClass: 'bg-amber-100 text-amber-800 border border-amber-300',
     cardClass: 'bg-amber-500 text-white',
+    calendarCardClass: 'bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-100',
     hexColor: '#f59e0b',
   },
   confirmed: {
     label: 'Confirmé',
     badgeClass: 'bg-sky-100 text-sky-800 border border-sky-300',
     cardClass: 'bg-sky-500 text-white',
+    calendarCardClass: 'bg-sky-50 text-sky-900 dark:bg-sky-900/20 dark:text-sky-100',
     hexColor: '#0ea5e9',
   },
   ongoing: {
     label: 'En cours',
     badgeClass: 'bg-indigo-100 text-indigo-800 border border-indigo-300 animate-pulse',
     cardClass: 'bg-indigo-600 text-white animate-pulse',
+    calendarCardClass: 'bg-indigo-50 text-indigo-900 dark:bg-indigo-900/20 dark:text-indigo-100',
     hexColor: '#4f46e5',
     pulse: true,
   },
@@ -38,42 +42,49 @@ export const bookingStatusConfig: Record<BookingStatus, StatusConfig> = {
     label: 'Terminé',
     badgeClass: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
     cardClass: 'bg-emerald-500 text-white',
+    calendarCardClass: 'bg-emerald-50 text-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-100',
     hexColor: '#10b981',
   },
   cancelled: {
     label: 'Annulé',
     badgeClass: 'bg-red-100 text-red-700 border border-red-400',
     cardClass: 'bg-red-600 text-white',
+    calendarCardClass: 'bg-red-50 text-red-900 dark:bg-red-900/20 dark:text-red-100',
     hexColor: '#dc2626',
   },
   noshow: {
     label: 'No-show',
     badgeClass: 'bg-rose-100 text-rose-800 border border-rose-400 font-bold',
     cardClass: 'bg-rose-600 text-white',
+    calendarCardClass: 'bg-rose-50 text-rose-900 dark:bg-rose-900/20 dark:text-rose-100',
     hexColor: '#e11d48',
   },
   quote_pending: {
     label: 'Devis',
     badgeClass: 'bg-orange-100 text-orange-800 border border-orange-400',
     cardClass: 'bg-orange-500 text-white',
+    calendarCardClass: 'bg-orange-50 text-orange-900 dark:bg-orange-900/20 dark:text-orange-100',
     hexColor: '#f97316',
   },
   waiting_approval: {
     label: 'Attente',
     badgeClass: 'bg-purple-100 text-purple-800 border border-purple-400',
     cardClass: 'bg-purple-500 text-white',
+    calendarCardClass: 'bg-purple-50 text-purple-900 dark:bg-purple-900/20 dark:text-purple-100',
     hexColor: '#a855f7',
   },
   alternative_proposed: {
     label: 'Créneau proposé',
     badgeClass: 'bg-orange-100 text-orange-700 border border-orange-300',
     cardClass: 'bg-orange-500 text-white',
+    calendarCardClass: 'bg-orange-50 text-orange-900 dark:bg-orange-900/20 dark:text-orange-100',
     hexColor: '#f97316',
   },
   awaiting_hairdresser_selection: {
-    label: 'Attente coiffeur',
+    label: 'Attente thérapeute',
     badgeClass: 'bg-violet-100 text-violet-800 border border-violet-300',
     cardClass: 'bg-violet-500 text-white',
+    calendarCardClass: 'bg-violet-50 text-violet-900 dark:bg-violet-900/20 dark:text-violet-100',
     hexColor: '#8b5cf6',
     pulse: true,
   },
@@ -113,7 +124,7 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
   },
 };
 
-// Entity Status Configuration (Hairdressers, Concierges, Admins, Treatments, Trunks)
+// Entity Status Configuration (Therapists, Concierges, Admins, Treatments, Treatment Rooms)
 export const entityStatusConfig: Record<EntityStatus, StatusConfig> = {
   active: {
     label: 'Actif',

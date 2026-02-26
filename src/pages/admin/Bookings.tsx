@@ -29,7 +29,7 @@ export default function Booking() {
   const { activeTimezone } = useTimezone();
 
   // Data
-  const { bookings, hotels, hairdressers, getHotelInfo, refetch } = useBookingData();
+  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
@@ -40,6 +40,16 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // Day count with localStorage persistence
+  const [dayCount, setDayCount] = useState<number>(() => {
+    const saved = localStorage.getItem('planning-day-count');
+    return saved ? Number(saved) : 5;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('planning-day-count', String(dayCount));
+  }, [dayCount]);
 
   // Invoice state
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -59,8 +69,8 @@ export default function Booking() {
     setStatusFilter,
     hotelFilter,
     setHotelFilter,
-    hairdresserFilter,
-    setHairdresserFilter,
+    therapistFilter,
+    setTherapistFilter,
     filteredBookings,
   } = useBookingFilters(bookings);
 
@@ -78,6 +88,7 @@ export default function Booking() {
   const calendar = useCalendarLogic({
     filteredBookings,
     activeTimezone,
+    dayCount,
   });
 
   // Overflow control
@@ -166,24 +177,25 @@ export default function Booking() {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
-      <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
-        <div className="flex items-center justify-between mb-4">
+      <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
+        <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-            📅 Bookings
+            Planning
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              title="Refresh bookings"
+              title="Refresh"
             >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white">
-              <Plus className="h-4 w-4" />
-              {isConcierge ? "Créer une demande" : "Créer une réservation"}
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs">
+              <Plus className="h-3.5 w-3.5" />
+              {isConcierge ? "Demande" : "Réservation"}
             </Button>
           </div>
         </div>
@@ -195,13 +207,15 @@ export default function Booking() {
           onStatusChange={handleFilterChange(setStatusFilter)}
           hotelFilter={hotelFilter}
           onHotelChange={handleFilterChange(setHotelFilter)}
-          hairdresserFilter={hairdresserFilter}
-          onHairdresserChange={handleFilterChange(setHairdresserFilter)}
+          therapistFilter={therapistFilter}
+          onTherapistChange={handleFilterChange(setTherapistFilter)}
           view={view}
           onViewChange={setView}
+          dayCount={dayCount}
+          onDayCountChange={setDayCount}
           isAdmin={isAdmin}
           hotels={hotels}
-          hairdressers={hairdressers}
+          therapists={therapists}
         />
       </div>
 
@@ -212,20 +226,25 @@ export default function Booking() {
             <BookingCalendarView
               weekDays={calendar.weekDays}
               currentWeekStart={calendar.currentWeekStart}
+              dayCount={dayCount}
               onPreviousWeek={calendar.handlePreviousWeek}
               onNextWeek={calendar.handleNextWeek}
+              onGoToToday={calendar.goToToday}
+              onSetViewDate={calendar.setViewDate}
               getBookingsForDay={calendar.getBookingsForDay}
               getBookingPosition={calendar.getBookingPosition}
               getCurrentTimePosition={calendar.getCurrentTimePosition}
               getStatusColor={calendar.getStatusColor}
               getTranslatedStatus={calendar.getTranslatedStatus}
-              getStatusCardColor={calendar.getStatusCardColor}
+              getCalendarCardColor={calendar.getCalendarCardColor}
               onCalendarClick={handleCalendarClick}
               onBookingClick={handleBookingClick}
               hours={calendar.hours}
               hourHeight={calendar.hourHeight}
               startHour={calendar.startHour}
               getHotelInfo={getHotelInfo}
+              hotels={hotels}
+              hotelFilter={hotelFilter}
             />
           ) : (
             <BookingListView

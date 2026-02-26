@@ -54,7 +54,7 @@ All colors MUST be HSL.
     --foreground: 0 0% 10%;
 
     /* Safe area values (can be clamped by JS on iOS) */
-    --oom-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --app-safe-bottom: env(safe-area-inset-bottom, 0px);
 
     --card: 0 0% 96%;
     --card-foreground: 0 0% 10%;
@@ -179,7 +179,7 @@ All colors MUST be HSL.
     padding-top: env(safe-area-inset-top, 0px);
   }
   .pb-safe {
-    padding-bottom: var(--oom-safe-bottom, 0px);
+    padding-bottom: var(--app-safe-bottom, 0px);
   }
   .pl-safe {
     padding-left: env(safe-area-inset-left, 0px);
@@ -193,15 +193,15 @@ All colors MUST be HSL.
   }
   .py-safe {
     padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: var(--oom-safe-bottom, 0px);
+    padding-bottom: var(--app-safe-bottom, 0px);
   }
   .p-safe {
-    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) var(--oom-safe-bottom, 0px) env(safe-area-inset-left, 0px);
+    padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) var(--app-safe-bottom, 0px) env(safe-area-inset-left, 0px);
   }
   
   /* Min height accounting for safe areas */
   .min-h-screen-safe {
-    min-height: calc(100vh - env(safe-area-inset-top, 0px) - var(--oom-safe-bottom, 0px));
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - var(--app-safe-bottom, 0px));
   }
   
   /* Touch-friendly tap highlight */
@@ -227,10 +227,19 @@ All colors MUST be HSL.
     width: 100%;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
     /* CRITICAL: Force dark background everywhere to prevent white flash */
     background-color: #1a1a1a !important;
     background: hsl(var(--background)) !important;
+  }
+
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Prevent body scrollbar when admin layout is active —
+     admin pages scroll via <main> inside the sidebar layout */
+  body:has(.group\/sidebar-wrapper) {
+    overflow: hidden !important;
   }
 
   html {

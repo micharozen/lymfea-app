@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +10,7 @@ const corsHeaders = {
 
 /**
  * SERVICE COMPLETION REPORT
- * Trigger: When hairdresser finalizes booking (room charge or card payment)
+ * Trigger: When therapist finalizes booking (room charge or card payment)
  * Content: Dynamic email based on payment method with clear billing instructions
  */
 serve(async (req) => {
@@ -86,14 +87,14 @@ serve(async (req) => {
     });
     
     // Deep link URL for booking details
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
+    const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
     const totalAmount = booking.total_price || 0;
     const roomNumber = booking.room_number || 'N/A';
 
-    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = EMAIL_LOGO_URL;
 
     // Dynamic subject based on payment method
     const emailSubject = isRoomPayment
@@ -124,7 +125,7 @@ serve(async (req) => {
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:16px;border-bottom:2px solid #000;">
       <div>
-        <div style="font-size:28px;font-weight:700;">OOM</div>
+        <div style="font-size:28px;font-weight:700;">${brand.name}</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:24px;font-weight:700;">FACTURE</div>
@@ -154,7 +155,7 @@ serve(async (req) => {
       <div style="font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:8px;">Détails prestation</div>
       <div style="font-size:14px;"><strong>Date:</strong> ${formattedDate}</div>
       <div style="font-size:14px;margin-top:4px;"><strong>Heure:</strong> ${formattedTime}</div>
-      ${booking.hairdresser_name ? `<div style="font-size:14px;margin-top:4px;"><strong>Coiffeur:</strong> ${booking.hairdresser_name}</div>` : ''}
+      ${booking.therapist_name ? `<div style="font-size:14px;margin-top:4px;"><strong>Thérapeute:</strong> ${booking.therapist_name}</div>` : ''}
       <div style="font-size:14px;margin-top:4px;"><strong>Paiement:</strong> ${isRoomPayment ? 'Facturation chambre' : 'Réglé'}</div>
     </div>
     
@@ -199,8 +200,8 @@ serve(async (req) => {
     
     <!-- Footer -->
     <div style="text-align:center;padding-top:16px;border-top:1px solid #e5e7eb;">
-      <div style="font-weight:600;font-size:13px;margin-bottom:4px;">Merci d'avoir choisi OOM</div>
-      <div style="color:#9ca3af;font-size:12px;">Pour toute question : booking@oomworld.com</div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px;">Merci d'avoir choisi ${brand.name}</div>
+      <div style="color:#9ca3af;font-size:12px;">Pour toute question : ${brand.legal.bookingEmail}</div>
     </div>
   </div>
 </body>
@@ -267,7 +268,7 @@ serve(async (req) => {
           <!-- Header -->
           <tr>
             <td style="background:#fff;padding:20px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 12px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 12px;" />
               <span style="display:inline-block;background:${badgeColor};color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:700;">${badgeText}</span>
             </td>
           </tr>
@@ -305,8 +306,8 @@ serve(async (req) => {
                         <td style="padding:6px 0;">${formattedDateShort} à ${formattedTime}</td>
                       </tr>
                       <tr>
-                        <td style="padding:6px 0;color:#6b7280;">Coiffeur</td>
-                        <td style="padding:6px 0;">${booking.hairdresser_name || '-'}</td>
+                        <td style="padding:6px 0;color:#6b7280;">Thérapeute</td>
+                        <td style="padding:6px 0;">${booking.therapist_name || '-'}</td>
                       </tr>
                       <tr>
                         <td style="padding:6px 0;color:#6b7280;">Soins</td>
@@ -343,7 +344,7 @@ serve(async (req) => {
           <tr>
             <td style="padding:16px;text-align:center;background:#fafafa;border-top:1px solid #f0f0f0;">
               <p style="margin:0;font-size:11px;color:#9ca3af;">
-                OOM · Rapport de prestation automatique
+                ${brand.name} · Rapport de prestation automatique
               </p>
             </td>
           </tr>
@@ -386,7 +387,7 @@ serve(async (req) => {
             const invoiceBase64 = btoa(String.fromCharCode(...invoiceBytes));
             
             const { error: emailError } = await resend.emails.send({
-              from: 'OOM <booking@oomworld.com>',
+              from: brand.emails.from.default,
               to: [concierge.email],
               subject: emailSubject,
               html: createCompletionEmailHtml(),

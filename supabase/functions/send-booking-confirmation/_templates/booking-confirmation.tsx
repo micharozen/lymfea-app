@@ -42,12 +42,12 @@ export const BookingConfirmationEmail = ({
   return (
   <Html>
     <Head />
-    <Preview>Booking Confirmation #{bookingNumber} - OOM World</Preview>
+    <Preview>Booking Confirmation #{bookingNumber} - Lymfea</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* Header with Logo */}
         <Section style={header}>
-          <Text style={logoText}>OOM</Text>
+          <Text style={logoText}>Lymfea</Text>
           <Text style={logoSubtext}>WORLD</Text>
         </Section>
 
@@ -60,7 +60,7 @@ export const BookingConfirmationEmail = ({
           </Text>
           
           <Text style={text}>
-            Your booking has been successfully confirmed. A hairdresser will be assigned to your appointment shortly and you will receive a notification.
+            Your booking has been successfully confirmed. A therapist will be assigned to your appointment shortly and you will receive a notification.
           </Text>
 
           {/* Booking Details Card */}
@@ -111,10 +111,10 @@ export const BookingConfirmationEmail = ({
         <Section style={footer}>
           <Hr style={footerDivider} />
           <Text style={footerText}>
-            OOM World - Premium Hairdressing Services
+            Lymfea - Luxury in Motion
           </Text>
           <Text style={footerSubtext}>
-            Questions? Contact us at booking@oomworld.com
+            Questions? Contact us at booking@lymfea.com
           </Text>
         </Section>
       </Container>

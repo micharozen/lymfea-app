@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Mail } from 'lucide-react';
-import oomLogo from '@/assets/oom-monogram-white-client.svg';
+import { brand, brandLogos } from '@/config/brand';
 
 export function DashboardFooter() {
   const { t } = useTranslation('client');
@@ -18,7 +18,7 @@ export function DashboardFooter() {
             asChild
             className="h-12 px-8 text-sm font-medium tracking-wide uppercase bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300"
           >
-            <a href="mailto:contact@oomworld.com">
+            <a href={`mailto:${brand.legal.contactEmail}`}>
               <Mail className="h-4 w-4 mr-2" />
               {t('enterpriseDashboard.footer.contact')}
             </a>
@@ -26,12 +26,12 @@ export function DashboardFooter() {
         </div>
       </div>
 
-      {/* Powered by OOM */}
+      {/* Powered by Lymfea */}
       <div className="bg-gray-900 px-6 py-6 flex items-center justify-center gap-2">
         <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-light">
           {t('enterpriseDashboard.footer.poweredBy')}
         </span>
-        <img src={oomLogo} alt="OOM" className="h-5 w-5 opacity-50" />
+        <img src={brandLogos.monogramWhiteClient} alt={brand.name} className="h-5 w-5 opacity-50" />
       </div>
     </div>
   );

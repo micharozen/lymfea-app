@@ -1,13 +1,16 @@
-import { User } from "lucide-react";
+import { User, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function Profile() {
+  const { t } = useTranslation('pwa');
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -293,6 +296,15 @@ export default function Profile() {
                   disabled={!isEditing}
                 />
               </div>
+            </div>
+
+            {/* Language Preference */}
+            <div className="pt-4 border-t mb-6">
+              <Label className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                {t('profile.language')}
+              </Label>
+              <LanguageSwitcher variant="list" persistToProfile />
             </div>
 
             <div className="flex justify-end gap-3">

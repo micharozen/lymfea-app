@@ -31,7 +31,7 @@ serve(async (req) => {
     );
 
     // Determine role by presence in domain tables
-    let role: "admin" | "concierge" | "hairdresser" | null = null;
+    let role: "admin" | "concierge" | "therapist" | null = null;
 
     const { data: adminRow } = await supabaseAdmin
       .from("admins")
@@ -51,13 +51,13 @@ serve(async (req) => {
       if (conciergeRow) {
         role = "concierge";
       } else {
-        const { data: hairdresserRow } = await supabaseAdmin
-          .from("hairdressers")
+        const { data: therapistRow } = await supabaseAdmin
+          .from("therapists")
           .select("id")
           .eq("user_id", userId)
           .maybeSingle();
 
-        if (hairdresserRow) role = "hairdresser";
+        if (therapistRow) role = "therapist";
       }
     }
 

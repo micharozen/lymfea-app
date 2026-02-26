@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
-const RateHairdresser = () => {
+const RateTherapist = () => {
   const { token } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ const RateHairdresser = () => {
   const [comment, setComment] = useState("");
   const [ratingData, setRatingData] = useState<{
     id: string;
-    hairdresser_name: string;
+    therapist_name: string;
     hotel_name: string;
   } | null>(null);
 
@@ -34,14 +34,14 @@ const RateHairdresser = () => {
 
       // Fetch rating record with booking details
       const { data, error } = await supabase
-        .from("hairdresser_ratings")
+        .from("therapist_ratings")
         .select(`
           id,
           rating,
           comment,
           submitted_at,
           bookings (
-            hairdresser_name,
+            therapist_name,
             hotel_name
           )
         `)
@@ -60,7 +60,7 @@ const RateHairdresser = () => {
 
       setRatingData({
         id: data.id,
-        hairdresser_name: (data.bookings as any)?.hairdresser_name || "your hairdresser",
+        therapist_name: (data.bookings as any)?.therapist_name || "your therapist",
         hotel_name: (data.bookings as any)?.hotel_name || "the hotel",
       });
       setRating(data.rating || 0);
@@ -81,7 +81,7 @@ const RateHairdresser = () => {
     setSubmitting(true);
     try {
       const { error } = await supabase
-        .from("hairdresser_ratings")
+        .from("therapist_ratings")
         .update({
           rating,
           comment: comment.trim() || null,
@@ -143,7 +143,7 @@ const RateHairdresser = () => {
             Rate your experience
           </h1>
           <p className="text-muted-foreground">
-            How was your service with <strong>{ratingData.hairdresser_name}</strong> at{" "}
+            How was your service with <strong>{ratingData.therapist_name}</strong> at{" "}
             <strong>{ratingData.hotel_name}</strong>?
           </p>
         </div>
@@ -207,4 +207,4 @@ const RateHairdresser = () => {
   );
 };
 
-export default RateHairdresser;
+export default RateTherapist;

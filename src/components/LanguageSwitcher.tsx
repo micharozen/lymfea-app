@@ -7,11 +7,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Globe } from 'lucide-react';
+import { useLanguagePreference } from '@/hooks/useLanguagePreference';
 
 interface LanguageSwitcherProps {
   variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client' | 'list';
   className?: string;
   onSelect?: () => void;
+  persistToProfile?: boolean;
 }
 
 const languages = [
@@ -19,13 +21,18 @@ const languages = [
   { code: 'en', label: 'English', shortLabel: 'EN', flag: '🇬🇧' },
 ];
 
-export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect }: LanguageSwitcherProps) => {
+export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect, persistToProfile = false }: LanguageSwitcherProps) => {
   const { i18n } = useTranslation();
-  
+  const { saveLanguage } = useLanguagePreference();
+
   const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
 
   const changeLanguage = (langCode: string) => {
-    i18n.changeLanguage(langCode);
+    if (persistToProfile) {
+      saveLanguage(langCode);
+    } else {
+      i18n.changeLanguage(langCode);
+    }
     onSelect?.();
   };
 

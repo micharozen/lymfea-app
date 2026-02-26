@@ -9,7 +9,7 @@ const corsHeaders = {
 /**
  * CANCELLATION NOTIFICATION HANDLER
  * Triggered when a booking status changes to 'cancelled'
- * Sends notifications to: Hairdresser (push + in-app) and Slack channel
+ * Sends notifications to: Therapist (push + in-app) and Slack channel
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -48,31 +48,31 @@ serve(async (req) => {
     const reason = cancellationReason || booking.cancellation_reason || "Non spécifiée";
 
     const results = {
-      hairdresserNotified: false,
+      therapistNotified: false,
       slackNotified: false,
       errors: [] as string[],
     };
 
     // ============================================
-    // 1. NOTIFY HAIRDRESSER (Push + In-App Notification)
+    // 1. NOTIFY THERAPIST (Push + In-App Notification)
     // ============================================
-    if (booking.hairdresser_id) {
+    if (booking.therapist_id) {
       try {
-        // Get hairdresser details
-        const { data: hairdresser } = await supabaseClient
-          .from("hairdressers")
+        // Get therapist details
+        const { data: therapist } = await supabaseClient
+          .from("therapists")
           .select("id, user_id, first_name, last_name")
-          .eq("id", booking.hairdresser_id)
+          .eq("id", booking.therapist_id)
           .single();
 
-        if (hairdresser?.user_id) {
+        if (therapist?.user_id) {
           // Create in-app notification
           const notificationMessage = `❌ Le rendez-vous de ${timeStr} à ${booking.hotel_name} a été annulé. Ne vous déplacez pas.`;
 
           const { error: notifError } = await supabaseClient
             .from("notifications")
             .insert({
-              user_id: hairdresser.user_id,
+              user_id: therapist.user_id,
               booking_id: booking.id,
               type: "booking_cancelled",
               message: notificationMessage,
@@ -82,7 +82,7 @@ serve(async (req) => {
             console.error("[handle-booking-cancellation] Error creating notification:", notifError);
             results.errors.push("Failed to create in-app notification");
           } else {
-            console.log("[handle-booking-cancellation] In-app notification created for hairdresser");
+            console.log("[handle-booking-cancellation] In-app notification created for therapist");
           }
 
           // Send push notification
@@ -91,7 +91,7 @@ serve(async (req) => {
               "send-push-notification",
               {
                 body: {
-                  userId: hairdresser.user_id,
+                  userId: therapist.user_id,
                   title: "❌ Réservation Annulée",
                   body: `Le RDV de ${timeStr} à ${booking.hotel_name} a été annulé. Ne vous déplacez pas.`,
                   data: {
@@ -107,22 +107,22 @@ serve(async (req) => {
               console.error("[handle-booking-cancellation] Push error:", pushError);
               results.errors.push("Failed to send push notification");
             } else {
-              console.log("[handle-booking-cancellation] Push notification sent to hairdresser");
+              console.log("[handle-booking-cancellation] Push notification sent to therapist");
             }
           } catch (pushErr) {
             console.error("[handle-booking-cancellation] Push exception:", pushErr);
           }
 
-          results.hairdresserNotified = true;
+          results.therapistNotified = true;
         } else {
-          console.log("[handle-booking-cancellation] Hairdresser has no user_id");
+          console.log("[handle-booking-cancellation] Therapist has no user_id");
         }
       } catch (err) {
-        console.error("[handle-booking-cancellation] Hairdresser notification error:", err);
-        results.errors.push("Hairdresser notification failed");
+        console.error("[handle-booking-cancellation] Therapist notification error:", err);
+        results.errors.push("Therapist notification failed");
       }
     } else {
-      console.log("[handle-booking-cancellation] No hairdresser assigned");
+      console.log("[handle-booking-cancellation] No therapist assigned");
     }
 
     // ============================================
@@ -192,7 +192,7 @@ serve(async (req) => {
             hotelName: booking.hotel_name || "",
             bookingDate: booking.booking_date,
             bookingTime: booking.booking_time,
-            hairdresserName: booking.hairdresser_name,
+            therapistName: booking.therapist_name,
             totalPrice: booking.total_price,
             currency: "€",
             cancellationReason: reason,

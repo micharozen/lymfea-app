@@ -66,52 +66,52 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
-// Find an available trunk for the booking
-async function findAvailableTrunk(
+// Find an available treatment room for the booking
+async function findAvailableRoom(
   supabase: any,
   hotelId: string,
   bookingDate: string,
   bookingTime: string
 ): Promise<string | null> {
-  // Get all active trunks for this hotel
-  const { data: trunks, error: trunksError } = await supabase
-    .from('trunks')
+  // Get all active treatment rooms for this hotel
+  const { data: rooms, error: roomsError } = await supabase
+    .from('treatment_rooms')
     .select('id')
     .eq('hotel_id', hotelId)
     .in('status', ['active', 'Actif']);
 
-  if (trunksError || !trunks || trunks.length === 0) {
-    console.log('No active trunks found for hotel:', hotelId);
+  if (roomsError || !rooms || rooms.length === 0) {
+    console.log('No active treatment rooms found for hotel:', hotelId);
     return null;
   }
 
-  // Get all bookings at this time slot that have trunks assigned
-  const { data: bookingsWithTrunks, error: bookingsError } = await supabase
+  // Get all bookings at this time slot that have rooms assigned
+  const { data: bookingsWithRooms, error: bookingsError } = await supabase
     .from('bookings')
-    .select('trunk_id')
+    .select('room_id')
     .eq('hotel_id', hotelId)
     .eq('booking_date', bookingDate)
     .eq('booking_time', bookingTime)
-    .not('trunk_id', 'is', null)
+    .not('room_id', 'is', null)
     .not('status', 'in', '("Annulé","Terminé","cancelled")');
 
   if (bookingsError) {
-    console.error('Error fetching bookings with trunks:', bookingsError);
+    console.error('Error fetching bookings with rooms:', bookingsError);
     return null;
   }
 
-  // Find trunk IDs that are already in use
-  const usedTrunkIds = new Set(bookingsWithTrunks?.map((b: any) => b.trunk_id) || []);
+  // Find room IDs that are already in use
+  const usedRoomIds = new Set(bookingsWithRooms?.map((b: any) => b.room_id) || []);
 
-  // Find first available trunk
-  for (const trunk of trunks) {
-    if (!usedTrunkIds.has(trunk.id)) {
-      console.log('Found available trunk:', trunk.id);
-      return trunk.id;
+  // Find first available room
+  for (const room of rooms) {
+    if (!usedRoomIds.has(room.id)) {
+      console.log('Found available treatment room:', room.id);
+      return room.id;
     }
   }
 
-  console.log('No available trunks at this time slot');
+  console.log('No available treatment rooms at this time slot');
   return null;
 }
 
@@ -197,16 +197,16 @@ serve(async (req) => {
       );
     }
 
-    // Find an available trunk for this booking
-    const availableTrunkId = await findAvailableTrunk(
+    // Find an available treatment room for this booking
+    const availableRoomId = await findAvailableRoom(
       supabase,
       hotelId,
       bookingData.date,
       bookingData.time
     );
 
-    if (!availableTrunkId) {
-      console.error('No available trunk for booking');
+    if (!availableRoomId) {
+      console.error('No available treatment room for booking');
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -270,7 +270,22 @@ serve(async (req) => {
     }
     console.log('Total booking duration:', totalDuration, 'minutes');
 
-    // Create booking with trunk_id assigned
+    // Find or create customer by phone
+    const { data: customerId, error: customerError } = await supabase.rpc('find_or_create_customer', {
+      _phone: sanitizedClientData.phone,
+      _first_name: sanitizedClientData.firstName,
+      _last_name: sanitizedClientData.lastName,
+      _email: sanitizedClientData.email,
+    });
+
+    if (customerError) {
+      console.error('Error finding/creating customer:', customerError);
+      // Non-blocking: continue booking creation without customer link
+    } else {
+      console.log('Customer linked:', customerId);
+    }
+
+    // Create booking with room_id assigned
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .insert({
@@ -285,12 +300,13 @@ serve(async (req) => {
         booking_date: bookingData.date,
         booking_time: bookingData.time,
         status: bookingStatus,
-        hairdresser_id: null,
-        trunk_id: availableTrunkId, // Assign trunk
+        therapist_id: null,
+        room_id: availableRoomId, // Assign treatment room
         payment_method: effectivePaymentMethod,
         payment_status: effectivePaymentStatus,
         total_price: effectiveTotalPrice,
         duration: totalDuration > 0 ? totalDuration : null,
+        customer_id: customerId || null,
       })
       .select()
       .single();
@@ -306,7 +322,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Booking created:', booking.id, 'with trunk:', availableTrunkId);
+    console.log('Booking created:', booking.id, 'with room:', availableRoomId);
 
     // Create booking treatments
     const treatmentInserts = [];
@@ -332,17 +348,17 @@ serve(async (req) => {
 
     // Auto-validation logic: if hotel has auto_validate_bookings enabled and booking is pending (not quote_pending)
     let wasAutoValidated = false;
-    let autoAssignedHairdresser: { id: string; first_name: string; last_name: string } | null = null;
+    let autoAssignedTherapist: { id: string; first_name: string; last_name: string } | null = null;
 
     if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
-      console.log('Auto-validation enabled for hotel, checking for single hairdresser...');
+      console.log('Auto-validation enabled for hotel, checking for single therapist...');
 
-      // Get active hairdressers assigned to this hotel
-      const { data: hairdresserHotels, error: hairdresserError } = await supabase
-        .from('hairdresser_hotels')
+      // Get active therapists assigned to this hotel
+      const { data: therapistVenues, error: therapistError } = await supabase
+        .from('therapist_venues')
         .select(`
-          hairdresser_id,
-          hairdressers:hairdresser_id (
+          therapist_id,
+          therapists:therapist_id (
             id,
             first_name,
             last_name,
@@ -351,46 +367,46 @@ serve(async (req) => {
         `)
         .eq('hotel_id', hotelId);
 
-      if (!hairdresserError && hairdresserHotels) {
-        // Filter to get only active hairdressers
-        const activeHairdressers = hairdresserHotels
-          .filter((hh: any) => {
-            const h = hh.hairdressers;
-            return h && (h.status?.toLowerCase() === 'active' || h.status?.toLowerCase() === 'actif');
+      if (!therapistError && therapistVenues) {
+        // Filter to get only active therapists
+        const activeTherapists = therapistVenues
+          .filter((tv: any) => {
+            const t = tv.therapists;
+            return t && (t.status?.toLowerCase() === 'active' || t.status?.toLowerCase() === 'actif');
           })
-          .map((hh: any) => hh.hairdressers);
+          .map((tv: any) => tv.therapists);
 
-        console.log('Active hairdressers found:', activeHairdressers.length);
+        console.log('Active therapists found:', activeTherapists.length);
 
-        // If exactly one active hairdresser, auto-assign and confirm
-        if (activeHairdressers.length === 1) {
-          const hairdresser = activeHairdressers[0];
-          const hairdresserName = `${hairdresser.first_name} ${hairdresser.last_name}`;
+        // If exactly one active therapist, auto-assign and confirm
+        if (activeTherapists.length === 1) {
+          const therapist = activeTherapists[0];
+          const therapistName = `${therapist.first_name} ${therapist.last_name}`;
 
-          console.log('Auto-assigning hairdresser:', hairdresserName);
+          console.log('Auto-assigning therapist:', therapistName);
 
           const { error: updateError } = await supabase
             .from('bookings')
             .update({
               status: 'confirmed',
-              hairdresser_id: hairdresser.id,
-              hairdresser_name: hairdresserName,
+              therapist_id: therapist.id,
+              therapist_name: therapistName,
               assigned_at: new Date().toISOString(),
             })
             .eq('id', booking.id);
 
           if (!updateError) {
             wasAutoValidated = true;
-            autoAssignedHairdresser = hairdresser;
-            console.log('Booking auto-validated and assigned to:', hairdresserName);
+            autoAssignedTherapist = therapist;
+            console.log('Booking auto-validated and assigned to:', therapistName);
           } else {
             console.error('Failed to auto-validate booking:', updateError);
           }
         } else {
-          console.log('Auto-validation skipped: found', activeHairdressers.length, 'active hairdressers (need exactly 1)');
+          console.log('Auto-validation skipped: found', activeTherapists.length, 'active therapists (need exactly 1)');
         }
       } else {
-        console.error('Error fetching hairdressers for auto-validation:', hairdresserError);
+        console.error('Error fetching therapists for auto-validation:', therapistError);
       }
     }
 
@@ -446,7 +462,7 @@ serve(async (req) => {
       }
     }
 
-    // For quote_pending bookings, only notify admin (not hairdressers)
+    // For quote_pending bookings, only notify admin (not therapists)
     if (bookingStatus === 'quote_pending') {
       try {
         console.log('Sending quote pending notification to admin for booking:', booking.id);
@@ -479,7 +495,7 @@ serve(async (req) => {
         console.error('Error sending booking confirmed notifications:', confirmError);
       }
     } else {
-      // Regular pending booking: trigger push notifications for hairdressers
+      // Regular pending booking: trigger push notifications for therapists
       try {
         console.log('Triggering push notifications for booking:', booking.id);
         const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {

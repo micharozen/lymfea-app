@@ -1,5 +1,5 @@
 export { useBookingData } from "./useBookingData";
-export type { BookingWithTreatments, Treatment, Hotel, Hairdresser } from "./useBookingData";
+export type { BookingWithTreatments, Treatment, Hotel, Therapist } from "./useBookingData";
 
 export { useBookingFilters } from "./useBookingFilters";
 

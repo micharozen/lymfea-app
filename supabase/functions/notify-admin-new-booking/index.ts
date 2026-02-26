@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,7 +22,7 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
     `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
   ).join('');
 
-  const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const logoUrl = EMAIL_LOGO_URL;
 
   return `
 <!DOCTYPE html>
@@ -35,7 +36,7 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
           <!-- Header -->
           <tr>
             <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
               <span style="display:inline-block;background:#f59e0b;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">🔔 Nouvelle résa</span>
             </td>
           </tr>
@@ -96,7 +97,7 @@ const createAdminEmailHtml = (booking: any, treatments: any[], dashboardUrl: str
           <!-- Footer -->
           <tr>
             <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">
-              OOM World
+              ${brand.name}
             </td>
           </tr>
         </table>
@@ -128,7 +129,7 @@ serve(async (req) => {
 
     console.log("Sending admin notification for booking:", bookingId);
 
-    const siteUrl = Deno.env.get("SITE_URL") || "https://app.oomworld.com";
+    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const dashboardUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     const { data: booking, error: bookingError } = await supabaseClient
@@ -174,7 +175,7 @@ serve(async (req) => {
     for (const admin of admins) {
       try {
         const { error: emailError } = await resend.emails.send({
-          from: "OOM <booking@oomworld.com>",
+          from: brand.emails.from.default,
           to: [admin.email],
           subject: `🔔 #${booking.booking_id} · ${booking.client_first_name} · ${booking.hotel_name || booking.hotel_id}`,
           html: emailHtml,

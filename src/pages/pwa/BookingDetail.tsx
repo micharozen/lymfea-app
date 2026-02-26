@@ -45,7 +45,7 @@ interface Booking {
   status: string;
   phone: string;
   total_price: number;
-  hairdresser_id: string | null;
+  therapist_id: string | null;
   declined_by?: string[];
   hotel_image_url?: string;
   hotel_address?: string;
@@ -56,7 +56,7 @@ interface Booking {
   hotel_vat?: number;
   payment_status?: string | null;
   payment_method?: string | null;
-  hairdresser_commission?: number;
+  therapist_commission?: number;
   hotel_currency?: string;
 }
 
@@ -123,7 +123,7 @@ const PwaBookingDetail = () => {
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
   const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
   const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
-  const [hairdresserProfile, setHairdresserProfile] = useState<any>(null);
+  const [therapistProfile, setTherapistProfile] = useState<any>(null);
   const [showNavigationDrawer, setShowNavigationDrawer] = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
@@ -132,7 +132,7 @@ const PwaBookingDetail = () => {
   const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const isAcceptingRef = useRef(false);
-  // Proposed slots for awaiting_hairdresser_selection status
+  // Proposed slots for awaiting_hairdresser_selection status (DB enum value)
   const [proposedSlots, setProposedSlots] = useState<{
     slot_1_date: string; slot_1_time: string;
     slot_2_date?: string | null; slot_2_time?: string | null;
@@ -208,7 +208,7 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat, hairdresser_commission, currency")
+          .select("image, address, city, vat, therapist_commission, currency")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
@@ -220,7 +220,7 @@ const PwaBookingDetail = () => {
         hotel_address: hotelData?.address,
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
-        hairdresser_commission: hotelData?.hairdresser_commission || 70,
+        therapist_commission: hotelData?.therapist_commission || 70,
         hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
@@ -244,20 +244,20 @@ const PwaBookingDetail = () => {
         setTreatments(treatmentsData as any);
       }
 
-      // Fetch hairdresser profile if assigned
-      if (bookingData.hairdresser_id) {
-        const { data: hairdresserData } = await supabase
-          .from("hairdressers")
+      // Fetch therapist profile if assigned
+      if (bookingData.therapist_id) {
+        const { data: therapistData } = await supabase
+          .from("therapists")
           .select("profile_image, first_name, last_name")
-          .eq("id", bookingData.hairdresser_id)
+          .eq("id", bookingData.therapist_id)
           .single();
-        
-        if (hairdresserData) {
-          setHairdresserProfile(hairdresserData);
+
+        if (therapistData) {
+          setTherapistProfile(therapistData);
         }
       }
 
-      // Fetch proposed slots if awaiting hairdresser selection
+      // Fetch proposed slots if awaiting therapist selection
       if (bookingData.status === "awaiting_hairdresser_selection") {
         const { data: slotsData } = await supabase
           .from("booking_proposed_slots")
@@ -423,18 +423,18 @@ const PwaBookingDetail = () => {
   const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
     if (!booking) return;
 
-    // Get current hairdresser's ID
+    // Get current therapist's ID
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data: hairdresserData } = await supabase
-      .from("hairdressers")
+    const { data: therapistData } = await supabase
+      .from("therapists")
       .select("id")
       .eq("user_id", user.id)
       .single();
 
-    if (!hairdresserData) {
-      toast.error("Profil coiffeur introuvable");
+    if (!therapistData) {
+      toast.error("Profil thérapeute introuvable");
       return;
     }
 
@@ -444,7 +444,7 @@ const PwaBookingDetail = () => {
         body: {
           bookingId: booking.id,
           slotNumber,
-          hairdresserId: hairdresserData.id,
+          hairdresserId: therapistData.id,
         },
       });
 
@@ -465,22 +465,22 @@ const PwaBookingDetail = () => {
     
     setUpdating(true);
     try {
-      // Get current user's hairdresser ID
+      // Get current user's therapist ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) return;
+      if (!therapistData) return;
 
       // Use RPC function to unassign booking (bypasses RLS issues)
       const { data, error } = await supabase.rpc('unassign_booking', {
         _booking_id: booking.id,
-        _hairdresser_id: hairdresserData.id
+        _therapist_id: therapistData.id
       });
 
       if (error) throw error;
@@ -532,20 +532,20 @@ const PwaBookingDetail = () => {
       }
 
       console.log('[Booking] 👤 User authenticated:', user.id);
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id, first_name, last_name")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) {
-        console.error('[Booking] ❌ No hairdresser found for user');
-        toast.error('Profil coiffeur non trouvé');
+      if (!therapistData) {
+        console.error('[Booking] ❌ No therapist found for user');
+        toast.error('Profil thérapeute non trouvé');
         setUpdating(false);
         return;
       }
 
-      console.log('[Booking] 💇 Hairdresser found:', hairdresserData.id);
+      console.log('[Booking] 💆 Therapist found:', therapistData.id);
 
       // Check for conflicts with existing bookings (exclude cancelled/completed)
       console.log('[Booking] 🔍 Checking for schedule conflicts...');
@@ -559,7 +559,7 @@ const PwaBookingDetail = () => {
             )
           )
         `)
-        .eq("hairdresser_id", hairdresserData.id)
+        .eq("therapist_id", therapistData.id)
         .eq("booking_date", booking.booking_date)
         .not("status", "in", '("Annulé","Terminé")');
 
@@ -600,8 +600,8 @@ const PwaBookingDetail = () => {
       console.log('[Booking] 📞 Calling accept_booking RPC...');
       const { data, error } = await supabase.rpc('accept_booking', {
         _booking_id: booking.id,
-        _hairdresser_id: hairdresserData.id,
-        _hairdresser_name: `${hairdresserData.first_name} ${hairdresserData.last_name}`,
+        _therapist_id: therapistData.id,
+        _therapist_name: `${therapistData.first_name} ${therapistData.last_name}`,
         _total_price: totalPrice
       });
 
@@ -618,8 +618,8 @@ const PwaBookingDetail = () => {
       console.log('[Booking] ✅ Result success?', result?.success);
       
       if (result && !result.success) {
-        console.log('[Booking] ❌ Booking already taken by another hairdresser');
-        toast.error("Réservation déjà prise par un autre coiffeur");
+        console.log('[Booking] ❌ Booking already taken by another therapist');
+        toast.error("Réservation déjà prise par un autre thérapeute");
         navigate("/pwa/dashboard", { state: { forceRefresh: true } });
         return;
       }
@@ -657,13 +657,13 @@ const PwaBookingDetail = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresserData) return;
+      if (!therapistData) return;
 
       const { data: currentBooking } = await supabase
         .from("bookings")
@@ -672,7 +672,7 @@ const PwaBookingDetail = () => {
         .single();
 
       const currentDeclined = currentBooking?.declined_by || [];
-      const updatedDeclined = [...currentDeclined, hairdresserData.id];
+      const updatedDeclined = [...currentDeclined, therapistData.id];
 
       const { error } = await supabase
         .from("bookings")
@@ -767,8 +767,8 @@ const PwaBookingDetail = () => {
   // Calculate earnings on HT (before VAT), matching finalize-payment logic
   const vatRate = booking.hotel_vat || 20;
   const totalHT = totalPrice / (1 + vatRate / 100);
-  const estimatedEarnings = booking.hairdresser_commission
-    ? Math.round(totalHT * (booking.hairdresser_commission / 100) * 100) / 100
+  const estimatedEarnings = booking.therapist_commission
+    ? Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100
     : 0;
 
   return (
@@ -947,7 +947,7 @@ const PwaBookingDetail = () => {
         {/* Bottom Actions - Compact */}
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
           <div className="flex flex-col gap-2">
-            {/* For Awaiting Hairdresser Selection (concierge flow with proposed slots) */}
+            {/* For Awaiting Therapist Selection (concierge flow with proposed slots) */}
             {booking.status === "awaiting_hairdresser_selection" && proposedSlots ? (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-center text-muted-foreground">Choisissez un créneau</p>
@@ -1016,7 +1016,7 @@ const PwaBookingDetail = () => {
                   Refuser cette demande
                 </button>
               </div>
-            ) : booking.status === "pending" && !booking.hairdresser_id ? (
+            ) : booking.status === "pending" && !booking.therapist_id ? (
               <>
                 {/* Decline Button */}
                 <button
@@ -1067,7 +1067,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                        <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
+                        <span className="text-sm font-medium">{t('bookingDetail.contactSupport')}</span>
                       </button>
                       <div className="border-t my-2" />
                       <DrawerClose asChild>
@@ -1149,7 +1149,7 @@ const PwaBookingDetail = () => {
                         className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
                       >
                         <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                        <span className="text-sm font-medium">{t('bookingDetail.contactOOM')}</span>
+                        <span className="text-sm font-medium">{t('bookingDetail.contactSupport')}</span>
                       </button>
                       
                       <div className="h-px bg-border my-1" />

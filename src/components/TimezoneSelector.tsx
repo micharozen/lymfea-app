@@ -143,16 +143,18 @@ interface TimezoneSelectFieldProps {
   onChange: (value: string) => void;
   label?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 /**
  * Timezone selector for forms (hotel edit, settings, etc.) with search
  */
-export function TimezoneSelectField({ 
-  value, 
-  onChange, 
+export function TimezoneSelectField({
+  value,
+  onChange,
   label = "Fuseau horaire",
-  className 
+  className,
+  disabled
 }: TimezoneSelectFieldProps) {
   const [open, setOpen] = useState(false);
   const currentLabel = getTimezoneLabel(value);
@@ -162,12 +164,13 @@ export function TimezoneSelectField({
       {label && (
         <label className="text-sm font-medium">{label}</label>
       )}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            disabled={disabled}
             className="w-full justify-between font-normal hover:bg-background hover:text-foreground"
           >
             <div className="flex items-center gap-2">

@@ -12,6 +12,66 @@ export interface CountryDefaults {
   vat: number;
 }
 
+export interface CountryOption {
+  value: string; // Country name (lowercase key used by getCountryDefaults)
+  label: string; // Display name
+}
+
+// Country options for picklist (derived from COUNTRY_DEFAULTS, full names only)
+export const COUNTRY_OPTIONS: CountryOption[] = [
+  // Europe
+  { value: 'france', label: 'France' },
+  { value: 'germany', label: 'Allemagne' },
+  { value: 'spain', label: 'Espagne' },
+  { value: 'italy', label: 'Italie' },
+  { value: 'netherlands', label: 'Pays-Bas' },
+  { value: 'belgium', label: 'Belgique' },
+  { value: 'austria', label: 'Autriche' },
+  { value: 'portugal', label: 'Portugal' },
+  { value: 'ireland', label: 'Irlande' },
+  { value: 'greece', label: 'Grèce' },
+  { value: 'finland', label: 'Finlande' },
+  { value: 'monaco', label: 'Monaco' },
+  { value: 'united kingdom', label: 'Royaume-Uni' },
+  { value: 'switzerland', label: 'Suisse' },
+  { value: 'sweden', label: 'Suède' },
+  { value: 'norway', label: 'Norvège' },
+  { value: 'denmark', label: 'Danemark' },
+  { value: 'poland', label: 'Pologne' },
+  { value: 'czech republic', label: 'République tchèque' },
+  { value: 'hungary', label: 'Hongrie' },
+  { value: 'romania', label: 'Roumanie' },
+  { value: 'turkey', label: 'Turquie' },
+  // Middle East
+  { value: 'united arab emirates', label: 'Émirats arabes unis' },
+  { value: 'saudi arabia', label: 'Arabie saoudite' },
+  { value: 'qatar', label: 'Qatar' },
+  { value: 'kuwait', label: 'Koweït' },
+  { value: 'bahrain', label: 'Bahreïn' },
+  { value: 'israel', label: 'Israël' },
+  // Americas
+  { value: 'united states', label: 'États-Unis' },
+  { value: 'canada', label: 'Canada' },
+  { value: 'mexico', label: 'Mexique' },
+  { value: 'brazil', label: 'Brésil' },
+  // Asia Pacific
+  { value: 'japan', label: 'Japon' },
+  { value: 'china', label: 'Chine' },
+  { value: 'hong kong', label: 'Hong Kong' },
+  { value: 'singapore', label: 'Singapour' },
+  { value: 'australia', label: 'Australie' },
+  { value: 'new zealand', label: 'Nouvelle-Zélande' },
+  { value: 'india', label: 'Inde' },
+  { value: 'thailand', label: 'Thaïlande' },
+  // Africa
+  { value: 'south africa', label: 'Afrique du Sud' },
+  { value: 'morocco', label: 'Maroc' },
+  { value: 'egypt', label: 'Égypte' },
+  // Indian Ocean
+  { value: 'maldives', label: 'Maldives' },
+  { value: 'mauritius', label: 'Maurice' },
+];
+
 // Common timezones with friendly names grouped by region
 export const TIMEZONE_OPTIONS: TimezoneOption[] = [
   // Europe

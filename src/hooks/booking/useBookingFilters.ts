@@ -5,7 +5,7 @@ export function useBookingFilters(bookings: BookingWithTreatments[] | undefined)
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
-  const [hairdresserFilter, setHairdresserFilter] = useState<string>("all");
+  const [therapistFilter, setTherapistFilter] = useState<string>("all");
 
   const filteredBookings = useMemo(() => {
     return bookings?.filter((booking) => {
@@ -17,18 +17,18 @@ export function useBookingFilters(bookings: BookingWithTreatments[] | undefined)
 
       const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
       const matchesHotel = hotelFilter === "all" || booking.hotel_id === hotelFilter;
-      const matchesHairdresser =
-        hairdresserFilter === "all" || booking.hairdresser_id === hairdresserFilter;
+      const matchesTherapist =
+        therapistFilter === "all" || booking.therapist_id === therapistFilter;
 
-      return matchesSearch && matchesStatus && matchesHotel && matchesHairdresser;
+      return matchesSearch && matchesStatus && matchesHotel && matchesTherapist;
     });
-  }, [bookings, searchQuery, statusFilter, hotelFilter, hairdresserFilter]);
+  }, [bookings, searchQuery, statusFilter, hotelFilter, therapistFilter]);
 
   const resetFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
     setHotelFilter("all");
-    setHairdresserFilter("all");
+    setTherapistFilter("all");
   };
 
   return {
@@ -38,8 +38,8 @@ export function useBookingFilters(bookings: BookingWithTreatments[] | undefined)
     setStatusFilter,
     hotelFilter,
     setHotelFilter,
-    hairdresserFilter,
-    setHairdresserFilter,
+    therapistFilter,
+    setTherapistFilter,
     filteredBookings,
     resetFilters,
   };

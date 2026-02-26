@@ -44,22 +44,22 @@ serve(async (req) => {
 
     console.log("User authenticated:", user.id);
 
-    // Get hairdresser's Stripe account
-    const { data: hairdresser, error: hairdresserError } = await supabaseAdmin
-      .from("hairdressers")
+    // Get therapist's Stripe account
+    const { data: therapist, error: therapistError } = await supabaseAdmin
+      .from("therapists")
       .select("stripe_account_id")
       .eq("user_id", user.id)
       .single();
 
-    if (hairdresserError || !hairdresser?.stripe_account_id) {
-      console.error("Hairdresser not found or no Stripe account:", hairdresserError);
+    if (therapistError || !therapist?.stripe_account_id) {
+      console.error("Therapist not found or no Stripe account:", therapistError);
       return new Response(
         JSON.stringify({ error: "No Stripe account found" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Found Stripe account:", hairdresser.stripe_account_id);
+    console.log("Found Stripe account:", therapist.stripe_account_id);
 
     // Initialize Stripe
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
@@ -67,7 +67,7 @@ serve(async (req) => {
     });
 
     // Generate login link for Express dashboard
-    const loginLink = await stripe.accounts.createLoginLink(hairdresser.stripe_account_id);
+    const loginLink = await stripe.accounts.createLoginLink(therapist.stripe_account_id);
 
     console.log("Generated login link successfully");
 

@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
+import { brand } from "@/config/brand";
 
 interface BookingTransaction {
   id: string;
@@ -27,7 +28,7 @@ interface BookingTransaction {
   room_number: string | null;
   client_first_name: string;
   client_last_name: string;
-  hairdresser_name: string | null;
+  therapist_name: string | null;
   total_price: number | null;
   payment_status: string | null;
   payment_method: string | null;
@@ -71,7 +72,7 @@ const ConciergeTransactions = () => {
           room_number,
           client_first_name,
           client_last_name,
-          hairdresser_name,
+          therapist_name,
           total_price,
           payment_status,
           payment_method,
@@ -146,14 +147,14 @@ const ConciergeTransactions = () => {
 
   const handleDownloadStatement = () => {
     // Generate CSV of transactions
-    const headers = ["Date", "Heure", "N° Chambre", "Client", "Prestation", "Coiffeur", "Montant", "Statut Paiement"];
+    const headers = ["Date", "Heure", "N° Chambre", "Client", "Prestation", "Thérapeute", "Montant", "Statut Paiement"];
     const rows = filteredTransactions.map(t => [
       format(new Date(t.booking_date), "dd/MM/yyyy"),
       t.booking_time.slice(0, 5),
       t.room_number || "-",
       `${t.client_first_name} ${t.client_last_name}`,
       `Réservation #${t.booking_id}`,
-      t.hairdresser_name || "-",
+      t.therapist_name || "-",
       t.total_price ? formatPrice(t.total_price, t.hotels?.currency || 'EUR') : "-",
       t.payment_status || "-"
     ]);
@@ -219,7 +220,7 @@ const ConciergeTransactions = () => {
             <Building2 className="w-4 h-4" />
             {hotelBalance?.hotel_name || "Hôtel"}
           </CardDescription>
-          <CardTitle className="text-lg">Solde à régler à OOM</CardTitle>
+          <CardTitle className="text-lg">{`Solde à régler à ${brand.name}`}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
@@ -229,7 +230,7 @@ const ConciergeTransactions = () => {
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {(hotelBalance?.total_pending || 0) >= 0 
-                  ? "Montant dû à OOM" 
+                  ? `Montant dû à ${brand.name}`
                   : "Crédit en votre faveur"
                 }
               </p>
@@ -298,7 +299,7 @@ const ConciergeTransactions = () => {
                     <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Heure</th>
                     <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Chambre</th>
                     <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Client</th>
-                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Coiffeur</th>
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground">Thérapeute</th>
                     <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground">Montant</th>
                     <th className="text-center py-3 px-2 text-xs font-medium text-muted-foreground">Statut</th>
                   </tr>
@@ -328,7 +329,7 @@ const ConciergeTransactions = () => {
                       </td>
                       <td className="py-3 px-2">
                         <span className="text-sm text-muted-foreground">
-                          {transaction.hairdresser_name || "-"}
+                          {transaction.therapist_name || "-"}
                         </span>
                       </td>
                       <td className="py-3 px-2 text-right">

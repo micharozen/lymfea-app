@@ -5,9 +5,9 @@
     "womensMenu": "Women's Menu",
     "mensMenu": "Men's Menu",
     "exclusiveService": "EXCLUSIVE ROOM SERVICE",
-    "artOfHairdressing": "The Art of Hairdressing",
+    "artOfHairdressing": "The Art of Wellness",
     "at": "at",
-    "luxuryDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
+    "luxuryDescription": "High-end wellness excellence, in the privacy of your room. Our expert therapists come to your suite.",
     "officialPartners": "OFFICIAL PARTNERS",
     "ourServices": "OUR SERVICES",
     "seeAll": "See all",
@@ -17,7 +17,7 @@
     "equipmentIncluded": "Full professional equipment included",
     "howItWorks": "How it works?",
     "ourExperts": "OUR EXPERTS",
-    "expertHairdresser": "Expert Hairdresser",
+    "expertHairdresser": "Expert Therapist",
     "enterpriseWellnessTitle": "Wellness, delivered to your office",
     "nextSession": "Next session:",
     "booking": "Book a treatment"
@@ -166,9 +166,9 @@
     "exclusiveRoomService": "EXCLUSIVE ROOM SERVICE",
     "exclusiveWorkspaceService": "EXCLUSIVE WORKSPACE SERVICE",
     "exclusiveEnterpriseService": "CORPORATE WELLNESS EXPERIENCE",
-    "roomServiceDescription": "High-end hairdressing excellence, in the privacy of your room. Our expert hairdressers and barbers come to your suite.",
-    "workspaceServiceDescription": "High-end hairdressing excellence, at your workspace. Our expert hairdressers and barbers come to you.",
-    "enterpriseServiceDescription": "Treat yourself to a real moment of disconnection. Our expert hairdressers and barbers set up directly in your offices — no commute, no stress, just care.",
+    "roomServiceDescription": "High-end wellness excellence, in the privacy of your room. Our expert therapists come to your suite.",
+    "workspaceServiceDescription": "High-end wellness excellence, at your workspace. Our expert therapists come to you.",
+    "enterpriseServiceDescription": "Treat yourself to a real moment of disconnection. Our expert therapists set up directly in your offices — no commute, no stress, just care.",
     "enterprise": "Enterprise",
     "inEnterpriseDisclaimer": "Our team comes directly to your offices."
   },
@@ -205,7 +205,7 @@
     },
     "error": {
       "notFound": "Location not found",
-      "notFoundDesc": "This link doesn't match any location. Check the URL or contact your OOM representative.",
+      "notFoundDesc": "This link doesn't match any location. Check the URL or contact your {{brandName}} representative.",
       "notDeployed": "No session scheduled on this date."
     }
   },

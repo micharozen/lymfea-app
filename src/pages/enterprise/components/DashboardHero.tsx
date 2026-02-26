@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
-import oomLogo from '@/assets/oom-monogram-white-client.svg';
+import { brand, brandLogos } from '@/config/brand';
 import type { HotelInfo } from '../hooks/useEnterpriseDashboard';
 
 interface DashboardHeroProps {
@@ -34,12 +34,12 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
       {/* Hero Content */}
       <div className="relative z-10 w-full max-w-2xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10 px-6">
         <div className="animate-fade-in">
-          {/* Logos: OOM × Company */}
+          {/* Logos: Lymfea × Company */}
           <div className="flex items-center gap-3 sm:gap-4 mb-6">
-            <a href="https://oomworld.com" target="_blank" rel="noopener noreferrer">
+            <a href={brand.website} target="_blank" rel="noopener noreferrer">
               <img
-                src={oomLogo}
-                alt="OOM"
+                src={brandLogos.monogramWhiteClient}
+                alt={brand.name}
                 className="h-8 w-8 sm:h-10 sm:w-10"
               />
             </a>

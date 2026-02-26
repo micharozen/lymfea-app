@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,7 +33,7 @@ serve(async (req) => {
     });
 
     // Create WhatsApp message
-    const message = `✨ Booking Confirmation - OOM World
+    const message = `✨ Booking Confirmation - ${brand.name}
 
 Hello ${clientName}!
 
@@ -49,7 +50,7 @@ ${treatments.map((t: string) => `• ${t}`).join('\n')}
 We look forward to serving you!
 
 Best regards,
-OOM World Team`;
+${brand.name} Team`;
 
     // Send WhatsApp using Twilio
     const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');

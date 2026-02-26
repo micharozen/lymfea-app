@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { brand } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +14,7 @@ interface SlackNotificationPayload {
   hotelName: string;
   bookingDate: string;
   bookingTime: string;
-  hairdresserName?: string;
+  therapistName?: string;
   totalPrice?: number;
   currency?: string;
   treatments?: string[];
@@ -65,7 +66,7 @@ serve(async (req) => {
     const payload: SlackNotificationPayload = await req.json();
     console.log("[Slack] Sending notification:", payload.type, "for booking:", payload.bookingNumber);
 
-    const SITE_URL = Deno.env.get("SITE_URL") || "https://app.oomworld.com";
+    const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const bookingUrl = `${SITE_URL}/admin/booking?bookingId=${payload.bookingId}`;
 
     // Format date
@@ -145,7 +146,7 @@ serve(async (req) => {
                 },
                 {
                   type: "mrkdwn",
-                  text: `*Coiffeur:*\n${payload.hairdresserName || 'Non assigné'}`
+                  text: `*Thérapeute:*\n${payload.therapistName || 'Non assigné'}`
                 }
               ]
             },

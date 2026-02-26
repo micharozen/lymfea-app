@@ -14,7 +14,8 @@
   },
   "welcome": {
     "title": "Welcome",
-    "subtitle": "Manage your bookings easily",
+    "subtitle": "Your wellness space",
+    "description": "Manage your appointments with ease",
     "getStarted": "Get Started",
     "termsIntro": "By continuing, you agree to our",
     "termsOfUse": "Terms of Use",
@@ -50,9 +51,9 @@
     "paymentRoom": "Room",
     "paymentPending": "Pending",
     "paymentFailed": "Failed",
-    "bookingTakenByOther": "Booking #{{id}} taken by another hairdresser",
+    "bookingTakenByOther": "Booking #{{id}} taken by another therapist",
     "profileNotFound": "Profile not found",
-    "bookingAlreadyTaken": "Booking already taken by another hairdresser",
+    "bookingAlreadyTaken": "Booking already taken by another therapist",
     "bookingAccepted": "Booking accepted!",
     "acceptError": "Error accepting booking",
     "bookingDeclined": "Booking declined",
@@ -91,17 +92,17 @@
     "add": "Add",
     "noTreatments": "No treatments added",
     "contactConcierge": "Contact Concierge",
-    "contactOOM": "Contact OOM",
+    "contactBrand": "Contact {{brandName}}",
     "unassignBooking": "Withdraw from booking",
     "chooseApp": "Choose an app",
     "deleteTreatmentTitle": "Delete treatment?",
     "deleteTreatmentDesc": "Are you sure you want to delete this treatment?",
     "unassignTitle": "Withdraw from booking?",
-    "unassignDesc": "The booking will be put back on hold and offered to other hairdressers.",
+    "unassignDesc": "The booking will be put back on hold and offered to other therapists.",
     "keepBooking": "No, keep it",
     "confirmUnassign": "Yes, withdraw",
     "declineTitle": "Decline this booking?",
-    "declineDesc": "Are you sure you want to decline? It will remain visible to other hairdressers.",
+    "declineDesc": "Are you sure you want to decline? It will remain visible to other therapists.",
     "confirmDecline": "Yes, decline",
     "completed": "Service completed successfully",
     "notAssigned": "This booking is not assigned to you",
@@ -183,7 +184,7 @@
   },
   "onboarding": {
     "welcome": {
-      "title": "Welcome to OOM",
+      "title": "Welcome to {{brandName}}",
       "accountCreated": "Account created!",
       "subtitle": "Your account has been created successfully. Let's set up your profile to get started.",
       "start": "Get Started"
@@ -222,7 +223,7 @@
       "enable": "Enable notifications",
       "later": "Configure later"
     },
-    "complete": "Welcome to OOM!"
+    "complete": "Welcome to {{brandName}}!"
   },
   "newBooking": {
     "title": "New booking",
@@ -309,19 +310,19 @@
   "terms": {
     "legalNotice": {
       "title": "1. Legal Notice",
-      "content": "This website and the OOM Beauty Room Service application are published by:\n\nOOM PARIS\nSAS (Simplified Joint Stock Company) with capital of €1,258.57\nRegistered office: 38 rue de Grenelle, 75007 Paris, France\nSIREN: 900 979 592\nSIRET: 900 979 592 00012\nRCS Paris: 900 979 592\nIntra-community VAT number: FR32900979592\n\nPublication Director: Tom Uzan\nContact: contact@oomworld.com\nPhone: +33 6 74 67 82 93\n\nHost:\nOVHcloud\n2 rue Kellermann, 59100 Roubaix, France"
+      "content": "This website and the {{brandName}} application are published by:\n\n{{companyName}}\n{{companyTypeEn}} with capital of {{companyCapital}}\nRegistered office: {{companyAddress}}\nSIREN: {{companySiren}}\nSIRET: {{companySiret}}\nRCS Paris: {{companyRcs}}\nIntra-community VAT number: {{companyVat}}\n\nPublication Director: {{companyDirector}}\nContact: {{contactEmail}}\nPhone: {{contactPhone}}\n\nHost:\n{{hostName}}\n{{hostAddress}}"
     },
     "object": {
       "title": "2. Purpose",
-      "content": "These Terms of Use define the terms and conditions for using the OOM Beauty Room Service application, which allows booking beauty and wellness services in partner hotels."
+      "content": "These Terms of Use define the terms and conditions for using the {{brandName}} application, which allows booking beauty and wellness services in partner hotels."
     },
     "acceptance": {
       "title": "3. Acceptance of Terms",
-      "content": "Using the application implies full acceptance of these Terms of Use. OOM PARIS reserves the right to modify these conditions at any time. Users will be notified of any changes through in-app notifications."
+      "content": "Using the application implies full acceptance of these Terms of Use. {{companyName}} reserves the right to modify these conditions at any time. Users will be notified of any changes through in-app notifications."
     },
     "service": {
       "title": "4. Service Description",
-      "content": "OOM Beauty Room Service is a platform connecting hotel guests with beauty professionals. The service allows booking hairdressing, beauty treatments, and wellness services directly in the client's hotel room."
+      "content": "{{brandName}} is a platform connecting hotel guests with beauty professionals. The service allows booking hairdressing, beauty treatments, and wellness services directly in the client's hotel room."
     },
     "account": {
       "title": "5. Registration and User Account",
@@ -333,19 +334,19 @@
     },
     "liability": {
       "title": "7. Liability",
-      "content": "OOM PARIS acts as an intermediary between clients and service providers. OOM PARIS cannot be held liable for disputes between a client and a provider, nor for indirect damages resulting from the use of the service."
+      "content": "{{companyName}} acts as an intermediary between clients and service providers. {{companyName}} cannot be held liable for disputes between a client and a provider, nor for indirect damages resulting from the use of the service."
     },
     "withdrawal": {
       "title": "8. Right of Withdrawal",
-      "content": "In accordance with European consumer protection regulations, you have 14 days from the conclusion of the contract to exercise your right of withdrawal, without having to justify reasons or pay penalties.\n\nHowever, the right of withdrawal cannot be exercised for services fully performed before the end of the withdrawal period and whose execution began with the prior express consent of the consumer.\n\nTo exercise this right, contact us at: contact@oomworld.com"
+      "content": "In accordance with European consumer protection regulations, you have 14 days from the conclusion of the contract to exercise your right of withdrawal, without having to justify reasons or pay penalties.\n\nHowever, the right of withdrawal cannot be exercised for services fully performed before the end of the withdrawal period and whose execution began with the prior express consent of the consumer.\n\nTo exercise this right, contact us at: {{contactEmail}}"
     },
     "mediation": {
       "title": "9. Mediation and Dispute Resolution",
-      "content": "In case of dispute, you may use our consumer mediation service free of charge. Before contacting the mediator, you must first attempt to resolve your dispute directly with OOM PARIS by sending a written complaint to contact@oomworld.com."
+      "content": "In case of dispute, you may use our consumer mediation service free of charge. Before contacting the mediator, you must first attempt to resolve your dispute directly with {{companyName}} by sending a written complaint to {{contactEmail}}."
     },
     "ip": {
       "title": "10. Intellectual Property",
-      "content": "All elements of the application (texts, graphics, software, photographs, images, sounds, logos, trademarks, creations and protectable works, databases, etc.) as well as the application itself, are the exclusive property of OOM PARIS or its partners."
+      "content": "All elements of the application (texts, graphics, software, photographs, images, sounds, logos, trademarks, creations and protectable works, databases, etc.) as well as the application itself, are the exclusive property of {{companyName}} or its partners."
     },
     "law": {
       "title": "11. Applicable Law and Jurisdiction",
@@ -359,7 +360,7 @@
   "privacy": {
     "controller": {
       "title": "1. Data Controller",
-      "content": "The data controller for your personal data is:\n\nOOM PARIS\nSAS with capital of €1,258.57\n38 rue de Grenelle, 75007 Paris, France\nEmail: contact@oomworld.com\nPhone: +33 6 74 67 82 93\n\nFor any questions regarding the protection of your data, you can contact us at: contact@oomworld.com"
+      "content": "The data controller for your personal data is:\n\n{{companyName}}\nSAS with capital of {{companyCapital}}\n{{companyAddress}}\nEmail: {{contactEmail}}\nPhone: {{contactPhone}}\n\nFor any questions regarding the protection of your data, you can contact us at: {{contactEmail}}"
     },
     "collect": {
       "title": "2. Data Collected",
@@ -379,7 +380,7 @@
     },
     "rights": {
       "title": "6. Your Rights",
-      "content": "In accordance with the General Data Protection Regulation (GDPR), you have the following rights:\n\n- Right of access: obtain confirmation of data processing and receive a copy\n- Right of rectification: have your inaccurate or incomplete data corrected\n- Right to erasure: request deletion of your data in cases provided by law\n- Right to restriction: request suspension of data processing\n- Right to portability: receive your data in a structured, readable format\n- Right to object: object to the processing of your data for legitimate reasons\n- Right to withdraw consent: at any time for consent-based processing\n\nTo exercise these rights, contact us at: contact@oomworld.com"
+      "content": "In accordance with the General Data Protection Regulation (GDPR), you have the following rights:\n\n- Right of access: obtain confirmation of data processing and receive a copy\n- Right of rectification: have your inaccurate or incomplete data corrected\n- Right to erasure: request deletion of your data in cases provided by law\n- Right to restriction: request suspension of data processing\n- Right to portability: receive your data in a structured, readable format\n- Right to object: object to the processing of your data for legitimate reasons\n- Right to withdraw consent: at any time for consent-based processing\n\nTo exercise these rights, contact us at: {{contactEmail}}"
     },
     "cnil": {
       "title": "7. Complaint to Supervisory Authority",
@@ -405,5 +406,33 @@
       "title": "12. Policy Updates",
       "content": "This privacy policy may be updated at any time. The date of the last update is indicated below. We will inform you of any substantial changes.\n\nLast updated: December 2024"
     }
+  },
+  "schedule": {
+    "title": "My Schedule",
+    "monthlyView": "Monthly View",
+    "weeklyTemplate": "Weekly Template",
+    "applyTemplate": "Apply Template",
+    "applyToMonth": "Apply to {{month}}",
+    "applyConfirm": "Apply your weekly template to {{month}}? Days you manually edited will be preserved.",
+    "applied": "Template applied to {{count}} days",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "shifts": "Shifts",
+    "addShift": "Add shift",
+    "removeShift": "Remove",
+    "saveDay": "Save",
+    "daySaved": "Day updated",
+    "editDayDesc": "Set your availability for this day",
+    "noScheduleYet": "No schedule set for this month",
+    "noScheduleDesc": "Use your weekly template to quickly set up your availability",
+    "manuallyEdited": "Manually edited",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "templateSaved": "Template saved"
   }
 }

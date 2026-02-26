@@ -28,9 +28,12 @@ export interface Hotel {
   name: string;
   image: string | null;
   currency: string | null;
+  calendar_color: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
 }
 
-export interface Hairdresser {
+export interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -97,23 +100,23 @@ export function useBookingData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, image, currency")
+        .select("id, name, image, currency, calendar_color, opening_time, closing_time")
         .order("name");
       if (error) throw error;
       return data as Hotel[];
     },
   });
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers"],
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .select("id, first_name, last_name")
         .eq("status", "active")
         .order("first_name");
       if (error) throw error;
-      return data as Hairdresser[];
+      return data as Therapist[];
     },
   });
 
@@ -143,7 +146,7 @@ export function useBookingData() {
   return {
     bookings,
     hotels,
-    hairdressers,
+    therapists,
     getHotelInfo,
     refetch: refetchBookings,
   };

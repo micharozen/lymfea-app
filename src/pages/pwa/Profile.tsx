@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe } from "lucide-react";
+import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe, CalendarDays } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,8 +13,9 @@ import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import { brand } from "@/config/brand";
 
-interface Hairdresser {
+interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -27,7 +28,7 @@ interface Hairdresser {
 
 const PwaProfile = () => {
   const { t } = useTranslation('pwa');
-  const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
+  const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLanguageDialogOpen, setIsLanguageDialogOpen] = useState(false);
@@ -51,16 +52,16 @@ const PwaProfile = () => {
         return;
       }
 
-      // Check for cached hairdresser data first
-      const cachedHairdresser = queryClient.getQueryData<Hairdresser>(["hairdresser", user.id]);
-      
-      if (cachedHairdresser) {
-        setHairdresser(cachedHairdresser);
+      // Check for cached therapist data first
+      const cachedTherapist = queryClient.getQueryData<Therapist>(["therapist", user.id]);
+
+      if (cachedTherapist) {
+        setTherapist(cachedTherapist);
         setEditForm({
-          first_name: cachedHairdresser.first_name,
-          last_name: cachedHairdresser.last_name,
-          phone: cachedHairdresser.phone,
-          email: cachedHairdresser.email,
+          first_name: cachedTherapist.first_name,
+          last_name: cachedTherapist.last_name,
+          phone: cachedTherapist.phone,
+          email: cachedTherapist.email,
         });
         setLoading(false);
       }
@@ -82,7 +83,7 @@ const PwaProfile = () => {
       }
 
       const { data, error } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .select("*")
         .eq("user_id", user.id)
         .single();
@@ -90,9 +91,9 @@ const PwaProfile = () => {
       if (error) throw error;
       
       // Cache the data
-      queryClient.setQueryData(["hairdresser", user.id], data);
-      
-      setHairdresser(data);
+      queryClient.setQueryData(["therapist", user.id], data);
+
+      setTherapist(data);
       setEditForm({
         first_name: data.first_name,
         last_name: data.last_name,
@@ -130,13 +131,13 @@ const PwaProfile = () => {
         .getPublicUrl(filePath);
 
       const { error: updateError } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .update({ profile_image: publicUrl })
         .eq("user_id", user.id);
 
       if (updateError) throw updateError;
 
-      setHairdresser({ ...hairdresser!, profile_image: publicUrl });
+      setTherapist({ ...therapist!, profile_image: publicUrl });
       toast.success(t('common:toasts.saved'));
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -152,7 +153,7 @@ const PwaProfile = () => {
       if (!user) return;
 
       const { error } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .update({
           first_name: editForm.first_name,
           last_name: editForm.last_name,
@@ -161,8 +162,8 @@ const PwaProfile = () => {
 
       if (error) throw error;
 
-      setHairdresser({
-        ...hairdresser!,
+      setTherapist({
+        ...therapist!,
         first_name: editForm.first_name,
         last_name: editForm.last_name,
       });
@@ -176,14 +177,14 @@ const PwaProfile = () => {
   };
 
   const handleLogout = async () => {
-    // On ignore l'erreur si la session n'existe plus côté serveur
+    // Ignore error if session no longer exists server-side
     await supabase.auth.signOut().catch(() => {});
     toast.success(t('common:toasts.success'));
     navigate("/pwa/login");
   };
 
   // Only show loader on very first load
-  if (loading && !hairdresser) {
+  if (loading && !therapist) {
     return (
       <PwaPageLoader 
         title={t('profile.title')} 
@@ -193,16 +194,17 @@ const PwaProfile = () => {
     );
   }
 
-  if (!hairdresser) {
+  if (!therapist) {
     return null;
   }
 
-  const initials = `${hairdresser.first_name[0]}${hairdresser.last_name[0]}`.toUpperCase();
+  const initials = `${therapist.first_name[0]}${therapist.last_name[0]}`.toUpperCase();
 
   const menuItems = [
     { icon: User, label: t('profile.editProfile'), onClick: () => setIsEditDialogOpen(true) },
     { icon: Hotel, label: t('hotels.title'), onClick: () => navigate("/pwa/profile/hotels") },
-    { icon: Package, label: "OOM product", onClick: () => {} },
+    { icon: CalendarDays, label: t('schedule.title'), onClick: () => navigate("/pwa/schedule") },
+    { icon: Package, label: `${brand.name} product`, onClick: () => {} },
     { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
     { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
@@ -223,7 +225,7 @@ const PwaProfile = () => {
         <div className="flex flex-col items-center text-center mb-4">
           <div className="relative">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={hairdresser.profile_image || undefined} />
+              <AvatarImage src={therapist.profile_image || undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xl font-bold">
                 {initials}
               </AvatarFallback>
@@ -245,7 +247,7 @@ const PwaProfile = () => {
             />
           </div>
           <h2 className="text-base font-semibold mt-2">
-            {hairdresser.first_name} {hairdresser.last_name}
+            {therapist.first_name} {therapist.last_name}
           </h2>
           <div className="flex items-center gap-1 mt-0.5">
             <span className="text-yellow-500 text-sm">⭐</span>
@@ -349,7 +351,7 @@ const PwaProfile = () => {
             <DialogTitle>{t('profile.language')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
-            <LanguageSwitcher variant="list" onSelect={() => setIsLanguageDialogOpen(false)} />
+            <LanguageSwitcher variant="list" persistToProfile onSelect={() => setIsLanguageDialogOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>

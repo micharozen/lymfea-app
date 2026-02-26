@@ -1,7 +1,7 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Briefcase, Building2, Calendar, User } from "lucide-react";
+import { DoorOpen, Building2, Calendar } from "lucide-react";
 
 interface Hotel {
   id: string;
@@ -9,35 +9,35 @@ interface Hotel {
   image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_model: string | null;
+  room_type: string | null;
   image: string | null;
   hotel_id: string | null;
-  hairdresser_name: string | null;
   status: string;
+  capacity?: number;
   created_at?: string;
 }
 
-interface TrunkDetailDialogProps {
+interface TreatmentRoomDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  trunk: Trunk | null;
+  room: TreatmentRoom | null;
   hotel: Hotel | null;
   nextBooking: string | null;
   onEdit?: () => void;
 }
 
-export function TrunkDetailDialog({
+export function TreatmentRoomDetailDialog({
   open,
   onOpenChange,
-  trunk,
+  room,
   hotel,
   nextBooking,
   onEdit,
-}: TrunkDetailDialogProps) {
-  if (!trunk) return null;
+}: TreatmentRoomDetailDialogProps) {
+  if (!room) return null;
 
   const formatNextBooking = (dateTime: string | null) => {
     if (!dateTime) return null;
@@ -55,17 +55,20 @@ export function TrunkDetailDialog({
       open={open}
       onOpenChange={onOpenChange}
       onEdit={onEdit}
-      title={trunk.name}
-      image={trunk.image}
-      emoji="🧳"
-      status={trunk.status}
+      title={room.name}
+      image={room.image}
+      emoji="🚪"
+      status={room.status}
     >
       {/* Details */}
-      <DetailSection icon={Briefcase} title="Details">
+      <DetailSection icon={DoorOpen} title="Details">
         <DetailCard>
           <div className="space-y-2">
-            <DetailField label="Modele" value={trunk.trunk_model || "-"} />
-            <DetailField label="ID" value={trunk.id} muted />
+            <DetailField label="Type" value={room.room_type || "-"} />
+            {room.capacity && (
+              <DetailField label="Capacite" value={String(room.capacity)} />
+            )}
+            <DetailField label="ID" value={room.id} muted />
           </div>
         </DetailCard>
       </DetailSection>
@@ -85,17 +88,6 @@ export function TrunkDetailDialog({
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium">{hotel.name}</span>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Non assigne</p>
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Coiffeur</p>
-              {trunk.hairdresser_name ? (
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{trunk.hairdresser_name}</span>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Non assigne</p>

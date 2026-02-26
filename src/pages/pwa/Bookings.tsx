@@ -49,14 +49,14 @@ const PwaBookings = () => {
         return;
       }
 
-      // Get hairdresser ID
-      const { data: hairdresser } = await supabase
-        .from("hairdressers")
+      // Get therapist ID
+      const { data: therapist } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (!hairdresser) {
+      if (!therapist) {
         toast.error("Profil introuvable");
         return;
       }
@@ -65,7 +65,7 @@ const PwaBookings = () => {
       const { data, error } = await supabase
         .from("bookings")
         .select("*")
-        .eq("hairdresser_id", hairdresser.id)
+        .eq("therapist_id", therapist.id)
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
 

@@ -19,7 +19,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_ANON_KEY") ?? ""
     );
 
-    // Use service role key to bypass RLS for reading hairdresser profile
+    // Use service role key to bypass RLS for reading therapist profile
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -37,17 +37,17 @@ serve(async (req) => {
 
     console.log("User authenticated:", userData.user.id);
 
-    // Get hairdresser profile with stripe_account_id using admin client
-    const { data: hairdresser, error: hairdresserError } = await supabaseAdmin
-      .from("hairdressers")
+    // Get therapist profile with stripe_account_id using admin client
+    const { data: therapist, error: therapistError } = await supabaseAdmin
+      .from("therapists")
       .select("id, stripe_account_id, stripe_onboarding_completed")
       .eq("user_id", userData.user.id)
       .single();
 
-    console.log("Hairdresser query result:", { hairdresser, error: hairdresserError });
+    console.log("Therapist query result:", { therapist, error: therapistError });
 
-    if (hairdresserError || !hairdresser) {
-      throw new Error("Hairdresser profile not found");
+    if (therapistError || !therapist) {
+      throw new Error("Therapist profile not found");
     }
 
     const { period } = await req.json();
@@ -69,8 +69,8 @@ serve(async (req) => {
     }
 
     // If no Stripe account connected, return empty data
-    if (!hairdresser.stripe_account_id) {
-      console.log("No Stripe account connected for hairdresser:", hairdresser.id);
+    if (!therapist.stripe_account_id) {
+      console.log("No Stripe account connected for therapist:", therapist.id);
       return new Response(JSON.stringify({
         total: 0,
         payouts: [],
@@ -86,17 +86,17 @@ serve(async (req) => {
     });
 
     // Sync Stripe onboarding status (so the app doesn't rely only on webhooks)
-    let stripeOnboardingCompleted = hairdresser.stripe_onboarding_completed || false;
+    let stripeOnboardingCompleted = therapist.stripe_onboarding_completed || false;
     try {
-      const account = await stripe.accounts.retrieve(hairdresser.stripe_account_id);
+      const account = await stripe.accounts.retrieve(therapist.stripe_account_id);
       const isOnboardingComplete =
         !!account.details_submitted && (!!account.charges_enabled || !!account.payouts_enabled);
 
       if (isOnboardingComplete && !stripeOnboardingCompleted) {
         const { error: updateError } = await supabaseAdmin
-          .from("hairdressers")
+          .from("therapists")
           .update({ stripe_onboarding_completed: true, updated_at: new Date().toISOString() })
-          .eq("id", hairdresser.id);
+          .eq("id", therapist.id);
 
         if (updateError) {
           console.warn("Failed to update stripe_onboarding_completed", updateError);
@@ -110,7 +110,7 @@ serve(async (req) => {
 
     // Get transfers to this connected account
     const transfers = await stripe.transfers.list({
-      destination: hairdresser.stripe_account_id,
+      destination: therapist.stripe_account_id,
       created: {
         gte: Math.floor(startDate.getTime() / 1000),
       },
@@ -118,7 +118,7 @@ serve(async (req) => {
     });
 
     console.log(
-      `Found ${transfers.data.length} transfers for account ${hairdresser.stripe_account_id}`
+      `Found ${transfers.data.length} transfers for account ${therapist.stripe_account_id}`
     );
 
     // Extract all booking IDs from transfers
@@ -175,7 +175,7 @@ serve(async (req) => {
       JSON.stringify({
         total,
         payouts,
-        stripeAccountId: hairdresser.stripe_account_id,
+        stripeAccountId: therapist.stripe_account_id,
         stripeOnboardingCompleted,
       }),
       {
@@ -185,7 +185,7 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error fetching hairdresser earnings:", error);
+    console.error("Error fetching therapist earnings:", error);
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

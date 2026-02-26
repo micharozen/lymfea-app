@@ -57,27 +57,27 @@ export const ProposeAlternativeDialog = ({
   onProposalSent,
 }: ProposeAlternativeDialogProps) => {
   const [sending, setSending] = useState(false);
-  const [hairdresserId, setHairdresserId] = useState<string | null>(null);
+  const [therapistId, setTherapistId] = useState<string | null>(null);
 
-  // Fetch hairdresser ID when dialog opens
+  // Fetch therapist ID when dialog opens
   useEffect(() => {
-    const fetchHairdresserId = async () => {
+    const fetchTherapistId = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: hairdresserData } = await supabase
-        .from("hairdressers")
+      const { data: therapistData } = await supabase
+        .from("therapists")
         .select("id")
         .eq("user_id", user.id)
         .single();
 
-      if (hairdresserData) {
-        setHairdresserId(hairdresserData.id);
+      if (therapistData) {
+        setTherapistId(therapistData.id);
       }
     };
 
     if (open) {
-      fetchHairdresserId();
+      fetchTherapistId();
     }
   }, [open]);
 
@@ -131,8 +131,8 @@ export const ProposeAlternativeDialog = ({
       return;
     }
 
-    if (!hairdresserId) {
-      toast.error("Profil coiffeur non trouvé");
+    if (!therapistId) {
+      toast.error("Profil thérapeute non trouvé");
       return;
     }
 
@@ -149,7 +149,7 @@ export const ProposeAlternativeDialog = ({
       >("propose-alternative", {
         body: {
           bookingId: booking.id,
-          hairdresserId,
+          hairdresserId: therapistId,
           alternative1: {
             date: format(alt1Date, "yyyy-MM-dd"),
             time: alt1Time,
@@ -336,7 +336,7 @@ export const ProposeAlternativeDialog = ({
         <DrawerFooter className="pt-2">
           <Button
             onClick={handleSubmit}
-            disabled={sending || !alt1Date || !alt1Time || !alt2Date || !alt2Time || !booking.phone || !hairdresserId}
+            disabled={sending || !alt1Date || !alt1Time || !alt2Date || !alt2Time || !booking.phone || !therapistId}
             className="w-full"
           >
             {sending ? "Envoi en cours..." : "Envoyer la proposition"}

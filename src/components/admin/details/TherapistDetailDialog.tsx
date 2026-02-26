@@ -1,7 +1,9 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Phone, Building2, Sparkles, Briefcase } from "lucide-react";
+import { Phone, Building2, Sparkles, Briefcase, Target, CalendarDays } from "lucide-react";
+import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
+import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
 
 interface Hotel {
   id: string;
@@ -9,13 +11,13 @@ interface Hotel {
   image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
   image: string | null;
 }
 
-interface HairDresser {
+interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -26,31 +28,32 @@ interface HairDresser {
   status: string;
   trunks: string | null;
   skills: string[];
-  hairdresser_hotels?: { hotel_id: string }[];
+  minimum_guarantee?: Record<string, number> | null;
+  therapist_venues?: { hotel_id: string }[];
 }
 
-interface HairdresserDetailDialogProps {
+interface TherapistDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  hairdresser: HairDresser | null;
+  therapist: Therapist | null;
   hotels: Hotel[];
-  trunks: Trunk[];
+  rooms: TreatmentRoom[];
   onEdit?: () => void;
 }
 
-export function HairdresserDetailDialog({
+export function TherapistDetailDialog({
   open,
   onOpenChange,
-  hairdresser,
+  therapist,
   hotels,
-  trunks,
+  rooms,
   onEdit,
-}: HairdresserDetailDialogProps) {
-  if (!hairdresser) return null;
+}: TherapistDetailDialogProps) {
+  if (!therapist) return null;
 
-  const fullName = `${hairdresser.first_name} ${hairdresser.last_name}`;
+  const fullName = `${therapist.first_name} ${therapist.last_name}`;
 
-  const assignedHotels = hairdresser.hairdresser_hotels
+  const assignedHotels = therapist.therapist_venues
     ?.map((h) => hotels.find((hotel) => hotel.id === h.hotel_id))
     .filter(Boolean) as Hotel[] || [];
 
@@ -69,20 +72,20 @@ export function HairdresserDetailDialog({
       .filter(Boolean);
   };
 
-  const getTrunkInfo = (trunkIdOrName: string | null) => {
-    if (!trunkIdOrName) return null;
+  const getRoomInfo = (roomIdOrName: string | null) => {
+    if (!roomIdOrName) return null;
 
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trunkIdOrName);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomIdOrName);
 
     if (isUuid) {
-      return trunks.find((t) => t.id === trunkIdOrName) || null;
+      return rooms.find((r) => r.id === roomIdOrName) || null;
     }
 
     return null;
   };
 
-  const assignedTrunk = getTrunkInfo(hairdresser.trunks);
-  const skillsDisplay = getSkillsDisplay(hairdresser.skills);
+  const assignedRoom = getRoomInfo(therapist.trunks);
+  const skillsDisplay = getSkillsDisplay(therapist.skills);
 
   return (
     <EntityDetailDialog
@@ -90,17 +93,17 @@ export function HairdresserDetailDialog({
       onOpenChange={onOpenChange}
       onEdit={onEdit}
       title={fullName}
-      image={hairdresser.profile_image}
-      status={hairdresser.status}
+      image={therapist.profile_image}
+      status={therapist.status}
     >
       {/* Contact */}
       <DetailSection icon={Phone} title="Contact">
         <DetailCard>
           <div className="space-y-2">
-            <DetailField label="Email" value={hairdresser.email} />
+            <DetailField label="Email" value={therapist.email} />
             <DetailField
               label="Telephone"
-              value={`${hairdresser.country_code} ${hairdresser.phone}`}
+              value={`${therapist.country_code} ${therapist.phone}`}
             />
           </div>
         </DetailCard>
@@ -120,6 +123,16 @@ export function HairdresserDetailDialog({
               </div>
             ))}
           </div>
+        </DetailSection>
+      )}
+
+      {/* Minimum Guarantee */}
+      {therapist.minimum_guarantee && Object.values(therapist.minimum_guarantee as Record<string, number>).some((v) => v > 0) && (
+        <DetailSection icon={Target} title="Minimum garanti">
+          <MinimumGuaranteeEditor
+            value={therapist.minimum_guarantee as Record<string, number>}
+            readOnly
+          />
         </DetailSection>
       )}
 
@@ -147,23 +160,28 @@ export function HairdresserDetailDialog({
         )}
       </DetailSection>
 
-      {/* Trunk */}
-      <DetailSection icon={Briefcase} title="Malle" showSeparator={false}>
-        {assignedTrunk ? (
+      {/* Schedule */}
+      <DetailSection icon={CalendarDays} title="Planning">
+        <TherapistScheduleSection therapistId={therapist.id} />
+      </DetailSection>
+
+      {/* Treatment Room */}
+      <DetailSection icon={Briefcase} title="Salle de soin" showSeparator={false}>
+        {assignedRoom ? (
           <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2 w-fit">
-            {assignedTrunk.image ? (
+            {assignedRoom.image ? (
               <img
-                src={assignedTrunk.image}
-                alt={assignedTrunk.name}
+                src={assignedRoom.image}
+                alt={assignedRoom.name}
                 className="w-6 h-6 rounded object-cover"
               />
             ) : (
               <Briefcase className="h-4 w-4 text-muted-foreground" />
             )}
-            <span className="text-sm font-medium">{assignedTrunk.name}</span>
+            <span className="text-sm font-medium">{assignedRoom.name}</span>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Aucune malle assignee</p>
+          <p className="text-sm text-muted-foreground">Aucune salle de soin assignee</p>
         )}
       </DetailSection>
     </EntityDetailDialog>

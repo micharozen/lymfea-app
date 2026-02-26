@@ -1,4 +1,6 @@
-// Shared email template styles and components for OOM World emails
+// Shared email template styles and components
+
+import { brand } from './brand.ts';
 
 export const emailStyles = {
   // Colors
@@ -49,7 +51,7 @@ export const getBaseEmailTemplate = (content: string, options?: {
           <!-- Footer -->
           <tr>
             <td style="text-align: center; padding: 30px; background-color: #fafafa; border-top: 1px solid #f0f0f0;">
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">OOM World</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #6b7280;">${brand.name}</p>
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Beauty & Wellness Services</p>
             </td>
           </tr>
@@ -65,7 +67,7 @@ export const getEmailHeader = (title: string, badgeText?: string, badgeColor: st
 <!-- Header -->
 <tr>
   <td style="text-align: center; padding: 40px 30px 20px;">
-    <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">OOM</h1>
+    <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #000;">${brand.name}</h1>
     ${badgeText ? `
     <div style="margin-top: 16px;">
       <span style="display: inline-block; background-color: ${badgeColor}; color: white; padding: 10px 24px; border-radius: 24px; font-size: 14px; font-weight: 600;">${badgeText}</span>
@@ -135,7 +137,7 @@ export const getBookingCard = (booking: {
   phone?: string;
   hotelName: string;
   roomNumber?: string;
-  hairdresserName?: string;
+  therapistName?: string;
 }) => `
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
   ${getInfoRow('Numéro de réservation', `#${booking.bookingId}`)}
@@ -143,6 +145,6 @@ export const getBookingCard = (booking: {
   ${booking.phone ? getInfoRow('Téléphone', booking.phone) : ''}
   ${getInfoRow('Hôtel', booking.hotelName)}
   ${booking.roomNumber ? getInfoRow('Chambre', booking.roomNumber) : ''}
-  ${booking.hairdresserName ? getInfoRow('Coiffeur', booking.hairdresserName) : ''}
+  ${booking.therapistName ? getInfoRow('Thérapeute', booking.therapistName) : ''}
 </table>
 `;

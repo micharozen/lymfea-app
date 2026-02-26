@@ -16,11 +16,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, ChevronDown, Globe, Info, Plus, X } from "lucide-react";
+import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Globe, Info, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
@@ -32,7 +40,7 @@ interface BookingInfoStepProps {
   isConcierge: boolean;
   hotelIds: string[];
   hotels: Array<{ id: string; name: string; timezone?: string | null; currency?: string | null }> | undefined;
-  hairdressers: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
+  therapists: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
   hotelTimezone: string;
   hotelId: string;
   countryCode: string;
@@ -48,7 +56,7 @@ export function BookingInfoStep({
   isConcierge,
   hotelIds,
   hotels,
-  hairdressers,
+  therapists,
   hotelTimezone,
   hotelId,
   countryCode,
@@ -60,6 +68,7 @@ export function BookingInfoStep({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
+  const [therapistOpen, setTherapistOpen] = useState(false);
   const [slot2CalendarOpen, setSlot2CalendarOpen] = useState(false);
   const [slot2HourOpen, setSlot2HourOpen] = useState(false);
   const [slot2MinuteOpen, setSlot2MinuteOpen] = useState(false);
@@ -112,30 +121,64 @@ export function BookingInfoStep({
         {isAdmin && (
           <FormField
             control={form.control}
-            name="hairdresserId"
-            render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-xs">Coiffeur / Prestataire *</FormLabel>
-                <Select
-                  value={field.value || "none"}
-                  onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
-                >
-                  <FormControl>
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Sélectionner un coiffeur" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="bg-background border shadow-lg">
-                    {hairdressers?.map((hairdresser) => (
-                      <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                        {hairdresser.first_name} {hairdresser.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
+            name="therapistId"
+            render={({ field }) => {
+              const selected = therapists?.find((t) => t.id === field.value);
+              return (
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs">Thérapeute / Prestataire *</FormLabel>
+                  <Popover open={therapistOpen} onOpenChange={setTherapistOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={therapistOpen}
+                          className={cn(
+                            "w-full h-9 justify-between font-normal hover:bg-background hover:text-foreground",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {selected
+                            ? `${selected.first_name} ${selected.last_name}`
+                            : "Sélectionner un thérapeute"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un thérapeute..." />
+                        <CommandList>
+                          <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {therapists?.map((therapist) => (
+                              <CommandItem
+                                key={therapist.id}
+                                value={`${therapist.first_name} ${therapist.last_name}`}
+                                onSelect={() => {
+                                  field.onChange(therapist.id);
+                                  setTherapistOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value === therapist.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {therapist.first_name} {therapist.last_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              );
+            }}
           />
         )}
       </div>
@@ -145,7 +188,7 @@ export function BookingInfoStep({
         <div className="flex gap-2 items-start rounded-lg border border-violet-200 bg-violet-50 p-3">
           <Info className="h-4 w-4 text-violet-600 shrink-0 mt-0.5" />
           <p className="text-xs text-violet-800">
-            Cette réservation sera soumise à la confirmation d'un coiffeur. Les coiffeurs disponibles seront notifiés et le premier à valider un créneau confirmera la réservation.
+            Cette réservation sera soumise à la confirmation d'un thérapeute. Les thérapeutes disponibles seront notifiés et le premier à valider un créneau confirmera la réservation.
           </p>
         </div>
       )}

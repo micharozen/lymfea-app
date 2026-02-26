@@ -22,8 +22,8 @@ interface CommissionBreakdown {
   tvaRate: number;
   hotelCommission: number;
   hotelCommissionRate: number;
-  hairdresserShare: number;
-  hairdresserCommissionRate: number;
+  therapistShare: number;
+  therapistCommissionRate: number;
   oomShare: number;
 }
 
@@ -58,7 +58,7 @@ serve(async (req) => {
         id,
         booking_id,
         hotel_id,
-        hairdresser_id,
+        therapist_id,
         client_email,
         client_first_name,
         client_last_name,
@@ -73,11 +73,11 @@ serve(async (req) => {
           name,
           vat,
           hotel_commission,
-          hairdresser_commission,
+          therapist_commission,
           currency,
           venue_type
         ),
-        hairdressers(
+        therapists(
           first_name,
           last_name
         )
@@ -107,23 +107,23 @@ serve(async (req) => {
     log("Booking found", {
       booking_id: booking.booking_id,
       hotel_name: hotel.name,
-      hairdresser: booking.hairdressers
-        ? `${booking.hairdressers.first_name} ${booking.hairdressers.last_name}`
+      therapist: booking.therapists
+        ? `${booking.therapists.first_name} ${booking.therapists.last_name}`
         : 'none',
     });
 
     // 2. Calculate commissions (same logic as finalize-payment)
     const vatRate = hotel.vat || 20;
     const hotelCommissionRate = hotel.hotel_commission || 10;
-    const hairdresserCommissionRate = hotel.hairdresser_commission || 70;
+    const therapistCommissionRate = hotel.therapist_commission || 70;
 
     const totalTTC = final_amount;
     const totalHT = totalTTC / (1 + vatRate / 100);
     const tvaAmount = totalTTC - totalHT;
 
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
-    const hairdresserShare = totalHT * (hairdresserCommissionRate / 100);
-    const oomShare = totalHT - hotelCommission - hairdresserShare;
+    const therapistShare = totalHT * (therapistCommissionRate / 100);
+    const oomShare = totalHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
       totalTTC,
@@ -132,26 +132,26 @@ serve(async (req) => {
       tvaRate: vatRate,
       hotelCommission: Math.round(hotelCommission * 100) / 100,
       hotelCommissionRate,
-      hairdresserShare: Math.round(hairdresserShare * 100) / 100,
-      hairdresserCommissionRate,
+      therapistShare: Math.round(therapistShare * 100) / 100,
+      therapistCommissionRate,
       oomShare: Math.round(oomShare * 100) / 100,
     };
 
     log("Commission breakdown", breakdown);
 
-    // 3. Record hairdresser payout (no Stripe transfer - hairdresser collected directly)
-    if (booking.hairdresser_id) {
+    // 3. Record therapist payout (no Stripe transfer - therapist collected directly)
+    if (booking.therapist_id) {
       await supabase
-        .from('hairdresser_payouts')
+        .from('therapist_payouts')
         .insert({
-          hairdresser_id: booking.hairdresser_id,
+          therapist_id: booking.therapist_id,
           booking_id: booking.id,
-          amount: breakdown.hairdresserShare,
+          amount: breakdown.therapistShare,
           status: 'completed',
           stripe_transfer_id: null,
         });
 
-      log("Hairdresser payout recorded", { amount: breakdown.hairdresserShare });
+      log("Therapist payout recorded", { amount: breakdown.therapistShare });
     }
 
     // 4. Record hotel ledger entry (same formula as finalize-payment)

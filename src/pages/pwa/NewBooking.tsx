@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-interface Hairdresser {
+interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -54,8 +54,8 @@ const PwaNewBooking = () => {
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
-  // Hairdresser data
-  const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
+  // Therapist data
+  const [therapist, setTherapist] = useState<Therapist | null>(null);
 
   // Hotels
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -87,7 +87,7 @@ const PwaNewBooking = () => {
   // Loading
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Fetch hairdresser & hotels on mount + pre-fill date/time from URL params
+  // Fetch therapist & hotels on mount + pre-fill date/time from URL params
   useEffect(() => {
     // Pre-fill date/time from calendar slot click (?date=...&time=...)
     const params = new URLSearchParams(location.search);
@@ -101,18 +101,18 @@ const PwaNewBooking = () => {
       if (!user) return;
 
       const { data: hd } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .select("id, first_name, last_name")
         .eq("user_id", user.id)
         .single();
 
       if (hd) {
-        setHairdresser(hd);
+        setTherapist(hd);
 
         const { data: affiliations } = await supabase
-          .from("hairdresser_hotels")
+          .from("therapist_venues")
           .select("hotel_id")
-          .eq("hairdresser_id", hd.id);
+          .eq("therapist_id", hd.id);
 
         if (affiliations && affiliations.length > 0) {
           const hotelIds = affiliations.map((a) => a.hotel_id);
@@ -228,7 +228,7 @@ const PwaNewBooking = () => {
   // Mutation
   const createBooking = useCreateBookingMutation({
     hotels,
-    hairdressers: hairdresser ? [hairdresser] : [],
+    therapists: therapist ? [therapist] : [],
     onSuccess: (data) => {
       setCreatedBooking(data);
       setDirection("forward");
@@ -283,7 +283,7 @@ const PwaNewBooking = () => {
   };
 
   const handleCreate = () => {
-    if (!hairdresser || !selectedDate) return;
+    if (!therapist || !selectedDate) return;
 
     createBooking.mutate({
       hotelId: selectedHotelId,
@@ -294,7 +294,7 @@ const PwaNewBooking = () => {
       roomNumber,
       date: format(selectedDate, "yyyy-MM-dd"),
       time: selectedTime,
-      hairdresserId: hairdresser.id,
+      therapistId: therapist.id,
       slot2Date: null,
       slot2Time: null,
       slot3Date: null,

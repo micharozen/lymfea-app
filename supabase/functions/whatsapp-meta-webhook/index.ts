@@ -192,23 +192,23 @@ async function handleSlotAccepted(
       booking_date: acceptedDate,
       booking_time: acceptedTime,
       status: "confirmed",
-      hairdresser_id: proposal.hairdresser_id,
+      therapist_id: proposal.therapist_id,
       assigned_at: new Date().toISOString(),
     })
     .eq("id", proposal.booking_id);
 
-  // Fetch hairdresser name for the booking
-  const { data: hairdresser } = await supabase
-    .from("hairdressers")
+  // Fetch therapist name for the booking
+  const { data: therapist } = await supabase
+    .from("therapists")
     .select("first_name, last_name")
-    .eq("id", proposal.hairdresser_id)
+    .eq("id", proposal.therapist_id)
     .single();
 
-  if (hairdresser) {
+  if (therapist) {
     await supabase
       .from("bookings")
       .update({
-        hairdresser_name: `${hairdresser.first_name} ${hairdresser.last_name}`.trim(),
+        therapist_name: `${therapist.first_name} ${therapist.last_name}`.trim(),
       })
       .eq("id", proposal.booking_id);
   }
@@ -217,7 +217,7 @@ async function handleSlotAccepted(
   const confirmationMessage = buildSlotAcceptedMessage(acceptedDate, acceptedTime);
   await sendWhatsAppInteractive(proposal.client_phone, confirmationMessage);
 
-  // TODO: Send push notification to hairdresser about acceptance
+  // TODO: Send push notification to therapist about acceptance
   console.log(`Booking ${proposal.booking_id} confirmed with slot ${slotNumber}`);
 }
 
@@ -283,6 +283,6 @@ async function handleAllRejected(
   const message = buildAllRejectedMessage();
   await sendWhatsAppInteractive(clientPhone, message);
 
-  // TODO: Send push notification to hairdresser about rejection
+  // TODO: Send push notification to therapist about rejection
   console.log(`Booking ${proposal.booking_id} reverted to pending after both slots rejected`);
 }

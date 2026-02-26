@@ -7,11 +7,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
+import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { brand } from "@/config/brand";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
-import HairdresserProtectedRoute from "./components/HairdresserProtectedRoute";
+import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
 import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -25,11 +27,15 @@ const PwaLayout = lazy(() => import("./components/pwa/Layout"));
 // Admin Pages
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Bookings = lazy(() => import("./pages/admin/Bookings"));
-const Hairdressers = lazy(() => import("./pages/admin/Hairdressers"));
+const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
+const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
-const Trunks = lazy(() => import("./pages/admin/Trunks"));
+const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
+const Customers = lazy(() => import("./pages/admin/Customers"));
+const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
@@ -47,7 +53,7 @@ const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 // Shared Pages
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
-const RateHairdresser = lazy(() => import("./pages/RateHairdresser"));
+const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
 
@@ -68,6 +74,7 @@ const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"))
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
+const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
 
 // Admin PWA Layout & Pages
 const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
@@ -113,12 +120,18 @@ const PageLoader = () => (
 const ClientPageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-white">
     <img
-      src="/images/oom-logo-email-white.png"
-      alt="OOM"
+      src={brand.logos.emailLogoWhite}
+      alt={brand.name}
       className="h-16 animate-pulse"
     />
   </div>
 );
+
+// Syncs authenticated user's language preference from profiles table
+const AuthLanguageSync = () => {
+  useLanguagePreference();
+  return null;
+};
 
 const App = () => {
   // Initialize OneSignal for push notifications
@@ -154,7 +167,7 @@ const App = () => {
     document.body.removeChild(el);
 
     const clamped = Math.min(Math.max(pb, 0), 40);
-    document.documentElement.style.setProperty("--oom-safe-bottom", `${clamped}px`);
+    document.documentElement.style.setProperty("--app-safe-bottom", `${clamped}px`);
   }, []);
 
   // Global safe-area refresh (applies to PWA + admin + client flows)
@@ -185,6 +198,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
+        <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
         <BrowserRouter>
@@ -224,7 +238,7 @@ const App = () => {
             <Route path="/booking/confirmation/:bookingId" element={<PaymentConfirmation />} />
 
             {/* Rating Page (Public) */}
-            <Route path="/rate/:token" element={<RateHairdresser />} />
+            <Route path="/rate/:token" element={<RateTherapist />} />
             
             {/* Quote Response Page (Public) */}
             <Route path="/quote-response" element={<QuoteResponse />} />
@@ -239,11 +253,11 @@ const App = () => {
             {/* Legacy route redirects to admin routes */}
             <Route path="/booking" element={<Navigate to="/admin/bookings" replace />} />
             <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="/hair-dresser" element={<Navigate to="/admin/hairdressers" replace />} />
+            <Route path="/hair-dresser" element={<Navigate to="/admin/therapists" replace />} />
             <Route path="/hotels" element={<Navigate to="/admin/places" replace />} />
             <Route path="/admin/hotels" element={<Navigate to="/admin/places" replace />} />
             <Route path="/treatment-menus" element={<Navigate to="/admin/treatments" replace />} />
-            <Route path="/boxes" element={<Navigate to="/admin/trunks" replace />} />
+            <Route path="/boxes" element={<Navigate to="/admin/treatment-rooms" replace />} />
             <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
             <Route path="/oom-products" element={<Navigate to="/admin/products" replace />} />
             <Route path="/oom-orders" element={<Navigate to="/admin/orders" replace />} />
@@ -260,26 +274,26 @@ const App = () => {
             <Route
               path="/pwa/onboarding"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaOnboarding />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
             <Route
               path="/pwa/stripe-callback"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaStripeCallback />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
             {/* PWA routes with TabBar */}
             <Route
               path="/pwa"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaLayout />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             >
               <Route index element={<Navigate to="/pwa/dashboard" replace />} />
@@ -295,36 +309,44 @@ const App = () => {
             <Route
               path="/pwa/profile"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaProfile />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
             <Route
               path="/pwa/profile/notifications"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaNotifications standalone />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
             <Route
               path="/pwa/profile/hotels"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaHotels standalone />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
             <Route
               path="/pwa/account-security"
               element={
-                <HairdresserProtectedRoute>
+                <TherapistProtectedRoute>
                   <PwaAccountSecurity />
-                </HairdresserProtectedRoute>
+                </TherapistProtectedRoute>
               }
             />
-            
+            <Route
+              path="/pwa/schedule"
+              element={
+                <TherapistProtectedRoute>
+                  <PwaSchedule />
+                </TherapistProtectedRoute>
+              }
+            />
+
             {/* Admin PWA Public Routes */}
             <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
 
@@ -353,34 +375,47 @@ const App = () => {
                   {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
                     ? <Navigate to="/admin-pwa/accueil" replace />
                     : (
-                  <SidebarProvider>
-                    <div className="flex min-h-screen w-full">
+                  <SidebarProvider className="min-h-0 h-screen overflow-hidden" style={{ minHeight: 0 }}>
+                    <div className="flex h-full w-full">
                       <AppSidebar />
-                      <div className="flex-1 flex flex-col">
+                      <div className="flex-1 flex flex-col min-h-0 min-w-0">
                         {/* Mobile header with menu trigger */}
                         <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
                           <SidebarTrigger className="mr-2" />
-                          <span className="font-semibold">OOM Admin</span>
+                          <span className="font-semibold">{brand.pwa.admin.shortName}</span>
                         </header>
-                        <main className="flex-1">
-                          <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/bookings" element={<Bookings />} />
-                            <Route path="/hairdressers" element={<Hairdressers />} />
-                            <Route path="/places" element={<AdminHotels />} />
-                            <Route path="/treatments" element={<AdminTreatments />} />
-                            <Route path="/trunks" element={<Trunks />} />
-                            <Route path="/concierges" element={<Concierges />} />
-                            <Route path="/products" element={<Products />} />
-                            <Route path="/orders" element={<Orders />} />
-                            <Route path="/finance" element={<Finance />} />
-                            <Route path="/transactions" element={<Transactions />} />
-                            <Route path="/analytics" element={<Analytics />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="/profile" element={<AdminProfile />} />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
+                        <main className="flex-1 min-h-0 overflow-y-auto">
+                          <Suspense fallback={
+                            <div className="flex items-center justify-center h-full min-h-[50vh]">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+                            </div>
+                          }>
+                            <Routes>
+                              <Route path="/" element={<Dashboard />} />
+                              <Route path="/dashboard" element={<Dashboard />} />
+                              <Route path="/bookings" element={<Bookings />} />
+                              <Route path="/therapists" element={<Therapists />} />
+                              <Route path="/therapists/new" element={<TherapistDetail />} />
+                              <Route path="/therapists/:id" element={<TherapistDetail />} />
+                              <Route path="/places" element={<AdminHotels />} />
+                              <Route path="/places/new" element={<VenueDetail />} />
+                              <Route path="/places/:id" element={<VenueDetail />} />
+                              <Route path="/treatments" element={<AdminTreatments />} />
+                              <Route path="/treatment-rooms" element={<TreatmentRooms />} />
+                              <Route path="/concierges" element={<Concierges />} />
+                              <Route path="/customers" element={<Customers />} />
+                              <Route path="/customers/new" element={<CustomerDetail />} />
+                              <Route path="/customers/:id" element={<CustomerDetail />} />
+                              <Route path="/products" element={<Products />} />
+                              <Route path="/orders" element={<Orders />} />
+                              <Route path="/finance" element={<Finance />} />
+                              <Route path="/transactions" element={<Transactions />} />
+                              <Route path="/analytics" element={<Analytics />} />
+                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/profile" element={<AdminProfile />} />
+                              <Route path="*" element={<NotFound />} />
+                            </Routes>
+                          </Suspense>
                         </main>
                       </div>
                     </div>

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
@@ -261,27 +262,27 @@ serve(async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "OOM App <booking@oomworld.com>",
+        from: brand.emails.from.default,
         to: [email],
-        subject: "Bienvenue sur OOM — Vos identifiants",
+        subject: `Bienvenue sur ${brand.name} — Vos identifiants`,
         html: `
           <!DOCTYPE html>
           <html>
             <head>
               <meta charset="utf-8">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Bienvenue sur OOM</title>
+              <title>Bienvenue sur ${brand.name}</title>
             </head>
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
               <div style="background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5;">
                 <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 26px; text-align: center;">
-                  <img src="https://oom-clone-genesis.lovable.app/images/oom-logo-email-white.png" alt="OOM" width="120" style="display:block;margin:0 auto 10px auto;" />
+                  <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="120" style="display:block;margin:0 auto 10px auto;" />
                   <p style="margin:0;color:#cccccc;font-size:13px;">Invitation administrateur</p>
                 </div>
 
                 <div style="padding: 28px; background: #ffffff;">
                   <h2 style="margin: 0 0 10px 0; font-size: 18px;">Bonjour ${firstName || ""} ${lastName || ""},</h2>
-                  <p style="margin: 0 0 18px 0; color: #444;">Voici vos identifiants pour accéder au panel OOM :</p>
+                  <p style="margin: 0 0 18px 0; color: #444;">Voici vos identifiants pour accéder au panel ${brand.name} :</p>
 
                   <div style="background: #f8f9fa; padding: 18px; border-radius: 10px; border: 1px solid #e9ecef;">
                     <p style="margin: 0 0 10px 0;"><strong>URL :</strong> <a href="${loginUrl}" style="color:#0b5ed7;">${loginUrl}</a></p>
@@ -297,7 +298,7 @@ serve(async (req: Request): Promise<Response> => {
                 </div>
 
                 <div style="padding: 16px 22px; background:#f8f9fa; border-top: 1px solid #e5e5e5; text-align:center; color:#888; font-size: 12px;">
-                  © ${new Date().getFullYear()} OOM World
+                  © ${new Date().getFullYear()} ${brand.legal.companyName}
                 </div>
               </div>
             </body>

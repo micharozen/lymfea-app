@@ -1,7 +1,7 @@
 {
-  "name": "OOM - Luxury in Motion",
-  "short_name": "OOM",
-  "description": "Application coiffeur OOM - Réservez vos rendez-vous beauté",
+  "name": "Lymfea - Luxury in Motion",
+  "short_name": "Lymfea",
+  "description": "Plateforme de gestion de spa - Réservez vos soins bien-être",
   "id": "/pwa/v2",
   "theme_color": "#000000",
   "background_color": "#ffffff",

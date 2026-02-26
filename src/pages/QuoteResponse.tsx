@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle, XCircle, Loader2, AlertCircle } from "lucide-react";
+import { brand } from "@/config/brand";
 
 export default function QuoteResponse() {
   const [searchParams] = useSearchParams();
@@ -44,7 +45,7 @@ export default function QuoteResponse() {
         if (data.success) {
           if (data.action === "approved") {
             setStatus("success");
-            setMessage(data.message || "Merci ! Un coiffeur va confirmer votre rdv sous peu.");
+            setMessage(data.message || "Merci ! Un thérapeute va confirmer votre rdv sous peu.");
           } else {
             setStatus("refused");
             setMessage(data.message || "Demande annulée. Aucun frais ne sera débité.");
@@ -70,8 +71,8 @@ export default function QuoteResponse() {
         {/* Logo */}
         <div className="mb-8">
           <img
-            src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png"
-            alt="OOM World"
+            src={brand.logos.emailLogo}
+            alt={brand.name}
             className="h-10 mx-auto"
           />
         </div>
@@ -92,7 +93,7 @@ export default function QuoteResponse() {
             <p className="text-gray-600">{message}</p>
             <div className="mt-8 p-4 bg-emerald-50 rounded-lg">
               <p className="text-sm text-emerald-800">
-                Vous recevrez un email de confirmation dès qu'un coiffeur aura accepté votre demande.
+                Vous recevrez un email de confirmation dès qu'un thérapeute aura accepté votre demande.
               </p>
             </div>
           </div>
@@ -147,7 +148,7 @@ export default function QuoteResponse() {
         )}
 
         <div className="mt-8 text-center">
-          <p className="text-xs text-gray-400">OOM World - Luxury Hair Services</p>
+          <p className="text-xs text-gray-400">{brand.fullName}</p>
         </div>
       </div>
     </div>

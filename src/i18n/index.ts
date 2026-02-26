@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import brand from '../config/brand.json';
 
 // Import translations
 import commonFR from './locales/fr/common.json';
@@ -45,6 +46,27 @@ i18n
     
     interpolation: {
       escapeValue: false,
+      defaultVariables: {
+        brandName: brand.name,
+        brandFullName: brand.fullName,
+        brandTagline: brand.tagline,
+        companyName: brand.legal.companyName,
+        companyType: brand.legal.companyType,
+        companyTypeEn: brand.legal.companyTypeEn,
+        companyCapital: brand.legal.capital,
+        companySiren: brand.legal.siren,
+        companySiret: brand.legal.siret,
+        companyRcs: brand.legal.rcs,
+        companyVat: brand.legal.vatNumber,
+        companyAddress: brand.legal.address,
+        companyDirector: brand.legal.director,
+        contactEmail: brand.legal.contactEmail,
+        bookingEmail: brand.legal.bookingEmail,
+        contactPhone: brand.legal.phone,
+        hostName: brand.legal.host.name,
+        hostAddress: brand.legal.host.address,
+        website: brand.website,
+      },
     },
     
     react: {

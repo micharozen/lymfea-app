@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import oomLogo from "@/assets/oom-monogram.svg";
+import { brand, brandLogos } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
 
 const PwaSplash = () => {
@@ -20,12 +20,12 @@ const PwaSplash = () => {
         
         if (session) {
           console.log("✅ Session found, checking roles...");
-          // Check if user is a hairdresser
+          // Check if user is a therapist
           const { data: roles, error: rolesError } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', session.user.id)
-            .eq('role', 'hairdresser')
+            .eq('role', 'therapist')
             .maybeSingle();
 
           if (rolesError) {
@@ -35,24 +35,22 @@ const PwaSplash = () => {
           }
 
           if (roles) {
-            console.log("✅ Hairdresser role found, checking status...");
-            // Get hairdresser status
-            const { data: hairdresser, error: hairdresserError } = await supabase
-              .from('hairdressers')
+            console.log("✅ Therapist role found, checking status...");
+            const { data: therapist, error: therapistError } = await supabase
+              .from('therapists')
               .select('status')
               .eq('user_id', session.user.id)
               .maybeSingle();
 
-            if (hairdresserError) {
-              console.error("❌ Hairdresser error:", hairdresserError);
+            if (therapistError) {
+              console.error("❌ Therapist error:", therapistError);
               navigate("/pwa/welcome", { replace: true });
               return;
             }
 
-            if (hairdresser) {
-              console.log("✅ Hairdresser found, status:", hairdresser.status);
-              // Redirect based on status
-              if (hairdresser.status === "pending") {
+            if (therapist) {
+              console.log("✅ Therapist found, status:", therapist.status);
+              if (therapist.status === "pending") {
                 navigate("/pwa/onboarding", { replace: true });
               } else {
                 navigate("/pwa/dashboard", { replace: true });
@@ -61,8 +59,8 @@ const PwaSplash = () => {
             }
           }
         }
-        
-        // No valid session or not a hairdresser, show welcome screen
+
+        // No valid session or not a therapist, show welcome screen
         console.log("ℹ️ No valid session, redirecting to welcome");
         navigate("/pwa/welcome", { replace: true });
       } catch (error) {
@@ -79,8 +77,8 @@ const PwaSplash = () => {
     <div className="min-h-screen bg-white flex flex-col items-center justify-center">
       <div className="animate-fade-in">
         <img 
-          src={oomLogo} 
-          alt="OOM" 
+          src={brandLogos.monogram}
+          alt={brand.name} 
           className="w-32 h-32"
         />
       </div>

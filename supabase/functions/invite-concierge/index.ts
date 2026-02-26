@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { brand } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -221,11 +222,11 @@ serve(async (req: Request): Promise<Response> => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Bienvenue sur OOM App</title>
+          <title>Bienvenue sur ${brand.name}</title>
         </head>
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur OOM App</h1>
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur ${brand.name}</h1>
             <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Concierge</p>
           </div>
           
@@ -260,12 +261,12 @@ serve(async (req: Request): Promise<Response> => {
 
             <p style="font-size: 16px; margin-top: 40px; color: #666;">
               Cordialement,<br>
-              <strong style="color: #000000;">L'équipe OOM App</strong>
+              <strong style="color: #000000;">L'équipe ${brand.name}</strong>
             </p>
           </div>
 
           <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
-            <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+            <p style="margin: 0;">© ${new Date().getFullYear()} ${brand.legal.companyName}. Tous droits réservés.</p>
           </div>
         </body>
       </html>
@@ -275,7 +276,7 @@ serve(async (req: Request): Promise<Response> => {
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: 'OOM App <booking@oomworld.com>', to: [email], subject: 'Accès OOM App', html })
+      body: JSON.stringify({ from: brand.emails.from.default, to: [email], subject: `Accès ${brand.name}`, html })
     });
 
     if (!resendResponse.ok) {

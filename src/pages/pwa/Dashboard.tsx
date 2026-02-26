@@ -14,8 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { setOneSignalExternalUserId } from "@/hooks/useOneSignal";
 import PwaHeader from "@/components/pwa/Header";
 import { formatPrice } from "@/lib/formatPrice";
+import { brand } from "@/config/brand";
 
-interface Hairdresser {
+interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -35,7 +36,7 @@ interface Booking {
   room_number: string;
   status: string;
   total_price: number | null;
-  hairdresser_id: string | null;
+  therapist_id: string | null;
   declined_by?: string[];
   payment_status?: string | null;
   payment_method?: string | null;
@@ -93,7 +94,7 @@ const getPaymentStatusBadge = (paymentStatus: string | null | undefined, payment
 
 const PwaDashboard = () => {
   const { t } = useTranslation('pwa');
-  const [hairdresser, setHairdresser] = useState<Hairdresser | null>(null);
+  const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"upcoming" | "history" | "cancelled">("upcoming");
@@ -111,24 +112,24 @@ const PwaDashboard = () => {
 
   // Single useEffect to handle initial load - use cache first
   useEffect(() => {
-    if (!hairdresser) return;
+    if (!therapist) return;
 
     // Check if we need to force refresh (e.g., after unassigning a booking)
     const shouldForceRefresh = location.state?.forceRefresh;
-    
+
     if (shouldForceRefresh) {
       console.log('🔄 Force refresh requested, clearing cache...');
-      queryClient.removeQueries({ queryKey: ["myBookings", hairdresser.id] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", hairdresser.id] });
+      queryClient.removeQueries({ queryKey: ["myBookings", therapist.id] });
+      queryClient.removeQueries({ queryKey: ["pendingBookings", therapist.id] });
       // Clear navigation state
       navigate(location.pathname, { replace: true, state: {} });
-      fetchAllBookings(hairdresser.id);
+      fetchAllBookings(therapist.id);
       return;
     }
 
     // Check for cached bookings first - show immediately if available
-    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", hairdresser.id]);
-    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", hairdresser.id]);
+    const cachedMyBookings = queryClient.getQueryData<any[]>(["myBookings", therapist.id]);
+    const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", therapist.id]);
 
     if (cachedMyBookings || cachedPendingBookings) {
       console.log('📦 Using cached bookings data');
@@ -145,12 +146,12 @@ const PwaDashboard = () => {
 
     // Always fetch fresh data in background
     console.log('🔄 Fetching bookings in background...');
-    fetchAllBookings(hairdresser.id);
-  }, [hairdresser, location.state?.forceRefresh]);
+    fetchAllBookings(therapist.id);
+  }, [therapist, location.state?.forceRefresh]);
 
   // Realtime listener for bookings
   useEffect(() => {
-    if (!hairdresser) return;
+    if (!therapist) return;
 
     console.log('🎧 Setting up realtime listener...');
     
@@ -168,28 +169,28 @@ const PwaDashboard = () => {
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
-          // Cas 1: Réservation assignée à un autre coiffeur - retirer immédiatement
-          if (newData.hairdresser_id !== null && 
-              newData.hairdresser_id !== hairdresser.id &&
+          // Cas 1: Reservation assigned to another therapist - remove immediately
+          if (newData.therapist_id !== null &&
+              newData.therapist_id !== therapist.id &&
               (newData.status === 'pending' || newData.status === 'confirmed' || newData.status === 'awaiting_hairdresser_selection')) {
-            console.log('⚡ Booking #' + newData.booking_id + ' taken by another hairdresser, removing');
+            console.log('⚡ Booking #' + newData.booking_id + ' taken by another therapist, removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             
-            if (oldData.hairdresser_id === null) {
+            if (oldData.therapist_id === null) {
               toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
             }
             return;
           }
           
-          // Cas 2: Réservation non assignée mais statut change (refusée, annulée, etc.) - retirer
-          if (newData.hairdresser_id === null && newData.status !== 'pending' && newData.status !== 'awaiting_hairdresser_selection') {
+          // Cas 2: Unassigned booking but status changed (declined, cancelled, etc.) - remove
+          if (newData.therapist_id === null && newData.status !== 'pending' && newData.status !== 'awaiting_hairdresser_selection') {
             console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
             setAllBookings(prev => prev.filter(b => b.id !== newData.id));
             return;
           }
           
-          // Cas 3: Ma réservation confirmée - mettre à jour dans la liste
-          if (newData.hairdresser_id === hairdresser.id) {
+          // Cas 3: My booking confirmed - update in the list
+          if (newData.therapist_id === therapist.id) {
             console.log('✅ My booking #' + newData.booking_id + ' updated');
             setAllBookings(prev => {
               const index = prev.findIndex(b => b.id === newData.id);
@@ -212,7 +213,7 @@ const PwaDashboard = () => {
         },
         (payload) => {
           console.log('➕ INSERT received:', payload);
-          fetchAllBookings(hairdresser.id);
+          fetchAllBookings(therapist.id);
         }
       )
       .subscribe((status) => {
@@ -223,7 +224,7 @@ const PwaDashboard = () => {
       console.log('🔌 Cleanup realtime');
       supabase.removeChannel(channel);
     };
-  }, [hairdresser]);
+  }, [therapist]);
 
 
   const checkAuth = async () => {
@@ -239,31 +240,31 @@ const PwaDashboard = () => {
       setOneSignalExternalUserId(user.id);
 
       // Use cached data if available
-      const cachedData = queryClient.getQueryData<any>(["hairdresser", user.id]);
-      
+      const cachedData = queryClient.getQueryData<any>(["therapist", user.id]);
+
       if (cachedData) {
-        console.log("📦 Using cached hairdresser data");
-        setHairdresser(cachedData);
+        console.log("📦 Using cached therapist data");
+        setTherapist(cachedData);
         setLoading(false);
         return;
       }
 
-      const { data: hairdresserData, error } = await supabase
-        .from("hairdressers")
+      const { data: therapistData, error } = await supabase
+        .from("therapists")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (error || !hairdresserData) {
+      if (error || !therapistData) {
         toast.error(t('dashboard.profileNotFound'));
         await supabase.auth.signOut();
         navigate("/pwa/login");
         return;
       }
 
-      // Cache hairdresser data
-      queryClient.setQueryData(["hairdresser", user.id], hairdresserData);
-      setHairdresser(hairdresserData);
+      // Cache therapist data
+      queryClient.setQueryData(["therapist", user.id], therapistData);
+      setTherapist(therapistData);
     } catch (error) {
       console.error("Auth error:", error);
       navigate("/pwa/login");
@@ -272,19 +273,19 @@ const PwaDashboard = () => {
     }
   };
 
-  const fetchAllBookings = async (hairdresserId: string, forceRefresh = false) => {
-    console.log('🔄 Fetching bookings for hairdresser:', hairdresserId, 'forceRefresh:', forceRefresh);
-    
+  const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
+    console.log('🔄 Fetching bookings for therapist:', therapistId, 'forceRefresh:', forceRefresh);
+
     // Clear cache when force refreshing
     if (forceRefresh) {
-      queryClient.removeQueries({ queryKey: ["myBookings", hairdresserId] });
-      queryClient.removeQueries({ queryKey: ["pendingBookings", hairdresserId] });
+      queryClient.removeQueries({ queryKey: ["myBookings", therapistId] });
+      queryClient.removeQueries({ queryKey: ["pendingBookings", therapistId] });
     }
-    
+
     const { data: affiliatedHotels, error: hotelsError } = await supabase
-      .from("hairdresser_hotels")
+      .from("therapist_venues")
       .select("hotel_id")
-      .eq("hairdresser_id", hairdresserId);
+      .eq("therapist_id", therapistId);
 
     if (hotelsError || !affiliatedHotels || affiliatedHotels.length === 0) {
       console.error("❌ Error fetching affiliated hotels:", hotelsError);
@@ -296,18 +297,18 @@ const PwaDashboard = () => {
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
     console.log('🏨 Hotel IDs:', hotelIds);
 
-    // Fetch hairdresser's trunk assignments
-    const { data: hairdresserData } = await supabase
-      .from("hairdressers")
+    // Fetch therapist's treatment room assignments
+    const { data: therapistData } = await supabase
+      .from("therapists")
       .select("trunks")
-      .eq("id", hairdresserId)
+      .eq("id", therapistId)
       .single();
-    
-    // Parse trunk IDs from hairdresser's trunks field (comma-separated text or single value)
-    const hairdresserTrunkIds: string[] = hairdresserData?.trunks 
-      ? hairdresserData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
+
+    // Parse room IDs from therapist's trunks field (comma-separated text or single value)
+    const therapistRoomIds: string[] = therapistData?.trunks
+      ? therapistData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
       : [];
-    console.log('🧳 Hairdresser trunk IDs:', hairdresserTrunkIds);
+    console.log('🚪 Therapist room IDs:', therapistRoomIds);
 
     // Fetch hotel images and currency separately (no FK relationship)
     const { data: hotelData } = await supabase
@@ -317,7 +318,7 @@ const PwaDashboard = () => {
 
     const hotelDataMap = new Map(hotelData?.map(h => [h.id, { image: h.image, currency: h.currency }]) || []);
 
-    // 1. Get bookings assigned to this hairdresser (any status)
+    // 1. Get bookings assigned to this therapist (any status)
     const { data: myBookings, error: myError } = await supabase
       .from("bookings")
       .select(`
@@ -329,7 +330,7 @@ const PwaDashboard = () => {
           )
         )
       `)
-      .eq("hairdresser_id", hairdresserId)
+      .eq("therapist_id", therapistId)
       .in("hotel_id", hotelIds);
 
     // Add hotel images to bookings
@@ -342,7 +343,7 @@ const PwaDashboard = () => {
       console.error('❌ Error fetching my bookings:', myError);
     } else {
       // Cache my bookings
-      queryClient.setQueryData(["myBookings", hairdresserId], myBookingsWithImages);
+      queryClient.setQueryData(["myBookings", therapistId], myBookingsWithImages);
     }
 
     console.log('👤 My bookings:', myBookingsWithImages?.length || 0);
@@ -360,25 +361,25 @@ const PwaDashboard = () => {
         )
       `)
       .in("hotel_id", hotelIds)
-      .is("hairdresser_id", null)
+      .is("therapist_id", null)
       .in("status", ["pending", "awaiting_hairdresser_selection"]);
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
 
-    // Filter pending bookings by hairdresser's trunk assignments
-    // Only show bookings where trunk_id matches one of the hairdresser's trunks
+    // Filter pending bookings by therapist's treatment room assignments
+    // Only show bookings where room_id matches one of the therapist's rooms
     const filteredPendingBookings = pendingBookings?.filter(b => {
-      // Bookings awaiting hairdresser selection: show to all hairdressers at the hotel
+      // Bookings awaiting therapist selection: show to all therapists at the hotel
       if (b.status === "awaiting_hairdresser_selection") return true;
-      // If hairdresser has no trunk assignments, show bookings from their hotels (legacy behavior)
-      if (hairdresserTrunkIds.length === 0) return true;
-      // If booking has no trunk, show it (legacy data)
-      if (!b.trunk_id) return true;
-      // Only show if booking's trunk matches hairdresser's trunk
-      return hairdresserTrunkIds.includes(b.trunk_id);
+      // If therapist has no room assignments, show bookings from their hotels (legacy behavior)
+      if (therapistRoomIds.length === 0) return true;
+      // If booking has no room, show it (legacy data)
+      if (!b.room_id) return true;
+      // Only show if booking's room matches therapist's room
+      return therapistRoomIds.includes(b.room_id);
     }) || [];
 
-    console.log('🔍 Filtered pending bookings by trunk:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
+    console.log('🔍 Filtered pending bookings by room:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
 
     // Fetch proposed slots for awaiting_hairdresser_selection bookings
     const awaitingBookingIds = filteredPendingBookings
@@ -408,7 +409,7 @@ const PwaDashboard = () => {
       console.error('❌ Error fetching pending bookings:', pendingError);
     } else {
       // Cache pending bookings
-      queryClient.setQueryData(["pendingBookings", hairdresserId], pendingBookingsWithImages);
+      queryClient.setQueryData(["pendingBookings", therapistId], pendingBookingsWithImages);
     }
 
     console.log('⏳ Pending bookings:', pendingBookingsWithImages?.length || 0);
@@ -436,10 +437,10 @@ const PwaDashboard = () => {
   };
 
   const handleRefresh = async () => {
-    if (!hairdresser || refreshing) return;
+    if (!therapist || refreshing) return;
     setRefreshing(true);
     setShowAllBookings(false); // Reset to show only 3 on refresh
-    await fetchAllBookings(hairdresser.id);
+    await fetchAllBookings(therapist.id);
     setRefreshing(false);
   };
 
@@ -469,10 +470,10 @@ const PwaDashboard = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      // Si la réservation est assignée à ce coiffeur
-      const isAssignedToMe = hairdresser && booking.hairdresser_id === hairdresser.id;
+      // Check if booking is assigned to this therapist
+      const isAssignedToMe = therapist && booking.therapist_id === therapist.id;
       
-      // Statuts actifs qui bloquent un créneau (doivent être visibles dans "upcoming")
+      // Active statuses that block a slot (must be visible in "upcoming")
       const activeStatuses = ["confirmed", "ongoing"];
       const isActiveStatus = activeStatuses.includes(booking.status);
       
@@ -491,15 +492,15 @@ const PwaDashboard = () => {
   };
 
   const handleAcceptBooking = async (bookingId: string) => {
-    if (!hairdresser) return;
+    if (!therapist) return;
 
     try {
       const totalPrice = calculateTotalPrice(allBookings.find(b => b.id === bookingId)!);
-      
+
       const { data, error } = await supabase.rpc('accept_booking', {
         _booking_id: bookingId,
-        _hairdresser_id: hairdresser.id,
-        _hairdresser_name: `${hairdresser.first_name} ${hairdresser.last_name}`,
+        _therapist_id: therapist.id,
+        _therapist_name: `${therapist.first_name} ${therapist.last_name}`,
         _total_price: totalPrice
       });
 
@@ -509,7 +510,7 @@ const PwaDashboard = () => {
       
       if (result && !result.success) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
-        fetchAllBookings(hairdresser.id);
+        fetchAllBookings(therapist.id);
         return;
       }
 
@@ -523,7 +524,7 @@ const PwaDashboard = () => {
       }
 
       toast.success(t('dashboard.bookingAccepted'));
-      fetchAllBookings(hairdresser.id, true); // Force refresh to get updated data
+      fetchAllBookings(therapist.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
       toast.error(t('dashboard.acceptError'));
@@ -531,7 +532,7 @@ const PwaDashboard = () => {
   };
 
   const handleDeclineBooking = async (bookingId: string) => {
-    if (!hairdresser) return;
+    if (!therapist) return;
 
     try {
       const { data: currentBooking } = await supabase
@@ -541,7 +542,7 @@ const PwaDashboard = () => {
         .single();
 
       const currentDeclined = currentBooking?.declined_by || [];
-      const updatedDeclined = [...currentDeclined, hairdresser.id];
+      const updatedDeclined = [...currentDeclined, therapist.id];
 
       const { error } = await supabase
         .from("bookings")
@@ -551,7 +552,7 @@ const PwaDashboard = () => {
       if (error) throw error;
 
       toast.success(t('dashboard.bookingDeclined'));
-      fetchAllBookings(hairdresser.id, true); // Force refresh
+      fetchAllBookings(therapist.id, true); // Force refresh
     } catch (error) {
       console.error("Error declining booking:", error);
       toast.error(t('dashboard.error'));
@@ -587,10 +588,10 @@ const PwaDashboard = () => {
   const getPendingRequests = () => {
     const pending = allBookings.filter(b => {
       const isStatusPending = b.status === "pending" || b.status === "awaiting_hairdresser_selection";
-      const isUnassigned = b.hairdresser_id === null;
+      const isUnassigned = b.therapist_id === null;
       
-      // Exclure les réservations que ce coiffeur a déjà refusées
-      const hasDeclined = hairdresser && b.declined_by?.includes(hairdresser.id);
+      // Exclude bookings that this therapist has already declined
+      const hasDeclined = therapist && b.declined_by?.includes(therapist.id);
       
       return isStatusPending && isUnassigned && !hasDeclined;
     });
@@ -622,16 +623,16 @@ const PwaDashboard = () => {
     <div className="flex flex-1 flex-col bg-white">
       <PwaHeader
         leftSlot={
-          <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>OOM</span>
+          <span className="text-xl font-bold tracking-wider" style={{ fontFamily: "'Kormelink', serif" }}>{brand.name}</span>
         }
         rightSlot={
           <Avatar
             className="h-7 w-7 ring-1 ring-border cursor-pointer"
             onClick={() => navigate("/pwa/profile")}
           >
-            <AvatarImage src={hairdresser?.profile_image || undefined} />
+            <AvatarImage src={therapist?.profile_image || undefined} />
             <AvatarFallback className="bg-muted text-foreground text-[10px] font-medium">
-              {hairdresser?.first_name?.[0]}{hairdresser?.last_name?.[0]}
+              {therapist?.first_name?.[0]}{therapist?.last_name?.[0]}
             </AvatarFallback>
           </Avatar>
         }
@@ -759,7 +760,7 @@ const PwaDashboard = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0">
                         <h3 className="font-semibold text-xs text-black truncate">{booking.hotel_name}</h3>
-                        {booking.hairdresser_id && booking.status === "pending" && (
+                        {booking.therapist_id && booking.status === "pending" && (
                           <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
                             {t('dashboard.toConfirm')}
                           </Badge>
