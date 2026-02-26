@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
@@ -276,7 +276,7 @@ serve(async (req: Request): Promise<Response> => {
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
               <div style="background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5;">
                 <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 26px; text-align: center;">
-                  <img src="https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="${brand.name}" width="120" style="display:block;margin:0 auto 10px auto;" />
+                  <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="120" style="display:block;margin:0 auto 10px auto;" />
                   <p style="margin:0;color:#cccccc;font-size:13px;">Invitation administrateur</p>
                 </div>
 

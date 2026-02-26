@@ -121,6 +121,77 @@ High-level epics from the product roadmap:
 18. **Multi-language** — FR/EN interface and emails
 19. **Website Widget** — embeddable search widget for lymfea.com (search by treatment type, location, date)
 
+## Prompt Context Tags
+
+Préfixe ton prompt avec un de ces tags pour cibler un espace de l'app. Claude lira les fichiers clés associés avant d'intervenir.
+
+### `@admin` — Admin Dashboard
+
+| | |
+|---|---|
+| **Routes** | `/admin/*` — dashboard, bookings, therapists, places, treatments, treatment-rooms, concierges, products, orders, finance, transactions, analytics, settings, profile |
+| **Auth** | `AdminProtectedRoute` — rôle `admin` ou `concierge` |
+| **Layout** | `AppSidebar` + shadcn `SidebarProvider` (menu différent admin vs concierge) |
+| **Pages** | `src/pages/admin/` — Dashboard, Bookings, Hotels, VenueDetail, Therapists, Treatments, TreatmentRooms, Concierges, Products, Orders, Finance, Transactions, Analytics, Settings, Profile |
+| **Composants** | `src/components/admin/` (wizard, PMS config, details dialogs), `src/components/booking/` (calendar, list, create dialog, invoice), `src/components/table/` |
+| **Hooks** | `src/hooks/booking/` — useBookingData, useBookingFilters, useBookingSelection, useBookingCart, useCalendarLogic, useCreateBookingMutation |
+| **Contexts** | `UserContext` (userId, role, hotelIds, isAdmin, isConcierge), `TimezoneContext` |
+| **i18n** | namespace `admin` — `src/i18n/locales/{en,fr}/admin.json` |
+
+### `@pwa` — Therapist PWA (mobile)
+
+| | |
+|---|---|
+| **Routes** | `/pwa/*` — public: splash, welcome, install, login. Protégé: onboarding, dashboard, bookings, booking/:id, notifications, hotels, wallet, new-booking, profile, account-security, stripe-callback |
+| **Auth** | `TherapistProtectedRoute` (legacy `HairdresserProtectedRoute`) — rôle `therapist` |
+| **Layout** | `PwaLayout` (`src/components/pwa/Layout.tsx`) + `TabBar` bottom nav (masqué sur booking/:id et new-booking) |
+| **Pages** | `src/pages/pwa/` — Splash, Welcome, Install, Login, Onboarding, Dashboard, Bookings, BookingDetail, NewBooking, Notifications, Hotels, Wallet, Profile, AccountSecurity, StripeCallback, AddTreatmentDialog, ProposeAlternativeDialog |
+| **Composants** | `src/components/pwa/` — Layout, TabBar, Header, PageLoader, PaymentSelectionDrawer, PwaCalendarView, `new-booking/` (ClientInfoStep, TreatmentStep, SummaryStep, SuccessStep) |
+| **Hooks** | `useRoleRedirect` (routing par rôle), `useOneSignal` (push notifications) |
+| **Contexts** | `UserContext` |
+| **i18n** | namespace `pwa` — `src/i18n/locales/{en,fr}/pwa.json` |
+
+### `@client` — Client Booking Flow (public)
+
+| | |
+|---|---|
+| **Routes** | `/client/:hotelId/*` — welcome, treatments, schedule, guest-info, payment, checkout, confirmation/:bookingId. Aussi `/booking/manage/:bookingId`, `/booking/confirmation/:bookingId` |
+| **Auth** | Aucune (public). `ClientFlowWrapper` crée une session guest isolée |
+| **Layout** | `ClientFlowWrapper` → `AnalyticsProvider` → `ClientFlowProvider` → `PageTransition`. Classe CSS `.lymfea-client` |
+| **Pages** | `src/pages/client/` — Welcome, Treatments, Cart, Schedule, GuestInfo, Payment, Checkout, Confirmation, ManageBooking |
+| **Composants** | `src/components/client/` — CartDrawer, BestsellerSection, PractitionerCard, ProgressBar, TimePeriodSelector, OnRequestFormDrawer, ClientErrorFallback, `skeletons/` |
+| **Contexts** | `CartContext` (sessionStorage, scoped par hotelId), `FlowContext` (state machine des étapes), `AnalyticsContext` — dans `src/pages/client/context/` |
+| **Hooks** | `useClientSession`, `useClientPrefetch`, `useClientAnalytics`, `useVenueDefaultLanguage`, `useTreatmentCategories` |
+| **i18n** | namespace `client` — `src/i18n/locales/{en,fr}/client.json` |
+
+### `@place` — Place Page (détail venue, sous-ensemble admin)
+
+| | |
+|---|---|
+| **Routes** | `/admin/places` (liste), `/admin/places/new` (créer), `/admin/places/:id` (éditer) |
+| **Page principale** | `src/pages/admin/VenueDetail.tsx` — formulaire à onglets (React Hook Form + Zod) |
+| **Onglets** | General (`VenueGeneralTab`), Deployment (`VenueDeploymentTab`), Treatment Rooms (`VenueTreatmentRoomsTab`), Therapists (`VenueTherapistsTab`), Categories (`VenueCategoriesStep`), Client Preview (`VenueClientPreviewTab`) |
+| **Composants** | `src/components/admin/venue/` (tabs), `src/components/admin/steps/` (wizard steps), `VenueWizardDialog.tsx` (création rapide 3 étapes) |
+| **Liste** | `src/pages/admin/Hotels.tsx` — table triable + HotelCard mobile |
+| **Hooks** | `usePmsGuestLookup`, `useVenueTerms`, `useFileUpload` |
+
+### `@edge` — Supabase Edge Functions
+
+| | |
+|---|---|
+| **Dossier** | `supabase/functions/` (Deno/TypeScript) |
+| **Shared** | `supabase/functions/_shared/` (brand, cors, supabase client, email templates) |
+| **Appel frontend** | `invokeEdgeFunction()` dans `src/lib/supabaseEdgeFunctions.ts` |
+| **Functions** | contact-admin, generate-invoice, handle-quote-response, invite-admin, notify-admin-new-booking, notify-admin-quote-pending, notify-booking-confirmed, notify-concierge-booking, notify-concierge-completion, notify-concierge-room-payment, send-booking-confirmation, send-quote-email |
+| **Doc** | `docs/claude-context/SUPABASE_FUNCTIONS.md` |
+
+**Exemples d'utilisation :**
+- `@admin Ajouter un filtre par thérapeute sur la page Bookings`
+- `@pwa Le bouton "accepter" ne marche pas sur BookingDetail`
+- `@client Ajouter un champ "notes" à l'étape GuestInfo`
+- `@place Ajouter un onglet "Produits" dans VenueDetail`
+- `@edge Créer une function pour envoyer un rappel D-1`
+
 ## Context Documentation
 
 Detailed docs live in `docs/claude-context/`:

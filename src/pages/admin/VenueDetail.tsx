@@ -8,11 +8,20 @@ import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Loader2, Save, Pencil, Euro, CalendarDays } from "lucide-react";
+import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueDeploymentTab } from "@/components/admin/venue/VenueDeploymentTab";
 import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
@@ -20,6 +29,7 @@ import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab"
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
 
 // Same form schema as VenueWizardDialog
@@ -43,6 +53,7 @@ const createFormSchema = (t: TFunction) => z.object({
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
   const therapistComm = parseFloat(data.therapist_commission) || 0;
@@ -72,6 +83,7 @@ export default function VenueDetail() {
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [hotelName, setHotelName] = useState("");
   const [isEditingState, setIsEditingState] = useState(false);
+  const [statsPeriod, setStatsPeriod] = useState<"month" | "30d" | "year" | "all">("month");
   const isEditing = isNewMode || isEditingState;
 
   // Deployment schedule state
@@ -125,6 +137,7 @@ export default function VenueDetail() {
       offert: false,
       company_offered: false,
       landing_subtitle: "",
+      calendar_color: "#3b82f6",
     },
   });
 
@@ -168,6 +181,7 @@ export default function VenueDetail() {
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
+          calendar_color: hotel.calendar_color || "#3b82f6",
         });
 
         setHotelImage(hotel.image || "");
@@ -372,6 +386,7 @@ export default function VenueDetail() {
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
+        calendar_color: values.calendar_color || '#3b82f6',
       };
 
       if (isNewMode && !savedHotelId) {
@@ -442,15 +457,54 @@ export default function VenueDetail() {
   const effectiveHotelId = savedHotelId || id || null;
   const canAccessTabs = !!effectiveHotelId;
 
-  // Watch name for header display
+  // Watch name and currency for header display
   const watchedName = form.watch("name");
+  const watchedCurrency = form.watch("currency");
+
+  // Fetch booking stats for header
+  const { data: stats } = useQuery({
+    queryKey: ["venue-stats", effectiveHotelId, statsPeriod],
+    queryFn: async () => {
+      let query = supabase
+        .from("bookings")
+        .select("total_price, status")
+        .eq("hotel_id", effectiveHotelId!);
+
+      if (statsPeriod !== "all") {
+        const now = new Date();
+        let fromDate: Date;
+        if (statsPeriod === "month") {
+          fromDate = startOfMonth(now);
+        } else if (statsPeriod === "30d") {
+          fromDate = subDays(now, 30);
+        } else {
+          fromDate = startOfYear(now);
+        }
+        query = query.gte("created_at", fromDate.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      let totalSales = 0;
+      let bookingsCount = 0;
+      (data || []).forEach((b) => {
+        bookingsCount++;
+        if (b.status === "completed" && b.total_price) {
+          totalSales += Number(b.total_price);
+        }
+      });
+      return { totalSales, bookingsCount };
+    },
+    enabled: !!effectiveHotelId,
+  });
 
   return (
-    <div className="bg-background min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex-shrink-0 border-b bg-background sticky top-0 z-10">
+    <div className="bg-background">
+      {/* Header — sticky within main scroll */}
+      <div className="border-b bg-background sticky top-0 z-10">
         <div className="px-4 md:px-6 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-4 min-w-0">
             <Button
               variant="ghost"
               size="sm"
@@ -460,11 +514,39 @@ export default function VenueDetail() {
               <ArrowLeft className="h-4 w-4 mr-1" />
               <span className="hidden sm:inline">Retour</span>
             </Button>
+            <div className="h-5 w-px bg-border flex-shrink-0" />
             <h1 className="text-lg font-semibold truncate">
               {isNewMode && !savedHotelId
                 ? "Nouveau lieu"
                 : watchedName || hotelName || "Lieu"}
             </h1>
+            {stats && (
+              <div className="hidden md:flex items-center gap-3 ml-1 pl-3 border-l">
+                <div className="flex items-center gap-1.5">
+                  <Euro className="h-3.5 w-3.5 text-gold-500" />
+                  <span className="text-sm font-medium text-gold-600">
+                    {formatPrice(stats.totalSales || 0, watchedCurrency || "EUR")}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {stats.bookingsCount || 0}
+                  </span>
+                </div>
+                <Select value={statsPeriod} onValueChange={(v) => setStatsPeriod(v as typeof statsPeriod)}>
+                  <SelectTrigger className="h-6 text-[11px] gap-1 px-2 w-auto min-w-[80px] border-dashed">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Ce mois</SelectItem>
+                    <SelectItem value="30d">30 jours</SelectItem>
+                    <SelectItem value="year">Cette année</SelectItem>
+                    <SelectItem value="all">Tout</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {isNewMode ? (
@@ -513,25 +595,29 @@ export default function VenueDetail() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="flex-1 px-4 md:px-6 py-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start overflow-x-auto mb-6">
-              <TabsTrigger value="general">Général</TabsTrigger>
-              <TabsTrigger value="planning">Planning</TabsTrigger>
-              <TabsTrigger value="rooms" disabled={!canAccessTabs}>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          {/* Tab bar — sticky below header */}
+          <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
+            <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
+              <TabsTrigger value="general" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Général</TabsTrigger>
+              <TabsTrigger value="planning" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Planning</TabsTrigger>
+              <TabsTrigger value="rooms" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Salles
               </TabsTrigger>
-              <TabsTrigger value="therapists" disabled={!canAccessTabs}>
+              <TabsTrigger value="therapists" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Thérapeutes
               </TabsTrigger>
-              <TabsTrigger value="categories" disabled={!canAccessTabs}>
+              <TabsTrigger value="categories" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Catégories
               </TabsTrigger>
-              <TabsTrigger value="client-preview" disabled={!canAccessTabs}>
+              <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Aperçu client
               </TabsTrigger>
             </TabsList>
+          </div>
 
+          {/* Tab content — flows naturally, main scrolls */}
+          <div className="px-4 md:px-6 py-4">
             <Form {...form}>
               <form onSubmit={(e) => e.preventDefault()}>
                 <TabsContent value="general" className="mt-0">
@@ -588,8 +674,8 @@ export default function VenueDetail() {
                 </TabsContent>
               </>
             )}
-          </Tabs>
-        </div>
+          </div>
+        </Tabs>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useOneSignal } from "@/hooks/useOneSignal";
+import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { brand } from "@/config/brand";
@@ -29,9 +30,12 @@ const Bookings = lazy(() => import("./pages/admin/Bookings"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
+const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
 const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
+const Customers = lazy(() => import("./pages/admin/Customers"));
+const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
 const Products = lazy(() => import("./pages/admin/Products"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
@@ -70,6 +74,7 @@ const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"))
 const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
+const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
 
 // Admin PWA Layout & Pages
 const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
@@ -121,6 +126,12 @@ const ClientPageLoader = () => (
     />
   </div>
 );
+
+// Syncs authenticated user's language preference from profiles table
+const AuthLanguageSync = () => {
+  useLanguagePreference();
+  return null;
+};
 
 const App = () => {
   // Initialize OneSignal for push notifications
@@ -187,6 +198,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
+        <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
         <BrowserRouter>
@@ -326,7 +338,15 @@ const App = () => {
                 </TherapistProtectedRoute>
               }
             />
-            
+            <Route
+              path="/pwa/schedule"
+              element={
+                <TherapistProtectedRoute>
+                  <PwaSchedule />
+                </TherapistProtectedRoute>
+              }
+            />
+
             {/* Admin PWA Public Routes */}
             <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
 
@@ -355,16 +375,16 @@ const App = () => {
                   {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
                     ? <Navigate to="/admin-pwa/accueil" replace />
                     : (
-                  <SidebarProvider>
-                    <div className="flex min-h-screen w-full">
+                  <SidebarProvider className="min-h-0 h-screen overflow-hidden" style={{ minHeight: 0 }}>
+                    <div className="flex h-full w-full">
                       <AppSidebar />
-                      <div className="flex-1 flex flex-col">
+                      <div className="flex-1 flex flex-col min-h-0 min-w-0">
                         {/* Mobile header with menu trigger */}
                         <header className="md:hidden flex items-center h-14 px-4 border-b border-border bg-background sticky top-0 z-40" style={{ paddingTop: "env(safe-area-inset-top)" }}>
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">{brand.pwa.admin.shortName}</span>
                         </header>
-                        <main className="flex-1">
+                        <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -375,12 +395,17 @@ const App = () => {
                               <Route path="/dashboard" element={<Dashboard />} />
                               <Route path="/bookings" element={<Bookings />} />
                               <Route path="/therapists" element={<Therapists />} />
+                              <Route path="/therapists/new" element={<TherapistDetail />} />
+                              <Route path="/therapists/:id" element={<TherapistDetail />} />
                               <Route path="/places" element={<AdminHotels />} />
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatment-rooms" element={<TreatmentRooms />} />
                               <Route path="/concierges" element={<Concierges />} />
+                              <Route path="/customers" element={<Customers />} />
+                              <Route path="/customers/new" element={<CustomerDetail />} />
+                              <Route path="/customers/:id" element={<CustomerDetail />} />
                               <Route path="/products" element={<Products />} />
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />

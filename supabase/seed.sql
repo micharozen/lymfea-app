@@ -91,14 +91,23 @@ INSERT INTO auth.identities (
   );
 
 -- 3) Test hotel
-INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone)
+INSERT INTO public.hotels (id, name, status, opening_time, closing_time, timezone, address, city, country, postal_code, landing_subtitle, venue_type, currency, slot_interval, country_code)
 VALUES (
   '00000000-0000-0000-0000-000000000010',
-  'Hotel Dev Test',
-  'Actif',
+  'Hôtel Hana',
+  'active',
   '08:00',
   '20:00',
-  'Europe/Paris'
+  'Europe/Paris',
+  '17 rue du quatre - septembre',
+  'Paris',
+  'France',
+  '75002',
+  'Paris',
+  'hotel',
+  'EUR',
+  30,
+  'FR'
 );
 
 -- 4) Admin record
@@ -107,14 +116,14 @@ VALUES (
   '00000000-0000-0000-0000-000000000101',
   '00000000-0000-0000-0000-000000000001',
   'admin@oom.dev',
-  'Dev', 'Admin',
+  'Michael', 'Admin',
   '0600000001',
   'Actif',
   '+33'
 );
 
 -- 5) Therapist record
-INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code)
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee)
 VALUES (
   '00000000-0000-0000-0000-000000000102',
   '00000000-0000-0000-0000-000000000002',
@@ -123,7 +132,8 @@ VALUES (
   '0600000002',
   'Actif',
   true,
-  '+33'
+  '+33',
+  '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}'
 );
 
 -- 6) Concierge record
@@ -188,11 +198,20 @@ VALUES (
   'Massage',
   'Actif',
   '00000000-0000-0000-0000-000000000010',
-  'Hotel Dev Test',
+  'Hôtel Hana',
   1
 );
 
--- 11) User roles
+-- 11) Venue deployment schedule (always open)
+INSERT INTO public.venue_deployment_schedules (id, hotel_id, schedule_type, recurrence_interval)
+VALUES (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-000000000010',
+  'always_open',
+  1
+);
+
+-- 12) User roles
 INSERT INTO public.user_roles (id, user_id, role)
 VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'admin'),

@@ -1,7 +1,9 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Phone, Building2, Sparkles, Briefcase } from "lucide-react";
+import { Phone, Building2, Sparkles, Briefcase, Target, CalendarDays } from "lucide-react";
+import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
+import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
 
 interface Hotel {
   id: string;
@@ -26,6 +28,7 @@ interface Therapist {
   status: string;
   trunks: string | null;
   skills: string[];
+  minimum_guarantee?: Record<string, number> | null;
   therapist_venues?: { hotel_id: string }[];
 }
 
@@ -123,6 +126,16 @@ export function TherapistDetailDialog({
         </DetailSection>
       )}
 
+      {/* Minimum Guarantee */}
+      {therapist.minimum_guarantee && Object.values(therapist.minimum_guarantee as Record<string, number>).some((v) => v > 0) && (
+        <DetailSection icon={Target} title="Minimum garanti">
+          <MinimumGuaranteeEditor
+            value={therapist.minimum_guarantee as Record<string, number>}
+            readOnly
+          />
+        </DetailSection>
+      )}
+
       {/* Hotels */}
       <DetailSection icon={Building2} title={`Hotels (${assignedHotels.length})`}>
         {assignedHotels.length > 0 ? (
@@ -145,6 +158,11 @@ export function TherapistDetailDialog({
         ) : (
           <p className="text-sm text-muted-foreground">Aucun hotel assigne</p>
         )}
+      </DetailSection>
+
+      {/* Schedule */}
+      <DetailSection icon={CalendarDays} title="Planning">
+        <TherapistScheduleSection therapistId={therapist.id} />
       </DetailSection>
 
       {/* Treatment Room */}

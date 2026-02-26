@@ -60,6 +60,7 @@ const createFormSchema = (t: TFunction) => z.object({
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
   const hotelComm = parseFloat(data.hotel_commission) || 0;
   const therapistComm = parseFloat(data.therapist_commission) || 0;

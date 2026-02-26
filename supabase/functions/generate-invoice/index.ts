@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Logo URL (hosted publicly)
-const LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+const LOGO_URL = EMAIL_LOGO_URL;
 
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {

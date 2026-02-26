@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -9,8 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
+import { StatusBadge } from "@/components/StatusBadge";
+import { TherapistDetailDialog } from "@/components/admin/details/TherapistDetailDialog";
 import { toast } from "sonner";
-import { Plus, X, Loader2, UserPlus } from "lucide-react";
+import { Plus, X, Loader2, UserPlus, Phone } from "lucide-react";
+import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -37,9 +41,12 @@ interface VenueTherapistsTabProps {
 }
 
 export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedAssignIds, setSelectedAssignIds] = useState<string[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedTherapist, setSelectedTherapist] = useState<any>(null);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -58,17 +65,44 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
     triggerFileSelect,
   } = useFileUpload();
 
-  // Fetch assigned therapists
+  // Fetch assigned therapists (include therapist_venues for the detail dialog)
   const { data: assignedTherapists = [], isLoading: loadingAssigned } = useQuery({
     queryKey: ["venue-therapists", hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("therapist_venues")
-        .select("hotel_id, therapist_id, therapists(*)")
+        .select("hotel_id, therapist_id, therapists(*, therapist_venues(hotel_id))")
         .eq("hotel_id", hotelId);
       if (error) throw error;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data || []).map((row: any) => row.therapists).filter(Boolean);
+    },
+  });
+
+  // Fetch hotels for the detail dialog
+  const { data: hotels = [] } = useQuery({
+    queryKey: ["hotels-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("id, name, image")
+        .order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Fetch treatment rooms for the detail dialog
+  const { data: rooms = [] } = useQuery({
+    queryKey: ["treatment-rooms", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trunks")
+        .select("id, name, image")
+        .eq("hotel_id", hotelId)
+        .order("name");
+      if (error) throw error;
+      return data || [];
     },
   });
 
@@ -242,7 +276,8 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
             {assignedTherapists.map((therapist: any) => (
               <div
                 key={therapist.id}
-                className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                className="flex items-center gap-3 p-3 rounded-lg border bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setSelectedTherapist(therapist)}
               >
                 <Avatar className="h-9 w-9 flex-shrink-0">
                   <AvatarImage src={therapist.profile_image || undefined} />
@@ -251,10 +286,27 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {therapist.first_name} {therapist.last_name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">
+                      {therapist.first_name} {therapist.last_name}
+                    </p>
+                    <StatusBadge status={therapist.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{therapist.email}</p>
+                  {therapist.phone && (
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      {therapist.country_code} {therapist.phone}
+                    </p>
+                  )}
+                  {therapist.minimum_guarantee && Object.values(therapist.minimum_guarantee as Record<string, number>).some((v: number) => v > 0) && (
+                    <div className="mt-1">
+                      <MinimumGuaranteeEditor
+                        value={therapist.minimum_guarantee as Record<string, number>}
+                        readOnly
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {(therapist.skills || []).map((skill: string) => {
@@ -270,7 +322,10 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 flex-shrink-0"
-                  onClick={() => unassignMutation.mutate(therapist.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    unassignMutation.mutate(therapist.id);
+                  }}
                   title="Désassigner"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -428,6 +483,21 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
           </div>
         )}
       </div>
+
+      {/* Therapist detail dialog */}
+      <TherapistDetailDialog
+        open={!!selectedTherapist}
+        onOpenChange={(open) => !open && setSelectedTherapist(null)}
+        therapist={selectedTherapist}
+        hotels={hotels}
+        rooms={rooms}
+        onEdit={() => {
+          if (selectedTherapist) {
+            setSelectedTherapist(null);
+            navigate(`/admin/therapists/${selectedTherapist.id}`);
+          }
+        }}
+      />
     </div>
   );
 }

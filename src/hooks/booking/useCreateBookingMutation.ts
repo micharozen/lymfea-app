@@ -93,12 +93,20 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
       }
 
+      // Find or create customer by phone
+      const normalizedPhone = `${d.countryCode}${d.phone}`.replace(/\s/g, '');
+      const { data: customerId } = await supabase.rpc('find_or_create_customer', {
+        _phone: normalizedPhone,
+        _first_name: d.clientFirstName,
+        _last_name: d.clientLastName,
+      });
+
       const { data: booking, error } = await supabase.from("bookings").insert({
         hotel_id: d.hotelId,
         hotel_name: hotel?.name || "",
         client_first_name: d.clientFirstName,
         client_last_name: d.clientLastName,
-        phone: `${d.countryCode} ${d.phone}`,
+        phone: normalizedPhone,
         room_number: d.roomNumber,
         booking_date: d.date,
         booking_time: d.time,
@@ -109,6 +117,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         total_price: d.totalPrice,
         room_id: roomId,
         duration: d.totalDuration,
+        customer_id: customerId || null,
       }).select().single();
 
       if (error) throw error;

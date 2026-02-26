@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -31,14 +33,12 @@ import {
 import { Search, Plus, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
-import EditTherapistDialog from "@/components/EditTherapistDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelsCell, TreatmentRoomsCell, PersonCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
-import { TherapistDetailDialog } from "@/components/admin/details/TherapistDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
@@ -68,10 +68,13 @@ interface Therapist {
   status: string;
   trunks: string | null;
   skills: string[];
+  minimum_guarantee?: Record<string, number> | null;
+  minimum_guarantee_active?: boolean | null;
   therapist_venues?: { hotel_id: string }[];
 }
 
 export default function Therapists() {
+  const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -84,7 +87,7 @@ export default function Therapists() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, viewId: viewTherapistId, openView, closeView, editId: editTherapistId, openEdit, closeEdit, deleteId: deleteTherapistId, openDelete, closeDelete } = useDialogState<string>();
+  const { isAddOpen, openAdd, closeAdd, deleteId: deleteTherapistId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
   useEffect(() => {
@@ -210,17 +213,13 @@ export default function Therapists() {
   // Control overflow when pagination is needed
   useOverflowControl(!loading && needsPagination);
 
-  // Get viewed/edited therapist
-  const viewedTherapist = viewTherapistId ? therapists.find(h => h.id === viewTherapistId) || null : null;
-  const editedTherapist = editTherapistId ? therapists.find(h => h.id === editTherapistId) || null : null;
-
-  const columnCount = isAdmin ? 8 : 7;
+  const columnCount = isAdmin ? 9 : 8;
 
   const getHotelsInfo = (therapistVenues?: { hotel_id: string }[]) => {
     if (!therapistVenues || therapistVenues.length === 0) {
       return [];
     }
-    
+
     return therapistVenues
       .map((hh) => hotels.find((h) => h.id === hh.hotel_id))
       .filter(Boolean) as Hotel[];
@@ -228,7 +227,7 @@ export default function Therapists() {
 
   const getSkillsDisplay = (skills: string[]) => {
     if (!skills || skills.length === 0) return "-";
-    
+
     const skillMap: Record<string, string> = {
       men: "👨",
       women: "👩",
@@ -237,11 +236,11 @@ export default function Therapists() {
     };
 
     const hasEmojiSkills = skills.some(skill => skillMap[skill]);
-    
+
     if (hasEmojiSkills) {
       return skills.map((skill) => skillMap[skill] || "").filter(Boolean).join(" ");
     }
-    
+
     return skills.join(", ");
   };
 
@@ -310,14 +309,44 @@ export default function Therapists() {
     fetchTherapists();
   };
 
+  const handleToggleMinGuarantee = async (therapistId: string, newValue: boolean) => {
+    const { error } = await supabase
+      .from("therapists")
+      .update({ minimum_guarantee_active: newValue })
+      .eq("id", therapistId);
+
+    if (error) {
+      toast.error("Erreur lors de la mise à jour");
+      return;
+    }
+
+    // Optimistic update
+    setTherapists((prev) =>
+      prev.map((t) =>
+        t.id === therapistId ? { ...t, minimum_guarantee_active: newValue } : t
+      )
+    );
+  };
+
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
-        <div className="mb-4">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Thérapeutes</h1>
-          <p className="text-muted-foreground mt-1">
-            Gérez vos thérapeutes et leurs informations
-          </p>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Thérapeutes</h1>
+            <p className="text-muted-foreground mt-1">
+              Gérez vos thérapeutes et leurs informations
+            </p>
+          </div>
+          {isAdmin && (
+            <Button
+              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0"
+              onClick={openAdd}
+            >
+              <Plus className="h-4 w-4 md:mr-2" />
+              <span className="hidden md:inline">Ajouter un thérapeute</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -362,20 +391,11 @@ export default function Therapists() {
               </SelectContent>
             </Select>
 
-            {isAdmin && (
-              <Button
-                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
-                onClick={openAdd}
-              >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Ajouter un thérapeute</span>
-              </Button>
-            )}
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <div className="overflow-x-auto h-full">
-            <Table className="text-xs w-full table-fixed min-w-[700px]">
+            <Table className="text-xs w-full table-fixed min-w-[800px]">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>
@@ -388,6 +408,7 @@ export default function Therapists() {
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hotel</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Competences</TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[80px] text-center">Min. garanti</TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                     Statut
                   </SortableTableHead>
@@ -411,7 +432,7 @@ export default function Therapists() {
                     <TableRow
                       key={therapist.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                      onClick={() => openView(therapist.id)}
+                      onClick={() => navigate(`/admin/therapists/${therapist.id}`)}
                     >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <PersonCell person={therapist} />
@@ -439,6 +460,16 @@ export default function Therapists() {
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <span className="truncate block text-foreground">{getSkillsDisplay(therapist.skills)}</span>
                       </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                        <Switch
+                          checked={therapist.minimum_guarantee_active || false}
+                          onCheckedChange={(checked) => {
+                            handleToggleMinGuarantee(therapist.id, checked);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="scale-75"
+                        />
+                      </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <StatusBadge status={therapist.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
                       </TableCell>
@@ -451,7 +482,7 @@ export default function Therapists() {
                               className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openEdit(therapist.id);
+                                navigate(`/admin/therapists/${therapist.id}`);
                               }}
                             >
                               <Pencil className="h-3 w-3" />
@@ -497,15 +528,6 @@ export default function Therapists() {
         onSuccess={fetchTherapists}
       />
 
-      {editedTherapist && (
-        <EditTherapistDialog
-          open={!!editTherapistId}
-          onOpenChange={(open) => !open && closeEdit()}
-          therapist={editedTherapist}
-          onSuccess={fetchTherapists}
-        />
-      )}
-
       <AlertDialog open={!!deleteTherapistId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -520,20 +542,6 @@ export default function Therapists() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <TherapistDetailDialog
-        open={!!viewTherapistId}
-        onOpenChange={(open) => !open && closeView()}
-        therapist={viewedTherapist}
-        hotels={hotels}
-        rooms={rooms}
-        onEdit={() => {
-          if (viewTherapistId) {
-            closeView();
-            openEdit(viewTherapistId);
-          }
-        }}
-      />
     </div>
   );
 }

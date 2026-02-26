@@ -5,24 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Euro, Timer, Globe, ChevronDown, Loader2 } from "lucide-react";
+import { CalendarIcon, Check, ChevronsUpDown, Euro, Timer, Globe, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCurrentOffset } from "@/lib/timezones";
@@ -66,6 +67,7 @@ export default function CreateBookingFromRequestDialog({
   const [duration, setDuration] = useState("");
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
+  const [therapistOpen, setTherapistOpen] = useState(false);
 
   // Pre-fill form when request changes
   useEffect(() => {
@@ -441,18 +443,55 @@ export default function CreateBookingFromRequestDialog({
           {/* Therapist */}
           <div className="space-y-2">
             <Label>Thérapeute (optionnel)</Label>
-            <Select value={therapistId} onValueChange={setTherapistId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un thérapeute" />
-              </SelectTrigger>
-              <SelectContent>
-                {therapists?.map((therapist) => (
-                  <SelectItem key={therapist.id} value={therapist.id}>
-                    {therapist.first_name} {therapist.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={therapistOpen} onOpenChange={setTherapistOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={therapistOpen}
+                  className={cn(
+                    "w-full justify-between font-normal",
+                    !therapistId && "text-muted-foreground"
+                  )}
+                >
+                  {therapistId
+                    ? (() => {
+                        const t = therapists?.find((t) => t.id === therapistId);
+                        return t ? `${t.first_name} ${t.last_name}` : "Sélectionner un thérapeute";
+                      })()
+                    : "Sélectionner un thérapeute"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Rechercher un thérapeute..." />
+                  <CommandList>
+                    <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                    <CommandGroup>
+                      {therapists?.map((therapist) => (
+                        <CommandItem
+                          key={therapist.id}
+                          value={`${therapist.first_name} ${therapist.last_name}`}
+                          onSelect={() => {
+                            setTherapistId(therapist.id);
+                            setTherapistOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              therapistId === therapist.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {therapist.first_name} {therapist.last_name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </form>
 

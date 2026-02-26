@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -148,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
                   <tr>
                     <td align="center">
-                      <img src="https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="${brand.name}" style="height: 40px;">
+                      <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" style="height: 40px;">
                     </td>
                   </tr>
                 </table>

@@ -49,12 +49,13 @@ const conciergeMenuItems = [
 ];
 
 const adminSubMenuItems = [
-  { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
+  { title: "Planning", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Lieux", url: "/admin/places", emoji: "📍" },
   { title: "Thérapeutes", url: "/admin/therapists", emoji: "💆" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Salles de soin", url: "/admin/treatment-rooms", emoji: "🚪" },
   { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
+  { title: "Clients", url: "/admin/customers", emoji: "👤" },
   { title: `Produits ${brand.name}`, url: "/admin/products", emoji: "🧴" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
   { title: "Finance", url: "/admin/finance", emoji: "💰" },
@@ -62,7 +63,7 @@ const adminSubMenuItems = [
 ];
 
 const conciergeSubMenuItems = [
-  { title: "Réservations", url: "/admin/bookings", emoji: "🗓️" },
+  { title: "Planning", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Transactions & Solde", url: "/admin/transactions", emoji: "💰" },
 ];

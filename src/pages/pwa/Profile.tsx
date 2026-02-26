@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe } from "lucide-react";
+import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe, CalendarDays } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,6 +203,7 @@ const PwaProfile = () => {
   const menuItems = [
     { icon: User, label: t('profile.editProfile'), onClick: () => setIsEditDialogOpen(true) },
     { icon: Hotel, label: t('hotels.title'), onClick: () => navigate("/pwa/profile/hotels") },
+    { icon: CalendarDays, label: t('schedule.title'), onClick: () => navigate("/pwa/schedule") },
     { icon: Package, label: `${brand.name} product`, onClick: () => {} },
     { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
@@ -350,7 +351,7 @@ const PwaProfile = () => {
             <DialogTitle>{t('profile.language')}</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-2">
-            <LanguageSwitcher variant="list" onSelect={() => setIsLanguageDialogOpen(false)} />
+            <LanguageSwitcher variant="list" persistToProfile onSelect={() => setIsLanguageDialogOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>

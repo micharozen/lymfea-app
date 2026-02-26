@@ -1,22 +1,37 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
+import { format, addDays, startOfWeek, startOfDay } from "date-fns";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import type { BookingWithTreatments } from "./useBookingData";
 
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  HOUR_HEIGHT: 40,
+  HOUR_HEIGHT: 48,
 } as const;
 
 interface UseCalendarLogicOptions {
   filteredBookings: BookingWithTreatments[] | undefined;
   activeTimezone: string;
+  dayCount?: number;
 }
 
-export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalendarLogicOptions) {
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
+export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 7 }: UseCalendarLogicOptions) {
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    if (dayCount === 7) {
+      return startOfWeek(new Date(), { weekStartsOn: 1 });
+    }
+    return startOfDay(new Date());
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Reset start date when dayCount changes
+  useEffect(() => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(new Date()));
+    }
+  }, [dayCount]);
 
   // Update current time every minute
   useEffect(() => {
@@ -45,16 +60,32 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
   }, []);
 
   const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
-  }, [currentWeekStart]);
+    return Array.from({ length: dayCount }, (_, i) => addDays(currentWeekStart, i));
+  }, [currentWeekStart, dayCount]);
 
-  const handlePreviousWeek = useCallback(() => {
-    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-  }, [currentWeekStart]);
+  const handlePrevious = useCallback(() => {
+    setCurrentWeekStart(prev => addDays(prev, -dayCount));
+  }, [dayCount]);
 
-  const handleNextWeek = useCallback(() => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-  }, [currentWeekStart]);
+  const handleNext = useCallback(() => {
+    setCurrentWeekStart(prev => addDays(prev, dayCount));
+  }, [dayCount]);
+
+  const goToToday = useCallback(() => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(new Date()));
+    }
+  }, [dayCount]);
+
+  const setViewDate = useCallback((date: Date) => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(date, { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(date));
+    }
+  }, [dayCount]);
 
   const getBookingsForDay = useCallback((date: Date) => {
     return filteredBookings?.filter((booking) => {
@@ -116,6 +147,14 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     return getBookingStatusConfig(status).cardClass;
   }, []);
 
+  const getCalendarCardColor = useCallback((status: string, paymentStatus?: string | null) => {
+    if (paymentStatus === 'pending' && status !== 'cancelled') {
+      return 'bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-100';
+    }
+    const config = getBookingStatusConfig(status);
+    return config.calendarCardClass || config.cardClass;
+  }, []);
+
   const getCombinedStatusLabel = useCallback((status: string, paymentStatus?: string | null) => {
     if (paymentStatus === 'pending' && status !== 'cancelled') {
       return "€ Paiement";
@@ -130,11 +169,13 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
   }, []);
 
   return {
-    // Week navigation
+    // Navigation
     currentWeekStart,
     weekDays,
-    handlePreviousWeek,
-    handleNextWeek,
+    handlePreviousWeek: handlePrevious,
+    handleNextWeek: handleNext,
+    goToToday,
+    setViewDate,
 
     // Time
     currentTime,
@@ -151,6 +192,7 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     getStatusColor,
     getTranslatedStatus,
     getStatusCardColor,
+    getCalendarCardColor,
     getCombinedStatusLabel,
     getPaymentStatusBadge,
 

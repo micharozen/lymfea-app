@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -60,7 +60,7 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
-    const logoUrl = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = EMAIL_LOGO_URL;
 
     // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;

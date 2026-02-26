@@ -238,13 +238,11 @@ export default function Welcome() {
 
         {/* Top Bar */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
-          <a href={brand.website} target="_blank" rel="noopener noreferrer">
-            <img
-              src={brandLogos.monogramWhiteClient}
-              alt={brand.name}
-              className="h-10 w-10 sm:h-12 sm:w-12"
-            />
-          </a>
+          <img
+            src={hotel.image || brandLogos.monogramWhiteClient}
+            alt={hotel.name}
+            className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
+          />
           <LanguageSwitcher variant="client" />
         </div>
 
@@ -504,31 +502,11 @@ export default function Welcome() {
         {/* Hero Content */}
         <div className="relative z-10 w-full max-w-[92vw] sm:max-w-md md:max-w-xl lg:max-w-2xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10">
           <div className="px-4 sm:px-6 animate-fade-in">
-            {isEnterprise && hotel?.image ? (
-              <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-                <a href={brand.website} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={brandLogos.monogramWhiteClient}
-                    alt={brand.name}
-                    className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12"
-                  />
-                </a>
-                <span className="text-gold-400/60 text-lg sm:text-xl font-light select-none">×</span>
-                <img
-                  src={hotel.image}
-                  alt={hotel.name}
-                  className="h-10 w-auto sm:h-12 md:h-14 object-contain"
-                />
-              </div>
-            ) : (
-              <a href={brand.website} target="_blank" rel="noopener noreferrer">
-                <img
-                  src={brandLogos.monogramWhiteClient}
-                  alt={brand.name}
-                  className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6"
-                />
-              </a>
-            )}
+            <img
+              src={hotel?.image || brandLogos.monogramWhiteClient}
+              alt={hotel?.name || brand.name}
+              className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 object-contain"
+            />
             <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
               {venueTerms.exclusiveServiceLabel}
             </h3>

@@ -227,10 +227,19 @@ All colors MUST be HSL.
     width: 100%;
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
     /* CRITICAL: Force dark background everywhere to prevent white flash */
     background-color: #1a1a1a !important;
     background: hsl(var(--background)) !important;
+  }
+
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Prevent body scrollbar when admin layout is active —
+     admin pages scroll via <main> inside the sidebar layout */
+  body:has(.group\/sidebar-wrapper) {
+    overflow: hidden !important;
   }
 
   html {

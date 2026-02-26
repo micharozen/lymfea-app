@@ -270,6 +270,21 @@ serve(async (req) => {
     }
     console.log('Total booking duration:', totalDuration, 'minutes');
 
+    // Find or create customer by phone
+    const { data: customerId, error: customerError } = await supabase.rpc('find_or_create_customer', {
+      _phone: sanitizedClientData.phone,
+      _first_name: sanitizedClientData.firstName,
+      _last_name: sanitizedClientData.lastName,
+      _email: sanitizedClientData.email,
+    });
+
+    if (customerError) {
+      console.error('Error finding/creating customer:', customerError);
+      // Non-blocking: continue booking creation without customer link
+    } else {
+      console.log('Customer linked:', customerId);
+    }
+
     // Create booking with room_id assigned
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -291,6 +306,7 @@ serve(async (req) => {
         payment_status: effectivePaymentStatus,
         total_price: effectiveTotalPrice,
         duration: totalDuration > 0 ? totalDuration : null,
+        customer_id: customerId || null,
       })
       .select()
       .single();

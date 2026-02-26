@@ -406,5 +406,33 @@
       "title": "12. Policy Updates",
       "content": "This privacy policy may be updated at any time. The date of the last update is indicated below. We will inform you of any substantial changes.\n\nLast updated: December 2024"
     }
+  },
+  "schedule": {
+    "title": "My Schedule",
+    "monthlyView": "Monthly View",
+    "weeklyTemplate": "Weekly Template",
+    "applyTemplate": "Apply Template",
+    "applyToMonth": "Apply to {{month}}",
+    "applyConfirm": "Apply your weekly template to {{month}}? Days you manually edited will be preserved.",
+    "applied": "Template applied to {{count}} days",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "shifts": "Shifts",
+    "addShift": "Add shift",
+    "removeShift": "Remove",
+    "saveDay": "Save",
+    "daySaved": "Day updated",
+    "editDayDesc": "Set your availability for this day",
+    "noScheduleYet": "No schedule set for this month",
+    "noScheduleDesc": "Use your weekly template to quickly set up your availability",
+    "manuallyEdited": "Manually edited",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+    "templateSaved": "Template saved"
   }
 }

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +64,7 @@ function generateBookingConfirmationHtml({
     return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${name} - ${priceDisplay}</span>`;
   }).join('');
   
-  const logoUrl = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+  const logoUrl = EMAIL_LOGO_URL;
   const brandName = brand.name;
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   

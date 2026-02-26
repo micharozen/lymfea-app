@@ -704,6 +704,7 @@ export type Database = {
         Row: {
           address: string | null
           auto_validate_bookings: boolean | null
+          calendar_color: string | null
           city: string | null
           closing_time: string | null
           company_offered: boolean | null
@@ -735,6 +736,7 @@ export type Database = {
         Insert: {
           address?: string | null
           auto_validate_bookings?: boolean | null
+          calendar_color?: string | null
           city?: string | null
           closing_time?: string | null
           company_offered?: boolean | null
@@ -766,6 +768,7 @@ export type Database = {
         Update: {
           address?: string | null
           auto_validate_bookings?: boolean | null
+          calendar_color?: string | null
           city?: string | null
           closing_time?: string | null
           company_offered?: boolean | null
@@ -910,6 +913,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          language: string | null
           timezone: string | null
           updated_at: string
           user_id: string
@@ -917,6 +921,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          language?: string | null
           timezone?: string | null
           updated_at?: string
           user_id: string
@@ -924,6 +929,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          language?: string | null
           timezone?: string | null
           updated_at?: string
           user_id?: string
@@ -1154,6 +1160,8 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          minimum_guarantee: Json | null
+          minimum_guarantee_active: boolean | null
           password_set: boolean | null
           phone: string
           profile_image: string | null
@@ -1172,6 +1180,8 @@ export type Database = {
           first_name: string
           id?: string
           last_name: string
+          minimum_guarantee?: Json | null
+          minimum_guarantee_active?: boolean | null
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
@@ -1190,6 +1200,8 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          minimum_guarantee?: Json | null
+          minimum_guarantee_active?: boolean | null
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
@@ -1539,6 +1551,15 @@ export type Database = {
         Returns: Json
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      find_or_create_customer: {
+        Args: {
+          _phone: string
+          _first_name: string
+          _last_name?: string
+          _email?: string
+        }
+        Returns: string
+      }
       create_treatment_request: {
         Args: {
           _client_email?: string

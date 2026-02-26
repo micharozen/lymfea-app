@@ -28,6 +28,7 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -56,6 +57,7 @@ interface EditTherapistDialogProps {
     status: string;
     skills: string[];
     profile_image: string | null;
+    minimum_guarantee?: Record<string, number> | null;
     therapist_venues?: { hotel_id: string }[];
   };
   onSuccess: () => void;
@@ -96,6 +98,9 @@ export default function EditTherapistDialog({
   const [selectedSkills, setSelectedSkills] = useState<string[]>(
     therapist.skills || []
   );
+  const [minimumGuarantee, setMinimumGuarantee] = useState<Record<string, number>>(
+    (therapist.minimum_guarantee as Record<string, number>) || {}
+  );
   const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
   const {
     url: profileImage,
@@ -130,6 +135,7 @@ export default function EditTherapistDialog({
         therapist.therapist_venues?.map((hh) => hh.hotel_id) || []
       );
       setSelectedSkills(therapist.skills || []);
+      setMinimumGuarantee((therapist.minimum_guarantee as Record<string, number>) || {});
       // Parse room IDs from stored string (now stores real room IDs)
       setSelectedRooms(
         therapist.trunks ? therapist.trunks.split(", ").filter(t => t.length > 0) : []
@@ -186,6 +192,7 @@ export default function EditTherapistDialog({
         status: formData.status,
         skills: selectedSkills,
         profile_image: profileImage,
+        minimum_guarantee: Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
       })
       .eq("id", therapist.id);
 
@@ -491,6 +498,15 @@ export default function EditTherapistDialog({
                 </ScrollArea>
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label>{t('admin:therapists.minimumGuarantee', 'Minimum garanti')}</Label>
+            <p className="text-xs text-muted-foreground">{t('admin:therapists.minimumGuaranteeDesc', 'Nombre minimum de soins quotidiens garantis par jour')}</p>
+            <MinimumGuaranteeEditor
+              value={minimumGuarantee}
+              onChange={setMinimumGuarantee}
+            />
           </div>
 
           <div className="space-y-2">

@@ -186,6 +186,46 @@ serve(async (req) => {
     const therapistIds = activeTherapists.map((h: any) => h.therapist_id);
     console.log(`Found ${therapistIds.length} active therapists`);
 
+    // THERAPIST SCHEDULE CHECK: Filter by therapist_availability table
+    const { data: therapistSchedules, error: scheduleCheckError } = await supabase
+      .from('therapist_availability')
+      .select('therapist_id, is_available, shifts')
+      .eq('date', date)
+      .in('therapist_id', therapistIds);
+
+    if (scheduleCheckError) {
+      console.error('Error fetching therapist schedules:', scheduleCheckError);
+    }
+
+    // Build schedule map: therapist_id -> { is_available, shifts }
+    const scheduleMap = new Map<string, { is_available: boolean; shifts: any[] }>();
+    (therapistSchedules || []).forEach((s: any) => {
+      scheduleMap.set(s.therapist_id, {
+        is_available: s.is_available,
+        shifts: Array.isArray(s.shifts) ? s.shifts : [],
+      });
+    });
+
+    // Filter therapists: available if schedule says available OR no schedule data (backward compat)
+    const scheduledTherapistIds = therapistIds.filter((id: string) => {
+      const schedule = scheduleMap.get(id);
+      if (!schedule) return true; // No schedule data = available (transition period)
+      return schedule.is_available;
+    });
+
+    console.log(`[DEBUG] therapists after schedule filter: ${scheduledTherapistIds.length}/${therapistIds.length}`);
+    _debug.scheduledTherapistIds = scheduledTherapistIds;
+    _debug.therapistSchedules = therapistSchedules;
+
+    if (scheduledTherapistIds.length === 0) {
+      console.log('[DEBUG] EARLY EXIT: no therapists available per schedule');
+      _debug.earlyExit = 'no_therapists_per_schedule';
+      return new Response(
+        JSON.stringify({ availableSlots: [], _debug }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Get all bookings for this hotel on this date (for trunk capacity check)
     // Exclude cancelled/terminated bookings
     // Include duration for overlap checking
@@ -303,14 +343,33 @@ serve(async (req) => {
         return false;
       }
 
-      // THERAPIST CHECK: At least one therapist must be free
+      // THERAPIST CHECK: At least one therapist must be free AND within their shift hours
       const busyTherapists = new Set(
         bookingsBlockingSlot
           .filter((b: any) => b.therapist_id !== null)
           .map((b: any) => b.therapist_id)
       );
 
-      const availableTherapistCount = therapistIds.length - busyTherapists.size;
+      const slotMinutes = timeToMinutes(slot);
+
+      // Count therapists who are: scheduled for this time slot AND not busy with a booking
+      const availableTherapistCount = scheduledTherapistIds.filter((id: string) => {
+        if (busyTherapists.has(id)) return false;
+
+        // Check if slot falls within one of the therapist's shifts
+        const schedule = scheduleMap.get(id);
+        if (!schedule || schedule.shifts.length === 0) {
+          // No shift data (backward compat): available all day
+          return true;
+        }
+
+        return schedule.shifts.some((shift: any) => {
+          const shiftStart = timeToMinutes(shift.start + ':00');
+          const shiftEnd = timeToMinutes(shift.end + ':00');
+          return slotMinutes >= shiftStart && slotMinutes < shiftEnd;
+        });
+      }).length;
+
       return availableTherapistCount > 0;
     });
 

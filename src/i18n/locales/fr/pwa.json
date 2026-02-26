@@ -406,5 +406,33 @@
       "title": "12. Mise à jour de la politique",
       "content": "La présente politique de confidentialité peut être mise à jour à tout moment. La date de dernière mise à jour est indiquée ci-dessous. Nous vous informerons de toute modification substantielle.\n\nDernière mise à jour : Décembre 2024"
     }
+  },
+  "schedule": {
+    "title": "Mon planning",
+    "monthlyView": "Vue mensuelle",
+    "weeklyTemplate": "Modèle hebdo",
+    "applyTemplate": "Appliquer le modèle",
+    "applyToMonth": "Appliquer à {{month}}",
+    "applyConfirm": "Appliquer votre modèle hebdomadaire à {{month}} ? Les jours modifiés manuellement seront préservés.",
+    "applied": "Modèle appliqué à {{count}} jours",
+    "available": "Disponible",
+    "unavailable": "Indisponible",
+    "shifts": "Créneaux",
+    "addShift": "Ajouter un créneau",
+    "removeShift": "Supprimer",
+    "saveDay": "Enregistrer",
+    "daySaved": "Jour mis à jour",
+    "editDayDesc": "Définissez votre disponibilité pour ce jour",
+    "noScheduleYet": "Aucun planning défini pour ce mois",
+    "noScheduleDesc": "Utilisez votre modèle hebdomadaire pour configurer rapidement vos disponibilités",
+    "manuallyEdited": "Modifié manuellement",
+    "monday": "Lundi",
+    "tuesday": "Mardi",
+    "wednesday": "Mercredi",
+    "thursday": "Jeudi",
+    "friday": "Vendredi",
+    "saturday": "Samedi",
+    "sunday": "Dimanche",
+    "templateSaved": "Modèle enregistré"
   }
 }

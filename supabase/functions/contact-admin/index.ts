@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SITE_URL = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
@@ -46,7 +46,7 @@ function generateEmailHtml(emailOrPhone: string): string {
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 30px 40px; text-align: center;">
-              <img src="https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="${brand.name}" width="120" style="display: block; margin: 0 auto 12px auto;" />
+              <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="120" style="display: block; margin: 0 auto 12px auto;" />
               <p style="margin: 0; color: #cccccc; font-size: 14px;">Panel Administrateur</p>
             </td>
           </tr>

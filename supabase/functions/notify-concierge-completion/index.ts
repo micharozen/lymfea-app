@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
-import { brand } from "../_shared/brand.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -94,7 +94,7 @@ serve(async (req) => {
     const totalAmount = booking.total_price || 0;
     const roomNumber = booking.room_number || 'N/A';
 
-    const logoUrl = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+    const logoUrl = EMAIL_LOGO_URL;
 
     // Dynamic subject based on payment method
     const emailSubject = isRoomPayment
