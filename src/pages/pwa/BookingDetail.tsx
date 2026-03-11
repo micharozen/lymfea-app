@@ -57,6 +57,8 @@ interface Booking {
   payment_status?: string | null;
   payment_method?: string | null;
   therapist_commission?: number;
+  global_therapist_commission?: boolean;
+  therapist_hourly_rate?: number | null;
   hotel_currency?: string;
 }
 
@@ -208,12 +210,23 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat, therapist_commission, currency")
+          .select("image, address, city, vat, therapist_commission, global_therapist_commission, currency")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
       }
-      
+
+      // Fetch therapist hourly rate if individual mode
+      let therapistHourlyRate: number | null = null;
+      if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
+        const { data: therapistData } = await supabase
+          .from("therapists")
+          .select("hourly_rate")
+          .eq("id", bookingData.therapist_id)
+          .single();
+        therapistHourlyRate = therapistData?.hourly_rate ?? null;
+      }
+
       const bookingWithHotel = {
         ...bookingData,
         hotel_image_url: hotelData?.image,
@@ -221,6 +234,8 @@ const PwaBookingDetail = () => {
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
+        global_therapist_commission: hotelData?.global_therapist_commission !== false,
+        therapist_hourly_rate: therapistHourlyRate,
         hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
@@ -767,9 +782,18 @@ const PwaBookingDetail = () => {
   // Calculate earnings on HT (before VAT), matching finalize-payment logic
   const vatRate = booking.hotel_vat || 20;
   const totalHT = totalPrice / (1 + vatRate / 100);
-  const estimatedEarnings = booking.therapist_commission
-    ? Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100
-    : 0;
+  const hotelCommissionRate = 0; // Not needed for therapist earnings display
+  let estimatedEarnings = 0;
+
+  if (booking.global_therapist_commission === false && booking.therapist_hourly_rate) {
+    // Mode individuel : taux horaire
+    estimatedEarnings = Math.round(booking.therapist_hourly_rate * (totalDuration / 60) * 100) / 100;
+    // Cap au totalHT
+    estimatedEarnings = Math.min(estimatedEarnings, Math.round(totalHT * 100) / 100);
+  } else if (booking.therapist_commission) {
+    // Mode global : pourcentage
+    estimatedEarnings = Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100;
+  }
 
   return (
     <>

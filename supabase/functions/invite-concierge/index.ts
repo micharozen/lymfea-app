@@ -227,7 +227,7 @@ serve(async (req: Request): Promise<Response> => {
         <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI be', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
             <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur ${brand.name}</h1>
-            <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Concierge</p>
+            <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Équipe lieu</p>
           </div>
           
           <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 10px 10px;">
@@ -236,7 +236,7 @@ serve(async (req: Request): Promise<Response> => {
             </p>
             
             <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
-              Vous avez été invité(e) en tant que concierge pour ${hotelNames}. Voici vos identifiants de connexion :
+              Vous avez été invité(e) en tant que membre de l'équipe lieu pour ${hotelNames}. Voici vos identifiants de connexion :
             </p>
 
             <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">

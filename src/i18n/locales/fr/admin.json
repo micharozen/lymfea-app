@@ -8,7 +8,7 @@
     "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
-    "concierges": "Concierges",
+    "concierges": "Équipe lieu",
     "customers": "Clients",
     "products": "Produits {{brandName}}",
     "orders": "Commandes",
@@ -39,7 +39,15 @@
     "calendarColor": "Couleur du planning",
     "createBooking": "Nouvelle réservation",
     "createRequest": "Nouvelle demande",
-    "noBookings": "Aucune réservation pour cette période"
+    "noBookings": "Aucune réservation pour cette période",
+    "showAvailability": "Afficher la disponibilité",
+    "hideAvailability": "Masquer la disponibilité",
+    "therapistsAvailable": "{{count}} thérapeute(s) dispo.",
+    "noTherapistsAvailable": "Aucun thérapeute",
+    "coverageGaps": "Trous de couverture",
+    "fullAvailability": "Bonne dispo",
+    "lowAvailability": "Limitée",
+    "noAvailability": "Aucune couverture"
   },
   "bookings": {
     "title": "Réservations",
@@ -106,6 +114,11 @@
     "general": "Général",
     "assignments": "Affectations",
     "planning": "Planning",
+    "activity": "Activité",
+    "activityTab": {
+      "noActivity": "Aucune activité",
+      "noActivityDesc": "Aucun changement de planning enregistré pour ce thérapeute"
+    },
     "identity": "Identité",
     "identityDesc": "Photo, nom et contact",
     "firstName": "Prénom",
@@ -121,7 +134,12 @@
     "firstNameRequired": "Le prénom est requis",
     "lastNameRequired": "Le nom est requis",
     "emailInvalid": "Email invalide",
-    "phoneRequired": "Le téléphone est requis"
+    "phoneRequired": "Le téléphone est requis",
+    "finance": "Finance",
+    "financeDesc": "Taux horaire utilisé quand le lieu n'applique pas de commission globale",
+    "hourlyRate": "Taux horaire",
+    "hourlyRateHint": "Montant fixe par heure de soin. Utilisé quand la commission thérapeute globale est désactivée sur un lieu.",
+    "hourlyRateUnit": "/h"
   },
   "treatments": {
     "title": "Menus des Soins",
@@ -149,15 +167,22 @@
     "hotel": "Hôtel"
   },
   "concierges": {
-    "title": "Concierges",
-    "add": "Ajouter un Concierge",
-    "edit": "Modifier Concierge",
-    "noConcierges": "Aucun concierge",
+    "title": "Équipe lieu",
+    "add": "Ajouter un membre",
+    "edit": "Modifier le membre",
+    "noConcierges": "Aucun membre",
     "name": "Nom",
     "email": "Email",
     "phone": "Téléphone",
-    "hotel": "Hôtel",
-    "invite": "Inviter"
+    "hotel": "Lieu(x)",
+    "invite": "Inviter",
+    "venueRole": "Rôle",
+    "roles": {
+      "direction_hotel": "Direction hôtel",
+      "reception": "Réception",
+      "conciergerie": "Conciergerie",
+      "assistance_direction": "Assistance de direction"
+    }
   },
   "settings": {
     "title": "Paramètres",
@@ -194,6 +219,11 @@
     "no": "Non"
   },
   "venue": {
+    "finance": {
+      "globalTherapistCommission": "Commission thérapeute globale",
+      "globalTherapistCommissionDesc": "Appliquer le même pourcentage de commission à tous les thérapeutes",
+      "individualRateHint": "La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux horaire). Le reste revient à {{brandName}}."
+    },
     "tabs": {
       "general": "Général",
       "planning": "Planning",
@@ -241,6 +271,14 @@
       "unassignSuccess": "Thérapeute désassigné",
       "createSuccess": "Thérapeute créé et assigné",
       "inviteWarning": "Thérapeute créé mais l'invitation email a échoué"
+    },
+    "outOfHours": {
+      "allowLabel": "Réservations hors horaires",
+      "allowDescription": "Si activé, les administrateurs pourront créer des réservations en dehors des horaires d'ouverture avec une majoration automatique.",
+      "surchargeLabel": "Majoration hors horaires",
+      "surchargeDescription": "Pourcentage ajouté au total des soins pour les réservations hors horaires.",
+      "indicator": "Hors horaires d'ouverture — Majoration de {{percent}}% appliquée",
+      "surchargeBreakdown": "Majoration hors horaires ({{percent}}%)"
     }
   },
   "customers": {
@@ -300,6 +338,57 @@
       "status": "Statut",
       "total": "Total"
     }
+  },
+  "scheduleAlerts": {
+    "title": "Alertes Planning",
+    "subtitle": "Modifications de planning de dernière minute nécessitant attention",
+    "noAlerts": "Aucune alerte",
+    "noAlertsDesc": "Tous les changements de planning sont en ordre",
+    "filters": {
+      "all": "Tous les changements",
+      "pending": "En attente",
+      "acknowledged": "Acquittés"
+    },
+    "columns": {
+      "therapist": "Thérapeute",
+      "affectedDate": "Date concernée",
+      "changeType": "Modification",
+      "summary": "Résumé",
+      "source": "Source",
+      "changedAt": "Modifié le",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "changeTypes": {
+      "insert": "Ajout",
+      "update": "Modification",
+      "delete": "Suppression"
+    },
+    "sources": {
+      "pwa": "Thérapeute (PWA)",
+      "admin": "Admin",
+      "template_apply": "Modèle",
+      "unknown": "Système"
+    },
+    "status": {
+      "pending": "En attente",
+      "acknowledged": "Acquitté"
+    },
+    "actions": {
+      "acknowledge": "Acquitter",
+      "acknowledgeAll": "Tout acquitter",
+      "viewSchedule": "Voir le planning"
+    },
+    "dayAdded": "Jour marqué comme disponible",
+    "dayAddedUnavailable": "Jour marqué comme indisponible",
+    "dayRemoved": "Jour supprimé du planning",
+    "markedUnavailable": "Passé à indisponible",
+    "markedAvailable": "Passé à disponible",
+    "shiftsChanged": "Créneaux modifiés",
+    "acknowledgedSuccess": "Alerte acquittée",
+    "acknowledgedAllSuccess": "{{count}} alerte(s) acquittée(s)",
+    "allSources": "Toutes les sources",
+    "allTherapists": "Tous les thérapeutes"
   },
   "pms": {
     "title": "Integration PMS",

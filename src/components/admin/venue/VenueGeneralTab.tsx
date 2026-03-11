@@ -3,6 +3,7 @@ import { UseFormReturn, useWatch, Control } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { VENUE_ROLES } from "@/lib/venueRoles";
 import {
   FormControl,
   FormField,
@@ -53,13 +54,15 @@ import {
   ChevronsUpDown,
   Check,
   Palette,
+  Clock,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
-import { VenueWizardFormValues } from "../VenueWizardDialog";
+import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
@@ -106,6 +109,10 @@ interface VenueGeneralTabProps {
   handleCoverImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerHotelImageSelect: () => void;
   triggerCoverImageSelect: () => void;
+  deploymentState: DeploymentScheduleState;
+  onDeploymentStateChange: (state: DeploymentScheduleState) => void;
+  blockedSlots: BlockedSlot[];
+  onBlockedSlotsChange: (slots: BlockedSlot[]) => void;
 }
 
 export function VenueGeneralTab({
@@ -123,6 +130,10 @@ export function VenueGeneralTab({
   handleCoverImageUpload,
   triggerHotelImageSelect,
   triggerCoverImageSelect,
+  deploymentState,
+  onDeploymentStateChange,
+  blockedSlots,
+  onBlockedSlotsChange,
 }: VenueGeneralTabProps) {
   const { t } = useTranslation('common');
   const uploading = uploadingHotel || uploadingCover;
@@ -132,6 +143,12 @@ export function VenueGeneralTab({
 
   // Watch country field and auto-suggest timezone, currency, VAT (only for add mode)
   const countryValue = useWatch({ control: form.control, name: "country" });
+
+  // Watch global therapist commission toggle
+  const globalTherapistCommission = useWatch({ control: form.control, name: "global_therapist_commission" });
+
+  // Watch out-of-hours toggle
+  const allowOutOfHours = useWatch({ control: form.control, name: "allow_out_of_hours_booking" });
 
   useEffect(() => {
     if (mode === 'add' && countryValue) {
@@ -157,7 +174,7 @@ export function VenueGeneralTab({
   // PMS dialog state
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
 
-  // Fetch concierges (hotel type only)
+  // Fetch venue team members
   const { data: concierges = [] } = useQuery({
     queryKey: ["venue-concierges", hotelId],
     queryFn: async () => {
@@ -171,12 +188,12 @@ export function VenueGeneralTab({
       const ids = mappings.map((m) => m.concierge_id);
       const { data, error } = await supabase
         .from("concierges")
-        .select("id, first_name, last_name, profile_image")
+        .select("id, first_name, last_name, profile_image, venue_role, phone, country_code")
         .in("id", ids);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!hotelId && venueTypeValue === "hotel",
+    enabled: !!hotelId,
   });
 
 
@@ -360,37 +377,62 @@ export function VenueGeneralTab({
           <FormField
             control={form.control}
             name="calendar_color"
-            render={({ field }) => (
-              <FormItem className="mt-4">
-                <FormLabel className="flex items-center gap-1.5">
-                  <Palette className="h-3.5 w-3.5 text-muted-foreground" />
-                  Couleur du planning
-                </FormLabel>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    '#3b82f6', '#06b6d4', '#10b981', '#84cc16',
-                    '#f59e0b', '#f97316', '#ef4444', '#ec4899',
-                    '#8b5cf6', '#6366f1', '#78716c', '#475569',
-                  ].map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      disabled={disabled}
-                      className={cn(
-                        "w-7 h-7 rounded-full border-2 transition-all",
-                        field.value === color
-                          ? "border-foreground scale-110 ring-2 ring-offset-2 ring-foreground/20"
-                          : "border-transparent hover:scale-105",
-                        disabled && "opacity-50 cursor-not-allowed"
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => field.onChange(color)}
-                    />
-                  ))}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const [colorOpen, setColorOpen] = useState(false);
+              return (
+                <FormItem className="mt-4">
+                  <div className="flex items-center gap-2">
+                    <FormLabel className="flex items-center gap-1.5 mb-0">
+                      <Palette className="h-3.5 w-3.5 text-muted-foreground" />
+                      Couleur du planning
+                    </FormLabel>
+                    <Popover open={colorOpen} onOpenChange={setColorOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={disabled}
+                          className={cn(
+                            "inline-flex items-center justify-center",
+                            disabled && "opacity-50 cursor-not-allowed"
+                          )}
+                        >
+                          <span
+                            className="block w-4 h-4 rounded-full border border-foreground/20 shadow-sm transition-all hover:scale-110"
+                            style={{ backgroundColor: field.value || '#3b82f6' }}
+                          />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-3" align="start">
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {[
+                            '#3b82f6', '#06b6d4', '#10b981', '#84cc16',
+                            '#f59e0b', '#f97316', '#ef4444', '#ec4899',
+                            '#8b5cf6', '#6366f1', '#78716c', '#475569',
+                          ].map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              className={cn(
+                                "w-6 h-6 rounded-full border-2 transition-all",
+                                field.value === color
+                                  ? "border-foreground scale-110 ring-2 ring-offset-2 ring-foreground/20"
+                                  : "border-transparent hover:scale-105"
+                              )}
+                              style={{ backgroundColor: color }}
+                              onClick={() => {
+                                field.onChange(color);
+                                setColorOpen(false);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         </CardContent>
       </Card>
@@ -604,49 +646,82 @@ export function VenueGeneralTab({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
               Répartition des commissions
             </p>
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="hotel_commission"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1.5">
-                      <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                      Commission lieu
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input type="number" step="0.01" min="0" max="100" {...field} disabled={disabled} />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="therapist_commission"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1.5">
-                      <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                      Commission thérapeute
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input type="number" step="0.01" min="0" max="100" {...field} disabled={disabled} />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="hotel_commission"
+              render={({ field }) => (
+                <FormItem className="mb-4">
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                    Commission lieu
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-40">
+                      <Input type="number" step="0.01" min="0" max="100" {...field} disabled={disabled} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              <LymfeaCommissionDisplay control={form.control} />
-            </div>
+            <FormField
+              control={form.control}
+              name="global_therapist_commission"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3 mb-4">
+                  <div className="space-y-0.5 pr-4">
+                    <FormLabel className="text-sm font-medium">
+                      Commission thérapeute globale
+                    </FormLabel>
+                    <p className="text-xs text-muted-foreground">
+                      Appliquer le même pourcentage de commission à tous les thérapeutes
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {globalTherapistCommission ? (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="therapist_commission"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                        Commission thérapeute
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input type="number" step="0.01" min="0" max="100" {...field} disabled={disabled} />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <LymfeaCommissionDisplay control={form.control} />
+              </div>
+            ) : (
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
+                  La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux horaire). Le reste revient à {brand.name}.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -684,13 +759,13 @@ export function VenueGeneralTab({
 
           <FormField
             control={form.control}
-            name="offert"
+            name="allow_out_of_hours_booking"
             render={({ field }) => (
               <FormItem className="flex items-center justify-between py-4">
                 <div className="space-y-0.5 pr-4">
-                  <FormLabel className="text-sm font-medium">Journée offerte (Démo)</FormLabel>
+                  <FormLabel className="text-sm font-medium">Réservations hors horaires</FormLabel>
                   <p className="text-xs text-muted-foreground">
-                    Si activé, tous les soins seront affichés comme gratuits pour les clients. Idéal pour une journée de démonstration.
+                    Si activé, les administrateurs pourront créer des réservations en dehors des horaires d'ouverture avec une majoration automatique.
                   </p>
                 </div>
                 <FormControl>
@@ -704,38 +779,63 @@ export function VenueGeneralTab({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="company_offered"
-            render={({ field }) => (
-              <FormItem className="flex items-center justify-between py-4 last:pb-0">
-                <div className="space-y-0.5 pr-4">
-                  <FormLabel className="text-sm font-medium">Offert par l'entreprise</FormLabel>
+          {allowOutOfHours && (
+            <FormField
+              control={form.control}
+              name="out_of_hours_surcharge_percent"
+              render={({ field }) => (
+                <FormItem className="py-4">
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                    Majoration hors horaires
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-40">
+                      <Input type="number" step="1" min="0" max="100" {...field} disabled={disabled} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                  </FormControl>
                   <p className="text-xs text-muted-foreground">
-                    Si activé, les prix sont masqués pour les clients. Les réservations sont créées comme offertes.
+                    Pourcentage ajouté au total des soins pour les réservations hors horaires.
                   </p>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={disabled}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+        </CardContent>
+      </Card>
+
+      {/* Card E: Horaires & Disponibilité */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Clock className="h-4 w-4 text-indigo-500" />
+            Horaires & Disponibilité
+          </CardTitle>
+          <CardDescription>Heures d'ouverture, planning de déploiement et plages bloquées</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <VenueDeploymentStep
+            form={form}
+            state={deploymentState}
+            onChange={onDeploymentStateChange}
+            blockedSlots={blockedSlots}
+            onBlockedSlotsChange={onBlockedSlotsChange}
+            disabled={disabled}
           />
         </CardContent>
       </Card>
 
-      {/* Card E: Concierges (hotel type only, when venue is saved) */}
-      {hotelId && venueTypeValue === 'hotel' && (
+      {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
+      {hotelId && (
         <Card>
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Users className="h-4 w-4 text-violet-500" />
-                Concierges
+                Équipe lieu
               </CardTitle>
               <Badge variant="secondary" className="text-xs">
                 {concierges.length}
@@ -744,27 +844,41 @@ export function VenueGeneralTab({
           </CardHeader>
           <CardContent>
             {concierges.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {concierges.map((concierge: any) => (
                   <div
                     key={concierge.id}
-                    className="flex items-center gap-2 bg-muted/50 rounded-full pl-1 pr-3 py-1"
+                    className="flex items-center gap-3 bg-muted/50 rounded-lg px-3 py-2"
                   >
-                    <Avatar className="h-6 w-6">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={concierge.profile_image || undefined} />
                       <AvatarFallback className="text-xs">
                         {concierge.first_name?.[0] || ""}
                         {concierge.last_name?.[0] || ""}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm">
-                      {concierge.first_name} {concierge.last_name}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium truncate">
+                          {concierge.first_name} {concierge.last_name}
+                        </span>
+                        {concierge.venue_role && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            {VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role}
+                          </span>
+                        )}
+                      </div>
+                      {concierge.phone && (
+                        <span className="text-xs text-muted-foreground">
+                          {concierge.country_code} {concierge.phone}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucun concierge assigné</p>
+              <p className="text-sm text-muted-foreground">Aucun membre assigné</p>
             )}
           </CardContent>
         </Card>

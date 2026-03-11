@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { FileText } from "lucide-react";
+import { Clock, FileText } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -134,7 +134,12 @@ export function BookingListView({
                   <span className="truncate block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}</span>
+                  <span className="truncate leading-none flex items-center gap-1">
+                    {formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}
+                    {booking.is_out_of_hours && (
+                      <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                   <HotelCell hotel={getHotelInfo(booking.hotel_id)} />

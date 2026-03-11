@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField, CountryOption } from "@/components/PhoneNumberField";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, Wallet } from "lucide-react";
 import type { TherapistFormValues } from "@/pages/admin/TherapistDetail";
 
 const countries: CountryOption[] = [
@@ -225,6 +225,49 @@ export function TherapistGeneralTab({
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Finance */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-500" />
+            Finance
+          </CardTitle>
+          <CardDescription>
+            Taux horaire utilisé quand le lieu n'applique pas de commission globale
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            control={form.control}
+            name="hourly_rate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Taux horaire</FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="--"
+                      {...field}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      /h
+                    </span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Montant fixe par heure de soin. Utilisé quand la commission thérapeute globale est désactivée sur un lieu.
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </CardContent>
       </Card>
     </div>

@@ -138,6 +138,9 @@ export function VenueGeneralInfoStep({
   // Watch country field and auto-suggest timezone, currency, VAT (only for add mode)
   const countryValue = useWatch({ control: form.control, name: "country" });
 
+  // Watch global therapist commission toggle
+  const globalTherapistCommission = useWatch({ control: form.control, name: "global_therapist_commission" });
+
   useEffect(() => {
     if (mode === 'add' && countryValue) {
       const defaults = getCountryDefaults(countryValue);
@@ -534,49 +537,80 @@ export function VenueGeneralInfoStep({
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="hotel_commission"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-1.5">
-                  <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                  Commission lieu
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input type="number" step="0.01" min="0" max="100" {...field} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField
+          control={form.control}
+          name="hotel_commission"
+          render={({ field }) => (
+            <FormItem className="mb-4">
+              <FormLabel className="flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                Commission lieu
+              </FormLabel>
+              <FormControl>
+                <div className="relative w-40">
+                  <Input type="number" step="0.01" min="0" max="100" {...field} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <FormField
-            control={form.control}
-            name="therapist_commission"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-1.5">
-                  <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                  Commission thérapeute
+        <FormField
+          control={form.control}
+          name="global_therapist_commission"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-3 mb-4">
+              <div className="space-y-0.5 pr-4">
+                <FormLabel className="text-sm font-medium">
+                  Commission thérapeute globale
                 </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input type="number" step="0.01" min="0" max="100" {...field} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <p className="text-xs text-muted-foreground">
+                  Appliquer le même pourcentage de commission à tous les thérapeutes
+                </p>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
 
-          <LymfeaCommissionDisplay control={form.control} />
-        </div>
+        {globalTherapistCommission ? (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="therapist_commission"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                    Commission thérapeute
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input type="number" step="0.01" min="0" max="100" {...field} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <LymfeaCommissionDisplay control={form.control} />
+          </div>
+        ) : (
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux horaire). Le reste revient à {brand.name}.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Section: Paramètres */}
@@ -604,46 +638,6 @@ export function VenueGeneralInfoStep({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="offert"
-          render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Journée offerte (Démo)</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Si activé, tous les soins seront affichés comme gratuits pour les clients. Idéal pour une journée de démonstration.
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="company_offered"
-          render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Offert par l'entreprise</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Si activé, les prix sont masqués pour les clients. Les réservations sont créées comme offertes.
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
       </div>
     </div>
   );

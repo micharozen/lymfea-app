@@ -43,6 +43,7 @@ const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
+const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
 
 // Auth Pages
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -403,6 +404,7 @@ const App = () => {
                               <Route path="/treatments" element={<AdminTreatments />} />
                               <Route path="/treatment-rooms" element={<TreatmentRooms />} />
                               <Route path="/concierges" element={<Concierges />} />
+                              <Route path="/schedule-alerts" element={<ScheduleAlerts />} />
                               <Route path="/customers" element={<Customers />} />
                               <Route path="/customers/new" element={<CustomerDetail />} />
                               <Route path="/customers/:id" element={<CustomerDetail />} />

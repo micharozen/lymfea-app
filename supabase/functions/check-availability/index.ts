@@ -68,20 +68,24 @@ serve(async (req) => {
       console.error('Error fetching hotel:', hotelError);
     }
 
-    // Parse hours, defaulting to 06:00 and 23:00 if not set
-    const openingHour = hotelData?.opening_time
-      ? parseInt(hotelData.opening_time.split(':')[0], 10)
-      : 6;
-    const closingHour = hotelData?.closing_time
-      ? parseInt(hotelData.closing_time.split(':')[0], 10)
-      : 23;
+    // Parse full opening/closing times (HH:MM), defaulting to 06:00 and 23:00 if not set
+    const openingMinutes = hotelData?.opening_time
+      ? parseInt(hotelData.opening_time.split(':')[0], 10) * 60
+        + parseInt(hotelData.opening_time.split(':')[1] || '0', 10)
+      : 6 * 60;
+    const closingMinutes = hotelData?.closing_time
+      ? parseInt(hotelData.closing_time.split(':')[0], 10) * 60
+        + parseInt(hotelData.closing_time.split(':')[1] || '0', 10)
+      : 23 * 60;
 
     const slotInterval = hotelData?.slot_interval || 30;
 
-    console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00, slot interval: ${slotInterval}min`);
+    const openingDisplay = `${Math.floor(openingMinutes / 60)}:${(openingMinutes % 60).toString().padStart(2, '0')}`;
+    const closingDisplay = `${Math.floor(closingMinutes / 60)}:${(closingMinutes % 60).toString().padStart(2, '0')}`;
+    console.log(`Venue hours: ${openingDisplay} - ${closingDisplay}, slot interval: ${slotInterval}min`);
     _debug.hotelData = hotelData;
-    _debug.openingHour = openingHour;
-    _debug.closingHour = closingHour;
+    _debug.openingMinutes = openingMinutes;
+    _debug.closingMinutes = closingMinutes;
     _debug.slotInterval = slotInterval;
 
     // Fetch active blocked slots for this hotel
@@ -102,21 +106,28 @@ serve(async (req) => {
 
     console.log(`[DEBUG] requestedDayOfWeek: ${requestedDayOfWeek}, blockedSlots count: ${blockedSlots?.length || 0}`);
 
-    // Get the maximum lead_time from selected treatments (if provided)
+    // Get the maximum lead_time and categories from selected treatments (if provided)
     let maxLeadTime = 0;
+    const requiredCategories = new Set<string>();
     if (treatmentIds && treatmentIds.length > 0) {
       const { data: treatments, error: treatmentsError } = await supabase
         .from('treatment_menus')
-        .select('lead_time')
+        .select('lead_time, category')
         .in('id', treatmentIds);
-      
+
       if (treatmentsError) {
         console.error('Error fetching treatments:', treatmentsError);
       } else if (treatments && treatments.length > 0) {
         maxLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
         console.log(`Maximum lead_time from selected treatments: ${maxLeadTime} minutes`);
+        // Build set of required categories from selected treatments
+        treatments.forEach((t: any) => {
+          if (t.category) requiredCategories.add(t.category);
+        });
       }
     }
+    console.log(`[DEBUG] requiredCategories: ${JSON.stringify([...requiredCategories])}`);
+    _debug.requiredCategories = [...requiredCategories];
 
     // Get all active therapists for this hotel
     const { data: therapists, error: therapistsError } = await supabase
@@ -125,7 +136,8 @@ serve(async (req) => {
         therapist_id,
         therapists!inner(
           id,
-          status
+          status,
+          skills
         )
       `)
       .eq('hotel_id', hotelId);
@@ -146,6 +158,21 @@ serve(async (req) => {
       console.error('Error fetching therapists:', therapistsError);
       throw therapistsError;
     }
+
+    // Filter therapists by category/skills matching
+    // If no categories required, all active therapists qualify
+    // If therapist has no skills assigned (null/empty), they qualify (backward compat)
+    // Otherwise, therapist must have at least one skill matching a required category
+    const qualifiedTherapists = requiredCategories.size === 0
+      ? activeTherapists
+      : activeTherapists.filter((h: any) => {
+          const skills: string[] | null = h.therapists?.skills;
+          if (!skills || skills.length === 0) return true; // backward compat
+          return [...requiredCategories].some(cat => skills.includes(cat));
+        });
+
+    console.log(`[DEBUG] qualifiedTherapists after category filter: ${qualifiedTherapists.length}/${activeTherapists.length}`);
+    _debug.qualifiedTherapists = qualifiedTherapists.length;
 
     // Get treatment room count for this hotel (CAPACITY CONSTRAINT)
     const { data: treatmentRooms, error: roomsError } = await supabase
@@ -174,17 +201,17 @@ serve(async (req) => {
       );
     }
 
-    if (!activeTherapists || activeTherapists.length === 0) {
-      console.log('[DEBUG] EARLY EXIT: no active therapists');
-      _debug.earlyExit = 'no_active_therapists';
+    if (!qualifiedTherapists || qualifiedTherapists.length === 0) {
+      console.log('[DEBUG] EARLY EXIT: no qualified therapists (active + category match)');
+      _debug.earlyExit = 'no_qualified_therapists';
       return new Response(
         JSON.stringify({ availableSlots: [], _debug }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const therapistIds = activeTherapists.map((h: any) => h.therapist_id);
-    console.log(`Found ${therapistIds.length} active therapists`);
+    const therapistIds = qualifiedTherapists.map((h: any) => h.therapist_id);
+    console.log(`Found ${therapistIds.length} qualified therapists (active + category)`);
 
     // THERAPIST SCHEDULE CHECK: Filter by therapist_availability table
     const { data: therapistSchedules, error: scheduleCheckError } = await supabase
@@ -287,8 +314,6 @@ serve(async (req) => {
 
     // Generate time slots based on venue opening hours and slot interval
     const timeSlots = [];
-    const openingMinutes = openingHour * 60;
-    const closingMinutes = closingHour * 60;
     for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
       const h = Math.floor(minutes / 60);
       const m = minutes % 60;
@@ -296,7 +321,7 @@ serve(async (req) => {
       timeSlots.push(time24);
     }
 
-    console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingHour}:00 - ${closingHour}:00 => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
+    console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingDisplay} - ${closingDisplay} => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
 
     // Calculate the earliest bookable time based on lead_time
     const now = new Date();

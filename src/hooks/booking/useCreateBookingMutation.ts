@@ -34,6 +34,8 @@ export interface CreateBookingPayload {
   totalPrice: number;
   totalDuration: number;
   isAdmin: boolean;
+  isOutOfHours: boolean;
+  surchargeAmount: number;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -115,6 +117,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         status,
         assigned_at: finalTherapistId ? new Date().toISOString() : null,
         total_price: d.totalPrice,
+        is_out_of_hours: d.isOutOfHours,
+        surcharge_amount: d.surchargeAmount,
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,

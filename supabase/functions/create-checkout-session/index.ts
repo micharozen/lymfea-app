@@ -123,7 +123,7 @@ serve(async (req) => {
           price_data: {
             currency: currency,
             product_data: {
-              name: 'Prestations coiffure',
+              name: 'Prestations bien-être',
               description: `${treatmentNames} - ${clientData.firstName} ${clientData.lastName}`,
             },
             unit_amount: Math.round(verifiedTotalPrice * 100), // Stripe uses cents

@@ -9,7 +9,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Calendar as CalendarIcon, List, Search } from "lucide-react";
+import { Calendar as CalendarIcon, List, Search, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { cn } from "@/lib/utils";
 import type { Hotel, Therapist } from "@/hooks/booking";
 
 interface BookingFiltersProps {
@@ -28,6 +30,9 @@ interface BookingFiltersProps {
   isAdmin: boolean;
   hotels: Hotel[] | undefined;
   therapists: Therapist[] | undefined;
+  hideHotelFilter?: boolean;
+  showAvailability?: boolean;
+  onShowAvailabilityChange?: (show: boolean) => void;
 }
 
 export function BookingFilters({
@@ -46,7 +51,11 @@ export function BookingFilters({
   isAdmin,
   hotels,
   therapists,
+  hideHotelFilter = false,
+  showAvailability,
+  onShowAvailabilityChange,
 }: BookingFiltersProps) {
+  const { t } = useTranslation("admin");
   return (
     <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
       <div className="relative">
@@ -74,11 +83,11 @@ export function BookingFilters({
         </SelectContent>
       </Select>
 
-      {isAdmin && (() => {
+      {isAdmin && !hideHotelFilter && (() => {
         const selectedHotel = hotelFilter !== "all" ? hotels?.find(h => h.id === hotelFilter) : null;
         return (
           <Select value={hotelFilter} onValueChange={onHotelChange}>
-            <SelectTrigger className="w-[180px] h-8 text-xs">
+            <SelectTrigger className="w-[160px] h-8 text-xs">
               <div className="flex items-center gap-1.5 truncate">
                 {selectedHotel && (
                   <span
@@ -109,7 +118,7 @@ export function BookingFilters({
 
       {isAdmin && (
         <Select value={therapistFilter} onValueChange={onTherapistChange}>
-          <SelectTrigger className="w-[180px] h-8 text-xs">
+          <SelectTrigger className="w-[160px] h-8 text-xs">
             <SelectValue placeholder="Thérapeutes" />
           </SelectTrigger>
           <SelectContent>
@@ -126,7 +135,7 @@ export function BookingFilters({
       <div className="flex items-center gap-1.5 ml-auto">
         {view === "calendar" && (
           <Select value={String(dayCount)} onValueChange={(v) => onDayCountChange(Number(v))}>
-            <SelectTrigger className="w-[90px] h-7 text-xs">
+            <SelectTrigger className="w-[90px] h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -139,6 +148,29 @@ export function BookingFilters({
           </Select>
         )}
 
+        {onShowAvailabilityChange && view === "calendar" && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => onShowAvailabilityChange(!showAvailability)}
+                className={cn(
+                  "h-8 w-8",
+                  showAvailability
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                    : "text-muted-foreground"
+                )}
+              >
+                <Users className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {showAvailability ? t("planning.hideAvailability") : t("planning.showAvailability")}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         <ButtonGroup>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -146,7 +178,7 @@ export function BookingFilters({
                 variant="outline"
                 size="icon"
                 onClick={() => onViewChange("calendar")}
-                className={`h-7 w-7 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+                className={`h-8 w-8 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
               >
                 <CalendarIcon className="h-3.5 w-3.5" />
               </Button>
@@ -159,7 +191,7 @@ export function BookingFilters({
                 variant="outline"
                 size="icon"
                 onClick={() => onViewChange("list")}
-                className={`h-7 w-7 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+                className={`h-8 w-8 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
               >
                 <List className="h-3.5 w-3.5" />
               </Button>

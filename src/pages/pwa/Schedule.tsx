@@ -201,6 +201,7 @@ export default function PwaSchedule() {
         is_available: isAvailable,
         shifts: shifts as unknown as Record<string, unknown>,
         is_manually_edited: true,
+        last_change_source: 'pwa',
         updated_at: new Date().toISOString(),
       }, { onConflict: "therapist_id,date" });
 

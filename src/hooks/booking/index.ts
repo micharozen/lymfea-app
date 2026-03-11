@@ -10,3 +10,6 @@ export { useBookingSelection } from "./useBookingSelection";
 export { useBookingCart } from "./useBookingCart";
 export { useCreateBookingMutation } from "./useCreateBookingMutation";
 export type { CreateBookingPayload } from "./useCreateBookingMutation";
+
+export { useVenueAvailability } from "./useVenueAvailability";
+export type { VenueAvailabilityData, DaySummary, HourAvailability, AvailabilityLevel } from "./useVenueAvailability";

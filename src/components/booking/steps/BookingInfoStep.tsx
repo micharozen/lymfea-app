@@ -28,7 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Globe, Info, Plus, X } from "lucide-react";
+import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
@@ -46,6 +46,8 @@ interface BookingInfoStepProps {
   countryCode: string;
   visibleSlots: number;
   setVisibleSlots: React.Dispatch<React.SetStateAction<number>>;
+  isBookingOutOfHours?: boolean;
+  surchargePercent?: number;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -62,6 +64,8 @@ export function BookingInfoStep({
   countryCode,
   visibleSlots,
   setVisibleSlots,
+  isBookingOutOfHours,
+  surchargePercent,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
@@ -328,6 +332,16 @@ export function BookingInfoStep({
               )}
             />
           </div>
+
+          {/* Out-of-hours indicator */}
+          {isBookingOutOfHours && (
+            <div className="col-span-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Hors horaires d'ouverture — Majoration de {surchargePercent}% appliquée
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Slot 2 - Alternative 1 (concierge only, dynamic) */}

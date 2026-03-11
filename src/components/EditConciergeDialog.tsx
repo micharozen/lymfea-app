@@ -30,9 +30,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { VENUE_ROLES } from "@/lib/venueRoles";
 
 const createFormSchema = (t: TFunction) => z.object({
   first_name: z.string().min(1, t('errors.validation.firstNameRequired')),
@@ -42,6 +44,7 @@ const createFormSchema = (t: TFunction) => z.object({
   country_code: z.string().default("+33"),
   hotel_ids: z.array(z.string()).min(1, t('errors.validation.hotelRequired')),
   profile_image: z.string().optional(),
+  venue_role: z.string().optional(),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -99,6 +102,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
       country_code: "+33",
       hotel_ids: [],
       profile_image: "",
+      venue_role: "",
     },
   });
 
@@ -148,11 +152,12 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
         country_code: concierge.country_code,
         hotel_ids: hotelIds,
         profile_image: concierge.profile_image || "",
+        venue_role: concierge.venue_role || "",
       });
       
       setProfileImage(concierge.profile_image || "");
     } catch (error) {
-      toast.error("Erreur lors du chargement du concierge");
+      toast.error("Erreur lors du chargement du membre");
       console.error(error);
     } finally {
       setLoading(false);
@@ -171,6 +176,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
           phone: values.phone,
           country_code: values.country_code,
           profile_image: profileImage || null,
+          venue_role: values.venue_role || null,
         })
         .eq("id", conciergeId);
 
@@ -196,11 +202,11 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
 
       if (hotelsError) throw hotelsError;
 
-      toast.success("Concierge modifié avec succès");
+      toast.success("Membre modifié avec succès");
       onSuccess();
       onOpenChange(false);
     } catch (error) {
-      toast.error("Erreur lors de la modification du concierge");
+      toast.error("Erreur lors de la modification du membre");
       console.error(error);
     }
   };
@@ -213,12 +219,12 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
   };
 
   const getSelectedHotelsLabel = (selectedIds: string[]) => {
-    if (selectedIds.length === 0) return "Sélectionner des hôtels";
+    if (selectedIds.length === 0) return "Sélectionner des lieux";
     if (selectedIds.length === 1) {
       const hotel = hotels.find((h) => h.id === selectedIds[0]);
-      return hotel?.name || "1 hôtel sélectionné";
+      return hotel?.name || "1 lieu sélectionné";
     }
-    return `${selectedIds.length} hôtels sélectionnés`;
+    return `${selectedIds.length} lieux sélectionnés`;
   };
 
   if (loading) {
@@ -235,7 +241,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Modifier le concierge</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Modifier le membre</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -338,7 +344,7 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
               name="hotel_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel(s)</FormLabel>
+                  <FormLabel>Lieu(x)</FormLabel>
                   <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -393,6 +399,31 @@ export function EditConciergeDialog({ open, onOpenChange, onSuccess, conciergeId
                       </ScrollArea>
                     </PopoverContent>
                   </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="venue_role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rôle</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un rôle" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {VENUE_ROLES.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.labelFr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

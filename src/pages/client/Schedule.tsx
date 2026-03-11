@@ -53,13 +53,13 @@ export default function Schedule() {
       if (error) throw error;
       const hotel = data?.[0];
 
-      // Parse opening/closing times as total minutes, default to 6:00-23:00 if not set
+      // Parse opening/closing times as total minutes, default to 10:00-20:00 if not set
       const openingMinutes = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
-        : 6 * 60;
+        : 10 * 60;
       const closingMinutes = hotel?.closing_time
         ? parseInt(hotel.closing_time.split(':')[0], 10) * 60 + parseInt(hotel.closing_time.split(':')[1] || '0', 10)
-        : 23 * 60;
+        : 20 * 60;
 
       // Determine max days based on schedule
       // Extend to 90 days for one_time schedules or recurring with < 5 days/week
@@ -144,8 +144,8 @@ export default function Schedule() {
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    const openingMinutes = venueData?.openingMinutes ?? 6 * 60;
-    const closingMinutes = venueData?.closingMinutes ?? 23 * 60;
+    const openingMinutes = venueData?.openingMinutes ?? 10 * 60;
+    const closingMinutes = venueData?.closingMinutes ?? 20 * 60;
     const slotInterval = venueData?.slotInterval ?? 30;
 
     for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {

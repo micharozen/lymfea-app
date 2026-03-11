@@ -24,7 +24,7 @@ interface CommissionBreakdown {
   hotelCommissionRate: number;
   therapistShare: number;
   therapistCommissionRate: number;
-  oomShare: number;
+  lymfeaShare: number;
 }
 
 serve(async (req) => {
@@ -67,19 +67,21 @@ serve(async (req) => {
         payment_status,
         booking_treatments(
           treatment_id,
-          treatment_menus(name, price)
+          treatment_menus(name, price, duration)
         ),
         hotels(
           name,
           vat,
           hotel_commission,
           therapist_commission,
+          global_therapist_commission,
           currency,
           venue_type
         ),
         therapists(
           first_name,
-          last_name
+          last_name,
+          hourly_rate
         )
       `)
       .eq('id', booking_id)
@@ -116,14 +118,42 @@ serve(async (req) => {
     const vatRate = hotel.vat || 20;
     const hotelCommissionRate = hotel.hotel_commission || 10;
     const therapistCommissionRate = hotel.therapist_commission || 70;
+    const isGlobalMode = hotel.global_therapist_commission !== false;
 
     const totalTTC = final_amount;
     const totalHT = totalTTC / (1 + vatRate / 100);
     const tvaAmount = totalTTC - totalHT;
 
+    // Commission lieu toujours calculée sur le HT
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
-    const therapistShare = totalHT * (therapistCommissionRate / 100);
-    const oomShare = totalHT - hotelCommission - therapistShare;
+
+    let therapistShare: number;
+
+    if (isGlobalMode) {
+      // Mode global : pourcentage identique pour tous les thérapeutes
+      therapistShare = totalHT * (therapistCommissionRate / 100);
+    } else {
+      // Mode individuel : taux horaire du thérapeute
+      const hourlyRate = booking.therapists?.hourly_rate;
+      if (hourlyRate && hourlyRate > 0) {
+        const bookingDuration = (booking.booking_treatments || []).reduce(
+          (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 0
+        );
+        if (bookingDuration > 0) {
+          therapistShare = hourlyRate * (bookingDuration / 60);
+          // Cap : ne peut pas dépasser totalHT - hotelCommission
+          therapistShare = Math.min(therapistShare, totalHT - hotelCommission);
+        } else {
+          // Fallback si pas de durée
+          therapistShare = totalHT * (therapistCommissionRate / 100);
+        }
+      } else {
+        // Fallback si pas de taux horaire défini
+        therapistShare = totalHT * (therapistCommissionRate / 100);
+      }
+    }
+
+    const lymfeaShare = totalHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
       totalTTC,
@@ -133,8 +163,8 @@ serve(async (req) => {
       hotelCommission: Math.round(hotelCommission * 100) / 100,
       hotelCommissionRate,
       therapistShare: Math.round(therapistShare * 100) / 100,
-      therapistCommissionRate,
-      oomShare: Math.round(oomShare * 100) / 100,
+      therapistCommissionRate: isGlobalMode ? therapistCommissionRate : 0,
+      lymfeaShare: Math.round(lymfeaShare * 100) / 100,
     };
 
     log("Commission breakdown", breakdown);
