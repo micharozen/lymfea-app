@@ -426,7 +426,7 @@ export default function Hotels() {
                       <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
                         Localisation
                       </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Concierges</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Équipe lieu</TableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                         Statut
@@ -497,11 +497,7 @@ export default function Hotels() {
                             </span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            {hotel.venue_type === "hotel" ? (
-                              <ConciergesCell concierges={hotel.concierges || []} />
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <ConciergesCell concierges={hotel.concierges || []} />
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <TreatmentRoomsCell rooms={hotel.treatment_rooms || []} />

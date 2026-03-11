@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Minus, Loader2 } from "lucide-react";
+import { Plus, Minus, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { CartItem } from "../CreateBookingDialog.schema";
@@ -36,6 +36,10 @@ interface BookingPrestationsStepProps {
   setCustomPrice: (v: string) => void;
   customDuration: string;
   setCustomDuration: (v: string) => void;
+  isBookingOutOfHours?: boolean;
+  surchargeAmount?: number;
+  surchargePercent?: number;
+  finalPriceWithSurcharge?: number;
   isPending: boolean;
   onBack: () => void;
 }
@@ -58,6 +62,10 @@ export function BookingPrestationsStep({
   setCustomPrice,
   customDuration,
   setCustomDuration,
+  isBookingOutOfHours,
+  surchargeAmount,
+  surchargePercent,
+  finalPriceWithSurcharge,
   isPending,
   onBack,
 }: BookingPrestationsStepProps) {
@@ -208,6 +216,19 @@ export function BookingPrestationsStep({
           </div>
         )}
 
+        {/* Out-of-hours surcharge line */}
+        {isBookingOutOfHours && surchargeAmount != null && surchargeAmount > 0 && (
+          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-2.5 py-1.5">
+            <span className="flex items-center gap-1.5 text-[10px] text-amber-800 dark:text-amber-300">
+              <Clock className="h-3 w-3 shrink-0" />
+              Majoration hors horaires ({surchargePercent}%)
+            </span>
+            <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+              +{formatPrice(surchargeAmount, selectedHotel?.currency || 'EUR')}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           {/* Back button */}
           <Button
@@ -233,7 +254,7 @@ export function BookingPrestationsStep({
                 {cartDetails.length > 3 && (
                   <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
                 )}
-                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</span>
+                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPriceWithSurcharge ?? finalPrice, selectedHotel?.currency || 'EUR')}</span>
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground">Aucun service</span>

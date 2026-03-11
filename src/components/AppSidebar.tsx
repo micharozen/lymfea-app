@@ -52,9 +52,10 @@ const adminSubMenuItems = [
   { title: "Planning", url: "/admin/bookings", emoji: "🗓️" },
   { title: "Lieux", url: "/admin/places", emoji: "📍" },
   { title: "Thérapeutes", url: "/admin/therapists", emoji: "💆" },
+  { title: "Alertes planning", url: "/admin/schedule-alerts", emoji: "🚩" },
   { title: "Menus de soins", url: "/admin/treatments", emoji: "📓" },
   { title: "Salles de soin", url: "/admin/treatment-rooms", emoji: "🚪" },
-  { title: "Concierges", url: "/admin/concierges", emoji: "🛎️" },
+  { title: "Équipe lieu", url: "/admin/concierges", emoji: "👥" },
   { title: "Clients", url: "/admin/customers", emoji: "👤" },
   { title: `Produits ${brand.name}`, url: "/admin/products", emoji: "🧴" },
   { title: "Commandes", url: "/admin/orders", emoji: "🚚" },
@@ -76,6 +77,7 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const [adminInfo, setAdminInfo] = useState<{ firstName: string; lastName: string; profileImage: string | null } | null>(null);
   const [userRole, setUserRole] = useState<string>("...");
+  const [redFlagCount, setRedFlagCount] = useState(0);
 
   useEffect(() => {
     const fetchAdminInfo = async () => {
@@ -89,7 +91,7 @@ export function AppSidebar() {
           .maybeSingle();
         
         if (roleData) {
-          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Concierge' : roleData.role;
+          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Équipe lieu' : roleData.role;
           setUserRole(roleLabel);
         }
 
@@ -183,9 +185,37 @@ export function AppSidebar() {
       )
       .subscribe();
 
+    // Red flag alert count
+    const fetchRedFlagCount = async () => {
+      const { count } = await supabase
+        .from('audit_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('table_name', 'therapist_availability')
+        .eq('is_flagged', true)
+        .is('acknowledged_at', null);
+      setRedFlagCount(count || 0);
+    };
+    fetchRedFlagCount();
+
+    const alertChannel = supabase
+      .channel('audit-log-sidebar')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'audit_log',
+        },
+        () => {
+          fetchRedFlagCount();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(adminChannel);
       supabase.removeChannel(conciergeChannel);
+      supabase.removeChannel(alertChannel);
     };
   }, []);
 
@@ -309,6 +339,11 @@ export function AppSidebar() {
                       >
                         <span className="text-lg flex-shrink-0">{item.emoji}</span>
                         <span className="whitespace-nowrap">{item.title}</span>
+                        {item.url === '/admin/schedule-alerts' && redFlagCount > 0 && (
+                          <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                            {redFlagCount > 99 ? '99+' : redFlagCount}
+                          </span>
+                        )}
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

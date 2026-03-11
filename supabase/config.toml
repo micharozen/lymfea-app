@@ -16,7 +16,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.finalize-payment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-client-booking]
 verify_jwt = false

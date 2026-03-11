@@ -8,7 +8,7 @@
     "hotels": "Venues",
     "treatments": "Treatment Menus",
     "boxes": "Boxes",
-    "concierges": "Concierges",
+    "concierges": "Venue Team",
     "customers": "Customers",
     "products": "{{brandName}} Products",
     "orders": "Orders",
@@ -39,7 +39,15 @@
     "calendarColor": "Calendar Color",
     "createBooking": "New Booking",
     "createRequest": "New Request",
-    "noBookings": "No bookings for this period"
+    "noBookings": "No bookings for this period",
+    "showAvailability": "Show availability",
+    "hideAvailability": "Hide availability",
+    "therapistsAvailable": "{{count}} therapist(s) avail.",
+    "noTherapistsAvailable": "No therapists",
+    "coverageGaps": "Coverage gaps",
+    "fullAvailability": "Good availability",
+    "lowAvailability": "Limited",
+    "noAvailability": "No coverage"
   },
   "bookings": {
     "title": "Bookings",
@@ -106,6 +114,11 @@
     "general": "General",
     "assignments": "Assignments",
     "planning": "Planning",
+    "activity": "Activity",
+    "activityTab": {
+      "noActivity": "No activity",
+      "noActivityDesc": "No schedule changes recorded for this therapist"
+    },
     "identity": "Identity",
     "identityDesc": "Photo, name and contact",
     "firstName": "First Name",
@@ -121,7 +134,12 @@
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
     "emailInvalid": "Invalid email",
-    "phoneRequired": "Phone is required"
+    "phoneRequired": "Phone is required",
+    "finance": "Finance",
+    "financeDesc": "Hourly rate used when the venue does not apply a global commission",
+    "hourlyRate": "Hourly rate",
+    "hourlyRateHint": "Fixed amount per hour of treatment. Used when global therapist commission is disabled on a venue.",
+    "hourlyRateUnit": "/h"
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -149,15 +167,22 @@
     "hotel": "Hotel"
   },
   "concierges": {
-    "title": "Concierges",
-    "add": "Add Concierge",
-    "edit": "Edit Concierge",
-    "noConcierges": "No concierges",
+    "title": "Venue Team",
+    "add": "Add team member",
+    "edit": "Edit team member",
+    "noConcierges": "No team members",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
-    "hotel": "Hotel",
-    "invite": "Invite"
+    "hotel": "Venue(s)",
+    "invite": "Invite",
+    "venueRole": "Role",
+    "roles": {
+      "direction_hotel": "Hotel Management",
+      "reception": "Reception",
+      "conciergerie": "Concierge Services",
+      "assistance_direction": "Executive Assistant"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -194,6 +219,11 @@
     "no": "No"
   },
   "venue": {
+    "finance": {
+      "globalTherapistCommission": "Global therapist commission",
+      "globalTherapistCommissionDesc": "Apply the same commission percentage to all therapists",
+      "individualRateHint": "Therapist commission is defined individually on each therapist profile (hourly rate). The remainder goes to {{brandName}}."
+    },
     "tabs": {
       "general": "General",
       "planning": "Planning",
@@ -241,6 +271,14 @@
       "unassignSuccess": "Therapist unassigned",
       "createSuccess": "Therapist created and assigned",
       "inviteWarning": "Therapist created but the email invitation failed"
+    },
+    "outOfHours": {
+      "allowLabel": "Out-of-hours bookings",
+      "allowDescription": "When enabled, admins can create bookings outside operating hours with an automatic surcharge.",
+      "surchargeLabel": "Out-of-hours surcharge",
+      "surchargeDescription": "Percentage added to the treatment total for bookings outside operating hours.",
+      "indicator": "Outside operating hours — {{percent}}% surcharge applied",
+      "surchargeBreakdown": "Out-of-hours surcharge ({{percent}}%)"
     }
   },
   "customers": {
@@ -300,6 +338,57 @@
       "status": "Status",
       "total": "Total"
     }
+  },
+  "scheduleAlerts": {
+    "title": "Schedule Alerts",
+    "subtitle": "Last-minute schedule changes requiring attention",
+    "noAlerts": "No alerts",
+    "noAlertsDesc": "All schedule changes are clear",
+    "filters": {
+      "all": "All changes",
+      "pending": "Pending",
+      "acknowledged": "Acknowledged"
+    },
+    "columns": {
+      "therapist": "Therapist",
+      "affectedDate": "Affected Date",
+      "changeType": "Change",
+      "summary": "Summary",
+      "source": "Source",
+      "changedAt": "Changed",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "changeTypes": {
+      "insert": "Added",
+      "update": "Modified",
+      "delete": "Removed"
+    },
+    "sources": {
+      "pwa": "Therapist (PWA)",
+      "admin": "Admin",
+      "template_apply": "Template",
+      "unknown": "System"
+    },
+    "status": {
+      "pending": "Pending",
+      "acknowledged": "Acknowledged"
+    },
+    "actions": {
+      "acknowledge": "Acknowledge",
+      "acknowledgeAll": "Acknowledge all",
+      "viewSchedule": "View schedule"
+    },
+    "dayAdded": "Day marked as available",
+    "dayAddedUnavailable": "Day marked as unavailable",
+    "dayRemoved": "Day removed from schedule",
+    "markedUnavailable": "Changed to unavailable",
+    "markedAvailable": "Changed to available",
+    "shiftsChanged": "Shifts modified",
+    "acknowledgedSuccess": "Alert acknowledged",
+    "acknowledgedAllSuccess": "{{count}} alert(s) acknowledged",
+    "allSources": "All sources",
+    "allTherapists": "All therapists"
   },
   "pms": {
     "title": "PMS Integration",

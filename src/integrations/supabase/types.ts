@@ -270,6 +270,7 @@ export type Database = {
           hotel_id: string
           hotel_name: string | null
           id: string
+          is_out_of_hours: boolean | null
           payment_error_code: string | null
           payment_error_details: Json | null
           payment_error_message: string | null
@@ -289,6 +290,7 @@ export type Database = {
           signed_at: string | null
           status: string
           stripe_invoice_url: string | null
+          surcharge_amount: number | null
           therapist_id: string | null
           therapist_name: string | null
           total_price: number | null
@@ -312,6 +314,7 @@ export type Database = {
           hotel_id: string
           hotel_name?: string | null
           id?: string
+          is_out_of_hours?: boolean | null
           payment_error_code?: string | null
           payment_error_details?: Json | null
           payment_error_message?: string | null
@@ -331,6 +334,7 @@ export type Database = {
           signed_at?: string | null
           status?: string
           stripe_invoice_url?: string | null
+          surcharge_amount?: number | null
           therapist_id?: string | null
           therapist_name?: string | null
           total_price?: number | null
@@ -354,6 +358,7 @@ export type Database = {
           hotel_id?: string
           hotel_name?: string | null
           id?: string
+          is_out_of_hours?: boolean | null
           payment_error_code?: string | null
           payment_error_details?: Json | null
           payment_error_message?: string | null
@@ -373,6 +378,7 @@ export type Database = {
           signed_at?: string | null
           status?: string
           stripe_invoice_url?: string | null
+          surcharge_amount?: number | null
           therapist_id?: string | null
           therapist_name?: string | null
           total_price?: number | null
@@ -510,6 +516,7 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string | null
+          venue_role: string | null
         }
         Insert: {
           country_code?: string
@@ -525,6 +532,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string | null
+          venue_role?: string | null
         }
         Update: {
           country_code?: string
@@ -540,6 +548,7 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string | null
+          venue_role?: string | null
         }
         Relationships: []
       }
@@ -703,6 +712,7 @@ export type Database = {
       hotels: {
         Row: {
           address: string | null
+          allow_out_of_hours_booking: boolean | null
           auto_validate_bookings: boolean | null
           calendar_color: string | null
           city: string | null
@@ -714,6 +724,7 @@ export type Database = {
           created_at: string
           currency: string | null
           description: string | null
+          global_therapist_commission: boolean | null
           hotel_commission: number | null
           id: string
           image: string | null
@@ -721,6 +732,7 @@ export type Database = {
           name: string
           offert: boolean | null
           opening_time: string | null
+          out_of_hours_surcharge_percent: number | null
           pms_auto_charge_room: boolean | null
           pms_guest_lookup_enabled: boolean | null
           pms_type: string | null
@@ -735,6 +747,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null
           calendar_color?: string | null
           city?: string | null
@@ -746,6 +759,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           description?: string | null
+          global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
           image?: string | null
@@ -753,6 +767,7 @@ export type Database = {
           name: string
           offert?: boolean | null
           opening_time?: string | null
+          out_of_hours_surcharge_percent?: number | null
           pms_auto_charge_room?: boolean | null
           pms_guest_lookup_enabled?: boolean | null
           pms_type?: string | null
@@ -767,6 +782,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          allow_out_of_hours_booking?: boolean | null
           auto_validate_bookings?: boolean | null
           calendar_color?: string | null
           city?: string | null
@@ -778,6 +794,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           description?: string | null
+          global_therapist_commission?: boolean | null
           hotel_commission?: number | null
           id?: string
           image?: string | null
@@ -785,6 +802,7 @@ export type Database = {
           name?: string
           offert?: boolean | null
           opening_time?: string | null
+          out_of_hours_surcharge_percent?: number | null
           pms_auto_charge_room?: boolean | null
           pms_guest_lookup_enabled?: boolean | null
           pms_type?: string | null
@@ -1158,6 +1176,7 @@ export type Database = {
           created_at: string
           email: string
           first_name: string
+          hourly_rate: number | null
           id: string
           last_name: string
           minimum_guarantee: Json | null
@@ -1178,6 +1197,7 @@ export type Database = {
           created_at?: string
           email: string
           first_name: string
+          hourly_rate?: number | null
           id?: string
           last_name: string
           minimum_guarantee?: Json | null
@@ -1198,6 +1218,7 @@ export type Database = {
           created_at?: string
           email?: string
           first_name?: string
+          hourly_rate?: number | null
           id?: string
           last_name?: string
           minimum_guarantee?: Json | null

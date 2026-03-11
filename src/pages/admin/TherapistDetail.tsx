@@ -15,6 +15,7 @@ import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { TherapistGeneralTab } from "@/components/admin/therapist/TherapistGeneralTab";
 import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistAssignmentsTab";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
+import { TherapistActivityTab } from "@/components/admin/therapist/TherapistActivityTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -24,6 +25,7 @@ const createFormSchema = (t: TFunction) =>
     country_code: z.string().default("+33"),
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
+    hourly_rate: z.string().optional(),
   });
 
 export type TherapistFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -96,6 +98,7 @@ export default function TherapistDetail() {
           country_code: therapist.country_code || "+33",
           phone: therapist.phone || "",
           status: therapist.status || "En attente",
+          hourly_rate: therapist.hourly_rate?.toString() || "",
         });
 
         setProfileImage(therapist.profile_image || "");
@@ -153,6 +156,7 @@ export default function TherapistDetail() {
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
+        hourly_rate: values.hourly_rate ? parseFloat(values.hourly_rate) : null,
       };
 
       if (isNewMode && !savedTherapistId) {
@@ -377,6 +381,13 @@ export default function TherapistDetail() {
               >
                 {t("admin:therapists.planning", "Planning")}
               </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:therapists.activity", "Activité")}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -419,6 +430,10 @@ export default function TherapistDetail() {
                   <TherapistScheduleSection
                     therapistId={effectiveTherapistId!}
                   />
+                </TabsContent>
+
+                <TabsContent value="activity" className="mt-0">
+                  <TherapistActivityTab therapistId={effectiveTherapistId!} />
                 </TabsContent>
               </>
             )}

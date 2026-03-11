@@ -26,12 +26,13 @@ import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
+import { isOutOfHours } from "@/lib/bookingUtils";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 
-export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
+export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { isConcierge, hotelIds, isAdmin } = useUserContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
@@ -41,7 +42,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      hotelId: isConcierge && hotelIds.length > 0 ? hotelIds[0] : "",
+      hotelId: presetHotelId || (isConcierge && hotelIds.length > 0 ? hotelIds[0] : ""),
       therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
@@ -81,7 +82,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name, timezone, currency").order("name");
+      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent").order("name");
       return data || [];
     }
   });
@@ -130,6 +131,16 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const finalPrice = isAdmin && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
   const finalDuration = isAdmin && hasOnRequestService && customDuration ? Number(customDuration) : totalDuration;
+
+  // Out-of-hours surcharge detection
+  const isBookingOutOfHours = useMemo(() => {
+    if (!isAdmin || !selectedHotel?.allow_out_of_hours_booking) return false;
+    return isOutOfHours(time, selectedHotel.opening_time || '10:00', selectedHotel.closing_time || '20:00');
+  }, [isAdmin, selectedHotel, time]);
+
+  const surchargePercent = selectedHotel?.out_of_hours_surcharge_percent || 0;
+  const surchargeAmount = isBookingOutOfHours ? Math.round(finalPrice * surchargePercent / 100) : 0;
+  const finalPriceWithSurcharge = finalPrice + surchargeAmount;
 
   const mutation = useCreateBookingMutation({
     hotels,
@@ -227,9 +238,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
       treatmentIds: flatIds,
-      totalPrice: finalPrice,
+      totalPrice: finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,
+      isOutOfHours: isBookingOutOfHours,
+      surchargeAmount,
     });
   };
 
@@ -250,7 +263,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setShowConfirmClose(false);
     setActiveTab("info");
     form.reset({
-      hotelId: "",
+      hotelId: presetHotelId || "",
       therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
@@ -300,6 +313,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   countryCode={countryCode}
                   visibleSlots={visibleSlots}
                   setVisibleSlots={setVisibleSlots}
+                  isBookingOutOfHours={isBookingOutOfHours}
+                  surchargePercent={surchargePercent}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />
@@ -324,6 +339,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   setCustomPrice={setCustomPrice}
                   customDuration={customDuration}
                   setCustomDuration={setCustomDuration}
+                  isBookingOutOfHours={isBookingOutOfHours}
+                  surchargeAmount={surchargeAmount}
+                  surchargePercent={surchargePercent}
+                  finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
                 />
@@ -336,7 +355,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     isAdmin={isAdmin}
                     clientFirstName={clientFirstName}
                     clientLastName={clientLastName}
-                    finalPrice={finalPrice}
+                    finalPrice={finalPriceWithSurcharge}
                     currency={selectedHotel?.currency || 'EUR'}
                     onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
                     onClose={handleClose}
@@ -362,7 +381,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           room_number: roomNumber || undefined,
           booking_date: date ? format(date, "yyyy-MM-dd") : "",
           booking_time: time,
-          total_price: finalPrice,
+          total_price: finalPriceWithSurcharge,
           hotel_name: createdBooking.hotel_name,
           treatments: cartDetails.map(item => ({
             name: item.treatment?.name || 'Service',
