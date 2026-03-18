@@ -165,115 +165,122 @@ serve(async (req) => {
           return new Response(JSON.stringify({ received: true }), { status: 200 });
         }
 
-        if (!metadata?.hotel_id) {
-          console.error("[STRIPE-WEBHOOK] Missing hotel_id in metadata");
+        // PRE-RESERVATION FLOW: Find the pre-reserved booking created by create-checkout-session
+        const bookingIdFromMeta = metadata?.booking_id;
+
+        if (!bookingIdFromMeta) {
+          console.error("[STRIPE-WEBHOOK] Missing booking_id in metadata (legacy flow?)");
           return new Response(JSON.stringify({ received: true }), { status: 200 });
         }
 
-        // Check if booking already exists for this session
-        const { data: existingBooking } = await supabase
+        // Fetch the pre-reserved booking
+        const { data: booking, error: bookingFetchError } = await supabase
           .from('bookings')
-          .select('id')
-          .eq('stripe_invoice_url', session.id)
-          .maybeSingle();
+          .select('id, booking_id, hotel_id, client_email, client_first_name, client_last_name, payment_status, status, total_price, booking_date, booking_time, room_number')
+          .eq('id', bookingIdFromMeta)
+          .single();
 
-        if (existingBooking) {
-          console.log(`[STRIPE-WEBHOOK] Booking already exists for session ${session.id}`);
+        if (bookingFetchError || !booking) {
+          console.error("[STRIPE-WEBHOOK] Pre-reserved booking not found:", bookingIdFromMeta, bookingFetchError);
           return new Response(JSON.stringify({ received: true }), { status: 200 });
         }
 
-        // Fetch hotel info with both commissions
+        // Idempotency guard: skip if already paid (Stripe retry protection)
+        if (booking.payment_status === 'paid') {
+          console.log(`[STRIPE-WEBHOOK] Booking ${booking.booking_id} already paid, skipping`);
+          return new Response(JSON.stringify({ received: true }), { status: 200 });
+        }
+
+        // Handle expired pre-reservation: if cron cancelled it before payment arrived
+        if (booking.status === 'cancelled' || booking.status === 'Annulé') {
+          console.log(`[STRIPE-WEBHOOK] Pre-reservation expired, attempting reactivation for booking ${booking.id}`);
+
+          const { data: reactivated, error: reactivateError } = await supabase.rpc('reactivate_prereservation', {
+            _booking_id: booking.id,
+          });
+
+          if (reactivateError || !reactivated) {
+            // Slot was taken by someone else — auto-refund the client
+            console.error(`[STRIPE-WEBHOOK] Reactivation failed for booking ${booking.id}, auto-refunding`);
+
+            try {
+              const paymentIntentId = session.payment_intent as string;
+              if (paymentIntentId) {
+                await stripe.refunds.create({ payment_intent: paymentIntentId });
+                console.log(`[STRIPE-WEBHOOK] Auto-refund issued for payment intent: ${paymentIntentId}`);
+              }
+            } catch (refundError) {
+              console.error('[STRIPE-WEBHOOK] Auto-refund failed:', refundError);
+            }
+
+            // Notify admin via Slack about the auto-refund
+            try {
+              await supabase.functions.invoke('send-slack-notification', {
+                body: {
+                  type: 'auto_refund',
+                  bookingId: booking.id,
+                  bookingNumber: booking.booking_id.toString(),
+                  clientName: `${booking.client_first_name} ${booking.client_last_name}`,
+                  reason: 'Pre-reservation expired and slot taken by another client',
+                }
+              });
+            } catch (slackError) {
+              console.error('[STRIPE-WEBHOOK] Slack notification failed:', slackError);
+            }
+
+            return new Response(JSON.stringify({ received: true }), { status: 200 });
+          }
+
+          console.log(`[STRIPE-WEBHOOK] Pre-reservation reactivated successfully for booking ${booking.id}`);
+          // Continue with normal payment confirmation flow
+        } else {
+          // Normal case: booking still active (awaiting_payment), update to paid
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({ payment_status: 'paid' })
+            .eq('id', booking.id);
+
+          if (updateError) {
+            console.error('[STRIPE-WEBHOOK] Failed to update payment status:', updateError);
+            throw updateError;
+          }
+        }
+
+        console.log(`[STRIPE-WEBHOOK] Booking ${booking.booking_id} confirmed as paid`);
+
+        // Fetch hotel info for commissions and email
         const { data: hotel } = await supabase
           .from('hotels')
           .select('name, currency, therapist_commission, hotel_commission')
-          .eq('id', metadata.hotel_id)
+          .eq('id', booking.hotel_id)
           .maybeSingle();
 
-        // Parse treatment IDs from metadata
-        let treatmentIds: string[] = [];
-        try {
-          treatmentIds = JSON.parse(metadata.treatment_ids || '[]');
-        } catch (e) {
-          console.error("[STRIPE-WEBHOOK] Failed to parse treatment_ids:", e);
-        }
-
-        // Create the booking
-        const { data: booking, error: bookingError } = await supabase
-          .from('bookings')
-          .insert({
-            hotel_id: metadata.hotel_id,
-            hotel_name: hotel?.name || null,
-            client_first_name: metadata.client_first_name || '',
-            client_last_name: metadata.client_last_name || '',
-            client_email: metadata.client_email || null,
-            phone: metadata.client_phone || '',
-            room_number: metadata.room_number || null,
-            client_note: metadata.client_note || null,
-            booking_date: metadata.booking_date,
-            booking_time: metadata.booking_time,
-            status: 'pending',
-            payment_method: 'card',
-            payment_status: 'paid',
-            total_price: parseFloat(metadata.verified_total_price || '0'),
-            stripe_invoice_url: session.id, // Store session ID to prevent duplicates
-          })
-          .select()
-          .single();
-
-        if (bookingError) {
-          console.error("[STRIPE-WEBHOOK] Booking creation error:", bookingError);
-          throw bookingError;
-        }
-
-        console.log(`[STRIPE-WEBHOOK] Booking created: #${booking.booking_id} (${booking.id})`);
-
-        // Add booking treatments
-        if (treatmentIds.length > 0) {
-          for (const treatmentId of treatmentIds) {
-            const { error: treatmentError } = await supabase
-              .from('booking_treatments')
-              .insert({
-                booking_id: booking.id,
-                treatment_id: treatmentId,
-              });
-
-            if (treatmentError) {
-              console.error("[STRIPE-WEBHOOK] Treatment insert error:", treatmentError);
-            }
-          }
-          console.log(`[STRIPE-WEBHOOK] Added ${treatmentIds.length} treatments to booking`);
-        }
-
         // Get treatment details for email
-        const { data: treatmentDetails } = await supabase
-          .from('treatment_menus')
-          .select('name, price, price_on_request')
-          .in('id', treatmentIds);
+        const { data: bookingTreatments } = await supabase
+          .from('booking_treatments')
+          .select('treatment_id, treatment_menus(name, price, price_on_request)')
+          .eq('booking_id', booking.id);
 
-        const treatmentsForEmail = (treatmentDetails || []).map((t) => ({
-          name: t.name,
-          price: t.price,
-          isPriceOnRequest: !!t.price_on_request,
+        const treatmentsForEmail = (bookingTreatments || []).map((bt: any) => ({
+          name: bt.treatment_menus?.name,
+          price: bt.treatment_menus?.price,
+          isPriceOnRequest: !!bt.treatment_menus?.price_on_request,
         }));
 
         const currencyForEmail = (hotel?.currency || 'EUR').toUpperCase();
 
         // Create ledger entries so Finance shows all transactions
-        // For card payments: OOM receives full amount, then owes hotel their commission
         try {
           const therapistCommissionPercent = hotel?.therapist_commission ?? 70;
           const hotelCommissionPercent = hotel?.hotel_commission ?? 10;
           const oomCommissionPercent = Math.max(0, 100 - therapistCommissionPercent - hotelCommissionPercent);
-          const totalPrice = parseFloat(metadata.verified_total_price || '0');
-          
+          const totalPrice = booking.total_price || 0;
+
           const oomAmount = (totalPrice * oomCommissionPercent) / 100;
           const hotelAmount = (totalPrice * hotelCommissionPercent) / 100;
-          const therapistAmount = (totalPrice * therapistCommissionPercent) / 100;
 
-          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Therapist ${therapistCommissionPercent}% (${therapistAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
-          console.log(`[STRIPE-WEBHOOK] Total: ${totalPrice}€`);
+          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
 
-          // Entry 1: OOM commission (what OOM keeps)
           const { error: oomLedgerError } = await supabase
             .from('hotel_ledger')
             .insert({
@@ -286,51 +293,44 @@ serve(async (req) => {
 
           if (oomLedgerError) {
             console.error('[STRIPE-WEBHOOK] OOM ledger entry failed:', oomLedgerError);
-          } else {
-            console.log(`[STRIPE-WEBHOOK] OOM commission entry created: ${oomAmount}€`);
           }
 
-          // Entry 2: Hotel commission (what OOM owes to hotel) - negative amount means OOM owes hotel
           if (hotelAmount > 0) {
             const { error: hotelLedgerError } = await supabase
               .from('hotel_ledger')
               .insert({
                 hotel_id: booking.hotel_id,
                 booking_id: booking.id,
-                amount: -hotelAmount, // Negative = OOM owes hotel
+                amount: -hotelAmount,
                 status: 'pending',
                 description: `Commission Hôtel à payer (${hotelCommissionPercent}%) - Réservation #${booking.booking_id}`,
               });
 
             if (hotelLedgerError) {
               console.error('[STRIPE-WEBHOOK] Hotel commission ledger entry failed:', hotelLedgerError);
-            } else {
-              console.log(`[STRIPE-WEBHOOK] Hotel commission entry created: -${hotelAmount}€ (OOM owes hotel)`);
             }
           }
-
-          console.log(`[STRIPE-WEBHOOK] Ledger entries created for booking #${booking.booking_id}`);
         } catch (ledgerErr) {
           console.error('[STRIPE-WEBHOOK] Ledger entry error:', ledgerErr);
         }
 
         // Send confirmation email to client
-        if (metadata.client_email) {
+        if (booking.client_email) {
           try {
             await supabase.functions.invoke('send-booking-confirmation', {
               body: {
-                email: metadata.client_email,
+                email: booking.client_email,
                 bookingId: booking.id,
                 bookingNumber: booking.booking_id.toString(),
-                clientName: `${metadata.client_first_name} ${metadata.client_last_name}`,
+                clientName: `${booking.client_first_name} ${booking.client_last_name}`,
                 hotelName: hotel?.name,
-                roomNumber: metadata.room_number,
-                bookingDate: metadata.booking_date,
-                bookingTime: metadata.booking_time,
+                roomNumber: booking.room_number,
+                bookingDate: booking.booking_date,
+                bookingTime: booking.booking_time,
                 treatments: treatmentsForEmail,
-                totalPrice: parseFloat(metadata.verified_total_price || '0'),
+                totalPrice: booking.total_price,
                 currency: currencyForEmail,
-                siteUrl: metadata.site_url || '',
+                siteUrl: metadata?.site_url || '',
               },
             });
             console.log('[STRIPE-WEBHOOK] Confirmation email sent to client');

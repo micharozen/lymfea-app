@@ -136,7 +136,10 @@ serve(async (req) => {
           first_name,
           last_name,
           stripe_account_id,
-          hourly_rate
+          hourly_rate,
+          rate_45,
+          rate_60,
+          rate_90
         )
       `)
       .eq('id', booking_id)
@@ -189,23 +192,32 @@ serve(async (req) => {
       // Mode global : pourcentage identique pour tous les thérapeutes
       therapistShare = totalHT * (therapistCommissionRate / 100);
     } else {
-      // Mode individuel : taux horaire du thérapeute
-      const hourlyRate = therapist?.hourly_rate;
-      if (hourlyRate && hourlyRate > 0) {
-        // Calculer la durée totale du booking en minutes
-        const bookingDuration = (booking.booking_treatments || []).reduce(
-          (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 0
-        );
-        if (bookingDuration > 0) {
-          therapistShare = hourlyRate * (bookingDuration / 60);
-          // Cap : ne peut pas dépasser totalHT - hotelCommission
-          therapistShare = Math.min(therapistShare, totalHT - hotelCommission);
+      // Mode individuel : taux par palier de durée
+      const bookingDuration = (booking.booking_treatments || []).reduce(
+        (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 0
+      );
+
+      if (bookingDuration > 0 && therapist) {
+        // Taux par palier : 45min, 60min, 90min
+        if (bookingDuration === 45 && therapist.rate_45 && therapist.rate_45 > 0) {
+          therapistShare = therapist.rate_45;
+        } else if (bookingDuration === 60 && therapist.rate_60 && therapist.rate_60 > 0) {
+          therapistShare = therapist.rate_60;
+        } else if (bookingDuration === 90 && therapist.rate_90 && therapist.rate_90 > 0) {
+          therapistShare = therapist.rate_90;
+        } else if (therapist.rate_60 && therapist.rate_60 > 0) {
+          // Hors palier : calcul proportionnel depuis le taux 1h
+          therapistShare = therapist.rate_60 * (bookingDuration / 60);
+        } else if (therapist.hourly_rate && therapist.hourly_rate > 0) {
+          // Fallback legacy : ancien taux horaire
+          therapistShare = therapist.hourly_rate * (bookingDuration / 60);
         } else {
-          // Fallback si pas de durée
           therapistShare = totalHT * (therapistCommissionRate / 100);
         }
+        // Cap : ne peut pas dépasser totalHT - hotelCommission
+        therapistShare = Math.min(therapistShare, totalHT - hotelCommission);
       } else {
-        // Fallback si pas de taux horaire défini
+        // Fallback si pas de durée ou pas de thérapeute
         therapistShare = totalHT * (therapistCommissionRate / 100);
       }
     }

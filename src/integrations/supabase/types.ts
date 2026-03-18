@@ -1,4 +1,3 @@
-Connecting to db 5432
 export type Json =
   | string
   | number
@@ -74,6 +73,155 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      amenity_bookings: {
+        Row: {
+          booking_date: string
+          booking_time: string
+          client_type: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          duration: number
+          end_time: string
+          hotel_id: string
+          id: string
+          linked_booking_id: string | null
+          notes: string | null
+          num_guests: number
+          payment_method: string | null
+          payment_status: string | null
+          price: number | null
+          room_number: string | null
+          status: string
+          updated_at: string
+          venue_amenity_id: string
+        }
+        Insert: {
+          booking_date: string
+          booking_time: string
+          client_type: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          duration: number
+          end_time: string
+          hotel_id: string
+          id?: string
+          linked_booking_id?: string | null
+          notes?: string | null
+          num_guests?: number
+          payment_method?: string | null
+          payment_status?: string | null
+          price?: number | null
+          room_number?: string | null
+          status?: string
+          updated_at?: string
+          venue_amenity_id: string
+        }
+        Update: {
+          booking_date?: string
+          booking_time?: string
+          client_type?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          duration?: number
+          end_time?: string
+          hotel_id?: string
+          id?: string
+          linked_booking_id?: string | null
+          notes?: string | null
+          num_guests?: number
+          payment_method?: string | null
+          payment_status?: string | null
+          price?: number | null
+          room_number?: string | null
+          status?: string
+          updated_at?: string
+          venue_amenity_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amenity_bookings_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_bookings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_bookings_linked_booking_id_fkey"
+            columns: ["linked_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "amenity_bookings_venue_amenity_id_fkey"
+            columns: ["venue_amenity_id"]
+            isOneToOne: false
+            referencedRelation: "venue_amenities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          flag_type: string | null
+          id: string
+          is_flagged: boolean
+          metadata: Json
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string
+          source: string
+          table_name: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          change_type: string
+          changed_at?: string
+          changed_by?: string | null
+          flag_type?: string | null
+          id?: string
+          is_flagged?: boolean
+          metadata?: Json
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id: string
+          source?: string
+          table_name: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          flag_type?: string | null
+          id?: string
+          is_flagged?: boolean
+          metadata?: Json
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string
+          source?: string
+          table_name?: string
         }
         Relationships: []
       }
@@ -1032,6 +1180,50 @@ export type Database = {
         }
         Relationships: []
       }
+      therapist_availability: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          is_available: boolean
+          is_manually_edited: boolean
+          last_change_source: string
+          shifts: Json
+          therapist_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          is_available?: boolean
+          is_manually_edited?: boolean
+          last_change_source?: string
+          shifts?: Json
+          therapist_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          is_available?: boolean
+          is_manually_edited?: boolean
+          last_change_source?: string
+          shifts?: Json
+          therapist_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_availability_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_payouts: {
         Row: {
           amount: number
@@ -1134,6 +1326,38 @@ export type Database = {
           },
         ]
       }
+      therapist_schedule_templates: {
+        Row: {
+          created_at: string
+          id: string
+          therapist_id: string
+          updated_at: string
+          weekly_pattern: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          therapist_id: string
+          updated_at?: string
+          weekly_pattern?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          therapist_id?: string
+          updated_at?: string
+          weekly_pattern?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_schedule_templates_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: true
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_venues: {
         Row: {
           created_at: string | null
@@ -1184,6 +1408,9 @@ export type Database = {
           password_set: boolean | null
           phone: string
           profile_image: string | null
+          rate_45: number | null
+          rate_60: number | null
+          rate_90: number | null
           skills: string[] | null
           status: string
           stripe_account_id: string | null
@@ -1205,6 +1432,9 @@ export type Database = {
           password_set?: boolean | null
           phone: string
           profile_image?: string | null
+          rate_45?: number | null
+          rate_60?: number | null
+          rate_90?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -1226,6 +1456,9 @@ export type Database = {
           password_set?: boolean | null
           phone?: string
           profile_image?: string | null
+          rate_45?: number | null
+          rate_60?: number | null
+          rate_90?: number | null
           skills?: string[] | null
           status?: string
           stripe_account_id?: string | null
@@ -1469,6 +1702,77 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_amenities: {
+        Row: {
+          capacity_per_slot: number
+          closing_time: string | null
+          color: string
+          created_at: string
+          currency: string | null
+          hotel_id: string
+          id: string
+          is_enabled: boolean
+          lymfea_access_duration: number | null
+          lymfea_access_included: boolean
+          name: string | null
+          opening_time: string | null
+          prep_time: number
+          price_external: number | null
+          price_lymfea: number | null
+          slot_duration: number
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          capacity_per_slot?: number
+          closing_time?: string | null
+          color?: string
+          created_at?: string
+          currency?: string | null
+          hotel_id: string
+          id?: string
+          is_enabled?: boolean
+          lymfea_access_duration?: number | null
+          lymfea_access_included?: boolean
+          name?: string | null
+          opening_time?: string | null
+          prep_time?: number
+          price_external?: number | null
+          price_lymfea?: number | null
+          slot_duration?: number
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          capacity_per_slot?: number
+          closing_time?: string | null
+          color?: string
+          created_at?: string
+          currency?: string | null
+          hotel_id?: string
+          id?: string
+          is_enabled?: boolean
+          lymfea_access_duration?: number | null
+          lymfea_access_included?: boolean
+          name?: string | null
+          opening_time?: string | null
+          prep_time?: number
+          price_external?: number | null
+          price_lymfea?: number | null
+          slot_duration?: number
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_amenities_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_blocked_slots: {
         Row: {
           created_at: string
@@ -1571,13 +1875,36 @@ export type Database = {
         }
         Returns: Json
       }
-      cleanup_old_rate_limits: { Args: never; Returns: undefined }
-      find_or_create_customer: {
+      acknowledge_audit_alert: {
+        Args: { _alert_id: string }
+        Returns: undefined
+      }
+      acknowledge_audit_alerts_bulk: {
+        Args: { _alert_ids: string[] }
+        Returns: number
+      }
+      apply_schedule_template: {
         Args: {
-          _phone: string
-          _first_name: string
-          _last_name?: string
-          _email?: string
+          _month: number
+          _overwrite_manual?: boolean
+          _therapist_id: string
+          _weekly_pattern: Json
+          _year: number
+        }
+        Returns: number
+      }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      create_audit_log: {
+        Args: {
+          _change_type: string
+          _flag_type?: string
+          _is_flagged?: boolean
+          _metadata?: Json
+          _new_values?: Json
+          _old_values?: Json
+          _record_id: string
+          _source?: string
+          _table_name: string
         }
         Returns: string
       }
@@ -1595,6 +1922,24 @@ export type Database = {
           _treatment_id?: string
         }
         Returns: string
+      }
+      find_or_create_customer: {
+        Args: {
+          _email?: string
+          _first_name: string
+          _last_name?: string
+          _phone: string
+        }
+        Returns: string
+      }
+      get_amenity_slot_occupancy: {
+        Args: {
+          p_date: string
+          p_end_time: string
+          p_start_time: string
+          p_venue_amenity_id: string
+        }
+        Returns: number
       }
       get_client_funnel: {
         Args: { _end_date?: string; _hotel_id?: string; _start_date?: string }

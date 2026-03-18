@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +76,7 @@ interface Therapist {
 }
 
 export default function Therapists() {
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
@@ -227,21 +230,7 @@ export default function Therapists() {
 
   const getSkillsDisplay = (skills: string[]) => {
     if (!skills || skills.length === 0) return "-";
-
-    const skillMap: Record<string, string> = {
-      men: "👨",
-      women: "👩",
-      barber: "💈",
-      beauty: "💅",
-    };
-
-    const hasEmojiSkills = skills.some(skill => skillMap[skill]);
-
-    if (hasEmojiSkills) {
-      return skills.map((skill) => skillMap[skill] || "").filter(Boolean).join(" ");
-    }
-
-    return skills.join(", ");
+    return skills.map((s) => getSpecialtyLabel(s, i18n.language)).join(", ");
   };
 
   const getRoomInfo = (roomIdOrName: string | null) => {
