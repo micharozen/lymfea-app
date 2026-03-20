@@ -34,32 +34,53 @@ import {
 } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { Loader2, Plug, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, Plug, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 
 const pmsConfigSchema = z.object({
-  pms_type: z.enum(["opera_cloud", "none"]),
+  pms_type: z.enum(["opera_cloud", "mews", "none"]),
+  // Opera Cloud fields
   gateway_url: z.string().optional(),
   client_id: z.string().optional(),
   client_secret: z.string().optional(),
   app_key: z.string().optional(),
   enterprise_id: z.string().optional(),
   pms_hotel_id: z.string().optional(),
+  // Mews fields
+  mews_environment: z.enum(["demo", "production"]).optional(),
+  access_token: z.string().optional(),
+  service_id: z.string().optional(),
+  accounting_category_id: z.string().optional(),
+  // Shared
   auto_charge_room: z.boolean(),
   guest_lookup_enabled: z.boolean(),
 });
 
 type PmsConfigFormValues = z.infer<typeof pmsConfigSchema>;
 
+interface MewsService {
+  id: string;
+  name: string;
+  isActive: boolean;
+  type: string;
+}
+
 interface PmsConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   hotelId: string;
   hotelName: string;
+  onSaved?: () => void;
 }
+
+const MEWS_URLS = {
+  demo: "https://api.mews-demo.com",
+  production: "https://api.mews.com",
+};
 
 export function PmsConfigDialog({
   open,
   onOpenChange,
+  onSaved,
   hotelId,
   hotelName,
 }: PmsConfigDialogProps) {
@@ -67,11 +88,14 @@ export function PmsConfigDialog({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isFetchingServices, setIsFetchingServices] = useState(false);
+  const [mewsServices, setMewsServices] = useState<MewsService[]>([]);
   const [testResult, setTestResult] = useState<{
     connected: boolean;
     error?: string;
   } | null>(null);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
+  const [hasExistingAccessToken, setHasExistingAccessToken] = useState(false);
 
   const form = useForm<PmsConfigFormValues>({
     resolver: zodResolver(pmsConfigSchema),
@@ -83,6 +107,10 @@ export function PmsConfigDialog({
       app_key: "",
       enterprise_id: "",
       pms_hotel_id: "",
+      mews_environment: "production",
+      access_token: "",
+      service_id: "",
+      accounting_category_id: "",
       auto_charge_room: false,
       guest_lookup_enabled: false,
     },
@@ -97,6 +125,7 @@ export function PmsConfigDialog({
     async function loadConfig() {
       setIsLoading(true);
       setTestResult(null);
+      setMewsServices([]);
 
       const { data, error } = await supabase
         .from("hotel_pms_configs" as any)
@@ -106,18 +135,30 @@ export function PmsConfigDialog({
 
       if (data && !error) {
         const config = data as any;
+
+        // Detect Mews environment from api_url
+        let mewsEnv: "demo" | "production" = "production";
+        if (config.api_url?.includes("mews-demo")) {
+          mewsEnv = "demo";
+        }
+
         form.reset({
-          pms_type: config.pms_type || "opera_cloud",
+          pms_type: config.pms_type || "none",
           gateway_url: config.gateway_url || "",
           client_id: config.client_id || "",
           client_secret: "", // Never pre-fill secret
           app_key: config.app_key || "",
           enterprise_id: config.enterprise_id || "",
           pms_hotel_id: config.pms_hotel_id || "",
+          mews_environment: mewsEnv,
+          access_token: "", // Never pre-fill token
+          service_id: config.service_id || "",
+          accounting_category_id: config.accounting_category_id || "",
           auto_charge_room: config.auto_charge_room || false,
           guest_lookup_enabled: config.guest_lookup_enabled || false,
         });
         setHasExistingSecret(!!config.client_secret);
+        setHasExistingAccessToken(!!config.access_token);
       } else {
         form.reset({
           pms_type: "none",
@@ -127,10 +168,15 @@ export function PmsConfigDialog({
           app_key: "",
           enterprise_id: "",
           pms_hotel_id: "",
+          mews_environment: "production",
+          access_token: "",
+          service_id: "",
+          accounting_category_id: "",
           auto_charge_room: false,
           guest_lookup_enabled: false,
         });
         setHasExistingSecret(false);
+        setHasExistingAccessToken(false);
       }
 
       setIsLoading(false);
@@ -143,10 +189,12 @@ export function PmsConfigDialog({
     setIsTesting(true);
     setTestResult(null);
 
+    // For Mews, we need to save first before testing (since config must be in DB)
+    // For Opera, the existing flow already tests via saved config
     const { data, error } = await invokeEdgeFunction<
       { hotelId: string },
       { connected: boolean; error?: string }
-    >("opera-cloud-test-connection", {
+    >("pms-test-connection", {
       body: { hotelId },
     });
 
@@ -154,9 +202,36 @@ export function PmsConfigDialog({
       setTestResult({ connected: false, error: error.message });
     } else {
       setTestResult(data);
+      if (data?.connected) {
+        onSaved?.();
+      }
     }
 
     setIsTesting(false);
+  };
+
+  const handleFetchServices = async () => {
+    setIsFetchingServices(true);
+
+    const { data, error } = await invokeEdgeFunction<
+      { hotelId: string },
+      { services: MewsService[]; error?: string }
+    >("pms-fetch-services", {
+      body: { hotelId },
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else if (data?.error) {
+      toast.error(data.error);
+    } else if (data?.services) {
+      setMewsServices(data.services);
+      if (data.services.length === 0) {
+        toast.info(t("pms.noServicesFound"));
+      }
+    }
+
+    setIsFetchingServices(false);
   };
 
   const onSubmit = async (values: PmsConfigFormValues) => {
@@ -181,7 +256,8 @@ export function PmsConfigDialog({
           .eq("id", hotelId);
 
         toast.success(t("pms.saved"));
-        onOpenChange(false);
+        setHasExistingSecret(false);
+        setHasExistingAccessToken(false);
         return;
       }
 
@@ -189,19 +265,33 @@ export function PmsConfigDialog({
       const configData: Record<string, any> = {
         hotel_id: hotelId,
         pms_type: values.pms_type,
-        gateway_url: values.gateway_url,
-        client_id: values.client_id,
-        app_key: values.app_key,
-        enterprise_id: values.enterprise_id,
-        pms_hotel_id: values.pms_hotel_id,
         auto_charge_room: values.auto_charge_room,
         guest_lookup_enabled: values.guest_lookup_enabled,
         updated_at: new Date().toISOString(),
       };
 
-      // Only update client_secret if a new value was provided
-      if (values.client_secret) {
-        configData.client_secret = values.client_secret;
+      if (values.pms_type === "opera_cloud") {
+        configData.gateway_url = values.gateway_url;
+        configData.client_id = values.client_id;
+        configData.app_key = values.app_key;
+        configData.enterprise_id = values.enterprise_id;
+        configData.pms_hotel_id = values.pms_hotel_id;
+        // Only update client_secret if a new value was provided
+        if (values.client_secret) {
+          configData.client_secret = values.client_secret;
+        }
+      }
+
+      if (values.pms_type === "mews") {
+        configData.api_url =
+          MEWS_URLS[values.mews_environment || "production"];
+        configData.service_id = values.service_id;
+        configData.accounting_category_id =
+          values.accounting_category_id || null;
+        // Only update access_token if a new value was provided
+        if (values.access_token) {
+          configData.access_token = values.access_token;
+        }
       }
 
       // Upsert PMS config
@@ -226,7 +316,16 @@ export function PmsConfigDialog({
         .eq("id", hotelId);
 
       toast.success(t("pms.saved"));
-      onOpenChange(false);
+      onSaved?.();
+      // Mark secrets as existing so placeholder shows correctly
+      if (values.pms_type === "opera_cloud" && values.client_secret) {
+        setHasExistingSecret(true);
+        form.setValue("client_secret", "");
+      }
+      if (values.pms_type === "mews" && values.access_token) {
+        setHasExistingAccessToken(true);
+        form.setValue("access_token", "");
+      }
     } catch (err) {
       console.error("Error saving PMS config:", err);
       toast.error(t("pms.saveFailed"));
@@ -272,6 +371,9 @@ export function PmsConfigDialog({
                         <SelectItem value="none">{t("pms.none")}</SelectItem>
                         <SelectItem value="opera_cloud">
                           {t("pms.operaCloud")}
+                        </SelectItem>
+                        <SelectItem value="mews">
+                          {t("pms.mews")}
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -393,7 +495,147 @@ export function PmsConfigDialog({
                       />
                     </div>
                   </div>
+                </>
+              )}
 
+              {/* Mews fields */}
+              {pmsType === "mews" && (
+                <>
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-muted-foreground">
+                      {t("pms.mewsCredentials")}
+                    </h4>
+
+                    <FormField
+                      control={form.control}
+                      name="mews_environment"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("pms.mewsEnvironment")}</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="production">
+                                {t("pms.mewsProduction")}
+                              </SelectItem>
+                              <SelectItem value="demo">
+                                {t("pms.mewsDemo")}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="access_token"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("pms.mewsAccessToken")}</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="password"
+                              placeholder={
+                                hasExistingAccessToken
+                                  ? "••••••••"
+                                  : ""
+                              }
+                            />
+                          </FormControl>
+                          {hasExistingAccessToken && !field.value && (
+                            <p className="text-xs text-muted-foreground">
+                              {t("pms.secretUnchanged")}
+                            </p>
+                          )}
+                          <FormDescription className="text-xs">
+                            {t("pms.mewsAccessTokenDesc")}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-2">
+                      <FormField
+                        control={form.control}
+                        name="service_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("pms.mewsServiceId")}</FormLabel>
+                            <div className="flex gap-2">
+                              <FormControl>
+                                {mewsServices.length > 0 ? (
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    value={field.value}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder={t("pms.mewsSelectService")} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {mewsServices.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input {...field} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                                )}
+                              </FormControl>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleFetchServices}
+                                disabled={isFetchingServices}
+                                title={t("pms.fetchServices")}
+                              >
+                                {isFetchingServices ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="accounting_category_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("pms.mewsAccountingCategory")}</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder={t("pms.optional")} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Shared sections for any PMS type */}
+              {pmsType !== "none" && (
+                <>
                   <Separator />
 
                   {/* Test connection */}
@@ -499,7 +741,7 @@ export function PmsConfigDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                 >
-                  {t("pms.cancel")}
+                  {t("pms.close")}
                 </Button>
                 <Button
                   type="submit"

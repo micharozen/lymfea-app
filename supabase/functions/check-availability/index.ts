@@ -146,10 +146,11 @@ serve(async (req) => {
     _debug.therapistsRaw = therapists;
     _debug.therapistsError = therapistsError;
 
-    // Filter active therapists (case-insensitive)
-    const activeTherapists = therapists?.filter((h: any) =>
-      h.therapists?.status?.toLowerCase() === 'active'
-    ) || [];
+    // Filter active therapists (case-insensitive, supports both EN "active" and FR "actif")
+    const activeTherapists = therapists?.filter((h: any) => {
+      const status = h.therapists?.status?.toLowerCase();
+      return status === 'active' || status === 'actif';
+    }) || [];
 
     console.log(`[DEBUG] activeTherapists after filter: ${JSON.stringify(activeTherapists)}`);
     _debug.activeTherapists = activeTherapists;

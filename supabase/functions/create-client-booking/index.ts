@@ -165,6 +165,8 @@ serve(async (req) => {
       phone: sanitizeString(clientData.phone),
       roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
       note: clientData.note ? sanitizeString(clientData.note) : null,
+      pmsGuestCheckIn: clientData.pmsGuestCheckIn || null,
+      pmsGuestCheckOut: clientData.pmsGuestCheckOut || null,
     };
 
     // Get hotel info
@@ -297,6 +299,8 @@ serve(async (req) => {
         phone: sanitizedClientData.phone,
         room_number: sanitizedClientData.roomNumber,
         client_note: sanitizedClientData.note,
+        ...(sanitizedClientData.pmsGuestCheckIn && { pms_guest_check_in: sanitizedClientData.pmsGuestCheckIn }),
+        ...(sanitizedClientData.pmsGuestCheckOut && { pms_guest_check_out: sanitizedClientData.pmsGuestCheckOut }),
         booking_date: bookingData.date,
         booking_time: bookingData.time,
         status: bookingStatus,
@@ -495,21 +499,21 @@ serve(async (req) => {
         console.error('Error sending booking confirmed notifications:', confirmError);
       }
     } else {
-      // Regular pending booking: trigger push notifications for therapists
+      // Regular pending booking: smart dispatch to top-ranked therapists
       try {
-        console.log('Triggering push notifications for booking:', booking.id);
-        const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+        console.log('Dispatching booking to ranked therapists:', booking.id);
+        const dispatchResponse = await supabase.functions.invoke('dispatch-booking-therapist', {
           body: { bookingId: booking.id }
         });
 
-        if (pushResponse.error) {
-          console.error('Failed to trigger push notifications:', pushResponse.error);
+        if (dispatchResponse.error) {
+          console.error('Failed to dispatch booking:', dispatchResponse.error);
         } else {
-          console.log('Push notifications triggered:', pushResponse.data);
+          console.log('Smart dispatch result:', dispatchResponse.data);
         }
-      } catch (pushError) {
-        console.error('Error triggering push notifications:', pushError);
-        // Continue even if push notifications fail
+      } catch (dispatchError) {
+        console.error('Error dispatching booking:', dispatchError);
+        // Continue even if dispatch fails
       }
 
       // Trigger email notification to admins
@@ -549,10 +553,10 @@ serve(async (req) => {
       }
 
       // Attempt PMS auto-charge (non-blocking, concierge already notified as fallback)
-      if (hotel.pms_auto_charge_room && hotel.pms_type === 'opera_cloud') {
+      if (hotel.pms_auto_charge_room && hotel.pms_type) {
         try {
-          console.log('Attempting Opera Cloud auto-charge for booking:', booking.id);
-          const pmsResponse = await supabase.functions.invoke('opera-cloud-post-charge', {
+          console.log('Attempting PMS auto-charge for booking:', booking.id, 'pms_type:', hotel.pms_type);
+          const pmsResponse = await supabase.functions.invoke('pms-post-charge', {
             body: { bookingId: booking.id }
           });
 

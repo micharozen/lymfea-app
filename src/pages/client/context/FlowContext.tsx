@@ -13,6 +13,8 @@ export interface ClientInfo {
   email: string;
   roomNumber: string;
   note?: string;
+  pmsGuestCheckIn?: string;
+  pmsGuestCheckOut?: string;
 }
 
 interface ClientFlowState {

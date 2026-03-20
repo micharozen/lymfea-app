@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,11 @@ import {
   Clock,
   CalendarDays,
   Plug,
+  Settings,
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { brand } from "@/config/brand";
 
@@ -68,6 +70,7 @@ interface VenueOverviewTabProps {
 }
 
 export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
+  const queryClient = useQueryClient();
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
 
   // Fetch hotel data
@@ -82,6 +85,21 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch PMS connection status
+  const { data: pmsStatus } = useQuery({
+    queryKey: ["venue-pms-status", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_pms_configs" as any)
+        .select("connection_status, connection_verified_at")
+        .eq("hotel_id", hotelId)
+        .maybeSingle();
+      if (error) return null;
+      return data as { connection_status: string; connection_verified_at: string | null } | null;
+    },
+    enabled: !!(hotel as any)?.pms_type,
   });
 
   // Fetch concierges
@@ -369,21 +387,57 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
             </h3>
             <div className="bg-muted/50 rounded-lg p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">
-                    {(hotel as any).pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : 'Non configure'}
-                  </p>
-                  {(hotel as any).pms_type && (
-                    <div className="flex gap-2">
-                      {(hotel as any).pms_auto_charge_room && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">
+                      {(hotel as any).pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : (hotel as any).pms_type === 'mews' ? 'Mews' : 'Non configuré'}
+                    </p>
+                    {(hotel as any).pms_type && (
+                      pmsStatus?.connection_status === 'connected' ? (
                         <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
-                          Auto-charge
+                          Connecté
                         </Badge>
+                      ) : pmsStatus?.connection_status === 'failed' ? (
+                        <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
+                          Échec connexion
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                          Non testé
+                        </Badge>
+                      )
+                    )}
+                  </div>
+                  {(hotel as any).pms_type && pmsStatus?.connection_status === 'connected' && pmsStatus?.connection_verified_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Connecté depuis le {format(new Date(pmsStatus.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                    </p>
+                  )}
+                  {(hotel as any).pms_type && (
+                    <div className="flex gap-2 flex-wrap">
+                      {(hotel as any).pms_auto_charge_room && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
+                              Auto-charge
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Les charges spa sont automatiquement postées dans le PMS lors du paiement chambre</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                       {(hotel as any).pms_guest_lookup_enabled && (
-                        <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 border-blue-200">
-                          Guest lookup
-                        </Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
+                              Guest lookup
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Les infos client sont remplies automatiquement depuis le PMS quand un numéro de chambre est saisi</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   )}
@@ -393,8 +447,17 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
                   size="sm"
                   onClick={() => setPmsDialogOpen(true)}
                 >
-                  <Plug className="h-4 w-4 mr-2" />
-                  Configurer
+                  {(hotel as any).pms_type ? (
+                    <>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Modifier
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="h-4 w-4 mr-2" />
+                      Configurer
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
@@ -430,6 +493,10 @@ export function VenueOverviewTab({ hotelId }: VenueOverviewTabProps) {
           onOpenChange={setPmsDialogOpen}
           hotelId={hotel.id}
           hotelName={hotel.name}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["venue-pms-status", hotelId] });
+            queryClient.invalidateQueries({ queryKey: ["venue-overview", hotelId] });
+          }}
         />
       )}
     </div>

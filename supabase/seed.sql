@@ -123,7 +123,7 @@ VALUES (
 );
 
 -- 5) Therapist record
-INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee)
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills)
 VALUES (
   '00000000-0000-0000-0000-000000000102',
   '00000000-0000-0000-0000-000000000002',
@@ -133,7 +133,8 @@ VALUES (
   'Actif',
   true,
   '+33',
-  '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}'
+  '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
+  '{men,women,barber,beauty}'
 );
 
 -- 6) Concierge record
@@ -175,18 +176,19 @@ VALUES (
   1
 );
 
-INSERT INTO public.treatment_menus (id, name, category, hotel_id, service_for, duration, price, currency, status, description)
+INSERT INTO public.treatment_menus (id, name, category, hotel_id, service_for, duration, price, currency, status, description, is_bestseller)
 VALUES (
   '00000000-0000-0000-0000-000000000021',
   'Brushing',
   'Coiffure',
   '00000000-0000-0000-0000-000000000010',
-  'Female',
+  'Male',
   45,
   55.00,
   'EUR',
-  'Actif',
-  'Brushing classique tous types de cheveux'
+  'active',
+  'Brushing classique tous types de cheveux',
+  true
 );
 
 -- 10) Treatment room assigned to test hotel

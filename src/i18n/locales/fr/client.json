@@ -220,6 +220,9 @@
     "bannerDesc": "Tous les soins sont pris en charge par votre entreprise."
   },
   "guestLookup": {
-    "found": "Information client trouvee"
+    "found": "Informations client trouvées",
+    "notFound": "Chambre non trouvée — veuillez remplir vos informations manuellement",
+    "hint": "Entrez votre numéro de chambre pour pré-remplir vos informations",
+    "optional": "optionnel"
   }
 }

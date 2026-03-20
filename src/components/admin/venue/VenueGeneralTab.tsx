@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { UseFormReturn, useWatch, Control } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import {
@@ -173,6 +175,41 @@ export function VenueGeneralTab({
 
   // PMS dialog state
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Fetch PMS data for the venue
+  const { data: pmsHotelData } = useQuery({
+    queryKey: ["venue-pms-hotel", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("pms_type, pms_auto_charge_room, pms_guest_lookup_enabled")
+        .eq("id", hotelId!)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!hotelId && venueTypeValue === 'hotel',
+  });
+
+  const { data: pmsStatus } = useQuery({
+    queryKey: ["venue-pms-status", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_pms_configs" as any)
+        .select("connection_status, connection_verified_at")
+        .eq("hotel_id", hotelId!)
+        .maybeSingle();
+      if (error) return null;
+      return data as { connection_status: string; connection_verified_at: string | null } | null;
+    },
+    enabled: !!pmsHotelData?.pms_type,
+  });
+
+  const handlePmsSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ["venue-pms-hotel", hotelId] });
+    queryClient.invalidateQueries({ queryKey: ["venue-pms-status", hotelId] });
+  };
 
   // Fetch venue team members
   const { data: concierges = [] } = useQuery({
@@ -899,14 +936,77 @@ export function VenueGeneralTab({
                   size="sm"
                   onClick={() => setPmsDialogOpen(true)}
                 >
-                  <Plug className="h-4 w-4 mr-2" />
-                  Configurer
+                  {pmsHotelData?.pms_type ? (
+                    <>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Modifier
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="h-4 w-4 mr-2" />
+                      Configurer
+                    </>
+                  )}
                 </Button>
               </div>
-              <CardDescription>
-                Configuration PMS du lieu
-              </CardDescription>
             </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">
+                    {pmsHotelData?.pms_type === 'opera_cloud' ? 'Oracle Opera Cloud' : pmsHotelData?.pms_type === 'mews' ? 'Mews' : 'Non configuré'}
+                  </p>
+                  {pmsHotelData?.pms_type && (
+                    pmsStatus?.connection_status === 'connected' ? (
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
+                        Connecté
+                      </Badge>
+                    ) : pmsStatus?.connection_status === 'failed' ? (
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
+                        Échec connexion
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                        Non testé
+                      </Badge>
+                    )
+                  )}
+                </div>
+                {pmsHotelData?.pms_type && pmsStatus?.connection_status === 'connected' && pmsStatus?.connection_verified_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Connecté depuis le {format(new Date(pmsStatus.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                  </p>
+                )}
+                {pmsHotelData?.pms_type && (
+                  <div className="flex gap-2 flex-wrap">
+                    {pmsHotelData.pms_auto_charge_room && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
+                            Auto-charge
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Les charges spa sont automatiquement postées dans le PMS lors du paiement chambre</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {pmsHotelData.pms_guest_lookup_enabled && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200 cursor-default">
+                            Guest lookup
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Les infos client sont remplies automatiquement depuis le PMS quand un numéro de chambre est saisi</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
           </Card>
 
           <PmsConfigDialog
@@ -914,6 +1014,7 @@ export function VenueGeneralTab({
             onOpenChange={setPmsDialogOpen}
             hotelId={hotelId}
             hotelName={form.getValues('name')}
+            onSaved={handlePmsSaved}
           />
         </>
       )}

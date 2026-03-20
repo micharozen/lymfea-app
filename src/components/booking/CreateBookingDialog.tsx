@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { isOutOfHours } from "@/lib/bookingUtils";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
+import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 
@@ -61,6 +62,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const hotelId = form.watch("hotelId");
   const date = form.watch("date");
   const time = form.watch("time");
+  const slot2Date = form.watch("slot2Date");
+  const slot3Date = form.watch("slot3Date");
   const countryCode = form.watch("countryCode");
   const clientFirstName = form.watch("clientFirstName");
   const clientLastName = form.watch("clientLastName");
@@ -82,13 +85,20 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent").order("name");
+      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, pms_guest_lookup_enabled, slot_interval").order("name");
       return data || [];
     }
   });
 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
+  const venueSlotInterval = (selectedHotel as any)?.slot_interval || 30;
+
+  const { isSlotAvailable, isLoading: isAvailabilityLoading } = useSlotAvailability({
+    hotelId,
+    dates: [date, slot2Date, slot3Date],
+    slotInterval: venueSlotInterval,
+  });
 
   const { data: therapists } = useQuery({
     queryKey: ["therapists-for-hotel", hotelId],
@@ -315,6 +325,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   setVisibleSlots={setVisibleSlots}
                   isBookingOutOfHours={isBookingOutOfHours}
                   surchargePercent={surchargePercent}
+                  pmsLookupEnabled={!!(selectedHotel as any)?.pms_guest_lookup_enabled}
+                  isSlotAvailable={isSlotAvailable}
+                  isAvailabilityLoading={isAvailabilityLoading}
+                  slotInterval={venueSlotInterval}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />

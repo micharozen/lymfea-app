@@ -36,7 +36,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProgressBar } from '@/components/client/ProgressBar';
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
   email: z.string()
@@ -46,7 +46,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean) => z.object(
     .min(1, t('info.errors.phoneRequired'))
     .min(6, t('info.errors.phoneInvalid')),
   countryCode: z.string(),
-  roomNumber: isCoworking ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired')),
+  roomNumber: isCoworking ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
   note: z.string().optional(),
 });
 
@@ -63,6 +63,42 @@ const countries = [
   { code: "+41", label: "Switzerland", flag: "CH" },
   { code: "+32", label: "Belgium", flag: "BE" },
   { code: "+377", label: "Monaco", flag: "MC" },
+  { code: "+31", label: "Netherlands", flag: "NL" },
+  { code: "+351", label: "Portugal", flag: "PT" },
+  { code: "+43", label: "Austria", flag: "AT" },
+  { code: "+46", label: "Sweden", flag: "SE" },
+  { code: "+47", label: "Norway", flag: "NO" },
+  { code: "+45", label: "Denmark", flag: "DK" },
+  { code: "+358", label: "Finland", flag: "FI" },
+  { code: "+48", label: "Poland", flag: "PL" },
+  { code: "+420", label: "Czech Republic", flag: "CZ" },
+  { code: "+30", label: "Greece", flag: "GR" },
+  { code: "+353", label: "Ireland", flag: "IE" },
+  { code: "+352", label: "Luxembourg", flag: "LU" },
+  { code: "+36", label: "Hungary", flag: "HU" },
+  { code: "+40", label: "Romania", flag: "RO" },
+  { code: "+385", label: "Croatia", flag: "HR" },
+  { code: "+7", label: "Russia", flag: "RU" },
+  { code: "+81", label: "Japan", flag: "JP" },
+  { code: "+86", label: "China", flag: "CN" },
+  { code: "+82", label: "South Korea", flag: "KR" },
+  { code: "+91", label: "India", flag: "IN" },
+  { code: "+55", label: "Brazil", flag: "BR" },
+  { code: "+52", label: "Mexico", flag: "MX" },
+  { code: "+61", label: "Australia", flag: "AU" },
+  { code: "+64", label: "New Zealand", flag: "NZ" },
+  { code: "+65", label: "Singapore", flag: "SG" },
+  { code: "+852", label: "Hong Kong", flag: "HK" },
+  { code: "+966", label: "Saudi Arabia", flag: "SA" },
+  { code: "+974", label: "Qatar", flag: "QA" },
+  { code: "+212", label: "Morocco", flag: "MA" },
+  { code: "+216", label: "Tunisia", flag: "TN" },
+  { code: "+27", label: "South Africa", flag: "ZA" },
+  { code: "+90", label: "Turkey", flag: "TR" },
+  { code: "+972", label: "Israel", flag: "IL" },
+  { code: "+62", label: "Indonesia", flag: "ID" },
+  { code: "+66", label: "Thailand", flag: "TH" },
+  { code: "+60", label: "Malaysia", flag: "MY" },
 ];
 
 const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-400 focus:ring-gold-400/20";
@@ -112,7 +148,8 @@ export default function GuestInfo() {
   }, [trackPageView]);
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
-  const schema = useMemo(() => createClientInfoSchema(t, isCoworking), [t, isCoworking]);
+  const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled), [t, isCoworking, pmsGuestLookupEnabled]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -129,22 +166,41 @@ export default function GuestInfo() {
 
   // PMS guest lookup (auto-fill from Opera Cloud when room number is entered)
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
+  const pmsStayDatesRef = useRef<{ checkIn?: string; checkOut?: string }>({});
 
   const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
     if (!roomNumber || roomNumber.length === 0) return;
 
     const result = await lookupGuest(roomNumber);
     if (result?.found && result.guest) {
-      if (!form.getValues('firstName')) {
-        form.setValue('firstName', result.guest.firstName);
-      }
-      if (!form.getValues('lastName')) {
-        form.setValue('lastName', result.guest.lastName);
-      }
-      if (!form.getValues('email') && result.guest.email) {
+      // Always overwrite — new room number = new guest
+      form.setValue('firstName', result.guest.firstName);
+      form.setValue('lastName', result.guest.lastName);
+      if (result.guest.email) {
         form.setValue('email', result.guest.email);
       }
+      if (result.guest.phone) {
+        // Parse country code from PMS phone (e.g. "+46706819856")
+        const pmsPhone = result.guest.phone;
+        const matchedCountry = countries
+          .sort((a, b) => b.code.length - a.code.length) // longest first
+          .find((c) => pmsPhone.startsWith(c.code));
+        if (matchedCountry) {
+          form.setValue('countryCode', matchedCountry.code);
+          form.setValue('phone', pmsPhone.slice(matchedCountry.code.length));
+        } else {
+          form.setValue('countryCode', '');
+          form.setValue('phone', pmsPhone);
+        }
+      }
+      pmsStayDatesRef.current = {
+        checkIn: result.guest.checkIn,
+        checkOut: result.guest.checkOut,
+      };
       toast.success(t('guestLookup.found'));
+    } else if (result && !result.found) {
+      pmsStayDatesRef.current = {};
+      toast.info(t('guestLookup.notFound'));
     }
   }, [lookupGuest, form, t]);
 
@@ -158,7 +214,11 @@ export default function GuestInfo() {
   const onSubmit = async (data: ClientInfoFormData) => {
     setIsSubmitting(true);
     try {
-      setClientInfo(data);
+      setClientInfo({
+        ...data,
+        pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
+        pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
+      });
       if ((isOffert || isCompanyOffered) && bookingDateTime) {
         await createOffertBooking(data, bookingDateTime);
       } else {
@@ -222,6 +282,42 @@ export default function GuestInfo() {
 
           {/* Form fields */}
           <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            {/* Room number FIRST when PMS guest lookup is enabled */}
+            {!isCoworking && pmsGuestLookupEnabled && (
+              <div>
+                <FormField
+                  control={form.control}
+                  name="roomNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            {...field}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              handleRoomNumberBlur(e.target.value);
+                            }}
+                            placeholder="102"
+                            className={inputStyles}
+                          />
+                          {isLookingUpGuest && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-400" />
+                          )}
+                          {guestData?.found && !isLookingUpGuest && (
+                            <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                      </FormControl>
+                      <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                      <FormMessage className="text-red-400 text-xs" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
             {/* Name row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField
@@ -360,8 +456,8 @@ export default function GuestInfo() {
               )}
             />
 
-            {/* Room number - hidden for coworking */}
-            {!isCoworking && (
+            {/* Room number - classic position when PMS lookup is NOT enabled */}
+            {!isCoworking && !pmsGuestLookupEnabled && (
               <FormField
                 control={form.control}
                 name="roomNumber"
