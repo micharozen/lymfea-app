@@ -104,6 +104,7 @@
     "phone": "Phone",
     "status": "Status",
     "skills": "Skills",
+    "specialties": "Specialties",
     "assignedHotels": "Assigned Hotels",
     "invite": "Invite",
     "resendInvite": "Resend Invite",
@@ -136,10 +137,11 @@
     "emailInvalid": "Invalid email",
     "phoneRequired": "Phone is required",
     "finance": "Finance",
-    "financeDesc": "Hourly rate used when the venue does not apply a global commission",
-    "hourlyRate": "Hourly rate",
-    "hourlyRateHint": "Fixed amount per hour of treatment. Used when global therapist commission is disabled on a venue.",
-    "hourlyRateUnit": "/h"
+    "financeDesc": "Rate per treatment duration, used when the venue does not apply a global commission",
+    "rate45Label": "45 min",
+    "rate60Label": "1 hour",
+    "rate90Label": "1h30",
+    "rateHint": "Fixed amount paid to the therapist per treatment. For non-standard durations, proportional calculation based on the 1-hour rate."
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -154,7 +156,10 @@
     "serviceFor": "Service For",
     "women": "Women",
     "men": "Men",
-    "both": "Both"
+    "both": "Both",
+    "specialty": "Specialty",
+    "allSpecialties": "All specialties",
+    "noSpecialty": "No specialty"
   },
   "boxes": {
     "title": "Boxes",
@@ -222,7 +227,7 @@
     "finance": {
       "globalTherapistCommission": "Global therapist commission",
       "globalTherapistCommissionDesc": "Apply the same commission percentage to all therapists",
-      "individualRateHint": "Therapist commission is defined individually on each therapist profile (hourly rate). The remainder goes to {{brandName}}."
+      "individualRateHint": "Therapist commission is defined individually on each therapist profile (rate per treatment duration). The remainder goes to {{brandName}}."
     },
     "tabs": {
       "general": "General",
@@ -230,6 +235,7 @@
       "rooms": "Treatment Rooms",
       "therapists": "Therapists",
       "categories": "Categories",
+      "amenities": "Amenities",
       "overview": "Overview",
       "clientPreview": "Client Preview"
     },
@@ -436,5 +442,35 @@
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save"
+  },
+  "amenities": {
+    "title": "Amenities",
+    "pool": "Pool",
+    "fitness": "Fitness Room",
+    "sauna": "Sauna",
+    "hammam": "Hammam",
+    "jacuzzi": "Jacuzzi",
+    "capacity": "Capacity per slot",
+    "slotDuration": "Slot duration",
+    "prepTime": "Preparation time",
+    "pricing": "Pricing",
+    "external": "External",
+    "internal": "Internal (hotel guest)",
+    "lymfea": "Lymfea (treatment client)",
+    "includedWithTreatment": "Included with treatment",
+    "accessDuration": "Complimentary access duration",
+    "free": "Free",
+    "addAmenity": "Add amenity",
+    "noAmenities": "No amenities configured",
+    "capacityIndicator": "{{current}}/{{max}} booked",
+    "createBooking": "Amenity booking",
+    "clientType": "Client type",
+    "selectAmenity": "Select amenity"
+  },
+  "calendar": {
+    "treatments": "Treatments",
+    "calendars": "Calendars",
+    "showAll": "All",
+    "hideAll": "None"
   }
 }

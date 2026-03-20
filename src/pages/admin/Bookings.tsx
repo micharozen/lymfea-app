@@ -8,11 +8,13 @@ import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 
+import { useTranslation } from "react-i18next";
 import {
   useBookingData,
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
+  useAmenityBookingData,
   type BookingWithTreatments,
 } from "@/hooks/booking";
 
@@ -23,10 +25,17 @@ import {
   InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import {
+  CalendarSidebarDesktop,
+  CalendarSidebarMobile,
+  buildCalendarEntries,
+} from "@/components/booking/CalendarSidebar";
+import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
+  const { i18n } = useTranslation();
 
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
@@ -73,6 +82,35 @@ export default function Booking() {
     setTherapistFilter,
     filteredBookings,
   } = useBookingFilters(bookings);
+
+  // Amenity data (only fetch when a specific venue is filtered)
+  const hasVenueFilter = hotelFilter && hotelFilter !== "all";
+  const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
+  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
+    hotelFilter: hasVenueFilter ? hotelFilter : undefined,
+  });
+
+  // Calendar sidebar state
+  const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
+
+  const calendarEntries = hasVenueFilter
+    ? buildCalendarEntries(venueAmenities, i18n.language)
+    : [];
+  const showSidebar = calendarEntries.length > 1 && view === "calendar";
+
+  const handleCalendarToggle = (id: string, visible: boolean) => {
+    setVisibleCalendars((prev) => ({ ...prev, [id]: visible }));
+  };
+  const handleShowAll = () => {
+    const all: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { all[e.id] = true; });
+    setVisibleCalendars(all);
+  };
+  const handleHideAll = () => {
+    const none: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { none[e.id] = false; });
+    setVisibleCalendars(none);
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -183,6 +221,15 @@ export default function Booking() {
             Planning
           </h1>
           <div className="flex items-center gap-2">
+            {showSidebar && (
+              <CalendarSidebarMobile
+                entries={calendarEntries}
+                visibleCalendars={visibleCalendars}
+                onToggle={handleCalendarToggle}
+                onShowAll={handleShowAll}
+                onHideAll={handleHideAll}
+              />
+            )}
             <Button
               variant="outline"
               size="icon"
@@ -221,7 +268,18 @@ export default function Booking() {
 
       {/* Content */}
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-row overflow-hidden">
+          {/* Calendar sidebar — desktop, only when venue filtered with amenities */}
+          {showSidebar && (
+            <CalendarSidebarDesktop
+              entries={calendarEntries}
+              visibleCalendars={visibleCalendars}
+              onToggle={handleCalendarToggle}
+              onShowAll={handleShowAll}
+              onHideAll={handleHideAll}
+            />
+          )}
+          <div className="flex-1 flex flex-col overflow-hidden">
           {view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
@@ -246,6 +304,8 @@ export default function Booking() {
               getHotelInfo={getHotelInfo}
               hotels={hotels}
               hotelFilter={hotelFilter}
+              amenityBookings={hasVenueFilter ? amenityBookings : undefined}
+              visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
             />
           ) : (
             <BookingListView
@@ -265,6 +325,7 @@ export default function Booking() {
               onPageChange={setCurrentPage}
             />
           )}
+          </div>
         </div>
       </div>
 

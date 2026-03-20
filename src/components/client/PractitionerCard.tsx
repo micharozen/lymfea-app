@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { brandLogos } from '@/config/brand';
+import { getSpecialtyLabel } from '@/lib/specialtyTypes';
 
 interface PractitionerCardProps {
   firstName: string;
@@ -8,10 +9,10 @@ interface PractitionerCardProps {
 }
 
 export function PractitionerCard({ firstName, profileImage, skills }: PractitionerCardProps) {
-  const { t } = useTranslation('client');
+  const { t, i18n } = useTranslation('client');
 
   const displaySkill = skills && skills.length > 0
-    ? skills[0]
+    ? getSpecialtyLabel(skills[0], i18n.language)
     : t('welcome.expertHairdresser');
 
   return (

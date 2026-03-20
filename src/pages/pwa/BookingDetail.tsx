@@ -59,6 +59,9 @@ interface Booking {
   therapist_commission?: number;
   global_therapist_commission?: boolean;
   therapist_hourly_rate?: number | null;
+  therapist_rate_45?: number | null;
+  therapist_rate_60?: number | null;
+  therapist_rate_90?: number | null;
   hotel_currency?: string;
 }
 
@@ -216,15 +219,21 @@ const PwaBookingDetail = () => {
         hotelData = hotel;
       }
 
-      // Fetch therapist hourly rate if individual mode
+      // Fetch therapist rates if individual mode
       let therapistHourlyRate: number | null = null;
+      let therapistRate45: number | null = null;
+      let therapistRate60: number | null = null;
+      let therapistRate90: number | null = null;
       if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
         const { data: therapistData } = await supabase
           .from("therapists")
-          .select("hourly_rate")
+          .select("hourly_rate, rate_45, rate_60, rate_90")
           .eq("id", bookingData.therapist_id)
           .single();
         therapistHourlyRate = therapistData?.hourly_rate ?? null;
+        therapistRate45 = therapistData?.rate_45 ?? null;
+        therapistRate60 = therapistData?.rate_60 ?? null;
+        therapistRate90 = therapistData?.rate_90 ?? null;
       }
 
       const bookingWithHotel = {
@@ -236,6 +245,9 @@ const PwaBookingDetail = () => {
         therapist_commission: hotelData?.therapist_commission || 70,
         global_therapist_commission: hotelData?.global_therapist_commission !== false,
         therapist_hourly_rate: therapistHourlyRate,
+        therapist_rate_45: therapistRate45,
+        therapist_rate_60: therapistRate60,
+        therapist_rate_90: therapistRate90,
         hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
@@ -785,9 +797,21 @@ const PwaBookingDetail = () => {
   const hotelCommissionRate = 0; // Not needed for therapist earnings display
   let estimatedEarnings = 0;
 
-  if (booking.global_therapist_commission === false && booking.therapist_hourly_rate) {
-    // Mode individuel : taux horaire
-    estimatedEarnings = Math.round(booking.therapist_hourly_rate * (totalDuration / 60) * 100) / 100;
+  if (booking.global_therapist_commission === false && (booking.therapist_rate_45 || booking.therapist_rate_60 || booking.therapist_rate_90 || booking.therapist_hourly_rate)) {
+    // Mode individuel : taux par palier de durée
+    if (totalDuration === 45 && booking.therapist_rate_45) {
+      estimatedEarnings = booking.therapist_rate_45;
+    } else if (totalDuration === 60 && booking.therapist_rate_60) {
+      estimatedEarnings = booking.therapist_rate_60;
+    } else if (totalDuration === 90 && booking.therapist_rate_90) {
+      estimatedEarnings = booking.therapist_rate_90;
+    } else if (booking.therapist_rate_60) {
+      // Hors palier : proportionnel depuis taux 1h
+      estimatedEarnings = Math.round(booking.therapist_rate_60 * (totalDuration / 60) * 100) / 100;
+    } else if (booking.therapist_hourly_rate) {
+      // Fallback legacy
+      estimatedEarnings = Math.round(booking.therapist_hourly_rate * (totalDuration / 60) * 100) / 100;
+    }
     // Cap au totalHT
     estimatedEarnings = Math.min(estimatedEarnings, Math.round(totalHT * 100) / 100);
   } else if (booking.therapist_commission) {

@@ -236,38 +236,47 @@ export function TherapistGeneralTab({
             Finance
           </CardTitle>
           <CardDescription>
-            Taux horaire utilisé quand le lieu n'applique pas de commission globale
+            Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <FormField
-            control={form.control}
-            name="hourly_rate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Taux horaire</FormLabel>
-                <FormControl>
-                  <div className="relative w-40">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="--"
-                      {...field}
-                      disabled={disabled}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      /h
-                    </span>
-                  </div>
-                </FormControl>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Montant fixe par heure de soin. Utilisé quand la commission thérapeute globale est désactivée sur un lieu.
-                </p>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <CardContent className="space-y-3">
+          {([
+            { name: "rate_45" as const, label: "45 min" },
+            { name: "rate_60" as const, label: "1 heure" },
+            { name: "rate_90" as const, label: "1h30" },
+          ]).map(({ name, label }) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-3">
+                  <FormLabel className="w-16 text-sm text-muted-foreground shrink-0 mt-2">
+                    {label}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-32">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="--"
+                        {...field}
+                        disabled={disabled}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        &euro;
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+          <p className="text-xs text-muted-foreground pt-1">
+            Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel depuis le taux 1 heure.
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -32,6 +32,8 @@ import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
+import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
+import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { isConcierge, hotelIds, isAdmin } = useUserContext();
@@ -127,6 +129,28 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
+
+  // Venue amenities for "include amenity access" option
+  const { amenities: venueAmenities } = useVenueAmenities(hotelId || "");
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]);
+
+  const handleToggleAmenity = (amenityId: string, enabled: boolean) => {
+    setSelectedAmenityIds((prev) =>
+      enabled ? [...prev, amenityId] : prev.filter((id) => id !== amenityId)
+    );
+  };
+
+  const amenityAccessPayload: AmenityAccessPayload[] = selectedAmenityIds
+    .map((id) => {
+      const a = venueAmenities.find((va) => va.id === id);
+      if (!a) return null;
+      return {
+        venueAmenityId: a.id,
+        duration: a.lymfea_access_included ? (a.lymfea_access_duration || a.slot_duration) : a.slot_duration,
+        price: a.lymfea_access_included ? 0 : (Number(a.price_lymfea) || 0),
+      };
+    })
+    .filter((x): x is AmenityAccessPayload => x !== null);
 
   useEffect(() => {
     if (isAdmin && hasOnRequestService && cart.length > 0) {
@@ -253,6 +277,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       isAdmin,
       isOutOfHours: isBookingOutOfHours,
       surchargeAmount,
+      amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
     });
   };
 
@@ -290,6 +315,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setCart([]);
     setCustomPrice("");
     setCustomDuration("");
+    setSelectedAmenityIds([]);
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -359,6 +385,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
+                  venueAmenities={venueAmenities}
+                  selectedAmenityIds={selectedAmenityIds}
+                  onToggleAmenity={handleToggleAmenity}
                 />
             </TabsContent>
 

@@ -755,7 +755,7 @@ export function VenueGeneralTab({
             ) : (
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-sm text-muted-foreground">
-                  La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux horaire). Le reste revient à {brand.name}.
+                  La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux par durée de soin). Le reste revient à {brand.name}.
                 </p>
               </div>
             )}

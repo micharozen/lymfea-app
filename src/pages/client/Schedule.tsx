@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag } from 'lucide-react';
@@ -21,13 +21,16 @@ import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 export default function Schedule() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { items, itemCount } = useBasket();
   const { setBookingDateTime } = useClientFlow();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
-  const [selectedDate, setSelectedDate] = useState('');
+  // Accept takenDate from Payment redirect (TOCTOU error recovery)
+  const takenDate = (location.state as any)?.takenDate as string | undefined;
+  const [selectedDate, setSelectedDate] = useState(takenDate || '');
   const [selectedTime, setSelectedTime] = useState('');
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);

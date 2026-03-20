@@ -8,6 +8,8 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
+import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
+import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
 import {
   useBookingData,
@@ -15,7 +17,9 @@ import {
   useCalendarLogic,
   useBookingSelection,
   useVenueAvailability,
+  useAmenityBookingData,
   type BookingWithTreatments,
+  type AmenityBookingForCalendar,
 } from "@/hooks/booking";
 
 import {
@@ -25,6 +29,12 @@ import {
   InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import {
+  CalendarSidebarDesktop,
+  CalendarSidebarMobile,
+  buildCalendarEntries,
+} from "@/components/booking/CalendarSidebar";
+import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 interface VenueBookingCalendarProps {
   hotelId: string;
@@ -34,11 +44,41 @@ interface VenueBookingCalendarProps {
 export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
-  const { t } = useTranslation("admin");
+  const { t, i18n } = useTranslation("admin");
 
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
+  const { amenities: venueAmenities } = useVenueAmenities(hotelId);
+  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({ hotelFilter: hotelId });
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Calendar sidebar state
+  const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(`venue-calendars-${hotelId}`);
+      return saved ? JSON.parse(saved) : { treatments: true };
+    } catch { return { treatments: true }; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`venue-calendars-${hotelId}`, JSON.stringify(visibleCalendars));
+  }, [visibleCalendars, hotelId]);
+
+  const calendarEntries = buildCalendarEntries(venueAmenities, i18n.language);
+
+  const handleCalendarToggle = (id: string, visible: boolean) => {
+    setVisibleCalendars((prev) => ({ ...prev, [id]: visible }));
+  };
+  const handleShowAll = () => {
+    const all: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { all[e.id] = true; });
+    setVisibleCalendars(all);
+  };
+  const handleHideAll = () => {
+    const none: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { none[e.id] = false; });
+    setVisibleCalendars(none);
+  };
 
   // UI state
   const [view, setView] = useState<"calendar" | "list">("calendar");
@@ -48,6 +88,11 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // Amenity booking dialogs
+  const [isAmenityCreateOpen, setIsAmenityCreateOpen] = useState(false);
+  const [isAmenityDetailOpen, setIsAmenityDetailOpen] = useState(false);
+  const [viewedAmenityBooking, setViewedAmenityBooking] = useState<AmenityBookingForCalendar | null>(null);
 
   // Day count with localStorage persistence (venue-specific key)
   const [dayCount, setDayCount] = useState<number>(() => {
@@ -166,6 +211,11 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
     }
   };
 
+  const handleAmenityBookingClick = (booking: AmenityBookingForCalendar) => {
+    setViewedAmenityBooking(booking);
+    setIsAmenityDetailOpen(true);
+  };
+
   const handleEditFromDetail = () => {
     if (viewedBooking) {
       setSelectedBooking(viewedBooking);
@@ -205,6 +255,15 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
       <div ref={headerRef} className="flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
+            {calendarEntries.length > 1 && view === "calendar" && (
+              <CalendarSidebarMobile
+                entries={calendarEntries}
+                visibleCalendars={visibleCalendars}
+                onToggle={handleCalendarToggle}
+                onShowAll={handleShowAll}
+                onHideAll={handleHideAll}
+              />
+            )}
             <Button
               variant="outline"
               size="icon"
@@ -216,14 +275,27 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
             </Button>
           </div>
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            size="sm"
-            className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {isConcierge ? "Demande" : "Réservation"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {venueAmenities.some((a) => a.is_enabled) && (
+              <Button
+                onClick={() => setIsAmenityCreateOpen(true)}
+                size="sm"
+                variant="outline"
+                className="h-8 text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Commodité
+              </Button>
+            )}
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {isConcierge ? "Demande" : "Réservation"}
+            </Button>
+          </div>
         </div>
 
         <BookingFilters
@@ -274,7 +346,18 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-hidden mt-2">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-row overflow-hidden">
+          {/* Calendar sidebar — desktop only, only when amenities exist */}
+          {calendarEntries.length > 1 && view === "calendar" && (
+            <CalendarSidebarDesktop
+              entries={calendarEntries}
+              visibleCalendars={visibleCalendars}
+              onToggle={handleCalendarToggle}
+              onShowAll={handleShowAll}
+              onHideAll={handleHideAll}
+            />
+          )}
+          <div className="flex-1 flex flex-col overflow-hidden">
           {view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
@@ -304,6 +387,9 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
                 daySummaries: availability.daySummaries,
                 hourAvailability: availability.hourAvailability,
               } : undefined}
+              amenityBookings={amenityBookings}
+              visibleCalendars={visibleCalendars}
+              onAmenityBookingClick={handleAmenityBookingClick}
             />
           ) : (
             <BookingListView
@@ -323,6 +409,7 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
               onPageChange={setCurrentPage}
             />
           )}
+          </div>
         </div>
       </div>
 
@@ -379,6 +466,22 @@ export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
           }}
         />
       )}
+
+      {/* Amenity dialogs */}
+      <CreateAmenityBookingDialog
+        open={isAmenityCreateOpen}
+        onOpenChange={setIsAmenityCreateOpen}
+        hotelId={hotelId}
+        venueAmenities={venueAmenities}
+        preselectedDate={selectedDate}
+        preselectedTime={selectedTime}
+      />
+
+      <AmenityBookingDetailDialog
+        open={isAmenityDetailOpen}
+        onOpenChange={setIsAmenityDetailOpen}
+        booking={viewedAmenityBooking}
+      />
     </div>
   );
 }

@@ -11,7 +11,8 @@ import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, 
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
-import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability } from "@/hooks/booking";
+import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
+import { getAmenityType } from "@/lib/amenityTypes";
 
 interface BookingCalendarViewProps {
   weekDays: Date[];
@@ -42,6 +43,10 @@ interface BookingCalendarViewProps {
     hourAvailability: Map<string, HourAvailability[]>;
   };
   showAvailability?: boolean;
+  // Amenity bookings (optional — multi-calendar support)
+  amenityBookings?: AmenityBookingForCalendar[];
+  visibleCalendars?: Record<string, boolean>;
+  onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
 }
 
 function getTherapistInitials(name: string | null | undefined): string {
@@ -78,6 +83,9 @@ export function BookingCalendarView({
   hotelFilter,
   availabilityData,
   showAvailability,
+  amenityBookings,
+  visibleCalendars,
+  onAmenityBookingClick,
 }: BookingCalendarViewProps) {
   const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +101,28 @@ export function BookingCalendarView({
       }
     }
   }, [startHour, hourHeight]);
+
+  // Should treatment bookings be visible?
+  const showTreatments = !visibleCalendars || visibleCalendars["treatments"] !== false;
+
+  // Filter amenity bookings for a given day, respecting calendar visibility
+  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
+    if (!amenityBookings) return [];
+    const dateStr = format(day, "yyyy-MM-dd");
+    return amenityBookings.filter((b) => {
+      if (b.booking_date !== dateStr) return false;
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
+      return true;
+    });
+  };
+
+  // Compute position for an amenity booking (same logic as treatment bookings)
+  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    const top = ((h - startHour) + m / 60) * hourHeight;
+    const height = Math.max(20, (booking.duration / 60) * hourHeight);
+    return { top, height };
+  };
 
   // Compute off-hours based on filtered venue or all venues
   const { earliestOpen, latestClose } = useMemo(() => {
@@ -378,23 +408,38 @@ export function BookingCalendarView({
                       />
                     )}
 
-                    {/* Positioned bookings */}
-                    <TooltipProvider>
-                      {dayBookings.map((booking) => (
-                        <BookingCard
-                          key={booking.id}
-                          booking={booking}
-                          layoutInfo={dayLayout.get(booking.id)}
-                          getBookingPosition={getBookingPosition}
-                          getCalendarCardColor={getCalendarCardColor}
-                          getStatusColor={getStatusColor}
-                          getTranslatedStatus={getTranslatedStatus}
-                          getHotelInfo={getHotelInfo}
-                          onBookingClick={onBookingClick}
-                          navigate={navigate}
+                    {/* Positioned treatment bookings */}
+                    {showTreatments && (
+                      <TooltipProvider>
+                        {dayBookings.map((booking) => (
+                          <BookingCard
+                            key={booking.id}
+                            booking={booking}
+                            layoutInfo={dayLayout.get(booking.id)}
+                            getBookingPosition={getBookingPosition}
+                            getCalendarCardColor={getCalendarCardColor}
+                            getStatusColor={getStatusColor}
+                            getTranslatedStatus={getTranslatedStatus}
+                            getHotelInfo={getHotelInfo}
+                            onBookingClick={onBookingClick}
+                            navigate={navigate}
+                          />
+                        ))}
+                      </TooltipProvider>
+                    )}
+
+                    {/* Positioned amenity bookings */}
+                    {(() => {
+                      const dayAmenities = getAmenityBookingsForDay(day);
+                      return dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          onClick={onAmenityBookingClick}
                         />
-                      ))}
-                    </TooltipProvider>
+                      ));
+                    })()}
 
                     {/* Current time indicator */}
                     {showIndicator && (
@@ -470,22 +515,37 @@ export function BookingCalendarView({
                       />
                     )}
 
-                    <TooltipProvider>
-                      {dayBookings.map((booking) => (
-                        <BookingCard
-                          key={booking.id}
-                          booking={booking}
-                          layoutInfo={dayLayout.get(booking.id)}
-                          getBookingPosition={getBookingPosition}
-                          getCalendarCardColor={getCalendarCardColor}
-                          getStatusColor={getStatusColor}
-                          getTranslatedStatus={getTranslatedStatus}
-                          getHotelInfo={getHotelInfo}
-                          onBookingClick={onBookingClick}
-                          navigate={navigate}
+                    {showTreatments && (
+                      <TooltipProvider>
+                        {dayBookings.map((booking) => (
+                          <BookingCard
+                            key={booking.id}
+                            booking={booking}
+                            layoutInfo={dayLayout.get(booking.id)}
+                            getBookingPosition={getBookingPosition}
+                            getCalendarCardColor={getCalendarCardColor}
+                            getStatusColor={getStatusColor}
+                            getTranslatedStatus={getTranslatedStatus}
+                            getHotelInfo={getHotelInfo}
+                            onBookingClick={onBookingClick}
+                            navigate={navigate}
+                          />
+                        ))}
+                      </TooltipProvider>
+                    )}
+
+                    {/* Amenity bookings */}
+                    {(() => {
+                      const dayAmenities = getAmenityBookingsForDay(day);
+                      return dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          onClick={onAmenityBookingClick}
                         />
-                      ))}
-                    </TooltipProvider>
+                      ));
+                    })()}
 
                     {showIndicator && (
                       <div
@@ -718,6 +778,128 @@ function BookingCard({
             <Euro className="h-3 w-3" />
             <span>Total: {formatPrice(totalPrice, hotelInfo?.currency || 'EUR')}</span>
           </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Amenity booking card for the calendar grid
+function AmenityBookingCard({
+  booking,
+  position,
+  onClick,
+}: {
+  booking: AmenityBookingForCalendar;
+  position: { top: number; height: number };
+  onClick?: (booking: AmenityBookingForCalendar) => void;
+}) {
+  const { top, height } = position;
+  const typeDef = getAmenityType(booking.amenity_type);
+  const Icon = typeDef?.icon;
+
+  const durationHours = Math.floor(booking.duration / 60);
+  const durationMinutes = booking.duration % 60;
+  const durationFormatted = durationHours > 0
+    ? (durationMinutes > 0 ? `${durationHours}h${durationMinutes}` : `${durationHours}h`)
+    : `${durationMinutes}min`;
+
+  const clientName = booking.customer
+    ? `${booking.customer.first_name} ${booking.customer.last_name || ""}`.trim()
+    : "";
+
+  const clientTypeBadge = {
+    external: "Ext",
+    internal: "Int",
+    lymfea: "Lym",
+  }[booking.client_type];
+
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
+            "bg-opacity-20 hover:bg-opacity-30 transition-colors"
+          )}
+          style={{
+            borderLeftColor: booking.amenity_color,
+            backgroundColor: booking.amenity_color + "18",
+            top: `${top}px`,
+            height: `${height}px`,
+            minHeight: "20px",
+            left: "2px",
+            right: "2px",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.(booking);
+          }}
+        >
+          <div className="p-1 h-full flex flex-col">
+            <div className="flex items-start justify-between gap-0.5">
+              <div className="font-bold text-[11px] leading-tight" style={{ color: booking.amenity_color }}>
+                {booking.booking_time?.substring(0, 5)}
+              </div>
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {Icon && (
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: booking.amenity_color + "25" }}
+                  >
+                    <Icon className="h-2.5 w-2.5" style={{ color: booking.amenity_color }} />
+                  </div>
+                )}
+              </div>
+            </div>
+            {height >= 32 && (
+              <div className="truncate text-[8px] opacity-80 font-medium">
+                {clientName || booking.amenity_name}
+              </div>
+            )}
+            {height >= 48 && (
+              <div className="flex items-center gap-1 text-[7px] opacity-60">
+                <span>{durationFormatted}</span>
+                <span>·</span>
+                <span>{booking.num_guests}/{booking.capacity_total}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-sm z-50">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
+            <span className="font-semibold text-sm">{booking.amenity_name}</span>
+            <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
+          </div>
+          {clientName && (
+            <div className="flex items-center gap-2 text-xs">
+              <User className="h-3 w-3" />
+              <span>{clientName}</span>
+            </div>
+          )}
+          {booking.room_number && (
+            <div className="text-xs">Chambre: {booking.room_number}</div>
+          )}
+          <div className="flex items-center gap-2 text-xs">
+            <Clock className="h-3 w-3" />
+            <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <Users className="h-3 w-3" />
+            <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
+          </div>
+          {booking.price > 0 && (
+            <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+              <Euro className="h-3 w-3" />
+              <span>{formatPrice(booking.price, "EUR")}</span>
+            </div>
+          )}
+          {booking.notes && (
+            <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>

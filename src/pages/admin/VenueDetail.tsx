@@ -26,6 +26,7 @@ import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
 import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
+import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
@@ -473,6 +474,7 @@ export default function VenueDetail() {
   // Watch name and currency for header display
   const watchedName = form.watch("name");
   const watchedCurrency = form.watch("currency");
+  const watchedVenueType = form.watch("venue_type");
 
   // Fetch booking stats for header
   const { data: stats } = useQuery({
@@ -617,6 +619,9 @@ export default function VenueDetail() {
               <TabsTrigger value="rooms" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Salles
               </TabsTrigger>
+              <TabsTrigger value="amenities" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Commodités
+              </TabsTrigger>
               <TabsTrigger value="therapists" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Thérapeutes
               </TabsTrigger>
@@ -677,6 +682,13 @@ export default function VenueDetail() {
                   <VenueTreatmentRoomsTab
                     hotelId={effectiveHotelId!}
                     hotelName={hotelName || watchedName}
+                  />
+                </TabsContent>
+
+                <TabsContent value="amenities" className="mt-0">
+                  <VenueAmenitiesTab
+                    hotelId={effectiveHotelId!}
+                    venueType={watchedVenueType}
                   />
                 </TabsContent>
 

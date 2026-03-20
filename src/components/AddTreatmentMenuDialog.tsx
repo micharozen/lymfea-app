@@ -36,6 +36,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Upload, Loader2 } from "lucide-react";
+import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
 
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
@@ -50,6 +51,7 @@ const createFormSchema = (t: TFunction) => z.object({
   sort_order: z.string().default("0"),
   price_on_request: z.boolean().default(false),
   is_bestseller: z.boolean().default(false),
+  specialty: z.string().optional(),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -65,7 +67,7 @@ export function AddTreatmentMenuDialog({
   onOpenChange,
   onSuccess,
 }: AddTreatmentMenuDialogProps) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const {
@@ -92,6 +94,7 @@ export function AddTreatmentMenuDialog({
       sort_order: "0",
       price_on_request: false,
       is_bestseller: false,
+      specialty: "",
     },
   });
 
@@ -136,6 +139,7 @@ export function AddTreatmentMenuDialog({
       sort_order: parseInt(values.sort_order),
       price_on_request: values.price_on_request,
       is_bestseller: values.is_bestseller,
+      treatment_type: values.specialty || null,
     });
 
     if (error) {
@@ -224,7 +228,7 @@ export function AddTreatmentMenuDialog({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -269,6 +273,31 @@ export function AddTreatmentMenuDialog({
                             </SelectItem>
                           ))
                         )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="specialty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('admin:treatments.specialty')}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('admin:treatments.noSpecialty')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {SPECIALTY_OPTIONS.map((s) => (
+                          <SelectItem key={s.key} value={s.key}>
+                            {i18n.language === "fr" ? s.labelFr : s.labelEn}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

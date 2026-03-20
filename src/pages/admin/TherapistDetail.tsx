@@ -25,7 +25,9 @@ const createFormSchema = (t: TFunction) =>
     country_code: z.string().default("+33"),
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
-    hourly_rate: z.string().optional(),
+    rate_45: z.string().optional(),
+    rate_60: z.string().optional(),
+    rate_90: z.string().optional(),
   });
 
 export type TherapistFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -98,7 +100,9 @@ export default function TherapistDetail() {
           country_code: therapist.country_code || "+33",
           phone: therapist.phone || "",
           status: therapist.status || "En attente",
-          hourly_rate: therapist.hourly_rate?.toString() || "",
+          rate_45: therapist.rate_45?.toString() || "",
+          rate_60: therapist.rate_60?.toString() || "",
+          rate_90: therapist.rate_90?.toString() || "",
         });
 
         setProfileImage(therapist.profile_image || "");
@@ -156,7 +160,9 @@ export default function TherapistDetail() {
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
-        hourly_rate: values.hourly_rate ? parseFloat(values.hourly_rate) : null,
+        rate_45: values.rate_45 ? parseFloat(values.rate_45) : null,
+        rate_60: values.rate_60 ? parseFloat(values.rate_60) : null,
+        rate_90: values.rate_90 ? parseFloat(values.rate_90) : null,
       };
 
       if (isNewMode && !savedTherapistId) {
