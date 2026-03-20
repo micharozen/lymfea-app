@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -76,12 +77,6 @@ interface TreatmentRoom {
   image: string | null;
 }
 
-const SKILLS_OPTIONS = [
-  { value: "men", label: "👨 Hommes" },
-  { value: "women", label: "👩 Femmes" },
-  { value: "barber", label: "💈 Barbier" },
-  { value: "beauty", label: "💅 Beauté" },
-];
 
 export default function EditTherapistDialog({
   open,
@@ -89,7 +84,8 @@ export default function EditTherapistDialog({
   therapist,
   onSuccess,
 }: EditTherapistDialogProps) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
   const [selectedHotels, setSelectedHotels] = useState<string[]>(
@@ -450,7 +446,7 @@ export default function EditTherapistDialog({
                   <span className="truncate">
                     {selectedSkills.length === 0
                       ? "Sélectionner des compétences"
-                      : SKILLS_OPTIONS
+                      : skillsOptions
                           .filter((s) => selectedSkills.includes(s.value))
                           .map((s) => s.label)
                           .join(", ")}
@@ -468,7 +464,7 @@ export default function EditTherapistDialog({
               >
                 <ScrollArea className="h-40 touch-pan-y">
                   <div className="p-1">
-                    {SKILLS_OPTIONS.map((skill) => {
+                    {skillsOptions.map((skill) => {
                       const isSelected = selectedSkills.includes(skill.value);
                       return (
                         <button

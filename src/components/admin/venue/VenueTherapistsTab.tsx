@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -15,6 +16,7 @@ import { TherapistDetailDialog } from "@/components/admin/details/TherapistDetai
 import { toast } from "sonner";
 import { Plus, X, Loader2, UserPlus, Phone } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
+import { getSpecialtySelectOptions, getSpecialtyLabel } from "@/lib/specialtyTypes";
 
 const countries = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -29,18 +31,14 @@ const countries = [
   { code: "+377", label: "Monaco", flag: "🇲🇨" },
 ];
 
-const SKILLS_OPTIONS = [
-  { value: "men", label: "👨 Hommes" },
-  { value: "women", label: "👩 Femmes" },
-  { value: "barber", label: "💈 Barbier" },
-  { value: "beauty", label: "💅 Beauté" },
-];
 
 interface VenueTherapistsTabProps {
   hotelId: string;
 }
 
 export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
+  const { i18n } = useTranslation();
+  const skillsOptions = useMemo(() => getSpecialtySelectOptions(i18n.language), [i18n.language]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -310,10 +308,9 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {(therapist.skills || []).map((skill: string) => {
-                    const opt = SKILLS_OPTIONS.find((s) => s.value === skill);
                     return (
                       <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {opt?.label || skill}
+                        {getSpecialtyLabel(skill, i18n.language)}
                       </Badge>
                     );
                   })}
@@ -460,7 +457,7 @@ export function VenueTherapistsTab({ hotelId }: VenueTherapistsTabProps) {
               <MultiSelectPopover
                 selected={selectedSkills}
                 onChange={setSelectedSkills}
-                options={SKILLS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                options={skillsOptions}
                 popoverWidthClassName="w-36"
                 popoverMaxHeightClassName="h-32"
               />

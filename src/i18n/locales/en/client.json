@@ -221,5 +221,10 @@
   },
   "guestLookup": {
     "found": "Guest information found"
+  },
+  "errors": {
+    "slotTaken": "This slot has just been booked by another client. Please choose another time.",
+    "blockedSlot": "This slot overlaps with an unavailable time range (e.g. lunch break).",
+    "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time."
   }
 }

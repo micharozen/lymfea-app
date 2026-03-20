@@ -4,6 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Phone, Building2, Sparkles, Briefcase, Target, CalendarDays } from "lucide-react";
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
+import { useTranslation } from "react-i18next";
 
 interface Hotel {
   id: string;
@@ -49,6 +51,8 @@ export function TherapistDetailDialog({
   rooms,
   onEdit,
 }: TherapistDetailDialogProps) {
+  const { i18n } = useTranslation();
+
   if (!therapist) return null;
 
   const fullName = `${therapist.first_name} ${therapist.last_name}`;
@@ -57,20 +61,6 @@ export function TherapistDetailDialog({
     ?.map((h) => hotels.find((hotel) => hotel.id === h.hotel_id))
     .filter(Boolean) as Hotel[] || [];
 
-  const getSkillsDisplay = (skills: string[]) => {
-    if (!skills || skills.length === 0) return null;
-
-    const skillMap: Record<string, { emoji: string; label: string }> = {
-      men: { emoji: "👨", label: "Homme" },
-      women: { emoji: "👩", label: "Femme" },
-      barber: { emoji: "💈", label: "Barbier" },
-      beauty: { emoji: "💅", label: "Beaute" },
-    };
-
-    return skills
-      .map((skill) => skillMap[skill])
-      .filter(Boolean);
-  };
 
   const getRoomInfo = (roomIdOrName: string | null) => {
     if (!roomIdOrName) return null;
@@ -85,7 +75,6 @@ export function TherapistDetailDialog({
   };
 
   const assignedRoom = getRoomInfo(therapist.trunks);
-  const skillsDisplay = getSkillsDisplay(therapist.skills);
 
   return (
     <EntityDetailDialog
@@ -109,17 +98,16 @@ export function TherapistDetailDialog({
         </DetailCard>
       </DetailSection>
 
-      {/* Skills */}
-      {skillsDisplay && skillsDisplay.length > 0 && (
-        <DetailSection icon={Sparkles} title="Competences">
+      {/* Specialties */}
+      {therapist.skills && therapist.skills.length > 0 && (
+        <DetailSection icon={Sparkles} title="Spécialités">
           <div className="flex flex-wrap gap-2">
-            {skillsDisplay.map((skill, index) => (
+            {therapist.skills.map((skill) => (
               <div
-                key={index}
+                key={skill}
                 className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-1"
               >
-                <span>{skill.emoji}</span>
-                <span className="text-sm">{skill.label}</span>
+                <span className="text-sm">{getSpecialtyLabel(skill, i18n.language)}</span>
               </div>
             ))}
           </div>

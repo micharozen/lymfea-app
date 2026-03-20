@@ -8,13 +8,7 @@ import { MultiSelectPopover, MultiSelectOption } from "@/components/MultiSelectP
 import { MinimumGuaranteeEditor } from "@/components/admin/MinimumGuaranteeEditor";
 import { Building2, Briefcase, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const SKILLS_OPTIONS: MultiSelectOption[] = [
-  { value: "men", label: "👨 Hommes" },
-  { value: "women", label: "👩 Femmes" },
-  { value: "barber", label: "💈 Barbier" },
-  { value: "beauty", label: "💅 Beauté" },
-];
+import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
 
 interface TherapistAssignmentsTabProps {
   disabled: boolean;
@@ -53,7 +47,8 @@ export function TherapistAssignmentsTab({
   minimumGuaranteeActive,
   onMinimumGuaranteeActiveChange,
 }: TherapistAssignmentsTabProps) {
-  const { t } = useTranslation("common");
+  const { t, i18n } = useTranslation("common");
+  const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
 
@@ -169,7 +164,7 @@ export function TherapistAssignmentsTab({
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
-            {t("admin:therapists.skills", "Compétences")}
+            {t("admin:therapists.specialties", "Spécialités")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -178,7 +173,7 @@ export function TherapistAssignmentsTab({
               {selectedSkills.length === 0 ? (
                 <span className="text-sm text-muted-foreground">-</span>
               ) : (
-                SKILLS_OPTIONS.filter((s) =>
+                skillsOptions.filter((s) =>
                   selectedSkills.includes(s.value)
                 ).map((skill) => (
                   <span
@@ -192,7 +187,7 @@ export function TherapistAssignmentsTab({
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {SKILLS_OPTIONS.map((skill) => {
+              {skillsOptions.map((skill) => {
                 const isSelected = selectedSkills.includes(skill.value);
                 return (
                   <button
