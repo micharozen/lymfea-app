@@ -135,6 +135,8 @@ export default function Payment() {
               email: clientInfo.email,
               roomNumber: clientInfo.roomNumber,
               note: clientInfo.note || '',
+              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
             },
             bookingData: {
               date: bookingDateTime.date,

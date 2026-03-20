@@ -187,8 +187,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           // Admin: notify the assigned therapist only
           await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
         } else {
-          // Concierge: notify ALL therapists at this venue
-          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true } });
+          // Concierge: smart dispatch to top-ranked therapists
+          await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
         }
       } catch {}
 

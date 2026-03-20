@@ -220,7 +220,10 @@
     "bannerDesc": "All treatments are covered by your company."
   },
   "guestLookup": {
-    "found": "Guest information found"
+    "found": "Guest information found",
+    "notFound": "Room not found — please fill in your details manually",
+    "hint": "Enter your room number to auto-fill your information",
+    "optional": "optional"
   },
   "errors": {
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",

@@ -510,7 +510,7 @@ export function BookingDetailDialog({
                         variant="outline"
                         size="sm"
                         onClick={async () => {
-                          const { data, error } = await invokeEdgeFunction('opera-cloud-post-charge', {
+                          const { data, error } = await invokeEdgeFunction('pms-post-charge', {
                             body: { bookingId: booking.id },
                           });
                           if (error) {

@@ -11,6 +11,13 @@
     "preview": "vite preview",
     "sup:func": "supabase functions serve",
     "sup:reset": "supabase db reset",
+    "sup:start": "supabase start",
+    "sup:stop": "supabase stop",
+    "sup:status": "supabase status",
+    "sup:restart": "supabase restart",
+    "sup:logs": "supabase logs",
+    "sup:console": "supabase console",
+    "sup:open": "supabase open",
     "sync:brand": "cp src/config/brand.json supabase/functions/_shared/brand.json",
     "generate:manifests": "node scripts/generate-manifests.js",
     "rebrand": "npm run sync:brand && npm run generate:manifests"

@@ -7,6 +7,9 @@ interface GuestLookupResult {
     firstName: string;
     lastName: string;
     email?: string;
+    phone?: string;
+    checkIn?: string;
+    checkOut?: string;
   };
 }
 
@@ -23,7 +26,7 @@ export function usePmsGuestLookup(hotelId: string | undefined) {
         const { data, error } = await invokeEdgeFunction<
           { hotelId: string; roomNumber: string },
           GuestLookupResult
-        >("opera-cloud-guest-lookup", {
+        >("pms-guest-lookup", {
           body: { hotelId, roomNumber },
           skipAuth: true,
         });
