@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -33,14 +34,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AddTreatmentMenuDialog } from "@/components/AddTreatmentMenuDialog";
-import { EditTreatmentMenuDialog } from "@/components/EditTreatmentMenuDialog";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
-import { TreatmentDetailDialog } from "@/components/admin/details/TreatmentDetailDialog";
 import { useLayoutCalculation } from "@/hooks/useLayoutCalculation";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 import { usePagination } from "@/hooks/usePagination";
@@ -50,6 +48,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { TreatmentCard } from "@/components/table/cards/TreatmentCard";
 
 export default function TreatmentMenus() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -58,7 +57,7 @@ export default function TreatmentMenus() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, viewId: viewMenuId, openView, closeView, editId: editMenuId, openEdit, closeEdit, deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
+  const { deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
   const isMobile = useIsMobile();
 
@@ -144,10 +143,6 @@ export default function TreatmentMenus() {
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  // Get viewed/edited menu
-  const viewedMenu = viewMenuId ? menus?.find(m => m.id === viewMenuId) || null : null;
-  const editedMenu = editMenuId ? menus?.find(m => m.id === editMenuId) || null : null;
-
   const columnCount = isAdmin ? 9 : 8;
 
   const categories = Array.from(
@@ -176,7 +171,7 @@ export default function TreatmentMenus() {
     const menu = menus?.find((m) => m.id === menuId);
     if (!menu) return;
 
-    const { error } = await supabase.from("treatment_menus").insert({
+    const { data: newMenu, error } = await supabase.from("treatment_menus").insert({
       name: `${menu.name} (Copie)`,
       description: menu.description,
       duration: menu.duration,
@@ -190,11 +185,24 @@ export default function TreatmentMenus() {
       status: menu.status,
       sort_order: menu.sort_order,
       price_on_request: menu.price_on_request,
-    });
+      is_bestseller: menu.is_bestseller,
+    }).select('id').single();
 
-    if (error) {
+    if (error || !newMenu) {
       toast.error("Erreur lors de la duplication du soin");
       return;
+    }
+
+    // Duplicate variants
+    const { data: variants } = await supabase
+      .from("treatment_variants")
+      .select("label, duration, price, price_on_request, sort_order, is_default, status")
+      .eq("treatment_id", menuId);
+
+    if (variants && variants.length > 0) {
+      await supabase.from("treatment_variants").insert(
+        variants.map(v => ({ ...v, treatment_id: newMenu.id }))
+      );
     }
 
     toast.success("Soin dupliqué avec succès");
@@ -203,7 +211,7 @@ export default function TreatmentMenus() {
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return "-";
-    return `${minutes}min`;
+    return `${minutes} min`;
   };
 
   const formatLeadTime = (minutes: number | null) => {
@@ -229,7 +237,7 @@ export default function TreatmentMenus() {
             💆 Menus de soins
           </h1>
           {isAdmin && (
-            <Button onClick={openAdd}>
+            <Button onClick={() => navigate("/admin/treatments/new")}>
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Ajouter une prestation</span>
             </Button>
@@ -321,7 +329,7 @@ export default function TreatmentMenus() {
                       <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
                     )}
                     {isAdmin && (
-                      <Button onClick={openAdd} className="mt-4">
+                      <Button onClick={() => navigate("/admin/treatments/new")} className="mt-4">
                         <Plus className="h-4 w-4 mr-2" />
                         Ajouter une prestation
                       </Button>
@@ -334,8 +342,8 @@ export default function TreatmentMenus() {
                       treatment={menu}
                       hotel={getHotelInfo(menu.hotel_id)}
                       isAdmin={isAdmin}
-                      onView={() => openView(menu.id)}
-                      onEdit={() => openEdit(menu.id)}
+                      onView={() => navigate(`/admin/treatments/${menu.id}`)}
+                      onEdit={() => navigate(`/admin/treatments/${menu.id}`)}
                       onDuplicate={() => handleDuplicate(menu.id)}
                       onDelete={() => openDelete(menu.id)}
                     />
@@ -378,7 +386,7 @@ export default function TreatmentMenus() {
                       message="Aucune prestation trouvee"
                       description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
                       actionLabel={isAdmin ? "Ajouter une prestation" : undefined}
-                      onAction={isAdmin ? openAdd : undefined}
+                      onAction={isAdmin ? () => navigate("/admin/treatments/new") : undefined}
                     />
                   ) : (
                     <TableBody>
@@ -388,7 +396,7 @@ export default function TreatmentMenus() {
                           <TableRow
                             key={menu.id}
                             className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                            onClick={() => openView(menu.id)}
+                            onClick={() => navigate(`/admin/treatments/${menu.id}`)}
                           >
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                               <div className="flex items-center gap-2 whitespace-nowrap">
@@ -457,7 +465,7 @@ export default function TreatmentMenus() {
                                     className="h-6 w-6"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      openEdit(menu.id);
+                                      navigate(`/admin/treatments/${menu.id}`);
                                     }}
                                   >
                                     <Pencil className="h-3 w-3" />
@@ -526,39 +534,6 @@ export default function TreatmentMenus() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AddTreatmentMenuDialog
-        open={isAddOpen}
-        onOpenChange={(open) => !open && closeAdd()}
-        onSuccess={refetch}
-      />
-
-      {editedMenu && (
-        <EditTreatmentMenuDialog
-          open={!!editMenuId}
-          onOpenChange={(open) => !open && closeEdit()}
-          menu={editedMenu}
-          onSuccess={refetch}
-        />
-      )}
-
-      <TreatmentDetailDialog
-        open={!!viewMenuId}
-        onOpenChange={(open) => !open && closeView()}
-        treatment={viewedMenu}
-        hotel={viewedMenu ? getHotelInfo(viewedMenu.hotel_id) : null}
-        onEdit={isAdmin ? () => {
-          if (viewMenuId) {
-            closeView();
-            openEdit(viewMenuId);
-          }
-        } : undefined}
-        onDuplicate={isAdmin ? () => {
-          if (viewMenuId) {
-            closeView();
-            handleDuplicate(viewMenuId);
-          }
-        } : undefined}
-      />
     </div>
   );
 }

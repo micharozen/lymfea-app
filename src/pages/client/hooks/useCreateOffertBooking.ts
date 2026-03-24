@@ -36,6 +36,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           },
           treatments: items.map(item => ({
             treatmentId: item.id,
+            variantId: item.variantId,
             quantity: item.quantity,
             note: item.note,
           })),

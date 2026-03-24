@@ -11,11 +11,22 @@ import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { BestsellerSection } from '@/components/client/BestsellerSection';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
+import { VariantSelector, type TreatmentVariant } from '@/components/client/VariantSelector';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+
+interface TreatmentVariantData {
+  id: string;
+  label: string | null;
+  duration: number;
+  price: number | null;
+  price_on_request: boolean;
+  is_default: boolean;
+  sort_order: number;
+}
 
 interface Treatment {
   id: string;
@@ -28,6 +39,7 @@ interface Treatment {
   price_on_request: boolean | null;
   currency: string | null;
   is_bestseller?: boolean;
+  variants?: TreatmentVariantData[];
 }
 
 export default function Treatments() {
@@ -37,7 +49,7 @@ export default function Treatments() {
   const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
-  
+
   // On Request drawer state
   const [isOnRequestOpen, setIsOnRequestOpen] = useState(false);
   const [selectedOnRequestTreatment, setSelectedOnRequestTreatment] = useState<Treatment | null>(null);
@@ -45,10 +57,24 @@ export default function Treatments() {
   // Cart drawer state
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Expanded treatment for variant selection (only one at a time)
+  const [expandedTreatmentId, setExpandedTreatmentId] = useState<string | null>(null);
+  // Selected variant per treatment
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, TreatmentVariantData>>({});
+
   const getItemQuantity = (id: string) => {
     const item = items.find(i => i.id === id);
     return item?.quantity || 0;
   };
+
+  /** Total quantity across all variants of a treatment */
+  const getTreatmentTotalQuantity = (treatmentId: string) => {
+    return items.filter(i => i.id === treatmentId).reduce((sum, i) => sum + i.quantity, 0);
+  };
+
+  /** Check if a treatment has multiple variants */
+  const hasMultipleVariants = (treatment: Treatment) =>
+    treatment.variants != null && treatment.variants.length > 1;
 
   const { data: hotel, isLoading: isHotelLoading } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -143,25 +169,32 @@ export default function Treatments() {
     }
   }, [categoriesByGender.women.length, categoriesByGender.men.length]);
 
-  const handleAddToBasket = (treatment: Treatment) => {
+  const handleAddToBasket = (treatment: Treatment, variant?: TreatmentVariantData) => {
+    const resolvedVariant = variant ||
+      treatment.variants?.find(v => v.is_default) ||
+      treatment.variants?.[0];
+
     // Track add to cart action
     trackAction('add_to_cart', {
       treatmentId: treatment.id,
       treatmentName: treatment.name,
-      price: treatment.price,
+      price: resolvedVariant?.price ?? treatment.price,
       category: treatment.category,
+      variantId: resolvedVariant?.id,
     });
 
     // Add to basket - including price_on_request items for mixed cart logic
     addItem({
       id: treatment.id,
+      variantId: resolvedVariant?.id,
+      variantLabel: resolvedVariant?.label || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
       name: treatment.name,
-      price: Number(treatment.price) || 0,
+      price: Number(resolvedVariant?.price ?? treatment.price) || 0,
       currency: treatment.currency || 'EUR',
-      duration: treatment.duration || 0,
+      duration: resolvedVariant?.duration ?? treatment.duration ?? 0,
       image: treatment.image || undefined,
       category: treatment.category,
-      isPriceOnRequest: treatment.price_on_request || false,
+      isPriceOnRequest: resolvedVariant?.price_on_request ?? treatment.price_on_request ?? false,
     });
 
     if (navigator.vibrate) {
@@ -192,6 +225,267 @@ export default function Treatments() {
   if (isLoading) {
     return <TreatmentsSkeleton />;
   }
+
+  /** Get the minimum price across all non-on-request variants */
+  const getMinVariantPrice = (variants: TreatmentVariantData[]) => {
+    const prices = variants.filter(v => !v.price_on_request).map(v => v.price || 0);
+    return prices.length > 0 ? Math.min(...prices) : 0;
+  };
+
+  /** Get duration range string like "30-90" */
+  const getVariantDurationRange = (variants: TreatmentVariantData[]) => {
+    const durations = variants.map(v => v.duration);
+    const min = Math.min(...durations);
+    const max = Math.max(...durations);
+    return min === max ? `${min}` : `${min}-${max}`;
+  };
+
+  /** Render the price/duration line for a treatment */
+  const renderPriceLine = (treatment: Treatment) => {
+    // Multi-variant treatments show "from X" when collapsed
+    if (hasMultipleVariants(treatment) && expandedTreatmentId !== treatment.id) {
+      const variants = treatment.variants!;
+      if (isCompanyOffered) {
+        return (
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
+            {getVariantDurationRange(variants)} min
+          </span>
+        );
+      }
+      if (isOffert) {
+        return (
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs text-gray-400 line-through font-light">
+              {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
+            </span>
+            <span className="text-base sm:text-lg font-medium text-emerald-600">
+              {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+            </span>
+            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
+              {getVariantDurationRange(variants)} min
+            </span>
+          </div>
+        );
+      }
+      return (
+        <div className="flex items-baseline gap-2">
+          <span className="text-[10px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
+          <span className="text-base sm:text-lg font-light text-gray-700">
+            {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
+            {getVariantDurationRange(variants)} min
+          </span>
+        </div>
+      );
+    }
+
+    // When expanded, variant selector handles pricing — hide the price line
+    if (expandedTreatmentId === treatment.id) {
+      return null;
+    }
+
+    // Single variant or no variants — show like today
+    if (isCompanyOffered) {
+      return treatment.duration ? (
+        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+      ) : null;
+    }
+    if (isOffert) {
+      return (
+        <div className="flex items-baseline gap-2">
+          <span className="text-xs text-gray-400 line-through font-light">
+            {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+          <span className="text-base sm:text-lg font-medium text-emerald-600">
+            {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+          {treatment.duration && (
+            <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+          )}
+        </div>
+      );
+    }
+    if (treatment.price_on_request) {
+      return (
+        <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
+          {t('payment.onQuote')}
+        </Badge>
+      );
+    }
+    return (
+      <div className="flex items-baseline gap-2">
+        <span className="text-base sm:text-lg font-light text-gray-700">
+          {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+        </span>
+        {treatment.duration && (
+          <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
+        )}
+      </div>
+    );
+  };
+
+  /** Render the add button / quantity controls for non-expanded treatments */
+  const renderControls = (treatment: Treatment) => {
+    const totalQty = getTreatmentTotalQuantity(treatment.id);
+
+    if (totalQty > 0) {
+      return (
+        <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
+          <span className="w-4 text-center font-medium text-sm text-gold-400">
+            {totalQty}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                // For multi-variant, find the last added variant item and decrement it
+                const treatmentItems = items.filter(i => i.id === treatment.id);
+                const lastItem = treatmentItems[treatmentItems.length - 1];
+                if (lastItem) {
+                  updateBasketQuantity(lastItem.id, lastItem.quantity - 1, lastItem.variantId);
+                }
+                if (navigator.vibrate) navigator.vibrate(30);
+              }}
+            >
+              <Minus className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddToBasket(treatment);
+              }}
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (hasMultipleVariants(treatment)) {
+            // For multi-variant, expand instead of adding directly
+            setExpandedTreatmentId(treatment.id);
+            if (!selectedVariants[treatment.id] && treatment.variants) {
+              const defaultV = treatment.variants.find(v => v.is_default) || treatment.variants[0];
+              setSelectedVariants(prev => ({ ...prev, [treatment.id]: defaultV }));
+            }
+          } else {
+            handleAddToBasket(treatment);
+          }
+        }}
+        className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
+      >
+        {t('menu.add')}
+      </Button>
+    );
+  };
+
+  /** Get display text for the expanded add button */
+  const getExpandedAddButtonText = (treatment: Treatment) => {
+    const selected = selectedVariants[treatment.id];
+    if (!selected) return t('menu.add');
+
+    if (isCompanyOffered) {
+      return t('menu.add');
+    }
+    if (isOffert) {
+      return `${t('menu.add')} — ${formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}`;
+    }
+    if (selected.price_on_request) {
+      return `${t('menu.add')} — ${t('payment.onQuote')}`;
+    }
+    return `${t('menu.add')} — ${formatPrice(selected.price, treatment.currency || 'EUR', { decimals: 0 })}`;
+  };
+
+  /** Render a single treatment card */
+  const renderTreatmentCard = (treatment: Treatment, i: number) => {
+    const isExpanded = expandedTreatmentId === treatment.id;
+
+    return (
+      <div
+        key={treatment.id}
+        className={cn(
+          "p-4 transition-colors group cursor-pointer animate-slide-up-fade",
+          isExpanded ? "bg-gray-50" : "active:bg-black/5"
+        )}
+        style={{ animationDelay: `${i * 0.05}s` }}
+        onClick={() => {
+          if (hasMultipleVariants(treatment)) {
+            setExpandedTreatmentId(prev => prev === treatment.id ? null : treatment.id);
+            // Set default variant if not already selected
+            if (!selectedVariants[treatment.id] && treatment.variants) {
+              const defaultV = treatment.variants.find(v => v.is_default) || treatment.variants[0];
+              setSelectedVariants(prev => ({ ...prev, [treatment.id]: defaultV }));
+            }
+          } else {
+            handleAddToBasket(treatment);
+          }
+        }}
+      >
+        <div>
+          <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
+            {treatment.name}
+          </h3>
+          {treatment.description && (
+            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light">
+              {treatment.description}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between mt-2">
+          <div className="flex flex-col">
+            {renderPriceLine(treatment)}
+          </div>
+
+          {/* Controls — only show when NOT expanded */}
+          {!isExpanded && (
+            <div className="flex items-center gap-1">
+              {renderControls(treatment)}
+              {/* Chevron indicator for multi-variant */}
+              {hasMultipleVariants(treatment) && getTreatmentTotalQuantity(treatment.id) === 0 && (
+                <ChevronDown className="w-4 h-4 text-gray-300 ml-1" />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Expanded variant selector */}
+        {isExpanded && treatment.variants && (
+          <div className="mt-3 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <VariantSelector
+              variants={treatment.variants}
+              selectedVariantId={selectedVariants[treatment.id]?.id || null}
+              onSelect={(variant) => setSelectedVariants(prev => ({ ...prev, [treatment.id]: variant }))}
+              currency={treatment.currency || 'EUR'}
+              isOffert={isOffert}
+              isCompanyOffered={isCompanyOffered}
+            />
+            <Button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddToBasket(treatment, selectedVariants[treatment.id]);
+              }}
+              className="w-full h-10 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none mt-2"
+            >
+              {getExpandedAddButtonText(treatment)}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -339,104 +633,7 @@ export default function Treatments() {
               <div className="divide-y divide-gray-100">
                 {treatmentsByGender.women
                   .filter(treatment => treatment.category === activeCategoryByGender.women)
-                  .map((treatment, i) => (
-                    <div
-                      key={treatment.id}
-                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer animate-slide-up-fade"
-                      style={{ animationDelay: `${i * 0.05}s` }}
-                      onClick={() => handleAddToBasket(treatment)}
-                    >
-                      <div>
-                        <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
-                            {treatment.name}
-                        </h3>
-                        {treatment.description && (
-                            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light">
-                            {treatment.description}
-                            </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-end justify-between mt-2">
-                         <div className="flex flex-col">
-                            {isCompanyOffered ? (
-                                treatment.duration ? (
-                                    <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
-                                ) : null
-                            ) : isOffert ? (
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs text-gray-400 line-through font-light">
-                                        {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    <span className="text-base sm:text-lg font-medium text-emerald-600">
-                                        {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    {treatment.duration && (
-                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
-                                    )}
-                                </div>
-                            ) : treatment.price_on_request ? (
-                                <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
-                                    {t('payment.onQuote')}
-                                </Badge>
-                            ) : (
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-base sm:text-lg font-light text-gray-700">
-                                        {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    {treatment.duration && (
-                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
-                                    )}
-                                </div>
-                            )}
-                         </div>
-
-                        {/* Controls */}
-                        {getItemQuantity(treatment.id) > 0 ? (
-                            <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
-                                <span className="w-4 text-center font-medium text-sm text-gold-400">
-                                    {getItemQuantity(treatment.id)}
-                                </span>
-                                <div className="flex gap-1">
-                                    <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
-                                        if (navigator.vibrate) navigator.vibrate(30);
-                                    }}
-                                    >
-                                    <Minus className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddToBasket(treatment);
-                                    }}
-                                    >
-                                    <Plus className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToBasket(treatment);
-                                }}
-                                className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
-                            >
-                                {t('menu.add')}
-                            </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  .map((treatment, i) => renderTreatmentCard(treatment, i))}
               </div>
             </div>
           )}
@@ -492,104 +689,7 @@ export default function Treatments() {
               <div className="divide-y divide-gray-100">
                 {treatmentsByGender.men
                   .filter(treatment => treatment.category === activeCategoryByGender.men)
-                  .map((treatment, i) => (
-                    <div
-                      key={treatment.id}
-                      className="p-4 active:bg-black/5 transition-colors group cursor-pointer animate-slide-up-fade"
-                      style={{ animationDelay: `${i * 0.05}s` }}
-                      onClick={() => handleAddToBasket(treatment)}
-                    >
-                      <div>
-                        <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
-                            {treatment.name}
-                        </h3>
-                        {treatment.description && (
-                            <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light">
-                            {treatment.description}
-                            </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-end justify-between mt-2">
-                         <div className="flex flex-col">
-                            {isCompanyOffered ? (
-                                treatment.duration ? (
-                                    <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
-                                ) : null
-                            ) : isOffert ? (
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-xs text-gray-400 line-through font-light">
-                                        {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    <span className="text-base sm:text-lg font-medium text-emerald-600">
-                                        {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    {treatment.duration && (
-                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
-                                    )}
-                                </div>
-                            ) : treatment.price_on_request ? (
-                                <Badge className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium w-fit">
-                                    {t('payment.onQuote')}
-                                </Badge>
-                            ) : (
-                                <div className="flex items-baseline gap-2">
-                                    <span className="text-base sm:text-lg font-light text-gray-700">
-                                        {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                                    </span>
-                                    {treatment.duration && (
-                                        <span className="text-gray-400 text-xs font-light tracking-wider uppercase">• {treatment.duration} min</span>
-                                    )}
-                                </div>
-                            )}
-                         </div>
-
-                        {/* Controls */}
-                        {getItemQuantity(treatment.id) > 0 ? (
-                            <div className="flex items-center gap-2 bg-gray-100 rounded-md p-1 pl-2 border border-gray-200">
-                                <span className="w-4 text-center font-medium text-sm text-gold-400">
-                                    {getItemQuantity(treatment.id)}
-                                </span>
-                                <div className="flex gap-1">
-                                    <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 hover:bg-gray-200 text-gray-500 hover:text-gray-700"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        updateBasketQuantity(treatment.id, getItemQuantity(treatment.id) - 1);
-                                        if (navigator.vibrate) navigator.vibrate(30);
-                                    }}
-                                    >
-                                    <Minus className="h-5 w-5" />
-                                    </Button>
-                                    <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleAddToBasket(treatment);
-                                    }}
-                                    >
-                                    <Plus className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAddToBasket(treatment);
-                                }}
-                                className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
-                            >
-                                {t('menu.add')}
-                            </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  .map((treatment, i) => renderTreatmentCard(treatment, i))}
               </div>
             </div>
           )}

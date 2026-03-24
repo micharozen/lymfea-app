@@ -7,6 +7,16 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
 
+interface TreatmentVariantData {
+  id: string;
+  label: string | null;
+  duration: number;
+  price: number | null;
+  price_on_request: boolean;
+  is_default: boolean;
+  sort_order: number;
+}
+
 interface Treatment {
   id: string;
   name: string;
@@ -17,11 +27,12 @@ interface Treatment {
   category: string;
   price_on_request: boolean | null;
   currency: string | null;
+  variants?: TreatmentVariantData[];
 }
 
 interface BestsellerSectionProps {
   treatments: (Treatment & { service_for: string; is_bestseller?: boolean })[];
-  onAddToBasket: (treatment: Treatment) => void;
+  onAddToBasket: (treatment: Treatment, variant?: TreatmentVariantData) => void;
   getItemQuantity: (id: string) => number;
   onUpdateQuantity: (id: string, quantity: number) => void;
   isOffert?: boolean;
@@ -69,6 +80,90 @@ export function BestsellerSection({
 
   if (bestsellerTreatments.length === 0) return null;
 
+  /** Check if a treatment has multiple variants */
+  const hasMultipleVariants = (treatment: Treatment) =>
+    treatment.variants != null && treatment.variants.length > 1;
+
+  /** Get the minimum price across all non-on-request variants */
+  const getMinVariantPrice = (variants: TreatmentVariantData[]) => {
+    const prices = variants.filter(v => !v.price_on_request).map(v => v.price || 0);
+    return prices.length > 0 ? Math.min(...prices) : 0;
+  };
+
+  /** Get the default variant for a treatment */
+  const getDefaultVariant = (treatment: Treatment): TreatmentVariantData | undefined => {
+    if (!treatment.variants || treatment.variants.length === 0) return undefined;
+    return treatment.variants.find(v => v.is_default) || treatment.variants[0];
+  };
+
+  /** Render the price display for a bestseller card */
+  const renderBestsellerPrice = (treatment: Treatment) => {
+    if (isCompanyOffered) {
+      return treatment.duration ? (
+        <span className="text-[8px] text-gray-400 font-light">
+          {treatment.duration} min
+        </span>
+      ) : null;
+    }
+
+    if (isOffert) {
+      const displayPrice = hasMultipleVariants(treatment)
+        ? getMinVariantPrice(treatment.variants!)
+        : treatment.price;
+      return (
+        <div className="flex items-baseline gap-1">
+          <span className="text-[8px] text-gray-400 line-through font-light">
+            {treatment.price_on_request ? t('payment.onQuote') : formatPrice(displayPrice, treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+          <span className="text-xs font-medium text-emerald-600">
+            {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+        </div>
+      );
+    }
+
+    if (hasMultipleVariants(treatment)) {
+      const variants = treatment.variants!;
+      const allOnRequest = variants.every(v => v.price_on_request);
+      if (allOnRequest) {
+        return (
+          <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
+            {t('payment.onQuote')}
+          </Badge>
+        );
+      }
+      return (
+        <div className="flex items-baseline gap-1">
+          <span className="text-[7px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
+          <span className="text-xs font-light text-gray-700">
+            {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
+          </span>
+        </div>
+      );
+    }
+
+    if (treatment.price_on_request) {
+      return (
+        <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
+          {t('payment.onQuote')}
+        </Badge>
+      );
+    }
+
+    return (
+      <div className="flex items-baseline gap-1">
+        <span className="text-xs font-light text-gray-700">
+          {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+        </span>
+        {treatment.duration && (
+          <span className="text-[8px] text-gray-400 font-light">
+            {treatment.duration}'
+          </span>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       ref={reveal.ref}
@@ -97,7 +192,11 @@ export function BestsellerSection({
               key={treatment.id}
               className="bg-gray-50/80 border border-gray-100 rounded-none overflow-hidden animate-slide-up-fade cursor-pointer active:bg-gray-100/80 transition-colors"
               style={{ animationDelay: `${i * 0.1}s` }}
-              onClick={() => onAddToBasket(treatment)}
+              onClick={() => {
+                // For bestsellers, always add default variant directly (no expand behavior)
+                const defaultVariant = getDefaultVariant(treatment);
+                onAddToBasket(treatment, defaultVariant);
+              }}
             >
               {/* Image area — compact */}
               <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
@@ -128,37 +227,7 @@ export function BestsellerSection({
                   {treatment.name}
                 </h3>
 
-                {isCompanyOffered ? (
-                  treatment.duration ? (
-                    <span className="text-[8px] text-gray-400 font-light">
-                      {treatment.duration} min
-                    </span>
-                  ) : null
-                ) : isOffert ? (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[8px] text-gray-400 line-through font-light">
-                      {treatment.price_on_request ? t('payment.onQuote') : formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                    </span>
-                    <span className="text-xs font-medium text-emerald-600">
-                      {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
-                    </span>
-                  </div>
-                ) : treatment.price_on_request ? (
-                  <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
-                    {t('payment.onQuote')}
-                  </Badge>
-                ) : (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs font-light text-gray-700">
-                      {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
-                    </span>
-                    {treatment.duration && (
-                      <span className="text-[8px] text-gray-400 font-light">
-                        {treatment.duration}'
-                      </span>
-                    )}
-                  </div>
-                )}
+                {renderBestsellerPrice(treatment)}
 
                 {/* Add button or quantity */}
                 <div className="mt-2">
@@ -185,7 +254,8 @@ export function BestsellerSection({
                         className="h-6 w-6 rounded-none bg-gold-400 text-black hover:bg-gold-300"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onAddToBasket(treatment);
+                          const defaultVariant = getDefaultVariant(treatment);
+                          onAddToBasket(treatment, defaultVariant);
                         }}
                       >
                         <Plus className="h-3 w-3" />
@@ -195,7 +265,8 @@ export function BestsellerSection({
                     <Button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onAddToBasket(treatment);
+                        const defaultVariant = getDefaultVariant(treatment);
+                        onAddToBasket(treatment, defaultVariant);
                       }}
                       className="w-full h-6 text-[8px] uppercase tracking-[0.15em] bg-gold-400 text-black hover:bg-gold-300 font-bold border-none"
                     >

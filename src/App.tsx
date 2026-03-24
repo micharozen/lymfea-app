@@ -32,7 +32,9 @@ const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
 const TherapistDetail = lazy(() => import("./pages/admin/TherapistDetail"));
 const AdminTreatments = lazy(() => import("./pages/admin/Treatments"));
+const TreatmentDetail = lazy(() => import("./pages/admin/TreatmentDetail"));
 const TreatmentRooms = lazy(() => import("./pages/admin/TreatmentRooms"));
+const TreatmentRoomDetail = lazy(() => import("./pages/admin/TreatmentRoomDetail"));
 const Concierges = lazy(() => import("./pages/admin/Concierges"));
 const Customers = lazy(() => import("./pages/admin/Customers"));
 const CustomerDetail = lazy(() => import("./pages/admin/CustomerDetail"));
@@ -402,7 +404,11 @@ const App = () => {
                               <Route path="/places/new" element={<VenueDetail />} />
                               <Route path="/places/:id" element={<VenueDetail />} />
                               <Route path="/treatments" element={<AdminTreatments />} />
+                              <Route path="/treatments/new" element={<TreatmentDetail />} />
+                              <Route path="/treatments/:id" element={<TreatmentDetail />} />
                               <Route path="/treatment-rooms" element={<TreatmentRooms />} />
+                              <Route path="/treatment-rooms/new" element={<TreatmentRoomDetail />} />
+                              <Route path="/treatment-rooms/:id" element={<TreatmentRoomDetail />} />
                               <Route path="/concierges" element={<Concierges />} />
                               <Route path="/schedule-alerts" element={<ScheduleAlerts />} />
                               <Route path="/customers" element={<Customers />} />

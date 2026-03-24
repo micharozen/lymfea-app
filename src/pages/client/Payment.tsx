@@ -106,6 +106,10 @@ export default function Payment() {
               time: bookingDateTime.time,
             },
             treatmentIds: items.map(item => item.id),
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              variantId: item.variantId,
+            })),
             totalPrice: total,
           },
         });
@@ -144,6 +148,7 @@ export default function Payment() {
             },
             treatments: items.map(item => ({
               treatmentId: item.id,
+              variantId: item.variantId,
               quantity: item.quantity,
               note: item.note,
             })),

@@ -46,6 +46,7 @@ const bookingDataSchema = z.object({
 const treatmentSchema = z.object({
   treatmentId: z.string().uuid('Invalid treatment ID format'),
   quantity: z.number().int().min(1).max(10, 'Quantity must be between 1 and 10'),
+  variantId: z.string().uuid('Invalid variant ID format').optional(),
 });
 
 const requestSchema = z.object({
@@ -309,6 +310,7 @@ serve(async (req) => {
         treatmentInserts.push({
           booking_id: bookingId,
           treatment_id: treatment.treatmentId,
+          variant_id: treatment.variantId || null,
         });
       }
     }
