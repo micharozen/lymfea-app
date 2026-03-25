@@ -71,7 +71,8 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
         navigate(`/client/${hotelId}/schedule`, {
-          state: { takenDate: bookingDateTime.date, takenTime: bookingDateTime.time },
+          replace: true,
+          state: { slotTaken: true, takenDate: bookingDateTime.date, takenTime: bookingDateTime.time },
         });
         return;
       }

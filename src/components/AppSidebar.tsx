@@ -7,7 +7,6 @@ import { brand, brandLogos } from "@/config/brand";
 import {
   Home,
   Calendar,
-  Scissors,
   Building2,
   Sparkles,
   Package,

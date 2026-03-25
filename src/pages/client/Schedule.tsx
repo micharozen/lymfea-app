@@ -1,7 +1,7 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { useClientFlow } from './context/FlowContext';
@@ -32,11 +32,21 @@ export default function Schedule() {
   const takenDate = (location.state as any)?.takenDate as string | undefined;
   const [selectedDate, setSelectedDate] = useState(takenDate || '');
   const [selectedTime, setSelectedTime] = useState('');
+  const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(
+    !!(location.state as any)?.slotTaken
+  );
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
+
+  // Clear navigation state to avoid re-triggering on re-render
+  useEffect(() => {
+    if ((location.state as any)?.slotTaken) {
+      window.history.replaceState({}, '');
+    }
+  }, []);
 
   // Track page view once
   useEffect(() => {
@@ -213,6 +223,7 @@ export default function Schedule() {
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
+    setShowSlotTakenBanner(false);
     trackAction('select_time_slot', { date: selectedDate, time });
   };
 
@@ -274,6 +285,21 @@ export default function Schedule() {
       </div>
 
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8">
+        {/* Slot taken alert banner */}
+        {showSlotTakenBanner && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-fade-in flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-medium text-red-700 text-sm mb-1">
+                {t('datetime.slotTakenBanner')}
+              </h3>
+              <p className="text-xs text-red-600/70">
+                {t('datetime.slotTakenDesc')}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Page headline */}
         <div className="animate-fade-in">
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">

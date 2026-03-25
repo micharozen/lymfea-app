@@ -25,6 +25,10 @@
   "menu": {
     "title": "Menu",
     "add": "Add",
+    "select": "Select",
+    "selectDuration": "Select a duration",
+    "addAnother": "Add another treatment",
+    "popular": "Popular",
     "added": "Added",
     "viewBasket": "View Basket",
     "bookTreatment": "Book treatment",
@@ -80,7 +84,9 @@
     "morning": "Morning",
     "afternoon": "Afternoon",
     "evening": "Evening",
-    "available": "available"
+    "available": "available",
+    "slotTakenBanner": "This slot is no longer available",
+    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below."
   },
   "info": {
     "title": "Your Information",

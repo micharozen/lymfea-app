@@ -38,7 +38,7 @@ import {
   Calendar,
   Clock,
   Building2,
-  Scissors,
+  HandHeart,
   CreditCard,
   Euro,
   FileText,
@@ -312,7 +312,7 @@ export function BookingDetailDialog({
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <Scissors className="h-3.5 w-3.5" />
+                  <HandHeart className="h-3.5 w-3.5" />
                   Thérapeute
                 </div>
                 <p className="font-medium">{booking.therapist_name || "Non assigné"}</p>
@@ -325,7 +325,7 @@ export function BookingDetailDialog({
           {/* Treatments */}
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <Scissors className="h-4 w-4" />
+              <HandHeart className="h-4 w-4" />
               Soins ({booking.treatments.length})
             </h3>
             {booking.treatments.length > 0 ? (

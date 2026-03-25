@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ShoppingBag, Scissors, Minus, Plus, Sparkles, ChevronDown, Gift, Building } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, Gift, Building } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
@@ -46,7 +46,7 @@ export default function Treatments() {
   // Extract hotelId from URL directly (useParams doesn't work in nested Routes)
   const hotelId = window.location.pathname.split('/')[2];
   const navigate = useNavigate();
-  const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
+  const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
 
@@ -374,38 +374,26 @@ export default function Treatments() {
         onClick={(e) => {
           e.stopPropagation();
           if (hasMultipleVariants(treatment)) {
-            // For multi-variant, expand instead of adding directly
+            // For multi-variant, expand and reset selection for a fresh pick
+            setSelectedVariants(prev => {
+              const { [treatment.id]: _, ...rest } = prev;
+              return rest;
+            });
             setExpandedTreatmentId(treatment.id);
-            if (!selectedVariants[treatment.id] && treatment.variants) {
-              const defaultV = treatment.variants.find(v => v.is_default) || treatment.variants[0];
-              setSelectedVariants(prev => ({ ...prev, [treatment.id]: defaultV }));
-            }
           } else {
             handleAddToBasket(treatment);
           }
         }}
-        className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none"
+        className={cn(
+          "transition-all duration-300 border-none",
+          hasMultipleVariants(treatment)
+            ? "px-3 h-8 text-[11px] tracking-wide bg-gold-400 text-black hover:bg-gold-300 font-medium"
+            : "px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 font-bold"
+        )}
       >
-        {t('menu.add')}
+        {hasMultipleVariants(treatment) ? t('menu.select') : t('menu.add')}
       </Button>
     );
-  };
-
-  /** Get display text for the expanded add button */
-  const getExpandedAddButtonText = (treatment: Treatment) => {
-    const selected = selectedVariants[treatment.id];
-    if (!selected) return t('menu.add');
-
-    if (isCompanyOffered) {
-      return t('menu.add');
-    }
-    if (isOffert) {
-      return `${t('menu.add')} — ${formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}`;
-    }
-    if (selected.price_on_request) {
-      return `${t('menu.add')} — ${t('payment.onQuote')}`;
-    }
-    return `${t('menu.add')} — ${formatPrice(selected.price, treatment.currency || 'EUR', { decimals: 0 })}`;
   };
 
   /** Render a single treatment card */
@@ -422,11 +410,14 @@ export default function Treatments() {
         style={{ animationDelay: `${i * 0.05}s` }}
         onClick={() => {
           if (hasMultipleVariants(treatment)) {
-            setExpandedTreatmentId(prev => prev === treatment.id ? null : treatment.id);
-            // Set default variant if not already selected
-            if (!selectedVariants[treatment.id] && treatment.variants) {
-              const defaultV = treatment.variants.find(v => v.is_default) || treatment.variants[0];
-              setSelectedVariants(prev => ({ ...prev, [treatment.id]: defaultV }));
+            if (expandedTreatmentId === treatment.id) {
+              setExpandedTreatmentId(null);
+            } else {
+              setSelectedVariants(prev => {
+                const { [treatment.id]: _, ...rest } = prev;
+                return rest;
+              });
+              setExpandedTreatmentId(treatment.id);
             }
           } else {
             handleAddToBasket(treatment);
@@ -453,10 +444,6 @@ export default function Treatments() {
           {!isExpanded && (
             <div className="flex items-center gap-1">
               {renderControls(treatment)}
-              {/* Chevron indicator for multi-variant */}
-              {hasMultipleVariants(treatment) && getTreatmentTotalQuantity(treatment.id) === 0 && (
-                <ChevronDown className="w-4 h-4 text-gray-300 ml-1" />
-              )}
             </div>
           )}
         </div>
@@ -464,23 +451,20 @@ export default function Treatments() {
         {/* Expanded variant selector */}
         {isExpanded && treatment.variants && (
           <div className="mt-3 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-1">
+              {t('menu.selectDuration')}
+            </p>
             <VariantSelector
               variants={treatment.variants}
-              selectedVariantId={selectedVariants[treatment.id]?.id || null}
-              onSelect={(variant) => setSelectedVariants(prev => ({ ...prev, [treatment.id]: variant }))}
+              selectedVariantId={null}
+              onSelect={(variant) => {
+                handleAddToBasket(treatment, variant);
+                setExpandedTreatmentId(null);
+              }}
               currency={treatment.currency || 'EUR'}
               isOffert={isOffert}
               isCompanyOffered={isCompanyOffered}
             />
-            <Button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddToBasket(treatment, selectedVariants[treatment.id]);
-              }}
-              className="w-full h-10 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none mt-2"
-            >
-              {getExpandedAddButtonText(treatment)}
-            </Button>
           </div>
         )}
       </div>
@@ -703,7 +687,7 @@ export default function Treatments() {
             onClick={() => navigate(`/client/${hotelId}/schedule`)}
             className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-300 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
-            <Scissors className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <HandHeart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
             {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
           </Button>
         </div>

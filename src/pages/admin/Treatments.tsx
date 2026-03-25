@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
-import { Search, Pencil, Trash2, Plus, Scissors, Copy } from "lucide-react";
+import { Search, Pencil, Trash2, Plus, HandHeart, Copy } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -323,7 +323,7 @@ export default function TreatmentMenus() {
                   </div>
                 ) : paginatedMenus.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <Scissors className="h-12 w-12 text-muted-foreground mb-4" />
+                    <HandHeart className="h-12 w-12 text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">Aucune prestation trouvee</p>
                     {(searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
                       <p className="text-sm text-muted-foreground mt-1">Essayez de modifier vos filtres</p>
@@ -382,7 +382,7 @@ export default function TreatmentMenus() {
                   ) : paginatedMenus.length === 0 ? (
                     <TableEmptyState
                       colSpan={columnCount}
-                      icon={Scissors}
+                      icon={HandHeart}
                       message="Aucune prestation trouvee"
                       description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
                       actionLabel={isAdmin ? "Ajouter une prestation" : undefined}

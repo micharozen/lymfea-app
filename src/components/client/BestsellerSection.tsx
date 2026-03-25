@@ -34,7 +34,7 @@ interface BestsellerSectionProps {
   treatments: (Treatment & { service_for: string; is_bestseller?: boolean })[];
   onAddToBasket: (treatment: Treatment, variant?: TreatmentVariantData) => void;
   getItemQuantity: (id: string) => number;
-  onUpdateQuantity: (id: string, quantity: number) => void;
+  onUpdateQuantity: (id: string, quantity: number, variantId?: string) => void;
   isOffert?: boolean;
   isCompanyOffered?: boolean;
 }
@@ -80,40 +80,32 @@ export function BestsellerSection({
 
   if (bestsellerTreatments.length === 0) return null;
 
-  /** Check if a treatment has multiple variants */
-  const hasMultipleVariants = (treatment: Treatment) =>
-    treatment.variants != null && treatment.variants.length > 1;
-
-  /** Get the minimum price across all non-on-request variants */
-  const getMinVariantPrice = (variants: TreatmentVariantData[]) => {
-    const prices = variants.filter(v => !v.price_on_request).map(v => v.price || 0);
-    return prices.length > 0 ? Math.min(...prices) : 0;
-  };
-
   /** Get the default variant for a treatment */
   const getDefaultVariant = (treatment: Treatment): TreatmentVariantData | undefined => {
     if (!treatment.variants || treatment.variants.length === 0) return undefined;
     return treatment.variants.find(v => v.is_default) || treatment.variants[0];
   };
 
-  /** Render the price display for a bestseller card */
+  /** Render the price display for a bestseller card — always uses the default variant */
   const renderBestsellerPrice = (treatment: Treatment) => {
+    const defaultVariant = getDefaultVariant(treatment);
+    const effectivePrice = defaultVariant ? defaultVariant.price : treatment.price;
+    const effectiveDuration = defaultVariant ? defaultVariant.duration : treatment.duration;
+    const effectivePriceOnRequest = defaultVariant ? defaultVariant.price_on_request : treatment.price_on_request;
+
     if (isCompanyOffered) {
-      return treatment.duration ? (
+      return effectiveDuration ? (
         <span className="text-[8px] text-gray-400 font-light">
-          {treatment.duration} min
+          {effectiveDuration} min
         </span>
       ) : null;
     }
 
     if (isOffert) {
-      const displayPrice = hasMultipleVariants(treatment)
-        ? getMinVariantPrice(treatment.variants!)
-        : treatment.price;
       return (
         <div className="flex items-baseline gap-1">
           <span className="text-[8px] text-gray-400 line-through font-light">
-            {treatment.price_on_request ? t('payment.onQuote') : formatPrice(displayPrice, treatment.currency || 'EUR', { decimals: 0 })}
+            {effectivePriceOnRequest ? t('payment.onQuote') : formatPrice(effectivePrice, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
           <span className="text-xs font-medium text-emerald-600">
             {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
@@ -122,27 +114,7 @@ export function BestsellerSection({
       );
     }
 
-    if (hasMultipleVariants(treatment)) {
-      const variants = treatment.variants!;
-      const allOnRequest = variants.every(v => v.price_on_request);
-      if (allOnRequest) {
-        return (
-          <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
-            {t('payment.onQuote')}
-          </Badge>
-        );
-      }
-      return (
-        <div className="flex items-baseline gap-1">
-          <span className="text-[7px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
-          <span className="text-xs font-light text-gray-700">
-            {formatPrice(getMinVariantPrice(variants), treatment.currency || 'EUR', { decimals: 0 })}
-          </span>
-        </div>
-      );
-    }
-
-    if (treatment.price_on_request) {
+    if (effectivePriceOnRequest) {
       return (
         <Badge className="text-[8px] px-1 py-0.5 bg-gray-100 text-gold-600 border-gold-300/30 font-medium">
           {t('payment.onQuote')}
@@ -153,11 +125,11 @@ export function BestsellerSection({
     return (
       <div className="flex items-baseline gap-1">
         <span className="text-xs font-light text-gray-700">
-          {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
+          {formatPrice(effectivePrice, treatment.currency || 'EUR', { decimals: 0 })}
         </span>
-        {treatment.duration && (
+        {effectiveDuration && (
           <span className="text-[8px] text-gray-400 font-light">
-            {treatment.duration}'
+            {effectiveDuration}'
           </span>
         )}
       </div>
@@ -239,7 +211,8 @@ export function BestsellerSection({
                         className="h-6 w-6 rounded-none hover:bg-gray-200 text-gray-500 hover:text-gray-700"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onUpdateQuantity(treatment.id, quantity - 1);
+                          const defaultVariant = getDefaultVariant(treatment);
+                          onUpdateQuantity(treatment.id, quantity - 1, defaultVariant?.id);
                           if (navigator.vibrate) navigator.vibrate(30);
                         }}
                       >

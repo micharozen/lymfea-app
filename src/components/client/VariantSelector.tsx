@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useTranslation } from 'react-i18next';
+import { Check } from 'lucide-react';
 
 export interface TreatmentVariant {
   id: string;
@@ -33,7 +34,7 @@ export function VariantSelector({
 
   return (
     <div className="flex flex-wrap gap-2 py-3">
-      {variants.map((variant) => {
+      {[...variants].sort((a, b) => a.duration - b.duration).map((variant) => {
         const isSelected = variant.id === selectedVariantId;
         return (
           <button
@@ -44,19 +45,24 @@ export function VariantSelector({
               onSelect(variant);
             }}
             className={cn(
-              "flex flex-col items-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 min-w-[80px]",
+              "relative flex flex-col items-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 min-w-[80px]",
               isSelected
                 ? "border-gold-400 bg-gold-50 shadow-sm"
                 : "border-gray-200 bg-white hover:border-gray-300"
             )}
           >
+            {isSelected && (
+              <span className="absolute -top-1.5 -right-1.5 bg-gold-400 rounded-full p-0.5">
+                <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+              </span>
+            )}
             <span
               className={cn(
                 "text-sm font-medium",
                 isSelected ? "text-gold-600" : "text-gray-700"
               )}
             >
-              {variant.label || `${variant.duration} min`}
+              {variant.label ? `${variant.label} min` : `${variant.duration} min`}
             </span>
             {!isCompanyOffered && (
               <span
@@ -70,6 +76,11 @@ export function VariantSelector({
                   : isOffert
                     ? formatPrice(0, currency, { decimals: 0 })
                     : formatPrice(variant.price, currency, { decimals: 0 })}
+              </span>
+            )}
+            {variant.is_default && (
+              <span className="text-[9px] uppercase tracking-wider text-gold-600 bg-gold-50 border border-gold-200 rounded-full px-1.5 py-0.5 mt-1 font-medium">
+                {t('menu.popular')}
               </span>
             )}
           </button>

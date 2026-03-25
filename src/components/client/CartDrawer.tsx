@@ -117,7 +117,7 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
             </div>
 
             {!isCompanyOffered && (
-              <div className="border-t border-gray-200 px-4 py-4 pb-safe">
+              <div className="border-t border-gray-200 px-4 pt-4" style={{ paddingBottom: `calc(var(--app-safe-bottom, 0px) + 2rem)` }}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium text-gray-500">{t('basket.subtotal')}</span>
                   <span className="text-lg font-semibold text-gray-900">
