@@ -52,12 +52,12 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm text-gray-900 leading-tight">
                           {item.name}
+                          {item.variantLabel && (
+                            <span className="text-gray-500 font-normal"> — {item.variantLabel}</span>
+                          )}
                         </h3>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {item.variantLabel && (
-                            <span className="text-gray-500 font-medium">{item.variantLabel} — </span>
-                          )}
-                          {item.category} {item.duration} min
+                          {item.category} · {item.duration} min
                         </p>
                       </div>
                       <Button
@@ -87,7 +87,7 @@ export function CartDrawer({ open, onOpenChange, isOffert = false, isCompanyOffe
                           variant="ghost"
                           size="icon"
                           onClick={() => updateQuantity(item.id, item.quantity + 1, item.variantId)}
-                          className="h-7 w-7 bg-gold-400 text-black hover:bg-gold-300"
+                          className="h-7 w-7 bg-gold-400 text-black hover:bg-gold-200"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </Button>

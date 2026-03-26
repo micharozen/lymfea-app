@@ -119,7 +119,7 @@ export function DayTimeline({ openingTime, closingTime, slotInterval = 30, booki
                 {/* Color bar */}
                 <div className={cn(
                   'w-0.5 flex-shrink-0',
-                  slot.type === 'booked' && 'bg-gold-400',
+                  slot.type === 'booked' && 'bg-gold-500',
                   slot.type === 'blocked' && 'bg-gray-300',
                   slot.type === 'available' && 'bg-gray-100',
                 )} />

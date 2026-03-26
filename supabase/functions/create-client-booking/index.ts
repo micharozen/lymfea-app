@@ -56,6 +56,7 @@ const requestSchema = z.object({
   treatments: z.array(treatmentSchema).min(1, 'At least one treatment is required').max(20, 'Maximum 20 treatments allowed'),
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
+  therapistGender: z.enum(['female', 'male']).optional(),
 });
 
 // Sanitize string to prevent injection
@@ -105,7 +106,8 @@ serve(async (req) => {
       bookingData,
       treatments,
       paymentMethod,
-      totalPrice
+      totalPrice,
+      therapistGender
     } = validationResult.data;
 
     console.log('Creating booking for hotel:', hotelId);
@@ -269,6 +271,7 @@ serve(async (req) => {
       _language: 'fr',
       _treatment_ids: treatmentIds,
       _customer_id: customerId || null,
+      _therapist_gender: therapistGender || null,
     });
 
     if (rpcError) {
@@ -333,8 +336,8 @@ serve(async (req) => {
     if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
       console.log('Auto-validation enabled for hotel, checking for single therapist...');
 
-      // Get active therapists assigned to this hotel
-      const { data: therapistVenues, error: therapistError } = await supabase
+      // Get active therapists assigned to this hotel (filtered by gender if preference set)
+      let autoValidateQuery = supabase
         .from('therapist_venues')
         .select(`
           therapist_id,
@@ -342,10 +345,17 @@ serve(async (req) => {
             id,
             first_name,
             last_name,
-            status
+            status,
+            gender
           )
         `)
         .eq('hotel_id', hotelId);
+
+      if (therapistGender) {
+        autoValidateQuery = autoValidateQuery.eq('therapists.gender', therapistGender);
+      }
+
+      const { data: therapistVenues, error: therapistError } = await autoValidateQuery;
 
       if (!therapistError && therapistVenues) {
         // Filter to get only active therapists

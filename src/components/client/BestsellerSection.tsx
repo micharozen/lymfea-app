@@ -31,7 +31,7 @@ interface Treatment {
 }
 
 interface BestsellerSectionProps {
-  treatments: (Treatment & { service_for: string; is_bestseller?: boolean })[];
+  treatments: (Treatment & { service_for?: string; is_bestseller?: boolean })[];
   onAddToBasket: (treatment: Treatment, variant?: TreatmentVariantData) => void;
   getItemQuantity: (id: string) => number;
   onUpdateQuantity: (id: string, quantity: number, variantId?: string) => void;
@@ -52,30 +52,7 @@ export function BestsellerSection({
 
   const bestsellerTreatments = useMemo(() => {
     const flagged = treatments.filter(t => t.is_bestseller);
-    if (flagged.length === 0) return [];
-
-    // Try to get 2 women + 1 man
-    const women = flagged.filter(t => t.service_for === 'Female' || t.service_for === 'All');
-    const men = flagged.filter(t => t.service_for === 'Male' || t.service_for === 'All');
-
-    const result: typeof flagged = [];
-
-    // Pick up to 2 women
-    result.push(...women.slice(0, 2));
-
-    // Pick 1 man (avoid duplicates if service_for === 'All')
-    const remainingMen = men.filter(m => !result.some(r => r.id === m.id));
-    if (remainingMen.length > 0) {
-      result.push(remainingMen[0]);
-    }
-
-    // If we still have fewer than 3, fill from remaining flagged
-    if (result.length < 3) {
-      const remaining = flagged.filter(f => !result.some(r => r.id === f.id));
-      result.push(...remaining.slice(0, 3 - result.length));
-    }
-
-    return result.slice(0, 3);
+    return flagged.slice(0, 3);
   }, [treatments]);
 
   if (bestsellerTreatments.length === 0) return null;
@@ -144,8 +121,8 @@ export function BestsellerSection({
       {/* Section Header */}
       <div className="px-5 pt-6 pb-3">
         <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-3.5 h-3.5 text-gold-400" />
-          <span className="text-[10px] uppercase tracking-[0.2em] text-gold-400 font-semibold">
+          <Sparkles className="w-3.5 h-3.5 text-gold-600" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
             {t('menu.bestsellers')}
           </span>
         </div>
@@ -184,16 +161,12 @@ export function BestsellerSection({
                     <Sparkles className="w-5 h-5 text-gray-200" />
                   </div>
                 )}
-                {/* Gender badge */}
-                <span className="absolute top-1 left-1 text-[7px] uppercase tracking-[0.1em] px-1 py-0.5 bg-white/90 backdrop-blur-sm text-gray-500 font-medium">
-                  {treatment.service_for === 'Male' ? t('menu.forMen') : t('menu.forWomen')}
-                </span>
               </div>
 
               {/* Card body — compact */}
               <div className="p-2">
-                <p className="text-[7px] uppercase tracking-[0.1em] text-gold-400 font-medium mb-0.5">
-                  {t(`menu.categories.${treatment.category}`, treatment.category)}
+                <p className="text-[7px] uppercase tracking-[0.1em] text-gold-600 font-medium mb-0.5">
+                  {treatment.category}
                 </p>
                 <h3 className="font-serif text-[11px] sm:text-xs text-gray-900 font-medium leading-tight mb-1.5 line-clamp-2">
                   {treatment.name}
@@ -218,13 +191,13 @@ export function BestsellerSection({
                       >
                         <Minus className="h-3 w-3" />
                       </Button>
-                      <span className="text-center font-medium text-xs text-gold-400">
+                      <span className="text-center font-medium text-xs text-gold-600">
                         {quantity}
                       </span>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 rounded-none bg-gold-400 text-black hover:bg-gold-300"
+                        className="h-6 w-6 rounded-none bg-gold-400 text-black hover:bg-gold-200"
                         onClick={(e) => {
                           e.stopPropagation();
                           const defaultVariant = getDefaultVariant(treatment);
@@ -241,9 +214,9 @@ export function BestsellerSection({
                         const defaultVariant = getDefaultVariant(treatment);
                         onAddToBasket(treatment, defaultVariant);
                       }}
-                      className="w-full h-6 text-[8px] uppercase tracking-[0.15em] bg-gold-400 text-black hover:bg-gold-300 font-bold border-none"
+                      className="w-full h-5 px-2 text-[8px] uppercase tracking-[0.15em] bg-gold-400 text-black hover:bg-gold-200 font-bold border-none"
                     >
-                      {t('menu.add')}
+                      {t('menu.select')}
                     </Button>
                   )}
                 </div>

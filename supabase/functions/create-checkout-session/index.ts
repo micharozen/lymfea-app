@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     console.log("[CREATE-CHECKOUT] Starting checkout session creation");
 
-    const { bookingData, clientData, treatmentIds, treatments: treatmentsPayload, hotelId, language } = await req.json();
+    const { bookingData, clientData, treatmentIds, treatments: treatmentsPayload, hotelId, language, therapistGender } = await req.json();
 
     // Validate required fields
     if (!bookingData || !clientData || !hotelId) {
@@ -157,6 +157,7 @@ serve(async (req) => {
       _total_price: verifiedTotalPrice,
       _language: language || 'fr',
       _treatment_ids: effectiveTreatmentIds,
+      _therapist_gender: therapistGender || null,
     });
 
     if (rpcError) {

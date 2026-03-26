@@ -19,7 +19,7 @@ export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
-  const { bookingDateTime, clientInfo, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
@@ -111,6 +111,7 @@ export default function Payment() {
               variantId: item.variantId,
             })),
             totalPrice: total,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           },
         });
 
@@ -154,6 +155,7 @@ export default function Payment() {
             })),
             paymentMethod: 'room',
             totalPrice: fixedTotal,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
           },
         });
 
@@ -220,7 +222,7 @@ export default function Payment() {
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
         {/* Page headline */}
         <div className="animate-fade-in">
-          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
+          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
             {t('payment.stepLabel')}
           </h3>
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-gray-900 leading-tight">
@@ -331,7 +333,7 @@ export default function Payment() {
                 <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
               </div>
             ) : (
-              <span className="text-gold-400 text-xl font-serif">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gold-600 text-xl font-serif">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
             )}
           </div>
         </div>
@@ -350,7 +352,7 @@ export default function Payment() {
               className={cn(
                 "w-full p-4 rounded-lg border transition-all duration-200 text-left",
                 selectedMethod === 'card'
-                  ? "border-gold-400 bg-gold-400/10"
+                  ? "border-gold-500 bg-gold-500/10"
                   : "border-gray-200 bg-gray-50 hover:border-gray-300"
               )}
             >
@@ -364,7 +366,7 @@ export default function Payment() {
                 <div>
                   <p className={cn(
                     "font-medium",
-                    selectedMethod === 'card' ? "text-gold-400" : "text-gray-900"
+                    selectedMethod === 'card' ? "text-gold-600" : "text-gray-900"
                   )}>{t('payment.payNow')}</p>
                   <p className="text-sm text-gray-400">{t('payment.payNowDesc')}</p>
                 </div>
@@ -379,7 +381,7 @@ export default function Payment() {
                 className={cn(
                   "w-full p-4 rounded-lg border transition-all duration-200 text-left",
                   selectedMethod === 'room'
-                    ? "border-gold-400 bg-gold-400/10"
+                    ? "border-gold-500 bg-gold-500/10"
                     : "border-gray-200 bg-gray-50 hover:border-gray-300"
                 )}
               >
@@ -393,7 +395,7 @@ export default function Payment() {
                   <div>
                     <p className={cn(
                       "font-medium",
-                      selectedMethod === 'room' ? "text-gold-400" : "text-gray-900"
+                      selectedMethod === 'room' ? "text-gold-600" : "text-gray-900"
                     )}>{venueTerms.addToLocationLabel}</p>
                     <p className="text-sm text-gray-400">{venueTerms.addToLocationDesc}</p>
                   </div>

@@ -58,12 +58,12 @@ export function TherapistGeneralTab({
 
   return (
     <div className="space-y-6">
-      <Card className="border-l-4 border-l-gold-400">
+      <Card className="border-l-4 border-l-gold-500">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <User className="h-4 w-4 text-gold-500" />
+                <User className="h-4 w-4 text-gold-600" />
                 {t("admin:therapists.identity", "Identité")}
               </CardTitle>
               <CardDescription>
@@ -115,7 +115,7 @@ export function TherapistGeneralTab({
             {/* Profile photo */}
             <div className="space-y-1.5 text-center">
               <div
-                className={`relative h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? "cursor-pointer hover:border-gold-400/50" : ""}`}
+                className={`relative h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? "cursor-pointer hover:border-gold-500/50" : ""}`}
                 onClick={!disabled ? triggerFileSelect : undefined}
               >
                 {profileImage ? (
@@ -223,6 +223,40 @@ export function TherapistGeneralTab({
                   )}
                 />
               </div>
+
+              {/* Gender */}
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("admin:therapists.gender", "Genre")}</FormLabel>
+                    <Select
+                      value={field.value || "none"}
+                      onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                      disabled={disabled}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("admin:therapists.genderPlaceholder", "Non renseigné")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          {t("admin:therapists.genderPlaceholder", "Non renseigné")}
+                        </SelectItem>
+                        <SelectItem value="female">
+                          {t("admin:therapists.genderFemale", "Femme")}
+                        </SelectItem>
+                        <SelectItem value="male">
+                          {t("admin:therapists.genderMale", "Homme")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
         </CardContent>

@@ -10,7 +10,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { items, clearBasket } = useBasket();
-  const { clearFlow } = useClientFlow();
+  const { clearFlow, therapistGenderPreference } = useClientFlow();
   const [isCreating, setIsCreating] = useState(false);
 
   const createOffertBooking = useCallback(async (
@@ -42,6 +42,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           })),
           paymentMethod: 'offert',
           totalPrice: 0,
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
         },
       });
 
@@ -82,7 +83,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
     } finally {
       setIsCreating(false);
     }
-  }, [hotelId, items, navigate, clearBasket, clearFlow, t]);
+  }, [hotelId, items, navigate, clearBasket, clearFlow, therapistGenderPreference, t]);
 
   return { createOffertBooking, isCreating };
 }

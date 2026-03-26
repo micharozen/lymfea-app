@@ -47,12 +47,12 @@ export function VariantSelector({
             className={cn(
               "relative flex flex-col items-center px-4 py-2.5 rounded-lg border-2 transition-all duration-200 min-w-[80px]",
               isSelected
-                ? "border-gold-400 bg-gold-50 shadow-sm"
+                ? "border-gold-500 bg-gold-50 shadow-sm"
                 : "border-gray-200 bg-white hover:border-gray-300"
             )}
           >
             {isSelected && (
-              <span className="absolute -top-1.5 -right-1.5 bg-gold-400 rounded-full p-0.5">
+              <span className="absolute -top-1.5 -right-1.5 bg-gold-600 rounded-full p-0.5">
                 <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
               </span>
             )}
@@ -68,7 +68,7 @@ export function VariantSelector({
               <span
                 className={cn(
                   "text-xs mt-0.5",
-                  isSelected ? "text-gold-500" : "text-gray-400"
+                  isSelected ? "text-gold-600" : "text-gray-400"
                 )}
               >
                 {variant.price_on_request

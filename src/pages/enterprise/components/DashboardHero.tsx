@@ -43,7 +43,7 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
                 className="h-8 w-8 sm:h-10 sm:w-10"
               />
             </a>
-            <span className="text-gold-400/60 text-lg sm:text-xl font-light select-none">×</span>
+            <span className="text-gold-600/60 text-lg sm:text-xl font-light select-none">×</span>
             {hotel.image ? (
               <img
                 src={hotel.image}
@@ -56,7 +56,7 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
           </div>
 
           {/* Title */}
-          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
+          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
             {t('enterpriseDashboard.label')}
           </h3>
           <h1

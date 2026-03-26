@@ -16,7 +16,7 @@ export function DashboardFooter() {
           </p>
           <Button
             asChild
-            className="h-12 px-8 text-sm font-medium tracking-wide uppercase bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300"
+            className="h-12 px-8 text-sm font-medium tracking-wide uppercase bg-gold-400 text-black hover:bg-gold-200 transition-all duration-300"
           >
             <a href={`mailto:${brand.legal.contactEmail}`}>
               <Mail className="h-4 w-4 mr-2" />

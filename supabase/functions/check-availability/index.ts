@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender } = await req.json();
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -25,8 +25,8 @@ serve(async (req) => {
 
     const _debug: Record<string, any> = {};
     console.log(`[DEBUG] ====== CHECK-AVAILABILITY START ======`);
-    console.log(`[DEBUG] hotelId: ${hotelId}, date: ${date}, treatmentIds: ${JSON.stringify(treatmentIds)}`);
-    _debug.input = { hotelId, date, treatmentIds };
+    console.log(`[DEBUG] hotelId: ${hotelId}, date: ${date}, treatmentIds: ${JSON.stringify(treatmentIds)}, therapistGender: ${therapistGender}`);
+    _debug.input = { hotelId, date, treatmentIds, therapistGender };
 
     // Check if venue is deployed on this date
     const { data: isVenueAvailable, error: scheduleError } = await supabase
@@ -129,18 +129,25 @@ serve(async (req) => {
     console.log(`[DEBUG] requiredCategories: ${JSON.stringify([...requiredCategories])}`);
     _debug.requiredCategories = [...requiredCategories];
 
-    // Get all active therapists for this hotel
-    const { data: therapists, error: therapistsError } = await supabase
+    // Get all active therapists for this hotel (with optional gender filter)
+    let therapistQuery = supabase
       .from('therapist_venues')
       .select(`
         therapist_id,
         therapists!inner(
           id,
           status,
-          skills
+          skills,
+          gender
         )
       `)
       .eq('hotel_id', hotelId);
+
+    if (therapistGender) {
+      therapistQuery = therapistQuery.eq('therapists.gender', therapistGender);
+    }
+
+    const { data: therapists, error: therapistsError } = await therapistQuery;
 
     console.log(`[DEBUG] therapist_venues raw result: ${JSON.stringify(therapists)}, error: ${JSON.stringify(therapistsError)}`);
     _debug.therapistsRaw = therapists;

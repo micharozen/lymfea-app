@@ -340,7 +340,7 @@ const PwaNewBooking = () => {
   if (initialLoading) {
     return (
       <div className="flex items-center justify-center min-h-[100dvh]">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-gold-600" />
       </div>
     );
   }

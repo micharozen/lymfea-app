@@ -60,7 +60,8 @@
       "Highlights": "Highlights",
       "Treatment": "Treatment",
       "Styling": "Styling"
-    }
+    },
+    "otherCategory": "Other"
   },
   "basket": {
     "title": "Your Basket",
@@ -231,6 +232,12 @@
     "notFound": "Room not found — please fill in your details manually",
     "hint": "Enter your room number to auto-fill your information",
     "optional": "optional"
+  },
+  "therapistGender": {
+    "title": "Therapist preference",
+    "female": "Female",
+    "male": "Male",
+    "noPreference": "No preference"
   },
   "errors": {
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",

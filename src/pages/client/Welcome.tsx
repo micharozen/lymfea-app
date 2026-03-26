@@ -12,7 +12,7 @@ import { VideoDialog } from '@/components/client/VideoDialog';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import welcomeBgHotel from '@/assets/welcome-bg-couple.jpg';
 import welcomeBgCoworking from '@/assets/background-coworking.jpg';
-import { brand, brandLogos } from '@/config/brand';
+import { brand } from '@/config/brand';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useBasket } from './context/CartContext';
@@ -86,14 +86,67 @@ export default function Welcome() {
     gcTime: 15 * 60 * 1000,
   });
 
-  // Group treatments by gender
-  const treatmentsByGender = useMemo(() => ({
-    women: allTreatments.filter(t => t.service_for === 'Female' || t.service_for === 'All'),
-    men: allTreatments.filter(t => t.service_for === 'Male' || t.service_for === 'All'),
-  }), [allTreatments]);
+  const { data: treatmentCategories = [], isLoading: isCategoriesLoading } = useQuery({
+    queryKey: ['treatment-categories', hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('treatment_categories')
+        .select('id, name, sort_order')
+        .eq('hotel_id', hotelId)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!hotelId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
 
-  // Expanded gender section state - default to closed
-  const [expandedGender, setExpandedGender] = useState<'women' | 'men' | null>(null);
+  // Build category sections from admin-defined categories
+  const categorySections = useMemo(() => {
+    const grouped = new Map<string, Treatment[]>();
+    for (const treatment of allTreatments) {
+      const key = treatment.category;
+      const existing = grouped.get(key) || [];
+      grouped.set(key, [...existing, treatment]);
+    }
+
+    if (treatmentCategories.length > 0) {
+      const sections: { id: string; name: string; treatments: Treatment[] }[] = [];
+      const matchedNames = new Set<string>();
+
+      for (const cat of treatmentCategories) {
+        const treatments = grouped.get(cat.name);
+        if (treatments && treatments.length > 0) {
+          sections.push({ id: cat.id, name: cat.name, treatments });
+          matchedNames.add(cat.name);
+        }
+      }
+
+      const unmatched: Treatment[] = [];
+      for (const [categoryName, treatments] of grouped) {
+        if (!matchedNames.has(categoryName)) {
+          unmatched.push(...treatments);
+        }
+      }
+      if (unmatched.length > 0) {
+        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), treatments: unmatched });
+      }
+
+      return sections;
+    }
+
+    const uniqueCategories = [...grouped.keys()].sort();
+    return uniqueCategories.map(name => ({
+      id: name,
+      name,
+      treatments: grouped.get(name) || [],
+    }));
+  }, [allTreatments, treatmentCategories, t]);
+
+  // Expanded category section state
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
   const venueType = hotel?.venue_type as VenueType | null;
   const isHotel = venueType === 'hotel' || (!venueType && !hotel?.venue_type);
@@ -137,37 +190,6 @@ export default function Welcome() {
     }
   }, [hotel?.name, trackPageView]);
 
-  // Define category order priority
-  const categoryOrder = ['Blowout', 'Brushing', 'Haircut', 'Hair cut', 'Coloration', 'Nail', 'Nails'];
-
-  const getCategoriesFromTreatments = (treatments: Treatment[]) => {
-    return [...new Set(treatments.map(t => t.category))].sort((a, b) => {
-      const indexA = categoryOrder.findIndex(c => c.toLowerCase() === a.toLowerCase());
-      const indexB = categoryOrder.findIndex(c => c.toLowerCase() === b.toLowerCase());
-      const orderA = indexA === -1 ? 999 : indexA;
-      const orderB = indexB === -1 ? 999 : indexB;
-      return orderA - orderB;
-    });
-  };
-
-  const categoriesByGender = useMemo(() => ({
-    women: getCategoriesFromTreatments(treatmentsByGender.women),
-    men: getCategoriesFromTreatments(treatmentsByGender.men),
-  }), [treatmentsByGender]);
-
-  const [activeCategoryByGender, setActiveCategoryByGender] = useState<{ women: string; men: string }>({
-    women: '',
-    men: '',
-  });
-
-  useEffect(() => {
-    if (categoriesByGender.women.length > 0 && !activeCategoryByGender.women) {
-      setActiveCategoryByGender(prev => ({ ...prev, women: categoriesByGender.women[0] }));
-    }
-    if (categoriesByGender.men.length > 0 && !activeCategoryByGender.men) {
-      setActiveCategoryByGender(prev => ({ ...prev, men: categoriesByGender.men[0] }));
-    }
-  }, [categoriesByGender.women.length, categoriesByGender.men.length]);
 
   const handleAddToBasket = (treatment: Treatment) => {
     trackAction('add_to_cart', {
@@ -202,7 +224,7 @@ export default function Welcome() {
     }
   }, [bounceKey]);
 
-  const isLoading = isHotelLoading || isTreatmentsLoading;
+  const isLoading = isHotelLoading || isTreatmentsLoading || isCategoriesLoading;
 
   if (isLoading) {
     return <WelcomeSkeleton />;
@@ -238,11 +260,13 @@ export default function Welcome() {
 
         {/* Top Bar */}
         <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 pt-safe pb-4 mt-4">
-          <img
-            src={hotel.image || brandLogos.monogramWhiteClient}
-            alt={hotel.name}
-            className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
-          />
+          {hotel.image && (
+            <img
+              src={hotel.image}
+              alt={hotel.name}
+              className="h-10 w-10 sm:h-12 sm:w-12 object-contain"
+            />
+          )}
           <LanguageSwitcher variant="client" />
         </div>
 
@@ -303,7 +327,7 @@ export default function Welcome() {
     >
       <div className="flex gap-3">
         <div className={cn(
-          "w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-sm overflow-hidden ring-1 group-active:ring-gold-400/50 transition-all",
+          "w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 rounded-sm overflow-hidden ring-1 group-active:ring-gold-500/50 transition-all",
           "bg-gray-100 ring-gray-200"
         )}>
           {treatment.image ? (
@@ -363,7 +387,7 @@ export default function Welcome() {
           {/* Quantity Controls */}
           {getItemQuantity(treatment.id) > 0 ? (
             <div className="flex items-center gap-2 rounded-md p-1 pl-2 border flex-shrink-0 bg-gray-100 border-gray-200">
-              <span className="w-4 text-center font-medium text-sm text-gold-400">
+              <span className="w-4 text-center font-medium text-sm text-gold-600">
                 {getItemQuantity(treatment.id)}
               </span>
               <div className="flex gap-1">
@@ -382,7 +406,7 @@ export default function Welcome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-300"
+                  className="h-10 w-10 sm:h-11 sm:w-11 bg-gold-400 text-black hover:bg-gold-200"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToBasket(treatment);
@@ -398,9 +422,9 @@ export default function Welcome() {
                 e.stopPropagation();
                 handleAddToBasket(treatment);
               }}
-              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-300 transition-all duration-300 font-bold border-none flex-shrink-0"
+              className="px-4 h-10 sm:px-6 sm:h-9 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-200 transition-all duration-300 font-bold border-none flex-shrink-0"
             >
-              {t('menu.add')}
+              {t('menu.select')}
             </Button>
           )}
         </div>
@@ -408,67 +432,32 @@ export default function Welcome() {
     </div>
   );
 
-  // Render a gender section (Women or Men)
-  const renderGenderSection = (
-    gender: 'women' | 'men',
-    label: string,
-    treatments: (Treatment & { service_for?: string })[],
-    categories: string[],
-    reveal?: { ref: React.RefObject<HTMLDivElement>; isVisible: boolean },
-  ) => (
-    <div
-      ref={reveal?.ref}
-      className={cn(
-        "border-b border-gray-200",
-        reveal && "scroll-reveal",
-        reveal?.isVisible && "visible"
-      )}>
+  // Render a category section accordion
+  const renderCategorySection = (section: { id: string; name: string; treatments: Treatment[] }) => (
+    <div key={section.id} className="border-b border-gray-200">
       <button
         type="button"
-        onClick={() => setExpandedGender(g => g === gender ? null : gender)}
+        onClick={() => setExpandedCategory(c => c === section.id ? null : section.id)}
         className="w-full flex items-center justify-between px-5 py-5 transition-all"
       >
         <div className="flex flex-col items-start gap-1">
-          <span className="font-serif text-xl tracking-wide text-gray-900">{label}</span>
-          <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">{treatments.length} {treatments.length === 1 ? t('menu.item') : t('menu.items')}</span>
+          <span className="font-serif text-xl tracking-wide text-gray-900">{section.name}</span>
+          <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">
+            {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+          </span>
         </div>
         <ChevronDown
           className={cn(
-            "w-5 h-5 text-gold-400 transition-transform duration-200",
-            expandedGender === gender && "rotate-180"
+            "w-5 h-5 text-gold-600 transition-transform duration-200",
+            expandedCategory === section.id && "rotate-180"
           )}
         />
       </button>
 
-      {expandedGender === gender && (
+      {expandedCategory === section.id && (
         <div className="animate-fade-in">
-          {/* Category Tabs */}
-          {categories.length > 1 && (
-            <div className="w-full overflow-x-auto scrollbar-hide border-t bg-gray-50 border-gray-100">
-              <div className="flex px-2">
-                {categories.map(category => (
-                  <button
-                    key={category}
-                    onClick={() => setActiveCategoryByGender(prev => ({ ...prev, [gender]: category }))}
-                    className={cn(
-                      "px-4 py-3 text-sm whitespace-nowrap border-b-2 transition-all duration-300",
-                      activeCategoryByGender[gender] === category
-                        ? 'border-gold-400 text-gold-400 font-medium tracking-wide'
-                        : 'border-transparent text-gray-400 hover:text-gray-700 font-light'
-                    )}
-                  >
-                    {t(`menu.categories.${category}`, category)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Treatments List */}
           <div className="divide-y divide-gray-100">
-            {treatments
-              .filter(treatment => treatment.category === activeCategoryByGender[gender])
-              .map(treatment => renderTreatmentCard(treatment))}
+            {section.treatments.map(treatment => renderTreatmentCard(treatment))}
           </div>
         </div>
       )}
@@ -502,12 +491,14 @@ export default function Welcome() {
         {/* Hero Content */}
         <div className="relative z-10 w-full max-w-[92vw] sm:max-w-md md:max-w-xl lg:max-w-2xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10">
           <div className="px-4 sm:px-6 animate-fade-in">
-            <img
-              src={hotel?.image || brandLogos.monogramWhiteClient}
-              alt={hotel?.name || brand.name}
-              className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 object-contain"
-            />
-            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
+            {hotel?.image && (
+              <img
+                src={hotel.image}
+                alt={hotel?.name || brand.name}
+                className="h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 mb-4 sm:mb-6 object-contain"
+              />
+            )}
+            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-4 font-semibold">
               {venueTerms.exclusiveServiceLabel}
             </h3>
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
@@ -531,7 +522,7 @@ export default function Welcome() {
             </p>
             {isEnterprise && nextServiceDate && (
               <div className="mt-4 sm:mt-5 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/10">
-                <CalendarDays className="w-3.5 h-3.5 text-gold-400" />
+                <CalendarDays className="w-3.5 h-3.5 text-gold-600" />
                 <span className="text-xs text-white/80 font-medium">
                   {t('welcome.nextSession')}{' '}
                   <span className="text-gold-300">
@@ -548,17 +539,16 @@ export default function Welcome() {
       {/* Reassurance Banner — commented out: not always accurate (spa rooms vs in-room) */}
       {/* {!isEnterprise && (
         <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
-          <Sparkles className="w-3 h-3 text-gold-400" />
+          <Sparkles className="w-3 h-3 text-gold-600" />
           <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium text-center">
             {venueTerms.disclaimer}
           </p>
         </div>
       )} */}
 
-      {/* Treatments - Gender Sections */}
+      {/* Treatments - Category Sections */}
       <div className="flex-1 w-full max-w-2xl mx-auto">
-        {renderGenderSection('women', t('welcome.womensMenu'), treatmentsByGender.women, categoriesByGender.women)}
-        {renderGenderSection('men', t('welcome.mensMenu'), treatmentsByGender.men, categoriesByGender.men)}
+        {categorySections.map(section => renderCategorySection(section))}
 
         {/* How it works + Equipment */}
         <div className="py-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">

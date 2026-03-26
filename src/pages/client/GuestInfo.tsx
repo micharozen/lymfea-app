@@ -101,7 +101,7 @@ const countries = [
   { code: "+60", label: "Malaysia", flag: "MY" },
 ];
 
-const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-400 focus:ring-gold-400/20";
+const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20";
 const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium";
 
 export default function GuestInfo() {
@@ -256,10 +256,10 @@ export default function GuestInfo() {
               variant="ghost"
               size="icon"
               onClick={() => setIsCartOpen(true)}
-              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
             >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                 {itemCount}
               </span>
             </Button>
@@ -272,7 +272,7 @@ export default function GuestInfo() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
           {/* Page headline */}
           <div className="animate-fade-in">
-            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
+            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
               {t('info.stepLabel')}
             </h3>
             <h2 className="font-serif text-xl sm:text-2xl text-gray-900 leading-tight">
@@ -303,7 +303,7 @@ export default function GuestInfo() {
                             className={inputStyles}
                           />
                           {isLookingUpGuest && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-400" />
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
                           )}
                           {guestData?.found && !isLookingUpGuest && (
                             <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -384,7 +384,7 @@ export default function GuestInfo() {
                 <FormItem>
                   <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
                   <FormControl>
-                    <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-400 focus-within:ring-1 focus-within:ring-gold-400/20">
+                    <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
                       <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
                         <PopoverTrigger asChild>
                           <Button
@@ -422,7 +422,7 @@ export default function GuestInfo() {
                                 }}
                                 className={cn(
                                   "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                  form.watch('countryCode') === country.code && "bg-gold-400/10 text-gold-400"
+                                  form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
                                 )}
                               >
                                 <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
@@ -476,7 +476,7 @@ export default function GuestInfo() {
                           className={inputStyles}
                         />
                         {isLookingUpGuest && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-400" />
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
                         )}
                         {guestData?.found && !isLookingUpGuest && (
                           <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
@@ -500,7 +500,7 @@ export default function GuestInfo() {
                     <Textarea
                       {...field}
                       placeholder={t('info.notePlaceholder')}
-                      className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-400 focus:ring-gold-400/20 resize-none"
+                      className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20 resize-none"
                       rows={3}
                     />
                   </FormControl>
