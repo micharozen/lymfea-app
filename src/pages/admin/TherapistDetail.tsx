@@ -25,6 +25,7 @@ const createFormSchema = (t: TFunction) =>
     country_code: z.string().default("+33"),
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
+    gender: z.enum(["female", "male", ""]).optional().default(""),
     rate_45: z.string().optional(),
     rate_60: z.string().optional(),
     rate_90: z.string().optional(),
@@ -72,6 +73,7 @@ export default function TherapistDetail() {
       country_code: "+33",
       phone: "",
       status: "En attente",
+      gender: "",
     },
   });
 
@@ -100,6 +102,7 @@ export default function TherapistDetail() {
           country_code: therapist.country_code || "+33",
           phone: therapist.phone || "",
           status: therapist.status || "En attente",
+          gender: therapist.gender || "",
           rate_45: therapist.rate_45?.toString() || "",
           rate_60: therapist.rate_60?.toString() || "",
           rate_90: therapist.rate_90?.toString() || "",
@@ -154,6 +157,7 @@ export default function TherapistDetail() {
         country_code: values.country_code,
         phone: values.phone,
         status: values.status,
+        gender: values.gender || null,
         profile_image: profileImage || null,
         skills: selectedSkills,
         trunks: selectedRooms.length > 0 ? selectedRooms.join(", ") : null,

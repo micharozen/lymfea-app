@@ -16,14 +16,23 @@ serve(async (req) => {
   try {
     console.log("[CREATE-CHECKOUT] Starting checkout session creation");
 
-    const { bookingData, clientData, treatmentIds, hotelId, language } = await req.json();
+    const { bookingData, clientData, treatmentIds, treatments: treatmentsPayload, hotelId, language, therapistGender } = await req.json();
 
     // Validate required fields
-    if (!bookingData || !clientData || !treatmentIds || !hotelId) {
+    if (!bookingData || !clientData || !hotelId) {
       throw new Error("Missing required data");
     }
 
-    if (!Array.isArray(treatmentIds) || treatmentIds.length === 0) {
+    // Support both legacy treatmentIds array and new treatments array with variantId
+    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
+    const variantMap: Record<string, string> = {};
+    if (treatmentsPayload) {
+      for (const t of treatmentsPayload) {
+        if (t.variantId) variantMap[t.treatmentId] = t.variantId;
+      }
+    }
+
+    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
       throw new Error("At least one treatment is required");
     }
 
@@ -34,7 +43,7 @@ serve(async (req) => {
 
     console.log("[CREATE-CHECKOUT] Data received:", {
       hotelId,
-      treatmentIds,
+      treatmentIds: effectiveTreatmentIds,
       clientName: `${clientData.firstName} ${clientData.lastName}`
     });
 
@@ -47,7 +56,7 @@ serve(async (req) => {
     const { data: treatments, error: treatmentsError } = await supabase
       .from('treatment_menus')
       .select('id, name, price, hotel_id, status, duration')
-      .in('id', treatmentIds);
+      .in('id', effectiveTreatmentIds);
 
     if (treatmentsError) {
       console.error("[CREATE-CHECKOUT] Treatments fetch error:", treatmentsError);
@@ -147,7 +156,8 @@ serve(async (req) => {
       _payment_status: 'awaiting_payment',
       _total_price: verifiedTotalPrice,
       _language: language || 'fr',
-      _treatment_ids: treatmentIds,
+      _treatment_ids: effectiveTreatmentIds,
+      _therapist_gender: therapistGender || null,
     });
 
     if (rpcError) {
@@ -165,10 +175,14 @@ serve(async (req) => {
     console.log("[CREATE-CHECKOUT] Pre-reservation created:", bookingId);
 
     // Add booking treatments
-    for (const treatmentId of treatmentIds) {
+    for (const treatmentId of effectiveTreatmentIds) {
       const { error: treatmentError } = await supabase
         .from('booking_treatments')
-        .insert({ booking_id: bookingId, treatment_id: treatmentId });
+        .insert({
+          booking_id: bookingId,
+          treatment_id: treatmentId,
+          variant_id: variantMap[treatmentId] || null,
+        });
       if (treatmentError) {
         console.error("[CREATE-CHECKOUT] Treatment insert error:", treatmentError);
       }

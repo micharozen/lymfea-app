@@ -369,18 +369,21 @@ export type Database = {
           created_at: string
           id: string
           treatment_id: string
+          variant_id: string | null
         }
         Insert: {
           booking_id: string
           created_at?: string
           id?: string
           treatment_id: string
+          variant_id?: string | null
         }
         Update: {
           booking_id?: string
           created_at?: string
           id?: string
           treatment_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -395,6 +398,13 @@ export type Database = {
             columns: ["treatment_id"]
             isOneToOne: false
             referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_treatments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -1578,6 +1588,56 @@ export type Database = {
           },
         ]
       }
+      treatment_variants: {
+        Row: {
+          id: string
+          treatment_id: string
+          label: string | null
+          duration: number
+          price: number | null
+          price_on_request: boolean | null
+          sort_order: number | null
+          is_default: boolean | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          treatment_id: string
+          label?: string | null
+          duration: number
+          price?: number | null
+          price_on_request?: boolean | null
+          sort_order?: number | null
+          is_default?: boolean | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          treatment_id?: string
+          label?: string | null
+          duration?: number
+          price?: number | null
+          price_on_request?: boolean | null
+          sort_order?: number | null
+          is_default?: boolean | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "treatment_variants_treatment_id_fkey"
+            columns: ["treatment_id"]
+            isOneToOne: false
+            referencedRelation: "treatment_menus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       treatment_packages: {
         Row: {
           created_at: string
@@ -2036,6 +2096,15 @@ export type Database = {
           price_on_request: boolean
           service_for: string
           sort_order: number
+          variants: {
+            id: string
+            label: string | null
+            duration: number
+            price: number | null
+            price_on_request: boolean
+            is_default: boolean
+            sort_order: number
+          }[]
         }[]
       }
       get_sessions_by_hotel: {

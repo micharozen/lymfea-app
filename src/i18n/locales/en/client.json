@@ -25,6 +25,10 @@
   "menu": {
     "title": "Menu",
     "add": "Add",
+    "select": "Select",
+    "selectDuration": "Select a duration",
+    "addAnother": "Add another treatment",
+    "popular": "Popular",
     "added": "Added",
     "viewBasket": "View Basket",
     "bookTreatment": "Book treatment",
@@ -35,6 +39,7 @@
     "bestsellersSubtitle": "Our most popular treatments",
     "forWomen": "Women",
     "forMen": "Men",
+    "fromPrice": "From",
     "noTreatments": "No treatments available",
     "inRoomDisclaimer": "Service performed in the privacy of your room.",
     "categories": {
@@ -55,7 +60,8 @@
       "Highlights": "Highlights",
       "Treatment": "Treatment",
       "Styling": "Styling"
-    }
+    },
+    "otherCategory": "Other"
   },
   "basket": {
     "title": "Your Basket",
@@ -79,7 +85,9 @@
     "morning": "Morning",
     "afternoon": "Afternoon",
     "evening": "Evening",
-    "available": "available"
+    "available": "available",
+    "slotTakenBanner": "This slot is no longer available",
+    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below."
   },
   "info": {
     "title": "Your Information",
@@ -224,6 +232,12 @@
     "notFound": "Room not found — please fill in your details manually",
     "hint": "Enter your room number to auto-fill your information",
     "optional": "optional"
+  },
+  "therapistGender": {
+    "title": "Therapist preference",
+    "female": "Female",
+    "male": "Male",
+    "noPreference": "No preference"
   },
   "errors": {
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",

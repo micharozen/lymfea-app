@@ -538,7 +538,7 @@ export default function VenueDetail() {
             {stats && (
               <div className="hidden md:flex items-center gap-3 ml-1 pl-3 border-l">
                 <div className="flex items-center gap-1.5">
-                  <Euro className="h-3.5 w-3.5 text-gold-500" />
+                  <Euro className="h-3.5 w-3.5 text-gold-600" />
                   <span className="text-sm font-medium text-gold-600">
                     {formatPrice(stats.totalSales || 0, watchedCurrency || "EUR")}
                   </span>

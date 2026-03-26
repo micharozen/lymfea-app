@@ -392,9 +392,9 @@ All colors MUST be HSL.
   background: linear-gradient(
     110deg,
     transparent 20%,
-    rgba(212, 175, 55, 0.12) 45%,
-    rgba(212, 175, 55, 0.25) 50%,
-    rgba(212, 175, 55, 0.12) 55%,
+    rgba(196, 176, 122, 0.12) 45%,
+    rgba(196, 176, 122, 0.25) 50%,
+    rgba(196, 176, 122, 0.12) 55%,
     transparent 80%
   );
   animation: gold-shimmer 3s ease-in-out infinite;

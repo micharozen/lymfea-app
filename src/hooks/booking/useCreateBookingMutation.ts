@@ -22,6 +22,11 @@ export interface AmenityAccessPayload {
   price: number;
 }
 
+export interface TreatmentPayload {
+  treatmentId: string;
+  variantId?: string;
+}
+
 export interface CreateBookingPayload {
   hotelId: string;
   clientFirstName: string;
@@ -37,6 +42,7 @@ export interface CreateBookingPayload {
   slot3Date: string | null;
   slot3Time: string | null;
   treatmentIds: string[];
+  treatments?: TreatmentPayload[];
   totalPrice: number;
   totalDuration: number;
   isAdmin: boolean;
@@ -133,7 +139,16 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
       if (error) throw error;
 
-      if (d.treatmentIds.length) {
+      if (d.treatments && d.treatments.length > 0) {
+        const { error: te } = await supabase.from("booking_treatments").insert(
+          d.treatments.map((t) => ({
+            booking_id: booking.id,
+            treatment_id: t.treatmentId,
+            variant_id: t.variantId || null,
+          }))
+        );
+        if (te) throw te;
+      } else if (d.treatmentIds.length) {
         const { error: te } = await supabase.from("booking_treatments").insert(
           d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid }))
         );

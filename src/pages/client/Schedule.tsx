@@ -1,9 +1,10 @@
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, Loader2, Calendar, Clock, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { CartDrawer } from '@/components/client/CartDrawer';
+import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from './context/FlowContext';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -23,7 +24,7 @@ export default function Schedule() {
   const navigate = useNavigate();
   const location = useLocation();
   const { items, itemCount } = useBasket();
-  const { setBookingDateTime } = useClientFlow();
+  const { setBookingDateTime, therapistGenderPreference, setTherapistGenderPreference } = useClientFlow();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
@@ -32,11 +33,21 @@ export default function Schedule() {
   const takenDate = (location.state as any)?.takenDate as string | undefined;
   const [selectedDate, setSelectedDate] = useState(takenDate || '');
   const [selectedTime, setSelectedTime] = useState('');
+  const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(
+    !!(location.state as any)?.slotTaken
+  );
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
+
+  // Clear navigation state to avoid re-triggering on re-render
+  useEffect(() => {
+    if ((location.state as any)?.slotTaken) {
+      window.history.replaceState({}, '');
+    }
+  }, []);
 
   // Track page view once
   useEffect(() => {
@@ -176,7 +187,7 @@ export default function Schedule() {
     return slots;
   }, [selectedDate, venueData]);
 
-  // Fetch available slots when date changes
+  // Fetch available slots when date or gender preference changes
   useEffect(() => {
     const fetchAvailability = async () => {
       if (!selectedDate || !hotelId) return;
@@ -185,7 +196,11 @@ export default function Schedule() {
       setNoTherapists(false);
       try {
         const { data, error } = await supabase.functions.invoke('check-availability', {
-          body: { hotelId, date: selectedDate }
+          body: {
+            hotelId,
+            date: selectedDate,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          }
         });
 
         if (error) throw error;
@@ -209,10 +224,11 @@ export default function Schedule() {
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, t]);
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
+    setShowSlotTakenBanner(false);
     trackAction('select_time_slot', { date: selectedDate, time });
   };
 
@@ -261,10 +277,10 @@ export default function Schedule() {
               variant="ghost"
               size="icon"
               onClick={() => setIsCartOpen(true)}
-              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-400 transition-colors"
+              className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
             >
               <ShoppingBag className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
                 {itemCount}
               </span>
             </Button>
@@ -274,9 +290,24 @@ export default function Schedule() {
       </div>
 
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8">
+        {/* Slot taken alert banner */}
+        {showSlotTakenBanner && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg animate-fade-in flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-medium text-red-700 text-sm mb-1">
+                {t('datetime.slotTakenBanner')}
+              </h3>
+              <p className="text-xs text-red-600/70">
+                {t('datetime.slotTakenDesc')}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Page headline */}
         <div className="animate-fade-in">
-          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-3 font-semibold">
+          <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
           <h2 className="font-serif text-xl sm:text-2xl md:text-3xl text-gray-900 leading-tight">
@@ -284,8 +315,16 @@ export default function Schedule() {
           </h2>
         </div>
 
+        {/* Therapist Gender Preference */}
+        <div className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <TherapistGenderSelector
+            value={therapistGenderPreference}
+            onChange={setTherapistGenderPreference}
+          />
+        </div>
+
         {/* Date Selection */}
-        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('checkout.dateTime').split('&')[0].trim()}
           </h4>
@@ -310,7 +349,7 @@ export default function Schedule() {
                     className={cn(
                       "flex-shrink-0 snap-start px-3 py-3 sm:px-5 sm:py-4 rounded-lg border transition-all duration-200 min-w-[70px] sm:min-w-[90px]",
                       selectedDate === value
-                        ? "border-gold-400 bg-gold-400/10"
+                        ? "border-gold-500 bg-gold-500/10"
                         : "border-gray-200 bg-gray-50 hover:border-gray-300"
                     )}
                   >
@@ -323,7 +362,7 @@ export default function Schedule() {
                       <div className={cn(
                         "text-sm whitespace-nowrap",
                         selectedDate === value
-                          ? "text-gold-400 font-medium"
+                          ? "text-gold-600 font-medium"
                           : "text-gray-900 font-light"
                       )}>
                         {isSpecial ? label : fullLabel}
@@ -337,7 +376,7 @@ export default function Schedule() {
         </div>
 
         {/* Time Selection */}
-        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('checkout.dateTime').split('&')[1]?.trim() || 'Time'}
           </h4>

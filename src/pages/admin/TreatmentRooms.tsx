@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,15 +22,12 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Search, Pencil, Trash2, Plus, DoorOpen } from "lucide-react";
-import { AddTreatmentRoomDialog } from "@/components/AddTreatmentRoomDialog";
-import { EditTreatmentRoomDialog } from "@/components/EditTreatmentRoomDialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
 import { SortableTableHead } from "@/components/table/SortableTableHead";
-import { TreatmentRoomDetailDialog } from "@/components/admin/details/TreatmentRoomDetailDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +45,7 @@ import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 
 export default function TreatmentRooms() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [hotelFilter, setHotelFilter] = useState<string>("all");
@@ -55,7 +54,7 @@ export default function TreatmentRooms() {
 
   // Use shared hooks
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
-  const { isAddOpen, openAdd, closeAdd, viewId: viewRoomId, openView, closeView, editId: editRoomId, openEdit, closeEdit, deleteId: deleteRoomId, openDelete, closeDelete } = useDialogState<string>();
+  const { deleteId: deleteRoomId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
   useEffect(() => {
@@ -185,10 +184,6 @@ export default function TreatmentRooms() {
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  // Get viewed/edited room
-  const viewedRoom = viewRoomId ? rooms?.find(r => r.id === viewRoomId) || null : null;
-  const editedRoom = editRoomId ? rooms?.find(r => r.id === editRoomId) || null : null;
-
   const confirmDelete = () => {
     if (deleteRoomId) {
       deleteMutation.mutate(deleteRoomId);
@@ -205,7 +200,7 @@ export default function TreatmentRooms() {
             Salles de soin
           </h1>
           {isAdmin && (
-            <Button onClick={openAdd}>
+            <Button onClick={() => navigate("/admin/treatment-rooms/new")}>
               <Plus className="h-4 w-4 md:mr-2" />
               <span className="hidden md:inline">Ajouter une salle</span>
             </Button>
@@ -283,7 +278,7 @@ export default function TreatmentRooms() {
                   message="Aucune salle de soin trouvee"
                   description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
                   actionLabel={isAdmin ? "Ajouter une salle" : undefined}
-                  onAction={isAdmin ? openAdd : undefined}
+                  onAction={isAdmin ? () => navigate("/admin/treatment-rooms/new") : undefined}
                 />
               ) : (
                 <TableBody>
@@ -291,7 +286,7 @@ export default function TreatmentRooms() {
                     <TableRow
                       key={room.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                      onClick={() => openView(room.id)}
+                      onClick={() => navigate(`/admin/treatment-rooms/${room.id}`)}
                     >
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <div className="flex items-center gap-2 whitespace-nowrap">
@@ -342,7 +337,7 @@ export default function TreatmentRooms() {
                               className="h-6 w-6"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openEdit(room.id);
+                                navigate(`/admin/treatment-rooms/${room.id}`);
                               }}
                             >
                               <Pencil className="h-3 w-3" />
@@ -382,25 +377,6 @@ export default function TreatmentRooms() {
         </div>
       </div>
 
-      <AddTreatmentRoomDialog
-        open={isAddOpen}
-        onOpenChange={(open) => !open && closeAdd()}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
-        }}
-      />
-
-      {editedRoom && (
-        <EditTreatmentRoomDialog
-          open={!!editRoomId}
-          onOpenChange={(open) => !open && closeEdit()}
-          room={editedRoom}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["treatment-rooms"] });
-          }}
-        />
-      )}
-
       <AlertDialog open={!!deleteRoomId} onOpenChange={(open) => !open && closeDelete()}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -422,19 +398,6 @@ export default function TreatmentRooms() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <TreatmentRoomDetailDialog
-        open={!!viewRoomId}
-        onOpenChange={(open) => !open && closeView()}
-        room={viewedRoom}
-        hotel={viewedRoom ? getHotelInfo(viewedRoom.hotel_id) : null}
-        nextBooking={viewedRoom ? getNextBooking(viewedRoom.id) : null}
-        onEdit={() => {
-          if (viewRoomId) {
-            closeView();
-            openEdit(viewRoomId);
-          }
-        }}
-      />
     </div>
   );
 }

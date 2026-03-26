@@ -102,7 +102,9 @@ serve(async (req) => {
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR');
     let notificationBody: string;
 
-    if (proposedSlots) {
+    const hasMultipleSlots = proposedSlots && (proposedSlots.slot_2_date || proposedSlots.slot_3_date);
+
+    if (hasMultipleSlots) {
       notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name}\nCréneau 1: ${formatDate(proposedSlots.slot_1_date)} à ${proposedSlots.slot_1_time}`;
       if (proposedSlots.slot_2_date) {
         notificationBody += `\nCréneau 2: ${formatDate(proposedSlots.slot_2_date)} à ${proposedSlots.slot_2_time}`;
@@ -159,7 +161,7 @@ serve(async (req) => {
             {
               body: {
                 userId: h.user_id,
-                title: proposedSlots ? "📋 Nouveau booking - Choisissez un créneau" : "🎉 Nouvelle réservation !",
+                title: hasMultipleSlots ? "📋 Nouveau booking - Choisissez un créneau" : "🎉 Nouvelle réservation !",
                 body: notificationBody,
                 data: {
                   bookingId: booking.id,

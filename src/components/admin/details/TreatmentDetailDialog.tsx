@@ -1,7 +1,7 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField, DetailGrid, DetailStat } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Euro, Scissors, Building2, Clock } from "lucide-react";
+import { Euro, HandHeart, Building2, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { useTranslation } from "react-i18next";
@@ -119,7 +119,7 @@ export function TreatmentDetailDialog({
       </DetailSection>
 
       {/* Details */}
-      <DetailSection icon={Scissors} title="Details">
+      <DetailSection icon={HandHeart} title="Details">
         <DetailCard>
           <div className="space-y-3">
             <div className="flex items-center gap-4">

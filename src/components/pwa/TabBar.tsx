@@ -25,7 +25,7 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
       <div className="absolute left-1/2 -translate-x-1/2 -top-7 z-10">
         <button
           onClick={() => handleNavigation("/pwa/new-booking")}
-          className="w-14 h-14 rounded-full bg-gold-400 flex items-center justify-center shadow-lg shadow-gold-400/30 active:scale-95 transition-transform"
+          className="w-14 h-14 rounded-full bg-gold-400 flex items-center justify-center shadow-lg shadow-gold-500/30 active:scale-95 transition-transform"
         >
           <Plus className="w-7 h-7 text-black" strokeWidth={2.5} />
         </button>
@@ -39,10 +39,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Home
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-400" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-600" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.home')}
             </span>
           </button>
@@ -52,10 +52,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Wallet
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-400" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-600" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.wallet')}
             </span>
           </button>
@@ -68,10 +68,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Calendar
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-400" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-600" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.agenda')}
             </span>
           </button>
@@ -82,16 +82,16 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           >
             <div className="relative">
               <Bell
-                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-400" : "text-muted-foreground"}`}
+                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-600" : "text-muted-foreground"}`}
                 strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
               />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 bg-gold-400 text-black text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                <span className="absolute -top-1 -right-1.5 bg-gold-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </div>
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-400 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.notifications')}
             </span>
           </button>

@@ -5,26 +5,13 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { MultiSelectPopover } from "@/components/MultiSelectPopover";
 import { toast } from "sonner";
-import { Plus, Trash2, X, Check, ChevronDown, Upload, Loader2, Briefcase } from "lucide-react";
+import { Plus, Trash2, X, Check, Upload, Loader2, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ROOM_CAPABILITIES } from "@/components/admin/treatment-room/TreatmentRoomGeneralTab";
 
-const ROOM_TYPES = [
-  { value: "Massage", label: "Massage" },
-  { value: "Facial", label: "Soin visage" },
-  { value: "Hammam", label: "Hammam" },
-  { value: "Jacuzzi", label: "Jacuzzi" },
-  { value: "Sauna", label: "Sauna" },
-  { value: "Body Wrap", label: "Enveloppement" },
-  { value: "Multi-purpose", label: "Polyvalente" },
-];
+const ROOM_TYPES = ROOM_CAPABILITIES;
 
 const generateRoomNumber = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -44,8 +31,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
-  const [newRoomType, setNewRoomType] = useState("");
-  const [typePopoverOpen, setTypePopoverOpen] = useState(false);
+  const [newRoomCapabilities, setNewRoomCapabilities] = useState<string[]>([]);
   const [selectedAssignIds, setSelectedAssignIds] = useState<string[]>([]);
 
   const {
@@ -150,7 +136,8 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     mutationFn: async () => {
       const { error } = await supabase.from("treatment_rooms").insert({
         name: newRoomName,
-        room_type: newRoomType,
+        room_type: newRoomCapabilities[0] || "Multi-purpose",
+        capabilities: newRoomCapabilities,
         room_number: generateRoomNumber(),
         hotel_id: hotelId,
         hotel_name: hotelName,
@@ -162,7 +149,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     onSuccess: () => {
       invalidateQueries();
       setNewRoomName("");
-      setNewRoomType("");
+      setNewRoomCapabilities([]);
       setNewRoomImage("");
       setShowCreateForm(false);
       toast.success("Salle créée et assignée");
@@ -173,8 +160,8 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
   });
 
   const handleCreate = () => {
-    if (!newRoomName.trim() || !newRoomType) {
-      toast.error("Veuillez remplir le nom et le type de la salle");
+    if (!newRoomName.trim() || newRoomCapabilities.length === 0) {
+      toast.error("Veuillez remplir le nom et sélectionner au moins un type de soin");
       return;
     }
     createMutation.mutate();
@@ -214,7 +201,10 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{room.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {ROOM_TYPES.find((t) => t.value === room.room_type)?.label || room.room_type}
+                    {((room as any).capabilities?.length
+                      ? (room as any).capabilities.map((c: string) => ROOM_TYPES.find((t) => t.value === c)?.label || c).join(", ")
+                      : ROOM_TYPES.find((t) => t.value === room.room_type)?.label || room.room_type
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -315,7 +305,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Nom *</Label>
                 <Input
@@ -326,57 +316,34 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Type *</Label>
-                <Popover open={typePopoverOpen} onOpenChange={setTypePopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-between font-normal h-9 text-sm hover:bg-background hover:text-foreground",
-                        !newRoomType && "text-muted-foreground"
-                      )}
-                    >
-                      <span className="truncate">
-                        {ROOM_TYPES.find((t) => t.value === newRoomType)?.label || "Sélectionner"}
-                      </span>
-                      <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-48 p-0" align="start">
-                    <ScrollArea className="h-48">
-                      <div className="p-1">
-                        {ROOM_TYPES.map((type) => {
-                          const isSelected = newRoomType === type.value;
-                          return (
-                            <button
-                              key={type.value}
-                              type="button"
-                              onClick={() => {
-                                setNewRoomType(type.value);
-                                setTypePopoverOpen(false);
-                              }}
-                              className={cn(
-                                "w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm",
-                                "px-3 py-1.5 text-sm text-popover-foreground transition-colors",
-                                "hover:bg-foreground/5",
-                                isSelected && "font-medium"
-                              )}
-                            >
-                              <span className="min-w-0 truncate text-left">{type.label}</span>
-                              {isSelected ? (
-                                <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
-                                  <Check className="h-3 w-3" strokeWidth={3} />
-                                </span>
-                              ) : (
-                                <span className="h-4 w-4" />
-                              )}
-                            </button>
+                <Label className="text-xs">Soins compatibles *</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {ROOM_TYPES.map((type) => {
+                    const isSelected = newRoomCapabilities.includes(type.value);
+                    return (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => {
+                          setNewRoomCapabilities(prev =>
+                            isSelected
+                              ? prev.filter(c => c !== type.value)
+                              : [...prev, type.value]
                           );
-                        })}
-                      </div>
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs border transition-colors",
+                          isSelected
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background text-foreground border-border hover:bg-muted"
+                        )}
+                      >
+                        {isSelected && <Check className="h-2.5 w-2.5" />}
+                        {type.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -387,7 +354,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 onClick={() => {
                   setShowCreateForm(false);
                   setNewRoomName("");
-                  setNewRoomType("");
+                  setNewRoomCapabilities([]);
                   setNewRoomImage("");
                 }}
               >

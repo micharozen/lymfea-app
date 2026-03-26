@@ -25,6 +25,10 @@
   "menu": {
     "title": "Menu",
     "add": "Ajouter",
+    "select": "Sélectionner",
+    "selectDuration": "Sélectionnez une durée",
+    "addAnother": "Ajouter un autre soin",
+    "popular": "Populaire",
     "added": "Ajouté",
     "viewBasket": "Voir le panier",
     "bookTreatment": "Réserver le soin",
@@ -35,6 +39,7 @@
     "bestsellersSubtitle": "Nos soins les plus populaires",
     "forWomen": "Femmes",
     "forMen": "Hommes",
+    "fromPrice": "À partir de",
     "noTreatments": "Aucun soin disponible",
     "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
     "categories": {
@@ -55,7 +60,8 @@
       "Highlights": "Mèches",
       "Treatment": "Soin",
       "Styling": "Coiffage"
-    }
+    },
+    "otherCategory": "Autres"
   },
   "basket": {
     "title": "Votre Panier",
@@ -79,7 +85,9 @@
     "morning": "Matin",
     "afternoon": "Après-midi",
     "evening": "Soir",
-    "available": "disponibles"
+    "available": "disponibles",
+    "slotTakenBanner": "Ce créneau n'est plus disponible",
+    "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous."
   },
   "info": {
     "title": "Vos Informations",
@@ -224,6 +232,12 @@
     "notFound": "Chambre non trouvée — veuillez remplir vos informations manuellement",
     "hint": "Entrez votre numéro de chambre pour pré-remplir vos informations",
     "optional": "optionnel"
+  },
+  "therapistGender": {
+    "title": "Préférence thérapeute",
+    "female": "Femme",
+    "male": "Homme",
+    "noPreference": "Pas de préférence"
   },
   "errors": {
     "slotTaken": "Ce créneau vient d'être réservé par un autre client. Veuillez choisir un autre horaire.",

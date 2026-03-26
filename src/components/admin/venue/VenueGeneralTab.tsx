@@ -237,12 +237,12 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
-      <Card className="border-l-4 border-l-gold-400">
+      <Card className="border-l-4 border-l-gold-500">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-gold-500" />
+                <Building2 className="h-4 w-4 text-gold-600" />
                 Identité du lieu
               </CardTitle>
               <CardDescription>Photo, nom et type de lieu</CardDescription>
@@ -306,7 +306,7 @@ export function VenueGeneralTab({
               {/* Venue photo */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-400/50' : ''}`}
+                  className={`relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
                   onClick={!disabled ? triggerHotelImageSelect : undefined}
                 >
                   {hotelImage ? (
@@ -335,7 +335,7 @@ export function VenueGeneralTab({
               {/* Cover image */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-400/50' : ''}`}
+                  className={`relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
                   onClick={!disabled ? triggerCoverImageSelect : undefined}
                 >
                   {coverImage ? (

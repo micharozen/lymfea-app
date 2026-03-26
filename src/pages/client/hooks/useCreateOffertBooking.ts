@@ -10,7 +10,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { items, clearBasket } = useBasket();
-  const { clearFlow } = useClientFlow();
+  const { clearFlow, therapistGenderPreference } = useClientFlow();
   const [isCreating, setIsCreating] = useState(false);
 
   const createOffertBooking = useCallback(async (
@@ -36,11 +36,13 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           },
           treatments: items.map(item => ({
             treatmentId: item.id,
+            variantId: item.variantId,
             quantity: item.quantity,
             note: item.note,
           })),
           paymentMethod: 'offert',
           totalPrice: 0,
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
         },
       });
 
@@ -70,7 +72,8 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
         navigate(`/client/${hotelId}/schedule`, {
-          state: { takenDate: bookingDateTime.date, takenTime: bookingDateTime.time },
+          replace: true,
+          state: { slotTaken: true, takenDate: bookingDateTime.date, takenTime: bookingDateTime.time },
         });
         return;
       }
@@ -80,7 +83,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
     } finally {
       setIsCreating(false);
     }
-  }, [hotelId, items, navigate, clearBasket, clearFlow, t]);
+  }, [hotelId, items, navigate, clearBasket, clearFlow, therapistGenderPreference, t]);
 
   return { createOffertBooking, isCreating };
 }
