@@ -57,6 +57,9 @@ const createFormSchema = (t: TFunction) => z.object({
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  name_en: z.string().optional(),
+  landing_subtitle_en: z.string().optional(),
+  description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
@@ -192,6 +195,9 @@ export default function VenueDetail() {
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
+          name_en: (hotel as any).name_en || "",
+          landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
+          description_en: (hotel as any).description_en || "",
           calendar_color: hotel.calendar_color || "#3b82f6",
         });
 
@@ -361,6 +367,18 @@ export default function VenueDetail() {
     // Validate form
     const isValid = await form.trigger();
     if (!isValid) {
+      const errors = form.formState.errors;
+      const missingFields: string[] = [];
+      if (errors.name) missingFields.push("Nom");
+      if (errors.address) missingFields.push("Adresse");
+      if (errors.city) missingFields.push("Ville");
+      if (errors.country) missingFields.push("Pays");
+      if (errors.hotel_commission) missingFields.push("Commission");
+      toast.error(
+        missingFields.length > 0
+          ? `Champs requis manquants : ${missingFields.join(", ")}`
+          : "Veuillez corriger les erreurs du formulaire"
+      );
       setActiveTab("general");
       return;
     }
@@ -400,6 +418,9 @@ export default function VenueDetail() {
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
+        name_en: values.name_en || null,
+        landing_subtitle_en: values.landing_subtitle_en || null,
+        description_en: values.description_en || null,
         calendar_color: values.calendar_color || '#3b82f6',
       };
 

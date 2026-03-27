@@ -17,6 +17,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useBasket } from './context/CartContext';
 import { cn } from '@/lib/utils';
+import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown, CalendarDays } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -31,7 +32,9 @@ const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): 
 interface Treatment {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   price: number | null;
   duration: number | null;
   image: string | null;
@@ -45,6 +48,7 @@ export default function Welcome() {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
+  const localize = useLocalizedField();
   const [videoOpen, setVideoOpen] = useState(false);
   const { items, addItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
 
@@ -91,7 +95,7 @@ export default function Welcome() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('treatment_categories')
-        .select('id, name, sort_order')
+        .select('id, name, name_en, sort_order')
         .eq('hotel_id', hotelId)
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true });
@@ -113,13 +117,13 @@ export default function Welcome() {
     }
 
     if (treatmentCategories.length > 0) {
-      const sections: { id: string; name: string; treatments: Treatment[] }[] = [];
+      const sections: { id: string; name: string; displayName: string; treatments: Treatment[] }[] = [];
       const matchedNames = new Set<string>();
 
       for (const cat of treatmentCategories) {
         const treatments = grouped.get(cat.name);
         if (treatments && treatments.length > 0) {
-          sections.push({ id: cat.id, name: cat.name, treatments });
+          sections.push({ id: cat.id, name: cat.name, displayName: localize(cat.name, (cat as any).name_en), treatments });
           matchedNames.add(cat.name);
         }
       }
@@ -131,7 +135,7 @@ export default function Welcome() {
         }
       }
       if (unmatched.length > 0) {
-        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), treatments: unmatched });
+        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), displayName: t('menu.otherCategory', 'Other'), treatments: unmatched });
       }
 
       return sections;
@@ -141,9 +145,10 @@ export default function Welcome() {
     return uniqueCategories.map(name => ({
       id: name,
       name,
+      displayName: name,
       treatments: grouped.get(name) || [],
     }));
-  }, [allTreatments, treatmentCategories, t]);
+  }, [allTreatments, treatmentCategories, t, localize]);
 
   // Expanded category section state
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -201,7 +206,7 @@ export default function Welcome() {
 
     addItem({
       id: treatment.id,
-      name: treatment.name,
+      name: localize(treatment.name, treatment.name_en),
       price: Number(treatment.price) || 0,
       currency: treatment.currency || 'EUR',
       duration: treatment.duration || 0,
@@ -281,7 +286,7 @@ export default function Welcome() {
               className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide animate-reveal-text"
               style={{ animationDelay: '0.5s' }}
             >
-              {hotel.name}
+              {localize(hotel.name, hotel.name_en)}
             </h1>
             <div
               className="w-12 h-px bg-white/40 mx-auto mt-4 mb-3 animate-expand-line"
@@ -349,11 +354,11 @@ export default function Welcome() {
         <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="font-serif text-sm sm:text-base font-medium leading-tight text-gray-900">
-              {treatment.name}
+              {localize(treatment.name, treatment.name_en)}
             </h3>
-            {treatment.description && (
+            {(treatment.description || treatment.description_en) && (
               <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed font-light mt-0.5">
-                {treatment.description}
+                {localize(treatment.description, treatment.description_en)}
               </p>
             )}
             {isCompanyOffered ? (
@@ -441,7 +446,7 @@ export default function Welcome() {
         className="w-full flex items-center justify-between px-5 py-5 transition-all"
       >
         <div className="flex flex-col items-start gap-1">
-          <span className="font-serif text-xl tracking-wide text-gray-900">{section.name}</span>
+          <span className="font-serif text-xl tracking-wide text-gray-900">{section.displayName}</span>
           <span className="text-[11px] uppercase tracking-[0.15em] text-gray-400">
             {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
           </span>
@@ -504,14 +509,14 @@ export default function Welcome() {
             <h1 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl leading-tight mb-4 text-white">
               {isEnterprise ? (
                 <>
-                  <span className="italic text-gold-200">{hotel?.name}</span>
+                  <span className="italic text-gold-200">{localize(hotel?.name, hotel?.name_en)}</span>
                   <br />
                   {t('welcome.enterpriseWellnessTitle')}
                 </>
               ) : (
                 <>
                   {t('welcome.artOfHairdressing')} <br/>
-                  <span className="italic text-gold-200">{t('welcome.at')} {hotel?.name}</span>
+                  <span className="italic text-gold-200">{t('welcome.at')} {localize(hotel?.name, hotel?.name_en)}</span>
                 </>
               )}
             </h1>

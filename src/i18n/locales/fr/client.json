@@ -32,8 +32,8 @@
     "added": "Ajouté",
     "viewBasket": "Voir le panier",
     "bookTreatment": "Réserver le soin",
-    "item": "article",
-    "items": "articles",
+    "item": "soin",
+    "items": "soins",
     "duration": "{{duration}} min",
     "bestsellers": "Incontournables",
     "bestsellersSubtitle": "Nos soins les plus populaires",
@@ -226,6 +226,11 @@
   "companyOffered": {
     "banner": "Offert par votre entreprise",
     "bannerDesc": "Tous les soins sont pris en charge par votre entreprise."
+  },
+  "checkoutPanel": {
+    "editInfo": "Modifier les informations",
+    "yourAppointment": "Votre rendez-vous",
+    "at": "à"
   },
   "guestLookup": {
     "found": "Informations client trouvées",

@@ -364,48 +364,78 @@ export function VenueGeneralTab({
 
             {/* Basic Info */}
             <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      {venueTypeValue === 'coworking' ? 'Nom du coworking' : venueTypeValue === 'enterprise' ? "Nom de l'entreprise" : "Nom de l'hôtel"}
-                    </FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={disabled} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {venueTypeValue === 'hotel' && (
+              <div className="grid grid-cols-2 gap-4 items-end">
                 <FormField
                   control={form.control}
-                  name="landing_subtitle"
+                  name="name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center gap-1.5">
-                        <Type className="h-3.5 w-3.5 text-muted-foreground" />
-                        Sous-titre landing page
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[260px]">
-                            <p className="text-xs">Texte affiche sous le nom du lieu sur la page d'accueil client. Par defaut : "Beauty Services".</p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        {venueTypeValue === 'coworking' ? 'Nom du coworking' : venueTypeValue === 'enterprise' ? "Nom de l'entreprise" : "Nom de l'hôtel"}
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="Beauty Services" {...field} disabled={disabled} />
+                        <Input {...field} disabled={disabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="name_en"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>🇬🇧 Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="English name" {...field} disabled={disabled} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {venueTypeValue === 'hotel' && (
+                <div className="grid grid-cols-2 gap-4 items-end">
+                  <FormField
+                    control={form.control}
+                    name="landing_subtitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1.5">
+                          <Type className="h-3.5 w-3.5 text-muted-foreground" />
+                          Sous-titre landing page
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[260px]">
+                              <p className="text-xs">Texte affiche sous le nom du lieu sur la page d'accueil client. Par defaut : "Beauty Services".</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="Beauty Services" {...field} disabled={disabled} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="landing_subtitle_en"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>🇬🇧 Subtitle</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Beauty Services" {...field} disabled={disabled} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               )}
             </div>
           </div>

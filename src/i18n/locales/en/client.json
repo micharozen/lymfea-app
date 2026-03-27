@@ -227,6 +227,11 @@
     "banner": "Offered by your company",
     "bannerDesc": "All treatments are covered by your company."
   },
+  "checkoutPanel": {
+    "editInfo": "Edit information",
+    "yourAppointment": "Your appointment",
+    "at": "at"
+  },
   "guestLookup": {
     "found": "Guest information found",
     "notFound": "Room not found — please fill in your details manually",

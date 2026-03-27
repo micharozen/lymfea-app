@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useScrollReveal } from '@/hooks/useScrollReveal';
+import { useLocalizedField } from '@/hooks/useLocalizedField';
 
 interface TreatmentVariantData {
   id: string;
   label: string | null;
+  label_en: string | null;
   duration: number;
   price: number | null;
   price_on_request: boolean;
@@ -20,7 +22,9 @@ interface TreatmentVariantData {
 interface Treatment {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   price: number | null;
   duration: number | null;
   image: string | null;
@@ -49,6 +53,7 @@ export function BestsellerSection({
 }: BestsellerSectionProps) {
   const { t } = useTranslation('client');
   const reveal = useScrollReveal();
+  const localize = useLocalizedField();
 
   const bestsellerTreatments = useMemo(() => {
     const flagged = treatments.filter(t => t.is_bestseller);
@@ -119,36 +124,35 @@ export function BestsellerSection({
       className={cn('scroll-reveal', reveal.isVisible && 'visible')}
     >
       {/* Section Header */}
-      <div className="px-5 pt-6 pb-3">
-        <div className="flex items-center gap-2 mb-1">
+      <div className="px-5 pt-6 pb-3 lg:pt-3 lg:pb-1.5">
+        <div className="flex items-center gap-2 mb-1 lg:mb-0">
           <Sparkles className="w-3.5 h-3.5 text-gold-600" />
           <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
             {t('menu.bestsellers')}
           </span>
         </div>
-        <p className="text-xs text-gray-400 font-light">
+        <p className="text-xs text-gray-400 font-light lg:hidden">
           {t('menu.bestsellersSubtitle')}
         </p>
       </div>
 
-      {/* Cards Grid - 3 columns */}
-      <div className="grid grid-cols-3 gap-2 px-4 pb-5">
+      {/* Mobile: 3-column grid with images | Desktop: horizontal compact row, no images */}
+      <div className="grid grid-cols-3 gap-2 px-4 pb-5 lg:flex lg:gap-3 lg:overflow-x-auto lg:pb-3 lg:scrollbar-hide">
         {bestsellerTreatments.map((treatment, i) => {
           const quantity = getItemQuantity(treatment.id);
 
           return (
             <div
               key={treatment.id}
-              className="bg-gray-50/80 border border-gray-100 rounded-none overflow-hidden animate-slide-up-fade cursor-pointer active:bg-gray-100/80 transition-colors"
+              className="bg-gray-50/80 border border-gray-100 rounded-none overflow-hidden animate-slide-up-fade cursor-pointer active:bg-gray-100/80 transition-colors lg:flex-shrink-0 lg:w-[180px] lg:rounded-lg"
               style={{ animationDelay: `${i * 0.1}s` }}
               onClick={() => {
-                // For bestsellers, always add default variant directly (no expand behavior)
                 const defaultVariant = getDefaultVariant(treatment);
                 onAddToBasket(treatment, defaultVariant);
               }}
             >
-              {/* Image area — compact */}
-              <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden">
+              {/* Image area — hidden on desktop */}
+              <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-50 relative overflow-hidden lg:hidden">
                 {treatment.image ? (
                   <img
                     src={treatment.image}
@@ -163,19 +167,19 @@ export function BestsellerSection({
                 )}
               </div>
 
-              {/* Card body — compact */}
-              <div className="p-2">
+              {/* Card body */}
+              <div className="p-2 lg:p-2.5">
                 <p className="text-[7px] uppercase tracking-[0.1em] text-gold-600 font-medium mb-0.5">
                   {treatment.category}
                 </p>
-                <h3 className="font-serif text-[11px] sm:text-xs text-gray-900 font-medium leading-tight mb-1.5 line-clamp-2">
-                  {treatment.name}
+                <h3 className="font-serif text-[11px] sm:text-xs text-gray-900 font-medium leading-tight mb-1.5 line-clamp-2 lg:line-clamp-1 lg:mb-1">
+                  {localize(treatment.name, treatment.name_en)}
                 </h3>
 
                 {renderBestsellerPrice(treatment)}
 
                 {/* Add button or quantity */}
-                <div className="mt-2">
+                <div className="mt-2 lg:mt-1.5">
                   {quantity > 0 ? (
                     <div className="flex items-center justify-between bg-gray-100 rounded-none p-0.5 border border-gray-200">
                       <Button
@@ -214,7 +218,7 @@ export function BestsellerSection({
                         const defaultVariant = getDefaultVariant(treatment);
                         onAddToBasket(treatment, defaultVariant);
                       }}
-                      className="w-full h-5 px-2 text-[8px] uppercase tracking-[0.15em] bg-gold-400 text-black hover:bg-gold-200 font-bold border-none"
+                      className="w-full h-5 lg:h-6 px-2 text-[8px] sm:text-[10px] lg:text-xs bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk border-none tracking-normal"
                     >
                       {t('menu.select')}
                     </Button>

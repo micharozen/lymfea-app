@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { brand } from '@/config/brand';
 
@@ -25,7 +26,9 @@ function getVenueDefaultLanguage(
 
 export function useVenueDefaultLanguage(hotelId: string | undefined) {
   const { i18n } = useTranslation();
-  const hasApplied = useRef(false);
+  const [searchParams] = useSearchParams();
+  const appliedHotelIdRef = useRef<string | null>(null);
+  const [isLanguageReady, setIsLanguageReady] = useState(false);
 
   const { data: hotel } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -42,27 +45,45 @@ export function useVenueDefaultLanguage(hotelId: string | undefined) {
   });
 
   useEffect(() => {
-    if (!hotelId || !hotel || hasApplied.current) return;
-
-    const storageKey = `${brand.storageKeys.venueLangPrefix}:${hotelId}`;
-    const stored = sessionStorage.getItem(storageKey);
-    const defaultLang = getVenueDefaultLanguage(hotel.venue_type, hotel.country);
-
-    // Skip if already correctly applied in this session.
-    // Old 'true' values (from previous code) are treated as stale → re-detect.
-    if (stored === 'fr' || stored === 'en') {
-      if (i18n.language !== stored) {
-        i18n.changeLanguage(stored);
-      }
-      hasApplied.current = true;
+    if (!hotelId) {
+      appliedHotelIdRef.current = null;
+      setIsLanguageReady(true);
       return;
     }
 
-    if (i18n.language !== defaultLang) {
-      i18n.changeLanguage(defaultLang);
+    if (appliedHotelIdRef.current !== hotelId) {
+      setIsLanguageReady(false);
+    }
+  }, [hotelId]);
+
+  useEffect(() => {
+    if (!hotelId || !hotel) return;
+    if (appliedHotelIdRef.current === hotelId) {
+      setIsLanguageReady(true);
+      return;
     }
 
-    sessionStorage.setItem(storageKey, defaultLang);
-    hasApplied.current = true;
-  }, [hotelId, hotel, i18n]);
+    const storageKey = `${brand.storageKeys.venueLangPrefix}:${hotelId}`;
+    const stored = sessionStorage.getItem(storageKey);
+    const urlLang = searchParams.get('lang');
+    const forcedLang = urlLang === 'fr' || urlLang === 'en' ? urlLang : null;
+    const defaultLang = getVenueDefaultLanguage(hotel.venue_type, hotel.country);
+    const targetLanguage = forcedLang || (stored === 'fr' || stored === 'en' ? stored : defaultLang);
+    const currentLanguage = (i18n.resolvedLanguage || i18n.language || 'en').split('-')[0];
+
+    sessionStorage.setItem(storageKey, targetLanguage);
+
+    if (currentLanguage === targetLanguage) {
+      appliedHotelIdRef.current = hotelId;
+      setIsLanguageReady(true);
+      return;
+    }
+
+    Promise.resolve(i18n.changeLanguage(targetLanguage)).finally(() => {
+      appliedHotelIdRef.current = hotelId;
+      setIsLanguageReady(true);
+    });
+  }, [hotelId, hotel, i18n, searchParams]);
+
+  return { isLanguageReady };
 }

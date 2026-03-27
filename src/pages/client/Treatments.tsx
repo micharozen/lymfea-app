@@ -16,10 +16,14 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { useLocalizedField } from '@/hooks/useLocalizedField';
+import { SchedulePanel } from '@/components/client/SchedulePanel';
 
 interface TreatmentVariantData {
   id: string;
   label: string | null;
+  label_en: string | null;
   duration: number;
   price: number | null;
   price_on_request: boolean;
@@ -30,7 +34,9 @@ interface TreatmentVariantData {
 interface Treatment {
   id: string;
   name: string;
+  name_en: string | null;
   description: string | null;
+  description_en: string | null;
   price: number | null;
   duration: number | null;
   image: string | null;
@@ -48,6 +54,8 @@ export default function Treatments() {
   const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
+  const isDesktop = useIsDesktop();
+  const localize = useLocalizedField();
 
   // On Request drawer state
   const [isOnRequestOpen, setIsOnRequestOpen] = useState(false);
@@ -55,6 +63,9 @@ export default function Treatments() {
 
   // Cart drawer state
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Desktop schedule panel state — explicit open/close (not auto)
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
 
   // Expanded treatment for variant selection (only one at a time)
   const [expandedTreatmentId, setExpandedTreatmentId] = useState<string | null>(null);
@@ -111,7 +122,7 @@ export default function Treatments() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('treatment_categories')
-        .select('id, name, sort_order')
+        .select('id, name, name_en, sort_order')
         .eq('hotel_id', hotelId)
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true });
@@ -134,13 +145,13 @@ export default function Treatments() {
 
     // When admin has defined categories, use them in sort_order
     if (treatmentCategories.length > 0) {
-      const sections: { id: string; name: string; treatments: Treatment[] }[] = [];
+      const sections: { id: string; name: string; displayName: string; treatments: Treatment[] }[] = [];
       const matchedNames = new Set<string>();
 
       for (const cat of treatmentCategories) {
         const treatments = grouped.get(cat.name);
         if (treatments && treatments.length > 0) {
-          sections.push({ id: cat.id, name: cat.name, treatments });
+          sections.push({ id: cat.id, name: cat.name, displayName: localize(cat.name, (cat as any).name_en), treatments });
           matchedNames.add(cat.name);
         }
       }
@@ -153,7 +164,7 @@ export default function Treatments() {
         }
       }
       if (unmatched.length > 0) {
-        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), treatments: unmatched });
+        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), displayName: t('menu.otherCategory', 'Other'), treatments: unmatched });
       }
 
       return sections;
@@ -164,12 +175,27 @@ export default function Treatments() {
     return uniqueCategories.map(name => ({
       id: name,
       name,
+      displayName: name,
       treatments: grouped.get(name) || [],
     }));
-  }, [allTreatments, treatmentCategories, t]);
+  }, [allTreatments, treatmentCategories, t, localize]);
 
   // Expanded category section state
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const handleCategoryToggle = (sectionId: string) => {
+    const isClosing = expandedCategory === sectionId;
+    setExpandedCategory(isClosing ? null : sectionId);
+    if (!isClosing) {
+      requestAnimationFrame(() => {
+        categoryRefs.current[sectionId]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      });
+    }
+  };
 
   // venue_type is now included in the RPC response (get_public_hotel_by_id)
   // No need for a separate query that could fail due to RLS policies
@@ -179,6 +205,20 @@ export default function Treatments() {
   const isCompanyOffered = !!hotel?.company_offered;
   const { trackPageView, trackAction } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
+
+  // Close expanded variants when entering schedule mode
+  useEffect(() => {
+    if (isScheduleOpen) {
+      setExpandedTreatmentId(null);
+    }
+  }, [isScheduleOpen]);
+
+  // Auto-close schedule panel if cart is emptied
+  useEffect(() => {
+    if (itemCount === 0 && isScheduleOpen) {
+      setIsScheduleOpen(false);
+    }
+  }, [itemCount, isScheduleOpen]);
 
   // Track page view once
   useEffect(() => {
@@ -207,8 +247,8 @@ export default function Treatments() {
     addItem({
       id: treatment.id,
       variantId: resolvedVariant?.id,
-      variantLabel: resolvedVariant?.label || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
-      name: treatment.name,
+      variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
+      name: localize(treatment.name, treatment.name_en),
       price: Number(resolvedVariant?.price ?? treatment.price) || 0,
       currency: treatment.currency || 'EUR',
       duration: resolvedVariant?.duration ?? treatment.duration ?? 0,
@@ -411,8 +451,8 @@ export default function Treatments() {
         className={cn(
           "transition-all duration-300 border-none",
           hasMultipleVariants(treatment)
-            ? "px-2 h-7 text-[11px] tracking-wide bg-gold-400 text-black hover:bg-gold-200 font-medium"
-            : "px-3 h-8 sm:px-4 sm:h-8 text-[10px] uppercase tracking-[0.2em] bg-gold-400 text-black hover:bg-gold-200 font-bold"
+            ? "px-2 h-7 text-[11px] sm:text-xs lg:text-sm tracking-wide bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk"
+            : "px-3 h-8 sm:px-4 sm:h-8 text-xs lg:text-sm bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk tracking-normal"
         )}
       >
         {t('menu.select')}
@@ -428,8 +468,8 @@ export default function Treatments() {
       <div
         key={treatment.id}
         className={cn(
-          "p-4 transition-colors group cursor-pointer animate-slide-up-fade",
-          isExpanded ? "bg-gray-50" : "active:bg-black/5"
+          "p-4 transition-colors group cursor-pointer animate-slide-up-fade bg-white",
+          isExpanded ? "lg:bg-gray-50/80 bg-gray-50" : "active:bg-black/5"
         )}
         style={{ animationDelay: `${i * 0.05}s` }}
         onClick={() => {
@@ -450,11 +490,11 @@ export default function Treatments() {
       >
         <div>
           <h3 className="font-serif text-base sm:text-lg text-gray-900 font-medium leading-tight mb-1">
-            {treatment.name}
+            {localize(treatment.name, treatment.name_en)}
           </h3>
-          {treatment.description && (
+          {(treatment.description || treatment.description_en) && (
             <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed font-light">
-              {treatment.description}
+              {localize(treatment.description, treatment.description_en)}
             </p>
           )}
         </div>
@@ -506,11 +546,7 @@ export default function Treatments() {
 
   return (
     <div
-      className={cn(
-        'min-h-screen bg-white flex flex-col text-gray-900',
-        // Add padding for bottom button when items selected
-        itemCount > 0 ? 'pb-20' : ''
-      )}
+      className="min-h-screen bg-white flex flex-col text-gray-900"
     >
       {/* Header Sticky */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
@@ -526,7 +562,7 @@ export default function Treatments() {
             </Button>
 
             <h1 className="font-serif text-base sm:text-lg md:text-xl text-gold-600 tracking-wide text-center flex-1 px-2 leading-tight">
-              {hotel?.name}
+              {localize(hotel?.name, hotel?.name_en)}
             </h1>
 
             {/* Cart icon */}
@@ -587,60 +623,107 @@ export default function Treatments() {
         </div>
       )}
 
-      {/* Sections */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Bestseller Section - only for hotels */}
-        {venueType === 'hotel' && (
-          <BestsellerSection
-            treatments={allTreatments}
-            onAddToBasket={handleAddToBasket}
-            getItemQuantity={getItemQuantity}
-            onUpdateQuantity={updateBasketQuantity}
-            isOffert={isOffert}
-            isCompanyOffered={isCompanyOffered}
-          />
-        )}
+      {/* Main content — split layout on desktop */}
+      <div className="flex-1 flex lg:flex-row overflow-hidden">
+        {/* Left panel — treatments list */}
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          // Bottom padding for the fixed "Book" button
+          !isDesktop && itemCount > 0 ? 'pb-20' : '',
+          isDesktop && itemCount > 0 && !isScheduleOpen ? 'pb-20' : ''
+        )}>
+         <div className={cn(
+           // Read-only when schedule panel is open on desktop
+           isDesktop && isScheduleOpen && "pointer-events-none opacity-50 select-none transition-opacity duration-300"
+         )}>
+          {/* Bestseller Section - only for hotels */}
+          {venueType === 'hotel' && (
+            <BestsellerSection
+              treatments={allTreatments}
+              onAddToBasket={handleAddToBasket}
+              getItemQuantity={getItemQuantity}
+              onUpdateQuantity={updateBasketQuantity}
+              isOffert={isOffert}
+              isCompanyOffered={isCompanyOffered}
+            />
+          )}
 
-        {/* Category Sections */}
-        {categorySections.map((section) => (
-          <div key={section.id} className="border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => setExpandedCategory(c => c === section.id ? null : section.id)}
-              className="w-full flex items-center justify-between px-5 py-5 transition-all"
+          {/* Category Sections */}
+          {categorySections.map((section) => (
+            <div
+              key={section.id}
+              ref={el => { categoryRefs.current[section.id] = el; }}
+              className="border-b border-gray-200"
             >
-              <div className="flex flex-col items-start gap-1">
-                <span className="font-serif text-xl text-gray-900 tracking-wide">
-                  {section.name}
-                </span>
-                <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">
-                  {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
-                </span>
-              </div>
-              <ChevronDown
-                className={cn(
-                  "w-5 h-5 text-gold-600 transition-transform duration-200",
-                  expandedCategory === section.id && "rotate-180"
-                )}
-              />
-            </button>
-
-            {expandedCategory === section.id && (
-              <div className="animate-fade-in">
-                <div className="divide-y divide-gray-100">
-                  {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
+              <button
+                type="button"
+                onClick={() => handleCategoryToggle(section.id)}
+                className="w-full flex items-center justify-between px-5 py-5 transition-all"
+              >
+                <div className="flex flex-col items-start gap-1">
+                  <span className="font-serif text-xl text-gray-900 tracking-wide">
+                    {section.displayName}
+                  </span>
+                  <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">
+                    {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+                  </span>
                 </div>
-              </div>
+                <ChevronDown
+                  className={cn(
+                    "w-5 h-5 text-gold-600 transition-transform duration-200",
+                    expandedCategory === section.id && "rotate-180"
+                  )}
+                />
+              </button>
+
+              {expandedCategory === section.id && (
+                <div className="animate-fade-in">
+                  <div className="divide-y divide-gray-100 lg:grid lg:grid-cols-2 lg:divide-y-0 lg:gap-px lg:bg-gray-100">
+                    {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+         </div>{/* end read-only wrapper */}
+        </div>
+
+        {/* Right panel — schedule (desktop only, explicit open via button) */}
+        {isDesktop && (
+          <div
+            className={cn(
+              "shrink-0 border-l border-gray-200 bg-gray-50/50 transition-all duration-300 ease-in-out",
+              isScheduleOpen
+                ? "w-[480px] opacity-100 overflow-y-auto"
+                : "w-0 opacity-0 overflow-hidden border-l-0"
             )}
+          >
+            {/* Back button — return to treatment selection */}
+            <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsScheduleOpen(false)}
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-200/50 font-grotesk"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t('menu.editTreatments', 'Modifier les soins')}
+              </Button>
+            </div>
+            <SchedulePanel
+              hotelId={hotelId}
+              onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
+              embedded
+            />
           </div>
-        ))}
+        )}
       </div>
 
-      {/* Fixed Bottom Button - Direct to datetime (basket page skipped) */}
-      {itemCount > 0 && (
+      {/* Fixed Bottom Button — desktop: open schedule panel / mobile: navigate to /schedule */}
+      {itemCount > 0 && !isScheduleOpen && (
         <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
           <Button
-            onClick={() => navigate(`/client/${hotelId}/schedule`)}
+            onClick={() => isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${hotelId}/schedule`)}
             className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-200 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
             <HandHeart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
