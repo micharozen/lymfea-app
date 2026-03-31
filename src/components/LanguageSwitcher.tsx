@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Globe } from 'lucide-react';
 import { useLanguagePreference } from '@/hooks/useLanguagePreference';
+import { brand } from '@/config/brand';
 
 interface LanguageSwitcherProps {
   variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client' | 'list';
@@ -33,6 +34,16 @@ export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect
     } else {
       i18n.changeLanguage(langCode);
     }
+
+    // Persist in venue sessionStorage so useVenueDefaultLanguage respects it
+    if (variant === 'client') {
+      const hotelId = window.location.pathname.split('/')[2];
+      if (hotelId) {
+        const storageKey = `${brand.storageKeys.venueLangPrefix}:${hotelId}`;
+        sessionStorage.setItem(storageKey, langCode);
+      }
+    }
+
     onSelect?.();
   };
 
