@@ -7,7 +7,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_signature_token
   ON bookings(signature_token)
   WHERE signature_token IS NOT NULL;
 
--- 3. Fonction (RPC) pour LIRE les infos (Corrigée avec hotel_name !)
+-- 3. Fonction (RPC) pour LIRE les infos (Version complète avec hotel_name)
 CREATE OR REPLACE FUNCTION get_booking_by_signature_token(p_token TEXT)
 RETURNS TABLE (
   id UUID,
@@ -22,6 +22,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   RETURN QUERY
@@ -41,6 +42,7 @@ CREATE OR REPLACE FUNCTION submit_client_signature(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   UPDATE bookings
@@ -53,3 +55,15 @@ BEGIN
   RETURN FOUND;
 END;
 $$;
+
+-- 5. LES PERMISSIONS (Essentiel pour que ça marche sur le vrai site !)
+GRANT EXECUTE ON FUNCTION get_booking_by_signature_token(TEXT) TO anon;
+GRANT EXECUTE ON FUNCTION submit_client_signature(TEXT, TEXT) TO anon;
+
+-- 6. Sécurité RLS (Pour autoriser la lecture par le client)
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read bookings" ON bookings;
+CREATE POLICY "Allow public read bookings" 
+ON bookings FOR SELECT 
+TO anon 
+USING (signature_token IS NOT NULL);

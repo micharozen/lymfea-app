@@ -48,8 +48,9 @@ export default function Signature() {
     }
     
     setLoading(true);
-    // Transforme le dessin en texte Base64
-    const signatureBase64 = sigCanvas.current?.getTrimmedCanvas().toDataURL("image/png");
+    
+    // 🚨 LE CORRECTIF EST ICI : On utilise getCanvas() au lieu de getTrimmedCanvas()
+    const signatureBase64 = sigCanvas.current?.getCanvas().toDataURL("image/png");
     
     const { error: submitError } = await supabase.rpc('submit_client_signature', {
       p_token: bookingId,
@@ -62,7 +63,7 @@ export default function Signature() {
       setLoading(false);
     } else {
       setSuccess(true);
-      setLoading(false); // 🚨 C'EST CETTE LIGNE QUE J'AVAIS OUBLIÉE !
+      setLoading(false); 
     }
   };
 
