@@ -24,7 +24,9 @@ import { TreatmentVariantsTab } from "@/components/admin/treatment/TreatmentVari
 const createFormSchema = (t: TFunction) =>
   z.object({
     name: z.string().min(1, t("errors.validation.nameRequired")),
+    name_en: z.string().optional(),
     description: z.string().optional(),
+    description_en: z.string().optional(),
     lead_time: z.string().default("0"),
     service_for: z.string().min(1, t("errors.validation.serviceForRequired")),
     category: z.string().min(1, t("errors.validation.categoryRequired")),
@@ -37,6 +39,7 @@ const createFormSchema = (t: TFunction) =>
       .array(
         z.object({
           label: z.string().optional(),
+          label_en: z.string().optional(),
           duration: z.string().min(1, "Durée requise"),
           price: z.string().default("0"),
           price_on_request: z.boolean().default(false),
@@ -135,6 +138,7 @@ export default function TreatmentDetail() {
             existingVariants && existingVariants.length > 0
               ? existingVariants.map((v) => ({
                   label: v.label || "",
+                  label_en: (v as any).label_en || "",
                   duration: v.duration?.toString() || "0",
                   price: v.price?.toString() || "0",
                   price_on_request: v.price_on_request || false,
@@ -152,7 +156,9 @@ export default function TreatmentDetail() {
 
           form.reset({
             name: treatment.name || "",
+            name_en: (treatment as any).name_en || "",
             description: treatment.description || "",
+            description_en: (treatment as any).description_en || "",
             lead_time: treatment.lead_time?.toString() || "0",
             service_for: treatment.service_for || "",
             category: treatment.category || "",
@@ -186,6 +192,18 @@ export default function TreatmentDetail() {
   const handleSave = async () => {
     const isValid = await form.trigger();
     if (!isValid) {
+      const errors = form.formState.errors;
+      const missingFields: string[] = [];
+      if (errors.name) missingFields.push("Nom du soin");
+      if (errors.hotel_id) missingFields.push("Hôtel");
+      if (errors.category) missingFields.push("Catégorie");
+      if (errors.service_for) missingFields.push("Service pour");
+      if (errors.variants) missingFields.push("Variantes");
+      toast.error(
+        missingFields.length > 0
+          ? `Champs requis manquants : ${missingFields.join(", ")}`
+          : "Veuillez corriger les erreurs du formulaire"
+      );
       setActiveTab("general");
       return;
     }
@@ -200,7 +218,9 @@ export default function TreatmentDetail() {
 
       const treatmentPayload = {
         name: values.name,
+        name_en: values.name_en || null,
         description: values.description || null,
+        description_en: values.description_en || null,
         duration: parseInt(defaultVariant.duration),
         price: parseFloat(defaultVariant.price),
         lead_time: parseInt(values.lead_time),
@@ -230,6 +250,7 @@ export default function TreatmentDetail() {
         const variantsToInsert = values.variants.map((v, index) => ({
           treatment_id: newTreatment.id,
           label: v.label || `${v.duration} min`,
+          label_en: v.label_en || null,
           duration: parseInt(v.duration),
           price: parseFloat(v.price),
           price_on_request: v.price_on_request,
@@ -269,6 +290,7 @@ export default function TreatmentDetail() {
         const variantsToInsert = values.variants.map((v, index) => ({
           treatment_id: targetId,
           label: v.label || `${v.duration} min`,
+          label_en: v.label_en || null,
           duration: parseInt(v.duration),
           price: parseFloat(v.price),
           price_on_request: v.price_on_request,

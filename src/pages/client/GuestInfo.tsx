@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
@@ -15,11 +15,13 @@ import { useClientFlow } from './context/FlowContext';
 import { useBasket } from './context/CartContext';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 import { CartDrawer } from '@/components/client/CartDrawer';
+import { CheckoutPanel } from '@/components/client/CheckoutPanel';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useVenueTerms, VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { usePmsGuestLookup } from '@/hooks/usePmsGuestLookup';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
 import {
   Form,
   FormControl,
@@ -111,8 +113,10 @@ export default function GuestInfo() {
   const { canProceedToStep, setClientInfo, bookingDateTime } = useClientFlow();
   const { itemCount } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
+  const isDesktop = useIsDesktop();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
 
@@ -146,6 +150,13 @@ export default function GuestInfo() {
       trackPageView('guest_info');
     }
   }, [trackPageView]);
+
+  // Auto-close checkout panel if cart is emptied
+  useEffect(() => {
+    if (itemCount === 0 && isCheckoutOpen) {
+      setIsCheckoutOpen(false);
+    }
+  }, [itemCount, isCheckoutOpen]);
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
@@ -204,12 +215,19 @@ export default function GuestInfo() {
     }
   }, [lookupGuest, form, t]);
 
+  const shouldRedirectToSchedule = !canProceedToStep('info');
+  const hasShownRedirectToast = useRef(false);
+
   useEffect(() => {
-    if (!canProceedToStep('info')) {
+    if (shouldRedirectToSchedule && !hasShownRedirectToast.current) {
+      hasShownRedirectToast.current = true;
       toast.error(t('datetime.selectDate'));
-      navigate(`/client/${hotelId}/schedule`);
     }
-  }, [hotelId, navigate, t, canProceedToStep]);
+  }, [shouldRedirectToSchedule, t]);
+
+  if (shouldRedirectToSchedule) {
+    return <Navigate to={`/client/${hotelId}/schedule`} replace />;
+  }
 
   const onSubmit = async (data: ClientInfoFormData) => {
     setIsSubmitting(true);
@@ -219,10 +237,15 @@ export default function GuestInfo() {
         pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
         pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
       });
-      if ((isOffert || isCompanyOffered) && bookingDateTime) {
-        await createOffertBooking(data, bookingDateTime);
+      if (isDesktop) {
+        setIsCheckoutOpen(true);
       } else {
-        navigate(`/client/${hotelId}/payment`);
+        // Mobile: keep current flow
+        if ((isOffert || isCompanyOffered) && bookingDateTime) {
+          await createOffertBooking(data, bookingDateTime);
+        } else {
+          navigate(`/client/${hotelId}/payment`);
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -236,9 +259,9 @@ export default function GuestInfo() {
   );
 
   return (
-    <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
+    <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-4">
             <Button
@@ -268,267 +291,308 @@ export default function GuestInfo() {
         <ProgressBar currentStep="guest-info" />
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
-          {/* Page headline */}
-          <div className="animate-fade-in">
-            <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
-              {t('info.stepLabel')}
-            </h3>
-            <h2 className="font-serif text-xl sm:text-2xl text-gray-900 leading-tight">
-              {t('info.headline')}
-            </h2>
-          </div>
+      {/* Main content — split layout on desktop */}
+      <div className="flex-1 flex lg:flex-row overflow-hidden">
+        {/* Left panel — guest info form */}
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          isDesktop && isCheckoutOpen && "pointer-events-none opacity-50 select-none transition-opacity duration-300"
+        )}>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
+              {/* Page headline */}
+              <div className="animate-fade-in">
+                <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
+                  {t('info.stepLabel')}
+                </h3>
+                <h2 className="font-serif text-xl sm:text-2xl text-gray-900 leading-tight">
+                  {t('info.headline')}
+                </h2>
+              </div>
 
-          {/* Form fields */}
-          <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            {/* Room number FIRST when PMS guest lookup is enabled */}
-            {!isCoworking && pmsGuestLookupEnabled && (
-              <div>
-                <FormField
-                  control={form.control}
-                  name="roomNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
-                      <FormControl>
-                        <div className="relative">
+              {/* Form fields */}
+              <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                {/* Room number FIRST when PMS guest lookup is enabled */}
+                {!isCoworking && pmsGuestLookupEnabled && (
+                  <div>
+                    <FormField
+                      control={form.control}
+                      name="roomNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                {...field}
+                                onBlur={(e) => {
+                                  field.onBlur();
+                                  handleRoomNumberBlur(e.target.value);
+                                }}
+                                placeholder="102"
+                                className={inputStyles}
+                              />
+                              {isLookingUpGuest && (
+                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
+                              )}
+                              {guestData?.found && !isLookingUpGuest && (
+                                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                              )}
+                            </div>
+                          </FormControl>
+                          <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                          <FormMessage className="text-red-400 text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {/* Name row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className={labelStyles}>{t('info.firstName')}</FormLabel>
+                        <FormControl>
                           <Input
                             {...field}
-                            onBlur={(e) => {
-                              field.onBlur();
-                              handleRoomNumberBlur(e.target.value);
-                            }}
-                            placeholder="102"
+                            placeholder="John"
                             className={inputStyles}
                           />
-                          {isLookingUpGuest && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                          )}
-                          {guestData?.found && !isLookingUpGuest && (
-                            <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                          )}
+                        </FormControl>
+                        <FormMessage className="text-red-400 text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className={labelStyles}>{t('info.lastName')}</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="Doe"
+                            className={inputStyles}
+                          />
+                        </FormControl>
+                        <FormMessage className="text-red-400 text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Email */}
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={labelStyles}>{t('info.email')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="email"
+                          placeholder="john.doe@example.com"
+                          className={inputStyles}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-red-400 text-xs" />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Phone with country selector */}
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
+                      <FormControl>
+                        <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
+                          <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900"
+                                aria-expanded={countryPopoverOpen}
+                              >
+                                <span className="tabular-nums">{form.watch('countryCode')}</span>
+                                <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-gray-400" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              align="start"
+                              className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-gray-200 shadow-lg z-50 bg-white"
+                            >
+                              <div className="p-2 border-b border-gray-200">
+                                <Input
+                                  placeholder="Search..."
+                                  value={countrySearch}
+                                  onChange={(e) => setCountrySearch(e.target.value)}
+                                  className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
+                                />
+                              </div>
+                              <ScrollArea className="h-48 sm:h-40">
+                                {filteredCountries.map((country) => (
+                                  <button
+                                    key={country.code}
+                                    type="button"
+                                    onClick={() => {
+                                      form.setValue('countryCode', country.code);
+                                      setCountryPopoverOpen(false);
+                                      setCountrySearch("");
+                                    }}
+                                    className={cn(
+                                      "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
+                                      form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
+                                    )}
+                                  >
+                                    <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
+                                      {country.flag}
+                                    </span>
+                                    <span className="flex-1 text-left">{country.label}</span>
+                                    <span className="ml-2 shrink-0 tabular-nums text-gray-400">
+                                      {country.code}
+                                    </span>
+                                  </button>
+                                ))}
+                                {filteredCountries.length === 0 && (
+                                  <div className="px-3 py-2 text-sm text-gray-400">
+                                    No results
+                                  </div>
+                                )}
+                              </ScrollArea>
+                            </PopoverContent>
+                          </Popover>
+                          <Input
+                            id="phone"
+                            value={field.value}
+                            onChange={(e) => field.onChange(e.target.value)}
+                            placeholder="612345678"
+                            className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
+                          />
                         </div>
                       </FormControl>
-                      <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                      <FormMessage className="text-red-400 text-xs" />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Room number - classic position when PMS lookup is NOT enabled */}
+                {!isCoworking && !pmsGuestLookupEnabled && (
+                  <FormField
+                    control={form.control}
+                    name="roomNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input
+                              {...field}
+                              onBlur={(e) => {
+                                field.onBlur();
+                                handleRoomNumberBlur(e.target.value);
+                              }}
+                              placeholder="102"
+                              className={inputStyles}
+                            />
+                            {isLookingUpGuest && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
+                            )}
+                            {guestData?.found && !isLookingUpGuest && (
+                              <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-red-400 text-xs" />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {/* Note */}
+                <FormField
+                  control={form.control}
+                  name="note"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={labelStyles}>{t('info.note')}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder={t('info.notePlaceholder')}
+                          className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20 resize-none"
+                          rows={3}
+                        />
+                      </FormControl>
                       <FormMessage className="text-red-400 text-xs" />
                     </FormItem>
                   )}
                 />
               </div>
-            )}
 
-            {/* Name row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className={labelStyles}>{t('info.firstName')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="John"
-                        className={inputStyles}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className={labelStyles}>{t('info.lastName')}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Doe"
-                        className={inputStyles}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
+              {/* Fixed Bottom Button — hide when checkout panel is open on desktop */}
+              {!(isDesktop && isCheckoutOpen) && (
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || isCreating}
+                    className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
+                  >
+                    {(isSubmitting || isCreating) ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {isCreating ? t('payment.processing') : t('common:loading')}
+                      </>
+                    ) : (
+                      t('info.continue')
+                    )}
+                  </Button>
+                </div>
+              )}
+            </form>
+          </Form>
+        </div>
+
+        {/* Right panel — checkout recap (desktop only) */}
+        {isDesktop && (
+          <div
+            className={cn(
+              "shrink-0 border-l border-gray-200 bg-gray-50/50 transition-all duration-300 ease-in-out",
+              isCheckoutOpen
+                ? "w-[480px] opacity-100 overflow-y-auto"
+                : "w-0 opacity-0 overflow-hidden border-l-0"
+            )}
+          >
+            {/* Back button — return to form editing */}
+            <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCheckoutOpen(false)}
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-200/50 font-grotesk"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t('checkoutPanel.editInfo')}
+              </Button>
             </div>
-
-            {/* Email */}
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={labelStyles}>{t('info.email')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="email"
-                      placeholder="john.doe@example.com"
-                      className={inputStyles}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-400 text-xs" />
-                </FormItem>
-              )}
-            />
-
-            {/* Phone with country selector */}
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={labelStyles}>{t('info.phone')}</FormLabel>
-                  <FormControl>
-                    <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50 focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500/20">
-                      <Popover open={countryPopoverOpen} onOpenChange={setCountryPopoverOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-full rounded-none border-r border-gray-200 px-3 font-normal text-sm text-gray-900 hover:bg-gray-100 hover:text-gray-900"
-                            aria-expanded={countryPopoverOpen}
-                          >
-                            <span className="tabular-nums">{form.watch('countryCode')}</span>
-                            <ChevronDown className="ml-1 h-3 w-3 shrink-0 text-gray-400" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="start"
-                          className="w-[calc(100vw-2rem)] sm:w-56 p-0 border border-gray-200 shadow-lg z-50 bg-white"
-                        >
-                          <div className="p-2 border-b border-gray-200">
-                            <Input
-                              placeholder="Search..."
-                              value={countrySearch}
-                              onChange={(e) => setCountrySearch(e.target.value)}
-                              className="h-8 text-sm bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400"
-                            />
-                          </div>
-                          <ScrollArea className="h-48 sm:h-40">
-                            {filteredCountries.map((country) => (
-                              <button
-                                key={country.code}
-                                type="button"
-                                onClick={() => {
-                                  form.setValue('countryCode', country.code);
-                                  setCountryPopoverOpen(false);
-                                  setCountrySearch("");
-                                }}
-                                className={cn(
-                                  "flex w-full items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100",
-                                  form.watch('countryCode') === country.code && "bg-gold-500/10 text-gold-600"
-                                )}
-                              >
-                                <span className="w-8 shrink-0 text-xs text-gray-400 uppercase">
-                                  {country.flag}
-                                </span>
-                                <span className="flex-1 text-left">{country.label}</span>
-                                <span className="ml-2 shrink-0 tabular-nums text-gray-400">
-                                  {country.code}
-                                </span>
-                              </button>
-                            ))}
-                            {filteredCountries.length === 0 && (
-                              <div className="px-3 py-2 text-sm text-gray-400">
-                                No results
-                              </div>
-                            )}
-                          </ScrollArea>
-                        </PopoverContent>
-                      </Popover>
-                      <Input
-                        id="phone"
-                        value={field.value}
-                        onChange={(e) => field.onChange(e.target.value)}
-                        placeholder="612345678"
-                        className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage className="text-red-400 text-xs" />
-                </FormItem>
-              )}
-            />
-
-            {/* Room number - classic position when PMS lookup is NOT enabled */}
-            {!isCoworking && !pmsGuestLookupEnabled && (
-              <FormField
-                control={form.control}
-                name="roomNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          onBlur={(e) => {
-                            field.onBlur();
-                            handleRoomNumberBlur(e.target.value);
-                          }}
-                          placeholder="102"
-                          className={inputStyles}
-                        />
-                        {isLookingUpGuest && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                        )}
-                        {guestData?.found && !isLookingUpGuest && (
-                          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                        )}
-                      </div>
-                    </FormControl>
-                    <FormMessage className="text-red-400 text-xs" />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {/* Note */}
-            <FormField
-              control={form.control}
-              name="note"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className={labelStyles}>{t('info.note')}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder={t('info.notePlaceholder')}
-                      className="bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400 rounded-lg focus:border-gold-500 focus:ring-gold-500/20 resize-none"
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage className="text-red-400 text-xs" />
-                </FormItem>
-              )}
+            <CheckoutPanel
+              hotelId={hotelId!}
+              onBack={() => setIsCheckoutOpen(false)}
+              embedded
             />
           </div>
-
-          {/* Fixed Bottom Button */}
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe">
-            <Button
-              type="submit"
-              disabled={isSubmitting || isCreating}
-              className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
-            >
-              {(isSubmitting || isCreating) ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isCreating ? t('payment.processing') : t('common:loading')}
-                </>
-              ) : (
-                t('info.continue')
-              )}
-            </Button>
-          </div>
-        </form>
-      </Form>
+        )}
+      </div>
 
       {/* Cart Drawer */}
       <CartDrawer open={isCartOpen} onOpenChange={setIsCartOpen} />

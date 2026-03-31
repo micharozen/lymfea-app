@@ -46,7 +46,7 @@ export default function Checkout() {
       // Determine max days based on schedule
       const isRecurring = hotel?.schedule_type === 'specific_days';
       const daysPerWeek = hotel?.days_of_week?.length ?? 7;
-      const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 14;
+      const maxDaysAhead = (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const openingHour = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10)
@@ -62,7 +62,7 @@ export default function Checkout() {
     staleTime: 30 * 60 * 1000,
   });
 
-  const maxDaysAhead = venueData?.maxDaysAhead ?? 14;
+  const maxDaysAhead = venueData?.maxDaysAhead ?? 90;
   const isCoworking = venueData?.venueType === 'coworking';
 
   const countryCodes = [

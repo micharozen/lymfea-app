@@ -63,6 +63,9 @@ const createFormSchema = (t: TFunction) => z.object({
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  name_en: z.string().optional(),
+  landing_subtitle_en: z.string().optional(),
+  description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
