@@ -1,0 +1,1 @@
+SELECT * FROM get_booking_by_signature_token('403a08af3e0dd23544856c7abc0898e928a1ecab5b841101a64decf0c0600779');

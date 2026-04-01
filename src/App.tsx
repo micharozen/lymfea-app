@@ -248,7 +248,7 @@ const App = () => {
             <Route path="/quote-response" element={<QuoteResponse />} />
 
             {/* Signature Page (Public) - Ticket S1-04 */}
-            <Route path="/sign/:bookingId" element={<Signature />} />
+<Route path="/sign/:token" element={<Signature />} />
             
             {/* Auth Routes */}
             <Route path="/auth" element={<Login />} />
