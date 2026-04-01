@@ -21,7 +21,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import {
   User, Phone, Mail, DoorOpen, Calendar, Clock, Building2, HandHeart, CreditCard,
-  Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, Copy // <- Nouveaux imports S1-04
+  Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, ExternalLink // <- Ajout de ExternalLink
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
@@ -152,6 +152,7 @@ export function BookingDetailDialog({
                     </p>
                   )}
                 </div>
+                {/* NOUVEAU BOUTON D'OUVERTURE DE LIEN */}
                 {(booking as any).signature_token && (
                   <Button
                     variant="outline"
@@ -159,15 +160,11 @@ export function BookingDetailDialog({
                     className="shrink-0"
                     onClick={() => {
                       const url = `${window.location.origin}/sign/${(booking as any).signature_token}`;
-                      navigator.clipboard.writeText(url);
-                      toast({ 
-                        title: "Lien copié !", 
-                        description: "Le lien de signature est copié dans le presse-papier." 
-                      });
+                      window.open(url, '_blank', 'noopener,noreferrer');
                     }}
                   >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copier le lien
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Ouvrir le formulaire
                   </Button>
                 )}
               </div>

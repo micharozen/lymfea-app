@@ -165,14 +165,19 @@ export default function Signature() {
   }
 
   // --- ÉCRAN : SUCCÈS APRÈS SIGNATURE ---
+  // --- ÉCRAN : SUCCÈS APRÈS SIGNATURE ---
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-[#F3F4F6] py-20 px-4 flex justify-center items-center font-sans text-gray-900">
-        <div className="w-full max-w-lg bg-white shadow-xl border border-gray-200 p-12 text-center">
-          <Check className="w-12 h-12 text-green-600 mx-auto mb-6" />
-          <h1 className="text-2xl font-serif tracking-widest uppercase mb-4 text-[#1a1a1a]">Merci</h1>
-          <div className="w-12 h-[1px] bg-gray-300 mx-auto mb-6"></div>
-          <p className="text-gray-500 uppercase tracking-widest text-sm leading-relaxed">Votre formulaire de consentement a bien été enregistré. Nous vous souhaitons un excellent soin.</p>
+        <div className="w-full max-w-lg bg-white shadow-xl border border-gray-200 p-12 sm:p-16 text-center">
+          <h2 className="text-xs tracking-[0.3em] text-gray-400 uppercase mb-6">Spa Hana by Lymfea</h2>
+          <h1 className="text-2xl sm:text-3xl font-serif tracking-widest uppercase mb-6 text-[#1a1a1a]">Votre expérience <br/> commence</h1>
+          <div className="w-12 h-[1px] bg-black mx-auto mb-8"></div>
+          <p className="text-gray-600 uppercase tracking-[0.15em] text-[11px] leading-loose">
+            Nous vous remercions pour votre confiance. Votre profil a bien été transmis à votre praticien(ne).
+            <br/><br/>
+            Il ne vous reste plus qu'à lâcher prise et profiter pleinement de votre instant de bien-être.
+          </p>
         </div>
       </div>
     );
