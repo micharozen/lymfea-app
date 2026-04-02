@@ -356,189 +356,256 @@ const Auth = () => {
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
-        {/* Logo */}
-        <div className="flex justify-center">
-          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
-        </div>
+    <div className="min-h-screen flex">
+      {/* Left Panel — Form */}
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 bg-white">
+        <div className="w-full max-w-md mx-auto">
+          {/* Logo */}
+          <div className="mb-12">
+            <img src={brandLogos.primary} alt={brand.name} className="h-10 w-auto" />
+          </div>
 
-        {/* Title */}
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground">Connexion avec {brand.name}</h1>
-          <p className="text-muted-foreground">Entrez votre numéro de téléphone ou email</p>
-        </div>
+          {/* Title */}
+          <div className="mb-10">
+            <h1 className="text-3xl font-kormelink text-gray-900 mb-2">Bienvenue</h1>
+            <p className="text-gray-500 text-base">
+              Connectez-vous pour accéder à votre espace
+            </p>
+          </div>
 
-        {/* Tabs */}
-        <div className="flex justify-center gap-8 border-b border-border">
-          <button
-            onClick={() => handleTabChange("phone")}
-            className={`pb-3 text-sm font-medium transition-colors ${
-              loginMethod === "phone"
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground"
-            }`}
-            disabled={isLoading}
-          >
-            Numéro de téléphone
-          </button>
-          <button
-            onClick={() => handleTabChange("email")}
-            className={`pb-3 text-sm font-medium transition-colors ${
-              loginMethod === "email"
-                ? "text-foreground border-b-2 border-foreground"
-                : "text-muted-foreground"
-            }`}
-            disabled={isLoading}
-          >
-            Email
-          </button>
-        </div>
-
-        {/* Dev Quick Login - only renders in local dev */}
-        <DevLoginPanel />
-
-        {/* Content based on step */}
-        {step === "email" && (
-          <div className="space-y-6">
-            <Input
-              type={loginMethod === "email" ? "email" : "tel"}
-              placeholder={loginMethod === "email" ? "yourname@mail.com" : "+33 6 12 34 56 78"}
-              value={emailOrPhone}
-              onChange={(e) => setEmailOrPhone(e.target.value)}
+          {/* Tabs */}
+          <div className="flex gap-6 mb-8">
+            <button
+              onClick={() => handleTabChange("email")}
+              className={`pb-2.5 text-sm font-medium tracking-wide uppercase transition-all ${
+                loginMethod === "email"
+                  ? "text-gray-900 border-b-2 border-gray-900"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
               disabled={isLoading}
-              className="w-full h-12 text-base"
-              onKeyDown={(e) => e.key === "Enter" && handleNext()}
-            />
-
-            <Button
-              onClick={handleNext}
-              disabled={isLoading}
-              className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
             >
-              {isLoading ? "Chargement..." : "Suivant"}
-              {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            </Button>
+              Email
+            </button>
+            <button
+              onClick={() => handleTabChange("phone")}
+              className={`pb-2.5 text-sm font-medium tracking-wide uppercase transition-all ${
+                loginMethod === "phone"
+                  ? "text-gray-900 border-b-2 border-gray-900"
+                  : "text-gray-400 hover:text-gray-600"
+              }`}
+              disabled={isLoading}
+            >
+              Telephone
+            </button>
           </div>
-        )}
 
-        {step === "signup" && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Créer un compte pour <span className="font-medium text-foreground">{emailOrPhone}</span>
-              </p>
-              <Input
-                type="password"
-                placeholder="Créer un mot de passe (min. 6 caractères)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                className="w-full h-12 text-base"
-                onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-                autoFocus
-              />
-            </div>
+          {/* Dev Quick Login - only renders in local dev */}
+          <DevLoginPanel />
 
-            <div className="flex gap-3">
+          {/* Content based on step */}
+          {step === "email" && (
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {loginMethod === "email" ? "Adresse email" : "Numero de telephone"}
+                </label>
+                <Input
+                  type={loginMethod === "email" ? "email" : "tel"}
+                  placeholder={loginMethod === "email" ? "vous@exemple.com" : "+33 6 12 34 56 78"}
+                  value={emailOrPhone}
+                  onChange={(e) => setEmailOrPhone(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  onKeyDown={(e) => e.key === "Enter" && handleNext()}
+                />
+              </div>
+
               <Button
-                onClick={handleBack}
+                onClick={handleNext}
                 disabled={isLoading}
-                variant="outline"
-                className="flex-1 h-14 text-base font-medium rounded-xl"
+                className="w-full h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
               >
-                Retour
-              </Button>
-              <Button
-                onClick={handleSignup}
-                disabled={isLoading}
-                className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
-              >
-                {isLoading ? "Création..." : "Créer le compte"}
+                {isLoading ? "Chargement..." : "Continuer"}
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
               </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === "password" && (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Connexion en tant que <span className="font-medium text-foreground">{emailOrPhone}</span>
-              </p>
-              <Input
-                type="password"
-                placeholder="Mot de passe"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                className="w-full h-12 text-base"
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                autoFocus
-              />
-              <Link
-                to="/forgot-password"
-                className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Mot de passe oublié ?
-              </Link>
-            </div>
-
-            <div className="flex gap-3">
-              <Button
-                onClick={handleBack}
-                disabled={isLoading}
-                variant="outline"
-                className="flex-1 h-14 text-base font-medium rounded-xl"
-              >
-                Retour
-              </Button>
-              <Button
-                onClick={handleLogin}
-                disabled={isLoading}
-                className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
-              >
-                {isLoading ? "Connexion..." : "Connexion"}
-                {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === "not-found" && (
-          <div className="space-y-6">
-            <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
-              <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-              <div className="space-y-1 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  Accès non autorisé
+          {step === "signup" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Creer un compte pour <span className="font-medium text-gray-900">{emailOrPhone}</span>
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Aucun compte trouvé avec {emailOrPhone}. Veuillez contacter un administrateur pour obtenir l'accès.
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Mot de passe
+                </label>
+                <Input
+                  type="password"
+                  placeholder="Min. 6 caracteres"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  onKeyDown={(e) => e.key === "Enter" && handleSignup()}
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                >
+                  Retour
+                </Button>
+                <Button
+                  onClick={handleSignup}
+                  disabled={isLoading}
+                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Creation..." : "Creer le compte"}
+                  {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                </Button>
               </div>
             </div>
+          )}
 
-            <div className="flex gap-3">
-              <Button
-                onClick={handleBack}
-                disabled={isLoading}
-                variant="outline"
-                className="flex-1 h-14 text-base font-medium rounded-xl"
-              >
-                Retour
-              </Button>
-              <Button
-                onClick={handleContactAdmin}
-                disabled={isLoading}
-                className="flex-1 h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
-              >
-                {isLoading ? "Envoi..." : "Contacter l'admin"}
-              </Button>
+          {step === "password" && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Connexion en tant que <span className="font-medium text-gray-900">{emailOrPhone}</span>
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Mot de passe
+                </label>
+                <Input
+                  type="password"
+                  placeholder="Votre mot de passe"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                  autoFocus
+                />
+                <Link
+                  to="/forgot-password"
+                  className="inline-block mt-2 text-sm text-gray-400 hover:text-gray-900 transition-colors"
+                >
+                  Mot de passe oublie ?
+                </Link>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                >
+                  Retour
+                </Button>
+                <Button
+                  onClick={handleLogin}
+                  disabled={isLoading}
+                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Connexion..." : "Se connecter"}
+                  {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {step === "not-found" && (
+            <div className="space-y-5">
+              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1 flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    Acces non autorise
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Aucun compte trouve avec {emailOrPhone}. Contactez un administrateur.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleBack}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                >
+                  Retour
+                </Button>
+                <Button
+                  onClick={handleContactAdmin}
+                  disabled={isLoading}
+                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Envoi..." : "Contacter l'admin"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <p className="mt-12 text-xs text-gray-400 text-center">
+            &copy; {new Date().getFullYear()} Lymfea SAS. Tous droits reserves.
+          </p>
+        </div>
+      </div>
+
+      {/* Right Panel — Decorative */}
+      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+        {/* Warm gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600" />
+
+        {/* Decorative wave layers */}
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 800 1000"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0,300 C150,250 350,400 500,350 C650,300 750,200 800,250 L800,1000 L0,1000 Z"
+            fill="rgba(255,255,255,0.08)"
+          />
+          <path
+            d="M0,500 C200,450 300,550 500,500 C700,450 750,400 800,450 L800,1000 L0,1000 Z"
+            fill="rgba(255,255,255,0.06)"
+          />
+          <path
+            d="M0,700 C100,680 300,750 500,700 C700,650 780,680 800,700 L800,1000 L0,1000 Z"
+            fill="rgba(255,255,255,0.04)"
+          />
+        </svg>
+
+        {/* Decorative circles */}
+        <div className="absolute top-20 right-20 w-64 h-64 rounded-full bg-white/10 blur-sm" />
+        <div className="absolute bottom-32 left-16 w-40 h-40 rounded-full bg-white/5" />
+
+        {/* Brand content */}
+        <div className="relative z-10 flex flex-col justify-center items-start px-16 py-20">
+          <img
+            src={brandLogos.monogramWhite}
+            alt=""
+            className="w-16 h-16 mb-8 opacity-80"
+          />
+          <h2 className="text-white text-4xl font-kormelink leading-tight mb-4 max-w-sm">
+            L'excellence du bien-etre, simplifiee
+          </h2>
+          <p className="text-white/70 text-lg max-w-sm leading-relaxed">
+            Gerez vos reservations, vos equipes et votre activite en toute serenite.
+          </p>
+        </div>
       </div>
     </div>
   );

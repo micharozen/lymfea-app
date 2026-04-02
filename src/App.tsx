@@ -11,7 +11,7 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
-import { brand } from "@/config/brand";
+import { brand, brandLogos } from "@/config/brand";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
@@ -124,9 +124,9 @@ const PageLoader = () => (
 const ClientPageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-white">
     <img
-      src={brand.logos.emailLogoWhite}
+      src={brandLogos.primary}
       alt={brand.name}
-      className="h-16 animate-pulse"
+      className="h-12 animate-pulse"
     />
   </div>
 );
