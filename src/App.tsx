@@ -11,7 +11,7 @@ import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { brand } from "@/config/brand";
-
+import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
 import { CartProvider } from "./pages/client/context/CartContext";
@@ -78,6 +78,7 @@ const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
+
 
 // Admin PWA Layout & Pages
 const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
@@ -397,6 +398,7 @@ const App = () => {
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
                               <Route path="/bookings" element={<Bookings />} />
+                              <Route path="/bookings/:id" element={<BookingDetail />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />
                               <Route path="/therapists/:id" element={<TherapistDetail />} />

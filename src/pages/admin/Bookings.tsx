@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -33,6 +34,7 @@ import {
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
+  const navigate = useNavigate();
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
@@ -174,8 +176,8 @@ export default function Booking() {
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
     if (booking) {
-      setViewedBooking(booking);
-      setIsDetailDialogOpen(true);
+      // Navigation vers la nouvelle page détaillée au lieu d'ouvrir la modale
+      navigate(`/admin/bookings/${booking.id}`);
     }
   };
 
