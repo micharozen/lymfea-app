@@ -607,7 +607,7 @@ function BookingCard({
     : (booking.treatmentsTotalPrice || 0);
 
   const therapistInitials = getTherapistInitials(booking.therapist_name);
-  const hasTherapist = !!booking.therapist_id;
+  const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
 
   const column = layoutInfo?.column ?? 0;
   const totalColumns = layoutInfo?.totalColumns ?? 1;
@@ -659,18 +659,22 @@ function BookingCard({
                     <ExternalLink className="h-2.5 w-2.5" />
                   </button>
                 )}
-                {/* Therapist initials badge */}
-                <div
-                  className={cn(
-                    "w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold flex-shrink-0",
-                    hasTherapist
-                      ? "bg-foreground/10 text-foreground/70"
-                      : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-                  )}
-                  title={booking.therapist_name || "Aucun thérapeute assigné"}
-                >
-                  {therapistInitials}
-                </div>
+                {/* Therapist badge OR "À assigner" alert */}
+                {hasTherapist ? (
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
+                    title={booking.therapist_name || ""}
+                  >
+                    {therapistInitials}
+                  </div>
+                ) : (
+                  <div
+                    className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
+                    title="Aucun thérapeute assigné"
+                  >
+                    À ASSIGNER
+                  </div>
+                )}
               </div>
             </div>
             {/* Client name (if card is tall enough) */}
