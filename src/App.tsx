@@ -1,3 +1,4 @@
+import Signature from "./pages/client/Signature";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -245,6 +246,9 @@ const App = () => {
             
             {/* Quote Response Page (Public) */}
             <Route path="/quote-response" element={<QuoteResponse />} />
+
+            {/* Signature Page (Public) - Ticket S1-04 */}
+<Route path="/sign/:token" element={<Signature />} />
             
             {/* Auth Routes */}
             <Route path="/auth" element={<Login />} />

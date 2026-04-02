@@ -1,0 +1,1 @@
+SHOW app.settings.jwt_secret;
