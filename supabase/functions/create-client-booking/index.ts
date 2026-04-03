@@ -82,7 +82,18 @@ serve(async (req) => {
     );
 
     // Parse and validate request body
-    const rawBody = await req.json();
+    let rawBody;
+try {
+  const textBody = await req.text();
+  if (!textBody) throw new Error("Body vide");
+  rawBody = JSON.parse(textBody);
+} catch (err) {
+  console.error('Erreur de parsing JSON:', err);
+  return new Response(
+    JSON.stringify({ success: false, error: 'Requête invalide ou vide envoyée par le site.' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+  );
+}
 
     const validationResult = requestSchema.safeParse(rawBody);
     if (!validationResult.success) {
