@@ -1,3 +1,4 @@
+import Signature from "./pages/client/Signature";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,7 +11,7 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
-import { brand } from "@/config/brand";
+import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
@@ -124,9 +125,9 @@ const PageLoader = () => (
 const ClientPageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-white">
     <img
-      src={brand.logos.emailLogoWhite}
+      src={brandLogos.primary}
       alt={brand.name}
-      className="h-16 animate-pulse"
+      className="h-12 animate-pulse"
     />
   </div>
 );
@@ -246,6 +247,9 @@ const App = () => {
             
             {/* Quote Response Page (Public) */}
             <Route path="/quote-response" element={<QuoteResponse />} />
+
+            {/* Signature Page (Public) - Ticket S1-04 */}
+<Route path="/sign/:token" element={<Signature />} />
             
             {/* Auth Routes */}
             <Route path="/auth" element={<Login />} />
