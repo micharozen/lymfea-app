@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+// AJOUT de useSearchParams pour lire l'URL
+import { useSearchParams } from "react-router-dom"; 
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -36,6 +38,9 @@ export default function Booking() {
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
+  
+  // AJOUT : Récupération des paramètres de recherche de l'URL
+  const [searchParams] = useSearchParams();
 
   // Data
   const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
@@ -49,6 +54,23 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // --- LOGIQUE D'OUVERTURE AUTOMATIQUE (CORRECTION TICKET) ---
+  useEffect(() => {
+    const bookingId = searchParams.get("id");
+    if (bookingId && bookings.length > 0) {
+      // On cherche la réservation par son ID (UUID) ou son ID court (numérique)
+      const target = bookings.find(
+        (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
+      );
+      
+      if (target) {
+        setViewedBooking(target);
+        setIsDetailDialogOpen(true);
+      }
+    }
+  }, [searchParams, bookings]); // Se déclenche quand l'URL change ou quand les données arrivent
+  // -----------------------------------------------------------
 
   // Day count with localStorage persistence
   const [dayCount, setDayCount] = useState<number>(() => {
@@ -83,7 +105,7 @@ export default function Booking() {
     filteredBookings,
   } = useBookingFilters(bookings);
 
-  // Amenity data (only fetch when a specific venue is filtered)
+  // Amenity data
   const hasVenueFilter = hotelFilter && hotelFilter !== "all";
   const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
   const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
@@ -269,7 +291,6 @@ export default function Booking() {
       {/* Content */}
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
         <div className="bg-card rounded-lg border border-border h-full flex flex-row overflow-hidden">
-          {/* Calendar sidebar — desktop, only when venue filtered with amenities */}
           {showSidebar && (
             <CalendarSidebarDesktop
               entries={calendarEntries}
