@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Calendar, Users, UserRound, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   CommandDialog,
   CommandEmpty,
@@ -10,24 +11,31 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
 import { useBookingData } from "@/hooks/booking";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
 
+// Hook personnalisé pour le Debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
+  const debouncedSearch = useDebounce(search, 300);
   const navigate = useNavigate();
-  const { isAdmin, userVenueIds } = useUserContext();
-
-  // 1. Récupération des données (bookings via hook, le reste via fetch)
+  const { isAdmin, userVenueIds } = useUserContext() as any;
   const { bookings = [] } = useBookingData();
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [therapists, setTherapists] = useState<any[]>([]);
 
+  // Raccourci clavier Cmd+K ou Ctrl+K
   useEffect(() => {
-    // Raccourci clavier Cmd+K ou Ctrl+K
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -38,37 +46,56 @@ export function GlobalSearch() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
-  // Chargement des données à l'ouverture
+  // Réinitialise la recherche à la fermeture
   useEffect(() => {
-    if (open) {
-      fetchData();
-    } else {
-      setSearch(""); // Réinitialise la recherche à la fermeture
-    }
+    if (!open) setSearch("");
   }, [open]);
 
-  const fetchData = async () => {
-    if (customers.length > 0) return; // Évite de recharger si déjà présent
-    setLoading(true);
-    try {
-      const [custRes, therRes] = await Promise.all([
-        supabase.from("customers").select("*").limit(200),
-        supabase.from("therapists").select("*").limit(100),
-      ]);
-      if (custRes.data) setCustomers(custRes.data);
-      if (therRes.data) setTherapists(therRes.data);
-    } catch (error) {
-      console.error("Search fetch error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 1. Recherche dynamique Côté Serveur
+  const { data: searchResults, isFetching } = useQuery({
+    queryKey: ["global-search", debouncedSearch],
+    enabled: debouncedSearch.length >= 2 && open,
+    queryFn: async () => {
+      const searchTerm = `%${debouncedSearch}%`;
 
-  // Filtrage pour les Concierges (respect du périmètre de sécurité)
+      const [custRes, therRes] = await Promise.all([
+        supabase
+          .from("customers")
+          .select("*")
+          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
+          .limit(5),
+        supabase
+          .from("therapists")
+          .select("*")
+          .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
+          .limit(5),
+      ]);
+
+      return {
+        customers: custRes.data || [],
+        therapists: therRes.data || [],
+      };
+    },
+  });
+
+  // Filtrage local pour les Réservations
   const safeBookings = bookings || [];
-  const filteredBookings = isAdmin 
-    ? safeBookings 
-    : safeBookings.filter(b => userVenueIds?.includes(b.hotel_id));
+  const permittedBookings = isAdmin
+    ? safeBookings
+    : safeBookings.filter((b: any) => userVenueIds?.includes(b.hotel_id));
+
+  const filteredBookings = debouncedSearch.length >= 2
+    ? permittedBookings.filter((b: any) => {
+        const term = debouncedSearch.toLowerCase();
+        return (
+          b.client_first_name?.toLowerCase().includes(term) ||
+          b.client_last_name?.toLowerCase().includes(term) ||
+          b.booking_id?.toString().includes(term) ||
+          b.phone?.toLowerCase().includes(term) ||
+          b.client_email?.toLowerCase().includes(term)
+        );
+      }).slice(0, 5)
+    : [];
 
   const onSelect = (path: string) => {
     setOpen(false);
@@ -77,7 +104,6 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* Bouton Sidebar (Adapté au mode icône) */}
       <div className="px-3 mb-2 group-data-[collapsible=icon]:px-0">
         <button
           onClick={() => setOpen(true)}
@@ -92,32 +118,42 @@ export function GlobalSearch() {
         </button>
       </div>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput 
-          placeholder="Nom, téléphone, n° réservation..." 
+      <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
+        {/* FIX 1: Titre invisible pour stopper l'erreur d'accessibilité dans la console */}
+        <DialogTitle className="sr-only">Recherche globale</DialogTitle>
+
+        <CommandInput
+          placeholder="Nom, téléphone, n° réservation..."
           value={search}
           onValueChange={setSearch}
         />
         <CommandList className="max-h-[450px]">
-          {search.length > 0 ? (
+          {search.length < 2 ? (
+            <div className="p-8 text-center">
+              <Search className="w-8 h-8 mx-auto mb-2 text-muted-foreground/20" />
+              <p className="text-sm text-muted-foreground">
+                Tapez au moins 2 lettres pour lancer la recherche...
+              </p>
+            </div>
+          ) : isFetching ? (
+            <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+              <Loader2 className="w-6 h-6 animate-spin mb-2" />
+              <p className="text-sm">Recherche en cours...</p>
+            </div>
+          ) : (
             <>
+              {/* FIX 2: CommandEmpty doit toujours être là pour que l'affichage ne buggue pas */}
               <CommandEmpty>Aucun résultat trouvé pour "{search}".</CommandEmpty>
-              
-              {loading && (
-                <div className="flex items-center justify-center p-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                </div>
-              )}
 
-              {/* RÉSERVATIONS */}
               {filteredBookings.length > 0 && (
                 <CommandGroup heading="Réservations">
-                  {filteredBookings.slice(0, 5).map((booking) => (
+                  {filteredBookings.map((booking: any) => (
                     <CommandItem
                       key={booking.id}
+                      // FIX 3: Valeur explicite pour que la modale retrouve ses petits
+                      value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone || ''} ${booking.client_email || ''}`}
                       onSelect={() => onSelect(`/admin/bookings?id=${booking.id}`)}
                       className="cursor-pointer"
-                      value={`${booking.client_first_name} ${booking.client_last_name} ${booking.booking_id} ${booking.phone} ${booking.client_email}`}
                     >
                       <Calendar className="w-4 h-4 mr-2 text-blue-500" />
                       <div className="flex flex-col">
@@ -131,17 +167,17 @@ export function GlobalSearch() {
                 </CommandGroup>
               )}
 
-              <CommandSeparator />
+              {filteredBookings.length > 0 && (searchResults?.customers?.length ?? 0) > 0 && <CommandSeparator />}
 
-              {/* CLIENTS */}
-              {customers.length > 0 && (
+              {(searchResults?.customers?.length ?? 0) > 0 && (
                 <CommandGroup heading="Clients">
-                  {customers.slice(0, 5).map((c) => (
+                  {searchResults!.customers.map((c: any) => (
                     <CommandItem
                       key={c.id}
+                      // FIX 3
+                      value={`${c.first_name} ${c.last_name} ${c.email || ''} ${c.phone || ''}`}
                       onSelect={() => onSelect(`/admin/customers/${c.id}`)}
                       className="cursor-pointer"
-                      value={`${c.first_name} ${c.last_name} ${c.email} ${c.phone}`}
                     >
                       <Users className="w-4 h-4 mr-2 text-green-500" />
                       <div className="flex flex-col">
@@ -153,18 +189,17 @@ export function GlobalSearch() {
                 </CommandGroup>
               )}
 
-              <CommandSeparator />
+              {(searchResults?.customers?.length ?? 0) > 0 && (searchResults?.therapists?.length ?? 0) > 0 && <CommandSeparator />}
 
-              {/* PRATICIENS (Mise à jour : Redirection vers la fiche détaillée) */}
-              {therapists.length > 0 && (
+              {(searchResults?.therapists?.length ?? 0) > 0 && (
                 <CommandGroup heading="Praticiens">
-                  {therapists.slice(0, 5).map((t) => (
+                  {searchResults!.therapists.map((t: any) => (
                     <CommandItem
                       key={t.id}
-                      // MODIFICATION ICI : On ajoute l'ID pour aller sur la fiche perso
+                      // FIX 3
+                      value={`${t.first_name} ${t.last_name} ${t.status || ''}`}
                       onSelect={() => onSelect(`/admin/therapists/${t.id}`)}
                       className="cursor-pointer"
-                      value={`${t.first_name} ${t.last_name} ${t.email} ${t.phone}`}
                     >
                       <UserRound className="w-4 h-4 mr-2 text-purple-500" />
                       <div className="flex flex-col">
@@ -176,13 +211,6 @@ export function GlobalSearch() {
                 </CommandGroup>
               )}
             </>
-          ) : (
-            <div className="p-8 text-center">
-              <Search className="w-8 h-8 mx-auto mb-2 text-muted-foreground/20" />
-              <p className="text-sm text-muted-foreground">
-                Tapez un nom, un email ou un téléphone pour rechercher...
-              </p>
-            </div>
           )}
         </CommandList>
       </CommandDialog>
