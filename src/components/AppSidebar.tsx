@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
+import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import {
   Home,
   Calendar,
@@ -285,7 +286,10 @@ export function AppSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
+{/* 2. AJOUT ICI : Barre de recherche globale */}
+        <div className="mt-4 px-3 group-data-[collapsible=icon]:px-0">
+          <GlobalSearch />
+        </div>
         {/* Home et Paramètres */}
         <SidebarGroup className="py-2">
           <SidebarGroupContent>

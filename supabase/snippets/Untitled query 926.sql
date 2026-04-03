@@ -1,1 +1,0 @@
-SELECT submit_client_signature('test-123', 'Ceci-est-une-signature-de-test');
