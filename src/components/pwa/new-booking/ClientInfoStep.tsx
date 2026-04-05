@@ -95,7 +95,7 @@ export function ClientInfoStep({
         {/* Hotel selection */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
-            {t("newBooking.selectHotel", "Lieu")} <span className="text-gold-600">*</span>
+            {t("newBooking.selectHotel", "Lieu")} <span className="text-primary">*</span>
           </Label>
           <Select value={selectedHotelId} onValueChange={setSelectedHotelId}>
             <SelectTrigger className="h-9">
@@ -115,7 +115,7 @@ export function ClientInfoStep({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">
-              {t("newBooking.firstName", "Prénom")} <span className="text-gold-600">*</span>
+              {t("newBooking.firstName", "Prénom")} <span className="text-primary">*</span>
             </Label>
             <Input
               value={clientFirstName}
@@ -125,7 +125,7 @@ export function ClientInfoStep({
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">
-              {t("newBooking.lastName", "Nom")} <span className="text-gold-600">*</span>
+              {t("newBooking.lastName", "Nom")} <span className="text-primary">*</span>
             </Label>
             <Input
               value={clientLastName}
@@ -138,7 +138,7 @@ export function ClientInfoStep({
         {/* Phone */}
         <div className="space-y-1.5">
           <Label className="text-xs font-medium">
-            {t("newBooking.phone", "Téléphone")} <span className="text-gold-600">*</span>
+            {t("newBooking.phone", "Téléphone")} <span className="text-primary">*</span>
           </Label>
           <PhoneNumberField
             value={phone}
@@ -180,7 +180,7 @@ export function ClientInfoStep({
         {/* Date & Time */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Date <span className="text-gold-600">*</span></Label>
+            <Label className="text-xs font-medium">Date <span className="text-primary">*</span></Label>
             <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -217,7 +217,7 @@ export function ClientInfoStep({
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">
-              {t("newBooking.time", "Heure")} <span className="text-gold-600">*</span>
+              {t("newBooking.time", "Heure")} <span className="text-primary">*</span>
             </Label>
             <div className="flex gap-1 items-center">
               <Popover open={hourOpen} onOpenChange={setHourOpen}>
@@ -309,9 +309,9 @@ export function ClientInfoStep({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gold-500/20 shrink-0">
+      <div className="px-4 py-3 border-t border-primary/20 shrink-0">
         <Button
-          className="w-full bg-gold-400 text-black hover:bg-gold-200 font-medium"
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           onClick={onNext}
         >
           {t("newBooking.next", "Suivant")}
