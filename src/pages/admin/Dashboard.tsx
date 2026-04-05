@@ -251,8 +251,8 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8 flex items-center gap-2">
-            🏠 Accueil
+          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8 flex items-center gap-2">
+            Accueil
           </h1>
           <div className="flex flex-wrap items-center gap-3 mb-2">
             <PeriodSelector onPeriodChange={handlePeriodChange} />

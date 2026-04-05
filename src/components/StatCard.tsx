@@ -14,12 +14,12 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, trend }: StatCardProps) {
   return (
-    <Card className="border border-border bg-card shadow-sm">
+    <Card className="border border-border bg-card">
       <CardContent className="p-5 flex flex-col h-full">
-        <p className="text-sm font-semibold text-muted-foreground mb-3">
+        <p className="text-xs font-medium text-muted-foreground mb-3 tracking-wide">
           {title}
         </p>
-        <p className="text-2xl md:text-3xl font-semibold text-foreground mb-3 tracking-tight whitespace-nowrap">
+        <p className="text-xl md:text-2xl font-medium text-foreground mb-3 tracking-tight whitespace-nowrap">
           {value}
         </p>
         <div className="mt-auto">

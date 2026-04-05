@@ -31,7 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
@@ -192,18 +192,17 @@ export default function Customers() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">{t("customers.title")}</h1>
+            <h1 className="text-lg font-semibold tracking-tight">{t("customers.title")}</h1>
             <p className="text-muted-foreground mt-1">
               {t("customers.description")}
             </p>
           </div>
           {isAdmin && (
             <Button
-              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0"
+              className="flex-shrink-0"
               onClick={() => navigate("/admin/customers/new")}
             >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">{t("customers.add")}</span>
+              {t("customers.add")}
             </Button>
           )}
         </div>
