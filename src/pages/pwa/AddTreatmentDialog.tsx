@@ -155,11 +155,11 @@ export const AddTreatmentDialog = ({
         </DialogHeader>
 
         {loading ? (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-muted-foreground">
             Chargement...
           </div>
         ) : treatments.length === 0 ? (
-          <div className="py-8 text-center text-sm text-gray-500">
+          <div className="py-8 text-center text-sm text-muted-foreground">
             Aucune prestation disponible
           </div>
         ) : (
@@ -168,7 +168,7 @@ export const AddTreatmentDialog = ({
               <div className="space-y-6">
                 {Object.entries(groupedTreatments).map(([category, categoryTreatments]) => (
                   <div key={category}>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">
                       {category}
                     </h3>
                     <div className="space-y-3">
@@ -177,8 +177,8 @@ export const AddTreatmentDialog = ({
                           key={treatment.id}
                           className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                             selectedTreatments.has(treatment.id)
-                              ? "border-black bg-gray-50"
-                              : "border-gray-200 hover:border-gray-300"
+                              ? "border-primary bg-muted"
+                              : "border-border hover:border-border"
                           }`}
                           onClick={() => toggleTreatment(treatment.id)}
                         >
@@ -190,21 +190,21 @@ export const AddTreatmentDialog = ({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="font-medium text-sm text-gray-900">
+                                <p className="font-medium text-sm text-foreground">
                                   {treatment.name}
                                 </p>
                                 {treatment.description && (
-                                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                                     {treatment.description}
                                   </p>
                                 )}
                               </div>
-                              <p className="text-sm font-semibold text-gray-900 flex-shrink-0">
+                              <p className="text-sm font-semibold text-foreground flex-shrink-0">
                                 {formatPrice(treatment.price, treatment.currency, { decimals: 0 })}
                               </p>
                             </div>
                             {treatment.duration && (
-                              <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
+                              <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />
                                 {treatment.duration} min
                               </div>
@@ -221,10 +221,10 @@ export const AddTreatmentDialog = ({
             {selectedTreatments.size > 0 && (
               <div className="border-t pt-4 mt-4">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">
+                  <span className="text-muted-foreground">
                     {selectedTreatments.size} prestation{selectedTreatments.size > 1 ? "s" : ""} sélectionnée{selectedTreatments.size > 1 ? "s" : ""}
                   </span>
-                  <span className="font-semibold text-gray-900">
+                  <span className="font-semibold text-foreground">
                     +{formatPrice(calculateTotal(), treatments.find(t => selectedTreatments.has(t.id))?.currency || 'EUR')}
                   </span>
                 </div>

@@ -200,7 +200,7 @@ const ConciergeTransactions = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Transactions & Solde</h1>
+          <h1 className="text-lg font-semibold text-foreground">Transactions & Solde</h1>
           <p className="text-muted-foreground">Historique des prestations et solde comptable</p>
         </div>
         <Button 
@@ -236,8 +236,8 @@ const ConciergeTransactions = () => {
               </p>
             </div>
             <Button variant="outline" onClick={handleDownloadStatement}>
-              <Download className="w-4 h-4 mr-2" />
               Télécharger Relevé
+              <Download className="w-4 h-4" />
             </Button>
           </div>
         </CardContent>

@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -322,18 +322,17 @@ export default function Therapists() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Thérapeutes</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Thérapeutes</h1>
             <p className="text-muted-foreground mt-1">
               Gérez vos thérapeutes et leurs informations
             </p>
           </div>
           {isAdmin && (
             <Button
-              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0"
+              className="flex-shrink-0"
               onClick={openAdd}
             >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ajouter un thérapeute</span>
+              Nouveau thérapeute
             </Button>
           )}
         </div>

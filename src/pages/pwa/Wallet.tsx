@@ -246,7 +246,7 @@ const PwaWallet = () => {
       <div className="flex flex-1 flex-col bg-muted/30">
         <PwaHeader title="Wallet" />
         <div className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-sm w-full bg-background rounded-2xl shadow-sm p-8">
+          <div className="max-w-sm w-full bg-background rounded-2xl p-8">
             {/* Icon skeleton */}
             <div className="flex justify-center mb-4">
               <Skeleton className="w-14 h-14 rounded-full" />
@@ -324,8 +324,8 @@ const PwaWallet = () => {
                 {loadingStripeUrl ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <div className="w-5 h-5 bg-foreground rounded-full flex items-center justify-center">
-                    <span className="text-background text-xs font-bold">S</span>
+                  <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                    <span className="text-primary-foreground text-xs font-bold">S</span>
                   </div>
                 )}
                 {t('wallet.viewDashboard', 'View Stripe Dashboard')}
@@ -335,7 +335,7 @@ const PwaWallet = () => {
           </div>
 
           {/* Payouts Card */}
-          <div className="mx-4 mt-4 bg-background rounded-2xl shadow-sm mb-4">
+          <div className="mx-4 mt-4 bg-background rounded-2xl mb-4">
             <div className="px-5 pt-4 pb-2">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {t('wallet.latestPayouts', 'Latest Payouts')}
@@ -398,7 +398,7 @@ const PwaWallet = () => {
       {/* Stripe account exists but onboarding incomplete */}
       {hasStripeAccount && !isOnboardingComplete && (
         <div className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-sm bg-background rounded-2xl shadow-sm p-8 text-center">
+          <div className="max-w-sm bg-background rounded-2xl p-8 text-center">
             <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-7 h-7 text-amber-600" />
             </div>
@@ -411,7 +411,7 @@ const PwaWallet = () => {
             <button
               onClick={handleCompleteOnboarding}
               disabled={connectingStripe}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {connectingStripe ? (
                 <>
@@ -432,10 +432,10 @@ const PwaWallet = () => {
       {/* Empty State - No Stripe Account */}
       {!hasStripeAccount && (
         <div className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-sm bg-background rounded-2xl shadow-sm p-8 text-center">
+          <div className="max-w-sm bg-background rounded-2xl p-8 text-center">
             <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <div className="w-7 h-7 bg-foreground rounded-full flex items-center justify-center">
-                <span className="text-background text-xs font-bold">S</span>
+              <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground text-xs font-bold">S</span>
               </div>
             </div>
             <h3 className="text-base font-semibold text-foreground mb-2">
@@ -447,7 +447,7 @@ const PwaWallet = () => {
             <button
               onClick={handleSetupStripe}
               disabled={connectingStripe}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-foreground text-background rounded-full text-sm font-medium hover:bg-foreground/90 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {connectingStripe ? (
                 <>

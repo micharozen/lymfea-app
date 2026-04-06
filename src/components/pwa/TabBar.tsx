@@ -21,28 +21,26 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 w-full">
-      {/* Floating center button — protrudes above the bar like Uber */}
       <div className="absolute left-1/2 -translate-x-1/2 -top-7 z-10">
         <button
           onClick={() => handleNavigation("/pwa/new-booking")}
-          className="w-14 h-14 rounded-full bg-gold-400 flex items-center justify-center shadow-lg shadow-gold-500/30 active:scale-95 transition-transform"
+          className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-transform"
         >
-          <Plus className="w-7 h-7 text-black" strokeWidth={2.5} />
+          <Plus className="w-7 h-7 text-primary-foreground" strokeWidth={2.5} />
         </button>
       </div>
 
-      {/* Bar */}
-      <div className="bg-white dark:bg-neutral-900 border-t border-border/40 shadow-[0_-1px_12px_rgba(0,0,0,0.04)]">
+      <div className="bg-card border-t border-border/40">
         <div className="flex items-center justify-around pt-2.5 pb-[max(env(safe-area-inset-bottom),12px)]">
           <button
             onClick={() => handleNavigation("/pwa/dashboard")}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Home
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-600" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/dashboard") ? "text-primary" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/dashboard") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/dashboard") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.home')}
             </span>
           </button>
@@ -52,15 +50,14 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Wallet
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-600" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/wallet") ? "text-primary" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.wallet')}
             </span>
           </button>
 
-          {/* Center spacer for the FAB */}
           <div className="flex-1" />
 
           <button
@@ -68,10 +65,10 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
             <Calendar
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-600" : "text-muted-foreground"}`}
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/bookings") ? "text-primary" : "text-muted-foreground"}`}
               strokeWidth={isActive("/pwa/bookings") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/bookings") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.agenda')}
             </span>
           </button>
@@ -82,16 +79,16 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           >
             <div className="relative">
               <Bell
-                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-600" : "text-muted-foreground"}`}
+                className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/notifications") ? "text-primary" : "text-muted-foreground"}`}
                 strokeWidth={isActive("/pwa/notifications") ? 2.5 : 1.5}
               />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1.5 bg-gold-600 text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                <span className="absolute -top-1 -right-1.5 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
               )}
             </div>
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-gold-600 font-semibold" : "text-muted-foreground font-medium"}`}>
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/notifications") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
               {t('tabs.notifications')}
             </span>
           </button>

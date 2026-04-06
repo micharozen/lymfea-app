@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
+import { Search, Pencil, Trash2, Building2, LayoutDashboard } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/formatPrice";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -310,8 +310,8 @@ export default function Hotels() {
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
-            📍 Lieux
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            Lieux
           </h1>
         </div>
       </div>
@@ -341,12 +341,11 @@ export default function Hotels() {
             </Select>
 
             <Button
-              className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+              className="ml-auto"
               onClick={() => navigate('/admin/places/new')}
               style={{ display: isAdmin ? 'flex' : 'none' }}
             >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ajouter un lieu</span>
+              Nouveau lieu
             </Button>
           </div>
 
@@ -383,8 +382,7 @@ export default function Hotels() {
                     )}
                     {isAdmin && (
                       <Button onClick={() => navigate('/admin/places/new')} className="mt-4">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Ajouter un lieu
+                        Nouveau lieu
                       </Button>
                     )}
                   </div>
@@ -610,7 +608,6 @@ export default function Hotels() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteHotel}
-              className="bg-foreground text-background hover:bg-foreground/90"
             >
               Supprimer
             </AlertDialogAction>

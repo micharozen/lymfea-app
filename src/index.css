@@ -50,108 +50,108 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
+    --background: 28 40% 98%;
+    --foreground: 20 15% 15%;
 
     /* Safe area values (can be clamped by JS on iOS) */
     --app-safe-bottom: env(safe-area-inset-bottom, 0px);
 
-    --card: 0 0% 96%;
-    --card-foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 15% 15%;
 
-    --popover: 0 0% 96%;
-    --popover-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 15% 15%;
 
-    --primary: 0 0% 10%;
+    --primary: 18 55% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 100%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary: 28 30% 96%;
+    --secondary-foreground: 20 15% 15%;
 
-    --muted: 0 0% 100%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 28 20% 96%;
+    --muted-foreground: 20 10% 50%;
 
-    --accent: 0 0% 10%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 28 30% 94%;
+    --accent-foreground: 20 15% 15%;
 
-    --success: 142 60% 75%;
-    --success-foreground: 0 0% 20%;
+    --success: 152 45% 45%;
+    --success-foreground: 0 0% 100%;
 
-    --warning: 38 80% 75%;
-    --warning-foreground: 0 0% 20%;
+    --warning: 38 75% 55%;
+    --warning-foreground: 0 0% 100%;
 
-    --info: 221 60% 80%;
-    --info-foreground: 0 0% 20%;
+    --info: 215 55% 55%;
+    --info-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 80%;
-    --destructive-foreground: 0 0% 20%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 0 0% 10%;
+    --border: 25 15% 90%;
+    --input: 25 15% 90%;
+    --ring: 18 55% 52%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 10%;
-    --sidebar-primary: 0 0% 10%;
+    --sidebar-background: 28 30% 97%;
+    --sidebar-foreground: 20 15% 15%;
+    --sidebar-primary: 18 55% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 0 0% 10%;
-    --sidebar-border: 0 0% 88%;
-    --sidebar-ring: 0 0% 10%;
+    --sidebar-accent: 18 35% 94%;
+    --sidebar-accent-foreground: 18 50% 35%;
+    --sidebar-border: 25 15% 90%;
+    --sidebar-ring: 18 55% 52%;
     
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.05);
+    --shadow-card: none;
   }
 
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 95%;
+    --background: 20 10% 10%;
+    --foreground: 28 15% 92%;
 
-    --card: 0 0% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 20 10% 13%;
+    --card-foreground: 28 15% 92%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 20 10% 13%;
+    --popover-foreground: 28 15% 92%;
 
-    --primary: 0 0% 95%;
-    --primary-foreground: 0 0% 10%;
+    --primary: 18 55% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 20 10% 18%;
+    --secondary-foreground: 28 15% 92%;
 
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 20 8% 16%;
+    --muted-foreground: 20 10% 60%;
 
-    --accent: 0 0% 95%;
-    --accent-foreground: 0 0% 10%;
+    --accent: 20 10% 18%;
+    --accent-foreground: 28 15% 92%;
 
-    --success: 142 50% 65%;
+    --success: 152 45% 50%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 70% 65%;
+    --warning: 38 70% 55%;
     --warning-foreground: 0 0% 100%;
 
-    --info: 221 50% 70%;
+    --info: 215 50% 60%;
     --info-foreground: 0 0% 100%;
 
-    --destructive: 0 60% 70%;
+    --destructive: 0 60% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 0 0% 95%;
+    --border: 20 8% 20%;
+    --input: 20 8% 20%;
+    --ring: 18 55% 55%;
 
-    --sidebar-background: 0 0% 10%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 0 0% 95%;
-    --sidebar-primary-foreground: 0 0% 10%;
-    --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 0 0% 95%;
+    --sidebar-background: 20 10% 10%;
+    --sidebar-foreground: 28 15% 92%;
+    --sidebar-primary: 18 55% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 20 12% 16%;
+    --sidebar-accent-foreground: 18 40% 70%;
+    --sidebar-border: 20 8% 18%;
+    --sidebar-ring: 18 55% 55%;
     
-    --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.3);
+    --shadow-card: none;
   }
 }
 
@@ -240,6 +240,8 @@ All colors MUST be HSL.
      admin pages scroll via <main> inside the sidebar layout */
   body:has(.group\/sidebar-wrapper) {
     overflow: hidden !important;
+    font-size: 15px;
+    font-family: 'Founders Grotesk', system-ui, sans-serif;
   }
 
   html {
@@ -305,10 +307,17 @@ All colors MUST be HSL.
     @apply tap-highlight-none;
   }
   
-  /* Ensure minimum touch target size (44x44 for accessibility) */
+  /* Minimum touch target (44px) for mobile/PWA */
   button:not(.btn-xs):not([role="checkbox"]),
   [role="button"]:not(.btn-xs) {
     min-height: 44px;
+  }
+  /* Admin desktop: remove forced min-height for compact UI */
+  @media (min-width: 768px) {
+    body:has(.group\/sidebar-wrapper) button,
+    body:has(.group\/sidebar-wrapper) [role="button"] {
+      min-height: unset;
+    }
   }
 }
 

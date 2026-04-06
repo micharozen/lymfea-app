@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 // AJOUT de useSearchParams pour lire l'URL
 import { useSearchParams } from "react-router-dom"; 
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -239,7 +239,7 @@ export default function Booking() {
       {/* Header & Filters */}
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
             Planning
           </h1>
           <div className="flex items-center gap-2">
@@ -262,9 +262,8 @@ export default function Booking() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs">
-              <Plus className="h-3.5 w-3.5" />
-              {isConcierge ? "Demande" : "Réservation"}
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+              {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
             </Button>
           </div>
         </div>

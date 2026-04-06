@@ -64,7 +64,7 @@ export function SummaryStep({
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="border border-gold-500/20 rounded-xl overflow-hidden">
+        <div className="border border-primary/20 rounded-xl overflow-hidden">
           {/* Header */}
           <div className="px-4 pt-5 pb-3 text-center">
             <h2 className="font-serif text-lg text-foreground">Votre réservation</h2>
@@ -72,15 +72,15 @@ export function SummaryStep({
 
           {/* Lieu */}
           <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '0ms' }}>
-            <p className="text-[10px] uppercase tracking-widest text-gold-600 dark:text-gold-600/70 mb-1">Lieu</p>
+            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Lieu</p>
             <p className="text-sm font-medium">{hotelName}</p>
           </div>
 
-          <div className="h-px bg-gold-500/15 mx-4" />
+          <div className="h-px bg-primary/15 mx-4" />
 
           {/* Client */}
           <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '100ms' }}>
-            <p className="text-[10px] uppercase tracking-widest text-gold-600 dark:text-gold-600/70 mb-1">Client</p>
+            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">Client</p>
             <p className="text-sm font-medium">
               {clientFirstName} {clientLastName}
             </p>
@@ -91,11 +91,11 @@ export function SummaryStep({
             </p>
           </div>
 
-          <div className="h-px bg-gold-500/15 mx-4" />
+          <div className="h-px bg-primary/15 mx-4" />
 
           {/* Date/Time */}
           <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '200ms' }}>
-            <p className="text-[10px] uppercase tracking-widest text-gold-600 dark:text-gold-600/70 mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-1">
               Date & heure
             </p>
             <p className="text-sm font-medium">
@@ -104,11 +104,11 @@ export function SummaryStep({
             </p>
           </div>
 
-          <div className="h-px bg-gold-500/15 mx-4" />
+          <div className="h-px bg-primary/15 mx-4" />
 
           {/* Treatments */}
           <div className="px-4 py-3 animate-fade-in" style={{ animationDelay: '300ms' }}>
-            <p className="text-[10px] uppercase tracking-widest text-gold-600 dark:text-gold-600/70 mb-2">
+            <p className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/70 mb-2">
               Prestations
             </p>
             <div className="space-y-1.5">
@@ -136,9 +136,9 @@ export function SummaryStep({
             </div>
 
             {/* Total */}
-            <div className="bg-gold-500/10 rounded-lg p-3 mt-3 flex items-center justify-between">
+            <div className="bg-primary/10 rounded-lg p-3 mt-3 flex items-center justify-between">
               <span className="text-sm font-semibold">Total</span>
-              <span className="text-sm font-bold text-gold-600">
+              <span className="text-sm font-bold text-primary">
                 {formatPrice(totalPrice, currency)}
               </span>
             </div>
@@ -150,9 +150,9 @@ export function SummaryStep({
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gold-500/20 shrink-0 space-y-2">
+      <div className="px-4 py-3 border-t border-primary/20 shrink-0 space-y-2">
         <Button
-          className="w-full bg-gold-400 text-black hover:bg-gold-200 font-medium"
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           onClick={onCreate}
           disabled={isPending}
         >

@@ -358,7 +358,7 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left Panel — Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 bg-white">
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 bg-background">
         <div className="w-full max-w-md mx-auto">
           {/* Logo */}
           <div className="mb-12">
@@ -367,20 +367,20 @@ const Auth = () => {
 
           {/* Title */}
           <div className="mb-10">
-            <h1 className="text-3xl font-kormelink text-gray-900 mb-2">Bienvenue</h1>
-            <p className="text-gray-500 text-base">
+            <h1 className="text-3xl font-grotesk font-medium text-foreground mb-2">Bienvenue</h1>
+            <p className="text-muted-foreground text-base">
               Connectez-vous pour accéder à votre espace
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-6 mb-8">
+          <div className="flex gap-6 mb-8 border-b border-border">
             <button
               onClick={() => handleTabChange("email")}
               className={`pb-2.5 text-sm font-medium tracking-wide uppercase transition-all ${
                 loginMethod === "email"
-                  ? "text-gray-900 border-b-2 border-gray-900"
-                  : "text-gray-400 hover:text-gray-600"
+                  ? "text-primary border-b-2 border-primary -mb-px"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               disabled={isLoading}
             >
@@ -390,8 +390,8 @@ const Auth = () => {
               onClick={() => handleTabChange("phone")}
               className={`pb-2.5 text-sm font-medium tracking-wide uppercase transition-all ${
                 loginMethod === "phone"
-                  ? "text-gray-900 border-b-2 border-gray-900"
-                  : "text-gray-400 hover:text-gray-600"
+                  ? "text-primary border-b-2 border-primary -mb-px"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               disabled={isLoading}
             >
@@ -406,7 +406,7 @@ const Auth = () => {
           {step === "email" && (
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   {loginMethod === "email" ? "Adresse email" : "Numero de telephone"}
                 </label>
                 <Input
@@ -415,7 +415,7 @@ const Auth = () => {
                   value={emailOrPhone}
                   onChange={(e) => setEmailOrPhone(e.target.value)}
                   disabled={isLoading}
-                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
                   onKeyDown={(e) => e.key === "Enter" && handleNext()}
                 />
               </div>
@@ -423,7 +423,7 @@ const Auth = () => {
               <Button
                 onClick={handleNext}
                 disabled={isLoading}
-                className="w-full h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                className="w-full h-12 text-base font-medium rounded-lg"
               >
                 {isLoading ? "Chargement..." : "Continuer"}
                 {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
@@ -434,10 +434,10 @@ const Auth = () => {
           {step === "signup" && (
             <div className="space-y-5">
               <div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Creer un compte pour <span className="font-medium text-gray-900">{emailOrPhone}</span>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Creer un compte pour <span className="font-medium text-foreground">{emailOrPhone}</span>
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Mot de passe
                 </label>
                 <Input
@@ -446,7 +446,7 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
                   onKeyDown={(e) => e.key === "Enter" && handleSignup()}
                   autoFocus
                 />
@@ -457,14 +457,14 @@ const Auth = () => {
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
-                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-border hover:bg-muted"
                 >
                   Retour
                 </Button>
                 <Button
                   onClick={handleSignup}
                   disabled={isLoading}
-                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg"
                 >
                   {isLoading ? "Creation..." : "Creer le compte"}
                   {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
@@ -476,10 +476,10 @@ const Auth = () => {
           {step === "password" && (
             <div className="space-y-5">
               <div>
-                <p className="text-sm text-gray-500 mb-4">
-                  Connexion en tant que <span className="font-medium text-gray-900">{emailOrPhone}</span>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Connexion en tant que <span className="font-medium text-foreground">{emailOrPhone}</span>
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-1.5">
                   Mot de passe
                 </label>
                 <Input
@@ -488,13 +488,13 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
-                  className="w-full h-12 text-base bg-gray-50 border-gray-200 focus:border-gray-900 focus:ring-gray-900 rounded-lg"
+                  className="w-full h-12 text-base bg-muted/50 border-border focus-visible:ring-primary rounded-lg"
                   onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   autoFocus
                 />
                 <Link
                   to="/forgot-password"
-                  className="inline-block mt-2 text-sm text-gray-400 hover:text-gray-900 transition-colors"
+                  className="inline-block mt-2 text-sm text-muted-foreground hover:text-primary transition-colors"
                 >
                   Mot de passe oublie ?
                 </Link>
@@ -505,14 +505,14 @@ const Auth = () => {
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
-                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-border hover:bg-muted"
                 >
                   Retour
                 </Button>
                 <Button
                   onClick={handleLogin}
                   disabled={isLoading}
-                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg"
                 >
                   {isLoading ? "Connexion..." : "Se connecter"}
                   {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
@@ -523,13 +523,13 @@ const Auth = () => {
 
           {step === "not-found" && (
             <div className="space-y-5">
-              <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-100 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
                 <div className="space-y-1 flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     Acces non autorise
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Aucun compte trouve avec {emailOrPhone}. Contactez un administrateur.
                   </p>
                 </div>
@@ -540,14 +540,14 @@ const Auth = () => {
                   onClick={handleBack}
                   disabled={isLoading}
                   variant="outline"
-                  className="flex-1 h-12 text-base font-medium rounded-lg border-gray-300 hover:bg-gray-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg border-border hover:bg-muted"
                 >
                   Retour
                 </Button>
                 <Button
                   onClick={handleContactAdmin}
                   disabled={isLoading}
-                  className="flex-1 h-12 text-base font-medium rounded-lg bg-gray-900 hover:bg-black text-white transition-colors disabled:opacity-50"
+                  className="flex-1 h-12 text-base font-medium rounded-lg"
                 >
                   {isLoading ? "Envoi..." : "Contacter l'admin"}
                 </Button>
@@ -556,7 +556,7 @@ const Auth = () => {
           )}
 
           {/* Footer */}
-          <p className="mt-12 text-xs text-gray-400 text-center">
+          <p className="mt-12 text-xs text-muted-foreground text-center">
             &copy; {new Date().getFullYear()} Lymfea SAS. Tous droits reserves.
           </p>
         </div>
@@ -564,8 +564,8 @@ const Auth = () => {
 
       {/* Right Panel — Decorative */}
       <div className="hidden lg:flex flex-1 relative overflow-hidden">
-        {/* Warm gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600" />
+        {/* Warm terracotta gradient — aligned with design system primary */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary to-[hsl(18_50%_38%)]" />
 
         {/* Decorative wave layers */}
         <svg
@@ -599,10 +599,10 @@ const Auth = () => {
             alt=""
             className="w-16 h-16 mb-8 opacity-80"
           />
-          <h2 className="text-white text-4xl font-kormelink leading-tight mb-4 max-w-sm">
+          <h2 className="text-primary-foreground text-4xl font-grotesk font-medium leading-tight mb-4 max-w-sm">
             L'excellence du bien-etre, simplifiee
           </h2>
-          <p className="text-white/70 text-lg max-w-sm leading-relaxed">
+          <p className="text-primary-foreground/75 text-lg max-w-sm leading-relaxed">
             Gerez vos reservations, vos equipes et votre activite en toute serenite.
           </p>
         </div>

@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Search, Pencil, Trash2, Plus, DoorOpen } from "lucide-react";
+import { Search, Pencil, Trash2, DoorOpen } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
 import { TablePagination } from "@/components/table/TablePagination";
@@ -196,13 +196,12 @@ export default function TreatmentRooms() {
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
             Salles de soin
           </h1>
           {isAdmin && (
             <Button onClick={() => navigate("/admin/treatment-rooms/new")}>
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ajouter une salle</span>
+              Nouvelle salle
             </Button>
           )}
         </div>
