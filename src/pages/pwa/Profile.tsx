@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe, CalendarDays } from "lucide-react";
+import { LogOut, ChevronRight, User, Bell, Shield, HelpCircle, Hotel, Package, Camera, Globe, CalendarDays, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -208,7 +208,7 @@ const PwaProfile = () => {
     { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
     { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
-    { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
+    { icon: HelpCircle, label: t('support.title'), onClick: () => navigate("/pwa/support") },
   ];
 
   return (
@@ -250,7 +250,7 @@ const PwaProfile = () => {
             {therapist.first_name} {therapist.last_name}
           </h2>
           <div className="flex items-center gap-1 mt-0.5">
-            <span className="text-yellow-500 text-sm">⭐</span>
+            <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
             <span className="text-sm text-muted-foreground">3.0</span>
           </div>
         </div>

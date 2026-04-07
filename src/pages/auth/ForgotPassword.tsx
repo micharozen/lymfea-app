@@ -111,7 +111,7 @@ const ForgotPassword = () => {
             <Button
               onClick={handleSubmit}
               disabled={isLoading}
-              className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
+              className="w-full h-14 text-base font-medium rounded-xl"
             >
               {isLoading ? "Envoi en cours..." : "Envoyer le lien"}
               {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}

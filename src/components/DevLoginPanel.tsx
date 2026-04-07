@@ -81,8 +81,8 @@ export const DevLoginPanel = () => {
   };
 
   return (
-    <div className="rounded-xl border-2 border-dashed border-orange-300 bg-orange-50/50 p-4 space-y-3">
-      <p className="text-xs font-medium text-orange-700">Dev Quick Login</p>
+    <div className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 space-y-3">
+      <p className="text-xs font-medium text-primary">Dev Quick Login</p>
       <div className="space-y-2">
         {DEV_USERS.map((user) => (
           <Button
@@ -109,7 +109,7 @@ export const DevLoginPanel = () => {
           </Button>
         ))}
 
-        <div className="border-t border-orange-200 pt-2">
+        <div className="border-t border-primary/20 pt-2">
           <Button
             variant="outline"
             className="w-full justify-start h-auto py-2.5"

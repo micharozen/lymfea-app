@@ -1,4 +1,4 @@
-import { Search, Plus, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Search, User, Mail, Phone, X, Check, ChevronsUpDown, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -458,14 +458,14 @@ export default function Settings() {
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-4 md:mb-6">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8 flex items-center gap-2">
-            ⚙️ Paramètres & Accès
+          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8 flex items-center gap-2">
+            Paramètres & Accès
           </h1>
         </div>
 
 
         <div className="mb-4 md:mb-6">
-          <h2 className="text-lg md:text-xl lg:text-2xl font-semibold text-foreground mb-4">Admin</h2>
+          <h2 className="text-base font-semibold text-foreground mb-4">Admin</h2>
 
           <div className="flex flex-wrap items-center gap-4 mb-6">
             <div className="relative w-full md:w-64">
@@ -478,11 +478,10 @@ export default function Settings() {
 
             {isAdmin && (
               <Button
-                className="md:ml-auto bg-foreground text-background hover:bg-foreground/90"
+                className="md:ml-auto"
                 onClick={handleOpenAddDialog}
               >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Ajouter un admin</span>
+                Nouvel administrateur
               </Button>
             )}
           </div>
@@ -751,7 +750,7 @@ export default function Settings() {
                 </Button>
                 <Button
                   type="submit"
-                  className="px-5 bg-foreground text-background hover:bg-foreground/90"
+                  className="px-5"
                   disabled={createAdminMutation.isPending || updateAdminMutation.isPending}
                 >
                   {createAdminMutation.isPending || updateAdminMutation.isPending

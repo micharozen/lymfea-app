@@ -47,6 +47,7 @@ const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
+const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
 
 // Auth Pages
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -79,6 +80,7 @@ const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
+const PwaSupport = lazy(() => import("./pages/pwa/Support"));
 
 
 // Admin PWA Layout & Pages
@@ -356,6 +358,14 @@ const App = () => {
                 </TherapistProtectedRoute>
               }
             />
+            <Route
+              path="/pwa/support"
+              element={
+                <TherapistProtectedRoute>
+                  <PwaSupport />
+                </TherapistProtectedRoute>
+              }
+            />
 
             {/* Admin PWA Public Routes */}
             <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
@@ -427,6 +437,7 @@ const App = () => {
                               <Route path="/finance" element={<Finance />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
+                              <Route path="/support" element={<SupportTickets />} />
                               <Route path="/settings" element={<Settings />} />
                               <Route path="/profile" element={<AdminProfile />} />
                               
