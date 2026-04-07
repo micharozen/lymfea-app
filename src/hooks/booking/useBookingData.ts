@@ -6,6 +6,8 @@ import type { Database } from "@/integrations/supabase/types";
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 
 export interface Treatment {
+  id?: string;             
+  treatment_id?: string;
   name: string;
   duration: number | null;
   price: number | null;
@@ -79,8 +81,16 @@ export function useBookingData() {
             ? booking.duration
             : treatmentsTotalDuration;
 
-          const treatmentsList = (treatments as BookingTreatmentJoin[] | null)?.map((t) => t.treatment_menus).filter((m): m is Treatment => m !== null) || [];
-
+const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
+            ?.map((t): Treatment | null => {
+              if (!t.treatment_menus) return null;
+              return {
+                ...t.treatment_menus,
+                id: t.treatment_id,
+                treatment_id: t.treatment_id
+              } as Treatment; // <-- On force TypeScript à accepter notre format !
+            })
+            .filter((m): m is Treatment => m !== null) || [];
           return {
             ...booking,
             totalDuration,

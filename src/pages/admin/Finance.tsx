@@ -231,7 +231,7 @@ const Finance = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">💰 Finance</h1>
+          <h1 className="text-lg font-semibold text-foreground">Finance</h1>
           <p className="text-muted-foreground">Suivi des revenus, netting hôtels et paiements thérapeutes</p>
         </div>
         <Button 

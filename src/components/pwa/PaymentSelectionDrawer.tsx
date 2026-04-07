@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { CreditCard, Hotel, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2, Smartphone } from "lucide-react";
+import { CreditCard, Building2, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2, Smartphone } from "lucide-react";
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,12 +35,12 @@ const PaymentSuccessView = ({ onComplete, t }: { onComplete: () => void; t: (key
   return (
     <div className="flex flex-col items-center justify-center py-12 animate-in fade-in zoom-in duration-500">
       <div className="relative">
-        <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping" />
-        <div className="relative w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
-          <CheckCircle2 className="w-12 h-12 text-white animate-in zoom-in duration-300 delay-200" />
+        <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+        <div className="relative w-24 h-24 bg-primary rounded-full flex items-center justify-center">
+          <CheckCircle2 className="w-12 h-12 text-primary-foreground animate-in zoom-in duration-300 delay-200" />
         </div>
       </div>
-      <h3 className="text-xl font-bold text-green-600 mt-6 animate-in slide-in-from-bottom duration-500 delay-300">
+      <h3 className="text-xl font-bold text-primary mt-6 animate-in slide-in-from-bottom duration-500 delay-300">
         {t('payment.received')}
       </h3>
       <p className="text-sm text-muted-foreground mt-2 animate-in slide-in-from-bottom duration-500 delay-500">
@@ -94,19 +94,19 @@ const PaymentQRCodeView = ({
   return (
     <div className="space-y-6">
       {/* Success Banner with polling indicator */}
-      <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
-        <Check className="w-8 h-8 text-green-600 mx-auto mb-2" />
-        <p className="font-medium text-green-800 dark:text-green-200">
+      <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 text-center">
+        <Check className="w-8 h-8 text-primary mx-auto mb-2" />
+        <p className="font-medium text-foreground">
           {t('payment.linkActive')}
         </p>
         <div className="flex items-center justify-center gap-2 mt-2">
           {isPolling && (
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/40 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
           )}
-          <p className="text-xs text-green-600 dark:text-green-400">
+          <p className="text-xs text-muted-foreground">
             {t('payment.waitingForPayment')}
           </p>
         </div>
@@ -114,7 +114,7 @@ const PaymentQRCodeView = ({
 
       {/* QR Code Display - Full Focus */}
       <div className="flex flex-col items-center">
-        <div className="bg-white p-5 rounded-2xl shadow-xl border-2 border-primary/20">
+        <div className="bg-card p-5 rounded-2xl border-2 border-primary/20">
           <canvas ref={canvasRef} className="rounded-lg" />
         </div>
         <p className="text-sm text-muted-foreground mt-4 text-center font-medium">
@@ -450,7 +450,7 @@ export const PaymentSelectionDrawer = ({
                     <CreditCard className="w-7 h-7" />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-bold text-lg">💳 {t('payment.payByCard')}</p>
+                    <p className="font-bold text-lg">{t('payment.payByCard')}</p>
                     <p className="text-sm text-white/80">{t('payment.cardDescription')}</p>
                   </div>
                 </button>
@@ -463,10 +463,10 @@ export const PaymentSelectionDrawer = ({
                     className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-amber-700 hover:to-amber-600 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
                     <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-                      <Hotel className="w-7 h-7" />
+                      <Building2 className="w-7 h-7" />
                     </div>
                     <div className="text-left flex-1">
-                      <p className="font-bold text-lg">🏨 {t('payment.addToRoom')}</p>
+                      <p className="font-bold text-lg">{t('payment.addToRoom')}</p>
                       <p className="text-sm text-white/80">{t('payment.roomDescription')}</p>
                     </div>
                   </button>
@@ -476,13 +476,13 @@ export const PaymentSelectionDrawer = ({
                 <button
                   onClick={onTapToPayRequested}
                   disabled={processing}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-green-700 hover:to-green-600 transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="w-full bg-primary text-primary-foreground rounded-2xl p-5 flex items-center gap-4 hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
-                  <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
+                  <div className="w-14 h-14 bg-primary-foreground/20 rounded-xl flex items-center justify-center">
                     <Smartphone className="w-7 h-7" />
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-bold text-lg">📱 {t('payment.tapToPay')}</p>
+                    <p className="font-bold text-lg">{t('payment.tapToPay')}</p>
                     <p className="text-sm text-white/80">{t('payment.tapToPayDescription')}</p>
                   </div>
                 </button>

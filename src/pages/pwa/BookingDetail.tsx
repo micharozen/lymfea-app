@@ -946,9 +946,9 @@ const PwaBookingDetail = () => {
           {/* Earnings */}
           {estimatedEarnings > 0 && (
             <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
-              <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
-              <span className="text-xs text-green-600 dark:text-green-500 font-medium">{t('bookingDetail.yourEarnings')}</span>
-              <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
+              <Wallet className="w-4 h-4 text-success flex-shrink-0" />
+              <span className="text-xs text-success font-medium">{t('bookingDetail.yourEarnings')}</span>
+              <span className="text-xs font-bold text-success ml-auto">
                 {formatPrice(estimatedEarnings, booking.hotel_currency)}
               </span>
             </div>
@@ -989,7 +989,7 @@ const PwaBookingDetail = () => {
               {booking.status === "confirmed" && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
-                  className="px-4 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                  className="px-4 py-1 bg-primary text-primary-foreground font-medium text-[10px] rounded hover:bg-primary/90 transition-all active:scale-[0.98]"
                 >
                   + {t('bookingDetail.add')}
                 </button>
@@ -1290,7 +1290,7 @@ const PwaBookingDetail = () => {
                   <button
                     onClick={() => setShowSignatureDialog(true)}
                     disabled={updating}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full py-2.5 px-4 text-xs font-bold hover:from-green-500 hover:to-green-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
+                    className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     <Pen className="w-4 h-4" />
                     Signature client
@@ -1537,7 +1537,7 @@ const PwaBookingDetail = () => {
                 handleTapToPayConfirm();
               }}
               disabled={tapToPayLoading}
-              className="bg-green-600 text-white hover:bg-green-700"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {tapToPayLoading ? "..." : t('payment.tapToPayConfirmButton')}
             </AlertDialogAction>

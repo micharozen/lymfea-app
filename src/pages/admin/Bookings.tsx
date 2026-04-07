@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-// AJOUT de useSearchParams pour lire l'URL
-import { useSearchParams } from "react-router-dom"; 
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -35,6 +34,7 @@ import {
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
+  const navigate = useNavigate();
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
@@ -55,21 +55,21 @@ export default function Booking() {
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
-  // --- LOGIQUE D'OUVERTURE AUTOMATIQUE (CORRECTION TICKET) ---
-  useEffect(() => {
-    const bookingId = searchParams.get("id");
-    if (bookingId && bookings.length > 0) {
-      // On cherche la réservation par son ID (UUID) ou son ID court (numérique)
-      const target = bookings.find(
-        (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
-      );
-      
-      if (target) {
-        setViewedBooking(target);
-        setIsDetailDialogOpen(true);
-      }
+  // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
+useEffect(() => {
+  const bookingId = searchParams.get("id");
+  if (bookingId && bookings.length > 0) {
+    const target = bookings.find(
+      (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
+    );
+    
+    if (target) {
+      // Au lieu d'ouvrir l'ancienne modale 
+      // On redirige vers la nouvelle page 
+      navigate(`/admin/bookings/${target.id}`);
     }
-  }, [searchParams, bookings]); // Se déclenche quand l'URL change ou quand les données arrivent
+  }
+}, [searchParams, bookings, navigate]); // Se déclenche quand l'URL change ou quand les données arrivent
   // -----------------------------------------------------------
 
   // Day count with localStorage persistence
@@ -196,8 +196,8 @@ export default function Booking() {
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
     if (booking) {
-      setViewedBooking(booking);
-      setIsDetailDialogOpen(true);
+      // Navigation vers la nouvelle page détaillée au lieu d'ouvrir la modale
+      navigate(`/admin/bookings/${booking.id}`);
     }
   };
 
@@ -239,7 +239,7 @@ export default function Booking() {
       {/* Header & Filters */}
       <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
             Planning
           </h1>
           <div className="flex items-center gap-2">
@@ -262,9 +262,8 @@ export default function Booking() {
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="bg-green-600 hover:bg-green-700 text-white h-8 text-xs">
-              <Plus className="h-3.5 w-3.5" />
-              {isConcierge ? "Demande" : "Réservation"}
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+              {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
             </Button>
           </div>
         </div>

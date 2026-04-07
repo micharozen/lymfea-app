@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users } from "lucide-react";
 import { VENUE_ROLES } from "@/lib/venueRoles";
 import { toast } from "sonner";
 import {
@@ -219,8 +219,8 @@ export default function Concierges() {
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
-            👥 Équipe lieu
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            Équipe lieu
           </h1>
         </div>
       </div>
@@ -265,11 +265,10 @@ export default function Concierges() {
 
             {userRole === "admin" && (
               <Button
-                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+                className="ml-auto"
                 onClick={openAdd}
               >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Ajouter un membre</span>
+                Nouveau membre
               </Button>
             )}
           </div>

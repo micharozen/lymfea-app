@@ -185,8 +185,8 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-4xl">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
-          <Card className="border border-border bg-card shadow-sm">
+          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
+          <Card className="border border-border bg-card">
             <CardContent className="p-4 md:p-8">
               <p className="text-muted-foreground">Chargement...</p>
             </CardContent>
@@ -199,9 +199,9 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-4xl">
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
+        <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
 
-        <Card className="border border-border bg-card shadow-sm">
+        <Card className="border border-border bg-card">
           <CardContent className="p-4 md:p-8">
             {/* Photo de profil */}
             <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
@@ -311,7 +311,6 @@ export default function Profile() {
               {!isEditing ? (
                 <Button 
                   onClick={() => setIsEditing(true)}
-                  className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   Modifier le profil
                 </Button>
@@ -325,7 +324,6 @@ export default function Profile() {
                   </Button>
                   <Button 
                     onClick={handleSave}
-                    className="bg-foreground text-background hover:bg-foreground/90"
                   >
                     Enregistrer les modifications
                   </Button>

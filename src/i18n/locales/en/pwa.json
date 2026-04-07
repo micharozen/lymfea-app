@@ -434,5 +434,35 @@
     "saturday": "Saturday",
     "sunday": "Sunday",
     "templateSaved": "Template saved"
+  },
+  "support": {
+    "title": "Support",
+    "detailsTitle": "Describe your request",
+    "detailsDesc": "Give us as much detail as possible so we can help you quickly.",
+    "classificationTitle": "Classification",
+    "subject": "Subject",
+    "subjectPlaceholder": "Brief summary of the issue",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe the issue in detail...",
+    "category": "Category",
+    "priority": "Priority",
+    "categories": {
+      "question": "Question",
+      "billing": "Billing",
+      "booking": "Booking",
+      "problem": "Problem",
+      "other": "Other"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "submit": "Submit ticket",
+    "submitting": "Submitting...",
+    "created": "Ticket submitted successfully",
+    "createError": "Failed to submit ticket",
+    "fieldsRequired": "Please fill in all required fields"
   }
 }
