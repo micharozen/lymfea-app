@@ -143,29 +143,39 @@ serve(async (req) => {
 
 
     // =========================================================================
-    // 💳 ÉTAPE C: CRÉATION DU SETUP INTENT (L'empreinte bancaire)
+    // 💳 ÉTAPE C: CRÉATION DE LA SESSION CHECKOUT (Mode Setup)
     // =========================================================================
     
     // IMPORTANT: On ne fait PAS d'appel à `reserve_trunk_atomically` ici.
     // L'enregistrement en base se fera APRES que le client ait mis sa carte.
 
-    const setupIntent = await stripe.setupIntents.create({
+    const origin = req.headers.get("origin") || "http://localhost:5173";
+
+    // On crée une session Checkout, mais au lieu du mode 'payment', on utilise 'setup'
+    const session = await stripe.checkout.sessions.create({
+      mode: 'setup',
       customer: stripeCustomerId,
-      usage: 'off_session', // Autorise le débit futur sans le client
-      metadata: {
-        hotel_id: hotelId,
-        booking_date: bookingData.date,
-        booking_time: bookingData.time,
-        estimated_total: verifiedTotalPrice.toString(),
+      payment_method_types: ['card'],
+      // Stripe remplacera {CHECKOUT_SESSION_ID} par le vrai ID lors de la redirection
+      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotelId}/payment`,
+      setup_intent_data: {
+        metadata: {
+          hotel_id: hotelId,
+          booking_date: bookingData.date,
+          booking_time: bookingData.time,
+          estimated_total: verifiedTotalPrice.toString(),
+        }
       }
     });
 
-    console.log("[CREATE-SETUP-INTENT] SetupIntent created:", setupIntent.id);
+    console.log("[CREATE-SETUP-INTENT] Checkout Session created:", session.id);
 
+    // On renvoie l'URL de redirection au front-end
     return new Response(
       JSON.stringify({ 
-        clientSecret: setupIntent.client_secret,
-        setupIntentId: setupIntent.id 
+        url: session.url,
+        sessionId: session.id 
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
