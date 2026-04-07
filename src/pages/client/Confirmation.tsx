@@ -1,18 +1,82 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
+import { useBasket } from './context/CartContext';
+import { useClientFlow } from './context/FlowContext';
+import { toast } from 'sonner';
 
 export default function Confirmation() {
-  const { hotelId, bookingId } = useParams<{ hotelId: string; bookingId: string }>();
+  const { hotelId, bookingId: urlBookingId } = useParams<{ hotelId: string; bookingId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { trackConversion } = useClientAnalytics(hotelId);
   const hasTrackedConversion = useRef(false);
+
+  // NOUVEAU : Outils pour la finalisation post-Stripe
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('session_id');
+  const { items, clearBasket } = useBasket();
+  const { clientInfo, bookingDateTime, therapistGenderPreference, clearFlow } = useClientFlow();
+
+  // On gère un état local pour le VRAI ID de réservation
+  const [realBookingId, setRealBookingId] = useState<string | null>(urlBookingId === 'setup' ? null : urlBookingId || null);
+  const [isConfirmingSetup, setIsConfirmingSetup] = useState(urlBookingId === 'setup');
+  
+  const bookingId = realBookingId; // On utilise ça pour tout le reste du fichier
+
+  // Intercepter le retour de Stripe et créer la réservation
+  useEffect(() => {
+    if (urlBookingId === 'setup' && sessionId && isConfirmingSetup) {
+      const confirmSetup = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('confirm-setup-intent', {
+            body: {
+              sessionId, // On envoie l'ID de session à notre Edge Function
+              hotelId,
+              clientData: {
+                firstName: clientInfo?.firstName,
+                lastName: clientInfo?.lastName,
+                phone: `${clientInfo?.countryCode}${clientInfo?.phone}`,
+                email: clientInfo?.email,
+                roomNumber: clientInfo?.roomNumber,
+                note: clientInfo?.note || '',
+              },
+              bookingData: {
+                date: bookingDateTime?.date,
+                time: bookingDateTime?.time,
+              },
+              treatmentIds: items.map(item => item.id),
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+              })),
+              therapistGender: therapistGenderPreference
+            }
+          });
+
+          if (error) throw error;
+
+          // Succès ! On stocke le vrai ID et on nettoie le panier
+          setRealBookingId(data.bookingId);
+          clearBasket();
+          clearFlow();
+        } catch (error) {
+          console.error('Erreur confirmation Stripe:', error);
+          toast.error("Le créneau n'est plus disponible ou une erreur est survenue.");
+          navigate(`/client/${hotelId}/payment`);
+        } finally {
+          setIsConfirmingSetup(false);
+        }
+      };
+
+      confirmSetup();
+    }
+  }, [urlBookingId, sessionId, isConfirmingSetup]); 
 
   // Track conversion once when booking is confirmed
   useEffect(() => {
@@ -34,16 +98,21 @@ export default function Confirmation() {
       if (error) throw error;
       return data;
     },
-    enabled: !!bookingId,
+    enabled: !!bookingId, // Ne se lance QUE si on a un vrai ID
   });
 
   const isQuotePending = booking?.status === 'quote_pending';
 
-  // Show loading while fetching booking status
-  if (isLoading) {
+  // Show loading while fetching booking status OR confirming setup
+  if (isLoading || isConfirmingSetup) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        {isConfirmingSetup && (
+          <p className="mt-4 text-gray-500 font-medium animate-pulse">
+            Finalisation de votre réservation...
+          </p>
+        )}
       </div>
     );
   }

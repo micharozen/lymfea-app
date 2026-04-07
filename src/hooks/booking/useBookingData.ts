@@ -121,19 +121,29 @@ export function useBookingData() {
   });
 
   // Realtime subscription for automatic updates
+  // Realtime subscription for automatic updates
   useEffect(() => {
+    // On génère un nom unique pour éviter les conflits si le composant se recharge vite
+    const channelName = `bookings-admin-${Math.random().toString(36).substring(7)}`;
+    
     const channel = supabase
-      .channel('bookings-admin-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bookings' },
-        () => {
+        (payload) => {
+          console.log('Changement détecté (Admin):', payload);
           refetchBookings();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Connecté aux changements en temps réel');
+        }
+      });
 
     return () => {
+      console.log('🔌 Nettoyage du canal realtime');
       supabase.removeChannel(channel);
     };
   }, [refetchBookings]);

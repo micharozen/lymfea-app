@@ -73,6 +73,8 @@ const getPaymentStatusBadge = (paymentStatus?: string | null) => {
       return { label: 'Payé', className: 'bg-green-100 text-green-700' };
     case 'charged_to_room':
       return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
+    case 'card_saved': // 🚨 NOTRE NOUVEAU STATUT
+      return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
     case 'pending':
       return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
     case 'failed':
@@ -507,7 +509,7 @@ const PwaBookingDetail = () => {
       // Use RPC function to unassign booking (bypasses RLS issues)
       const { data, error } = await supabase.rpc('unassign_booking', {
         _booking_id: booking.id,
-        _therapist_id: therapistData.id
+        _hairdresser_id: therapistData.id // <-- Remplacé ici
       });
 
       if (error) throw error;
@@ -624,11 +626,11 @@ const PwaBookingDetail = () => {
       const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
       console.log('[Booking] 💰 Total price:', totalPrice);
       
-      console.log('[Booking] 📞 Calling accept_booking RPC...');
+     console.log('[Booking] 📞 Calling accept_booking RPC...');
       const { data, error } = await supabase.rpc('accept_booking', {
         _booking_id: booking.id,
-        _therapist_id: therapistData.id,
-        _therapist_name: `${therapistData.first_name} ${therapistData.last_name}`,
+        _hairdresser_id: therapistData.id, // <-- Remplacé ici
+        _hairdresser_name: `${therapistData.first_name} ${therapistData.last_name}`, // <-- Et ici aussi !
         _total_price: totalPrice
       });
 
@@ -735,7 +737,35 @@ const PwaBookingDetail = () => {
       toast.error(t('common:errors.generic'));
     }
   };
+// 💰 NOUVELLE FONCTION : Débiter la carte enregistrée
+  const handleChargeSavedCard = async (amount: number) => {
+    if (!booking) return;
 
+    setUpdating(true);
+    try {
+      const { data, error } = await invokeEdgeFunction(
+        'charge-saved-card',
+        {
+          body: {
+            bookingId: booking.id,
+            finalAmount: amount, // On utilise le paramètre
+          },
+        }
+      );
+
+      if (error) throw error;
+      if (!(data as any)?.success) throw new Error((data as any)?.error || "Le paiement a échoué.");
+
+      toast.success("Le paiement a été débité avec succès sur la carte du client !");
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      console.error("Erreur lors du débit:", error);
+      toast.error(error.message || "Impossible de débiter la carte. Essayez un autre moyen de paiement.");
+      setShowPaymentSelection(true);
+    } finally {
+      setUpdating(false);
+    }
+  };
   const openInMaps = (app: 'apple' | 'google' | 'waze') => {
     if (!booking) return;
     
@@ -1216,16 +1246,42 @@ const PwaBookingDetail = () => {
                   </DrawerContent>
                 </Drawer>
 
-                {/* Main Action Button - Smart Cashier */}
-                {/* Only show payment selection if NOT already paid by card */}
-                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status !== 'paid' && (
+                {/* 💳 ACTION BUTTON : Débiter la carte enregistrée */}
+                {["pending", "confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status === 'card_saved' && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleChargeSavedCard(totalPrice);
+                    }}
+                    disabled={updating}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full py-2.5 px-4 text-xs font-bold hover:from-purple-500 hover:to-purple-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
+                  >
+                    <Wallet className="w-4 h-4" />
+                    Débiter la carte ({formatPrice(totalPrice, booking.hotel_currency || 'EUR')})
+                  </button>
+                )}
+
+                {/* Main Action Button - Smart Cashier (Paiement classique) */}
+                {["pending", "confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status !== 'paid' && booking.payment_status !== 'card_saved' && (
                   <button
                     onClick={() => setShowPaymentSelection(true)}
                     disabled={updating}
                     className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     <Wallet className="w-4 h-4" />
-                    Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
+                    Finaliser ({formatPrice(totalPrice, booking.hotel_currency || 'EUR')})
+                  </button>
+                )}
+                
+                {/* If already paid by card, show signature-only button */}
+                {["pending", "confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status === 'paid' && (
+                  <button
+                    onClick={() => setShowSignatureDialog(true)}
+                    disabled={updating}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full py-2.5 px-4 text-xs font-bold hover:from-green-500 hover:to-green-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
+                  >
+                    <Pen className="w-4 h-4" />
+                    Signature client
                   </button>
                 )}
                 

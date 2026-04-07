@@ -16,8 +16,15 @@ serve(async (req) => {
   try {
     console.log("[CREATE-SETUP-INTENT] Starting SetupIntent creation");
 
-    const { bookingData, clientData, treatmentIds, treatments: treatmentsPayload, hotelId } = await req.json();
-
+    const { 
+      bookingData, 
+      clientData, 
+      treatmentIds, 
+      treatments: treatmentsPayload, 
+      hotelId,
+      language,         // <--- AJOUTE ÇA ICI
+      therapistGender   // <--- AJOUTE ÇA ICI
+    } = await req.json();
     // 1. Validation de base des champs requis
     if (!bookingData || !clientData || !hotelId) {
       throw new Error("Missing required data");
@@ -152,20 +159,27 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "http://localhost:5173";
 
     // On crée une session Checkout, mais au lieu du mode 'payment', on utilise 'setup'
+    // On crée une session Checkout en mode 'setup'
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      // Stripe remplacera {CHECKOUT_SESSION_ID} par le vrai ID lors de la redirection
-      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/client/${hotelId}/payment`,
-      setup_intent_data: {
-        metadata: {
-          hotel_id: hotelId,
-          booking_date: bookingData.date,
-          booking_time: bookingData.time,
-          estimated_total: verifiedTotalPrice.toString(),
-        }
+      // Note: On utilise {CHECKOUT_SESSION_ID} sans le "session_id=" car le front le gère déjà
+success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,      cancel_url: `${origin}/client/${hotelId}/payment`,
+      // 🚨 ON MET TOUT ICI (Metadata de niveau 1)
+      metadata: {
+        hotelId: hotelId,
+        bookingDate: bookingData.date,
+        bookingTime: bookingData.time,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        clientEmail: clientData.email,
+        phone: clientData.phone,
+        roomNumber: clientData.roomNumber || '',
+        note: clientData.note || '',
+        treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        language: language || 'fr',
+        therapistGender: therapistGender || ''
       }
     });
 

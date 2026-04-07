@@ -90,7 +90,7 @@ export default function Payment() {
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
         // Stripe payment flow
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
             clientData: {
@@ -367,8 +367,8 @@ export default function Payment() {
                   <p className={cn(
                     "font-medium",
                     selectedMethod === 'card' ? "text-gold-600" : "text-gray-900"
-                  )}>{t('payment.payNow')}</p>
-                  <p className="text-sm text-gray-400">{t('payment.payNowDesc')}</p>
+                  )}>{t('payment.saveCard', 'Enregistrer et Réserver')}</p>
+                  <p className="text-sm text-gray-400">{t('payment.saveCardDesc', 'Votre carte sera débitée après votre soin')}</p>
                 </div>
               </div>
             </button>
@@ -430,7 +430,7 @@ export default function Payment() {
           ) : hasPriceOnRequest ? (
             t('payment.requestQuote')
           ) : selectedMethod === 'card' ? (
-            t('payment.payNow')
+            t('payment.saveCardButton', 'Enregistrer et Réserver')
           ) : (
             t('payment.confirmBook')
           )}
