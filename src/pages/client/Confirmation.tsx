@@ -53,6 +53,7 @@ export default function Confirmation() {
         });
           
         if (dbError) throw dbError;
+        console.log("👀 DEBUG RÉSERVATION :", JSON.stringify(data, null, 2)); 
         if (!data) throw new Error("Votre réservation est introuvable.");
         
         setBooking(data);
@@ -101,16 +102,16 @@ export default function Confirmation() {
     );
   }
 
+ // ---------------------------------------------------------------------------
+  // EXTRACTION SÉCURISÉE DES DONNÉES
   // ---------------------------------------------------------------------------
-  // EXTRACTION SÉCURISÉE DES DONNÉES (Rend le code "bulletproof")
-  // ---------------------------------------------------------------------------
-  let treatmentNames = "Votre soin";
+  let treatmentNames = "Vos soins";
 
-  // Cas 1 : La donnée est un tableau simple de noms (Nouveau format SQL)
+  // Cas 1 : La donnée est un tableau simple de noms
   if (Array.isArray(booking?.treatments) && booking.treatments.length > 0) {
     treatmentNames = booking.treatments.join(", ");
   } 
-  // Cas 2 : La donnée est imbriquée (Ancien format SQL / Récupération directe)
+  // Cas 2 : La donnée est imbriquée
   else if (Array.isArray(booking?.booking_treatments) && booking.booking_treatments.length > 0) {
     const names = booking.booking_treatments
       .map((bt: any) => bt?.treatment_menus?.name)

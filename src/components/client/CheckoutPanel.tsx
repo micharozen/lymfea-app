@@ -382,7 +382,7 @@ export function CheckoutPanel({
                 <p className={cn(
   "text-sm font-medium",
   selectedMethod === 'card' ? "text-gold-600" : "text-gray-900"
-)}>{t('payment.saveCard', 'Enregistrer et Réserver')}</p>
+)}>{t('payment.saveCard', 'Réserver')}</p>
 <p className="text-xs text-gray-400">{t('payment.saveCardDesc', 'Votre carte sera débitée après votre soin')}</p>
               </div>
             </div>
@@ -445,7 +445,7 @@ export function CheckoutPanel({
             ) : hasPriceOnRequest ? (
               t('payment.requestQuote')
             ) : selectedMethod === 'card' ? (
-              t('payment.saveCardButton', 'Enregistrer et Réserver')
+              t('payment.saveCardButton', 'Réserver')
             ) : (
               t('payment.confirmBook')
             )}
@@ -477,7 +477,7 @@ export function CheckoutPanel({
               ) : hasPriceOnRequest ? (
                 t('payment.requestQuote')
               ) : selectedMethod === 'card' ? (
-                t('payment.saveCardButton', 'Enregistrer et Réserver')
+                t('payment.saveCardButton', 'Réserver')
               ) : (
                 t('payment.confirmBook')
               )}

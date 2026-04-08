@@ -164,6 +164,7 @@ serve(async (req) => {
       mode: 'setup',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
+      
       // Note: On utilise {CHECKOUT_SESSION_ID} sans le "session_id=" car le front le gère déjà
 success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,      cancel_url: `${origin}/client/${hotelId}/payment`,
       // 🚨 ON MET TOUT ICI (Metadata de niveau 1)

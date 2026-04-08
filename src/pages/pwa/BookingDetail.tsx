@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +130,7 @@ const PwaBookingDetail = () => {
   const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const isAcceptingRef = useRef(false);
+  const isChargingRef = useRef(false);
   const [proposedSlots, setProposedSlots] = useState<{
     slot_1_date: string; slot_1_time: string;
     slot_2_date?: string | null; slot_2_time?: string | null;
@@ -302,8 +303,12 @@ const PwaBookingDetail = () => {
   };
 
   const handleChargeSavedCard = async (amount: number) => {
-    if (!booking) return;
+    // Verrou strict anti-double-clic
+    if (!booking || updating || isChargingRef.current) return;
+    
+    isChargingRef.current = true;
     setUpdating(true);
+    
     try {
       const { data, error } = await invokeEdgeFunction('charge-saved-card', {
         body: { bookingId: booking.id, finalAmount: amount },
@@ -318,11 +323,11 @@ const PwaBookingDetail = () => {
       toast.error(error.message || "Impossible de débiter la carte.");
       setShowPaymentSelection(true);
     } finally {
+      isChargingRef.current = false;
       setUpdating(false);
     }
   };
-
-  const handleDeleteTreatment = async (treatmentId: string) => {
+const handleDeleteTreatment = async (treatmentId: string) => {
     if (!booking) return;
     setUpdating(true);
     try {
@@ -338,7 +343,6 @@ const PwaBookingDetail = () => {
 
       if (deleteError) throw deleteError;
 
-      // 🚨 LE DÉTECTEUR DE BLOCAGE RLS :
       if (!data || data.length === 0) {
         throw new Error("Droits insuffisants. Vérifie les RLS (Policies) 'DELETE' sur la table booking_treatments dans Supabase.");
       }
@@ -560,9 +564,17 @@ const PwaBookingDetail = () => {
                   <button 
                     onClick={() => handleChargeSavedCard(totalPrice)} 
                     disabled={updating} 
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all"
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                   >
-                    <Wallet className="w-4 h-4" /> Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
+                    {updating ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" /> Encaissement...
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="w-4 h-4" /> Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
+                      </>
+                    )}
                   </button>
                 ) : booking.payment_status !== 'paid' && !booking.client_signature ? (
                   <button onClick={() => setShowPaymentSelection(true)} className="flex-1 bg-primary text-primary-foreground rounded-full font-bold">Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})</button>
