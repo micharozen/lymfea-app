@@ -476,5 +476,67 @@
     "calendars": "Calendars",
     "showAll": "All",
     "hideAll": "None"
+  },
+  "support": {
+    "title": "Support",
+    "description": "Manage your support tickets",
+    "createTicket": "New ticket",
+    "subject": "Subject",
+    "description_label": "Description",
+    "category": "Category",
+    "priority": "Priority",
+    "status": "Status",
+    "createdBy": "Created by",
+    "createdAt": "Date",
+    "actions": "Actions",
+    "search": "Search tickets...",
+    "allStatuses": "All statuses",
+    "allCategories": "All categories",
+    "allPriorities": "All priorities",
+    "categories": {
+      "question": "Question",
+      "billing": "Billing",
+      "booking": "Booking",
+      "problem": "Problem",
+      "other": "Other"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "statuses": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "createDialog": {
+      "title": "Create a support ticket",
+      "subjectPlaceholder": "Brief summary of the issue",
+      "descriptionPlaceholder": "Describe the issue in detail...",
+      "submit": "Submit",
+      "submitting": "Submitting...",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "created": "Ticket created successfully",
+      "createError": "Failed to create ticket",
+      "statusUpdated": "Status updated",
+      "statusError": "Failed to update status",
+      "fieldsRequired": "Please fill in all required fields",
+      "loadError": "Failed to load tickets"
+    },
+    "empty": "No support tickets",
+    "emptyOpen": "No open tickets",
+    "emptyClosed": "No closed tickets",
+    "openTickets": "Open Tickets",
+    "closedTickets": "Closed Tickets",
+    "closedAt": "Closed at",
+    "screenshots": "Screenshots",
+    "screenshotsDesc": "Add up to 3 screenshots (optional)",
+    "viewScreenshots": "View screenshots",
+    "viewNotion": "View in Notion"
   }
 }

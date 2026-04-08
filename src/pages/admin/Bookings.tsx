@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-// AJOUT de useSearchParams pour lire l'URL
-import { useSearchParams } from "react-router-dom"; 
-import { RefreshCw } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
@@ -35,6 +34,7 @@ import {
 import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
+  const navigate = useNavigate();
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
@@ -55,21 +55,21 @@ export default function Booking() {
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
 
-  // --- LOGIQUE D'OUVERTURE AUTOMATIQUE (CORRECTION TICKET) ---
-  useEffect(() => {
-    const bookingId = searchParams.get("id");
-    if (bookingId && bookings.length > 0) {
-      // On cherche la réservation par son ID (UUID) ou son ID court (numérique)
-      const target = bookings.find(
-        (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
-      );
-      
-      if (target) {
-        setViewedBooking(target);
-        setIsDetailDialogOpen(true);
-      }
+  // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
+useEffect(() => {
+  const bookingId = searchParams.get("id");
+  if (bookingId && bookings.length > 0) {
+    const target = bookings.find(
+      (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
+    );
+    
+    if (target) {
+      // Au lieu d'ouvrir l'ancienne modale 
+      // On redirige vers la nouvelle page 
+      navigate(`/admin/bookings/${target.id}`);
     }
-  }, [searchParams, bookings]); // Se déclenche quand l'URL change ou quand les données arrivent
+  }
+}, [searchParams, bookings, navigate]); // Se déclenche quand l'URL change ou quand les données arrivent
   // -----------------------------------------------------------
 
   // Day count with localStorage persistence
@@ -196,8 +196,8 @@ export default function Booking() {
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
     if (booking) {
-      setViewedBooking(booking);
-      setIsDetailDialogOpen(true);
+      // Navigation vers la nouvelle page détaillée au lieu d'ouvrir la modale
+      navigate(`/admin/bookings/${booking.id}`);
     }
   };
 

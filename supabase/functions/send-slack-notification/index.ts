@@ -117,6 +117,7 @@ serve(async (req) => {
 
     // Simple Slack message with attachments for color
     const slackMessage = {
+      text: `${emoji} ${title} #${payload.bookingNumber} — ${payload.clientName} @ ${payload.hotelName} (${formattedDate} ${formattedTime})`,
       attachments: [
         {
           color: color,

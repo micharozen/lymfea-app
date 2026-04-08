@@ -1,6 +1,6 @@
 import Signature from "./pages/client/Signature";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,7 +12,7 @@ import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { brand, brandLogos } from "@/config/brand";
-
+import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import TherapistProtectedRoute from "./components/TherapistProtectedRoute";
 import { CartProvider } from "./pages/client/context/CartContext";
@@ -47,6 +47,7 @@ const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
+const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
 
 // Auth Pages
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -79,6 +80,8 @@ const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
+const PwaSupport = lazy(() => import("./pages/pwa/Support"));
+
 
 // Admin PWA Layout & Pages
 const AdminPwaLayout = lazy(() => import("./components/admin-pwa/Layout"));
@@ -247,6 +250,8 @@ const App = () => {
             {/* Quote Response Page (Public) */}
             <Route path="/quote-response" element={<QuoteResponse />} />
 
+            <Route path="/client/signature/:token" element={<Signature />} />
+
             {/* Signature Page (Public) - Ticket S1-04 */}
 <Route path="/sign/:token" element={<Signature />} />
             
@@ -353,6 +358,14 @@ const App = () => {
                 </TherapistProtectedRoute>
               }
             />
+            <Route
+              path="/pwa/support"
+              element={
+                <TherapistProtectedRoute>
+                  <PwaSupport />
+                </TherapistProtectedRoute>
+              }
+            />
 
             {/* Admin PWA Public Routes */}
             <Route path="/admin-pwa/install" element={<AdminPwaInstall />} />
@@ -401,6 +414,7 @@ const App = () => {
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
                               <Route path="/bookings" element={<Bookings />} />
+                              <Route path="/bookings/:id" element={<BookingDetail />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />
                               <Route path="/therapists/:id" element={<TherapistDetail />} />
@@ -423,8 +437,10 @@ const App = () => {
                               <Route path="/finance" element={<Finance />} />
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
+                              <Route path="/support" element={<SupportTickets />} />
                               <Route path="/settings" element={<Settings />} />
                               <Route path="/profile" element={<AdminProfile />} />
+                              
                               <Route path="*" element={<NotFound />} />
                             </Routes>
                           </Suspense>
