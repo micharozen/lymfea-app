@@ -132,18 +132,32 @@ const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
 
   // Realtime subscription for automatic updates
   useEffect(() => {
-    const channel = supabase
-      .channel('bookings-admin-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        () => {
-          refetchBookings();
-        }
-      )
-      .subscribe();
+    const channelName = 'bookings-admin-realtime';
 
+    // 1. On nettoie préventivement au cas où le canal existerait déjà
+    supabase.removeAllChannels();
+
+    // 2. On recrée un canal tout neuf
+    const channel = supabase.channel(channelName);
+
+    // 3. On y attache l'écouteur
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'bookings' },
+      () => {
+        console.log("Mise à jour d'une réservation reçue, rechargement...");
+        refetchBookings();
+      }
+    );
+
+    // 4. On démarre la connexion
+    channel.subscribe((status) => {
+      console.log("Statut de la connexion en temps réel :", status);
+    });
+
+    // 5. Nettoyage strict au démontage
     return () => {
+      console.log("Fermeture de la connexion temps réel");
       supabase.removeChannel(channel);
     };
   }, [refetchBookings]);

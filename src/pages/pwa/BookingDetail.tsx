@@ -507,7 +507,7 @@ const PwaBookingDetail = () => {
       // Use RPC function to unassign booking (bypasses RLS issues)
       const { data, error } = await supabase.rpc('unassign_booking', {
         _booking_id: booking.id,
-        _therapist_id: therapistData.id
+        _hairdresser_id: therapistData.id
       });
 
       if (error) throw error;
@@ -622,33 +622,25 @@ const PwaBookingDetail = () => {
       }
 
       const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-      console.log('[Booking] 💰 Total price:', totalPrice);
+      const finalPrice = Math.max(booking.total_price || 0, totalPrice);
+      console.log('[Booking] 💰 Total price:', finalPrice);
       
-      console.log('[Booking] 📞 Calling accept_booking RPC...');
-      const { data, error } = await supabase.rpc('accept_booking', {
-        _booking_id: booking.id,
-        _therapist_id: therapistData.id,
-        _therapist_name: `${therapistData.first_name} ${therapistData.last_name}`,
-        _total_price: totalPrice
-      });
+      console.log('[Booking] 📞 Updating booking in database...');
+      // 1. On met à jour la réservation directement dans la table
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          therapist_id: therapistData.id,
+          status: 'confirmed',
+          total_price: finalPrice,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id);
 
-      console.log('[Booking] 📥 RPC response:', { data, error });
-      console.log('[Booking] 📦 Data content:', data);
-
+      // 2. Vérification de l'erreur
       if (error) {
-        console.error('[Booking] ❌ RPC error:', error);
+        console.error("Erreur Supabase lors de l'acceptation :", error);
         throw error;
-      }
-
-      const result = data as { success: boolean; error?: string; data?: any } | null;
-      console.log('[Booking] 🔍 Parsed result:', result);
-      console.log('[Booking] ✅ Result success?', result?.success);
-      
-      if (result && !result.success) {
-        console.log('[Booking] ❌ Booking already taken by another therapist');
-        toast.error("Réservation déjà prise par un autre thérapeute");
-        navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-        return;
       }
 
       console.log('[Booking] 🎉 Booking accepted successfully!');
