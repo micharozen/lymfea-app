@@ -459,6 +459,8 @@
       "high": "High",
       "urgent": "Urgent"
     },
+    "screenshotsTitle": "Screenshots",
+    "screenshotsDesc": "Add up to 3 screenshots to help us understand the issue",
     "submit": "Submit ticket",
     "submitting": "Submitting...",
     "created": "Ticket submitted successfully",

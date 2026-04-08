@@ -459,6 +459,8 @@
       "high": "Haute",
       "urgent": "Urgente"
     },
+    "screenshotsTitle": "Captures d'écran",
+    "screenshotsDesc": "Ajoutez jusqu'à 3 captures d'écran pour nous aider à comprendre le problème",
     "submit": "Envoyer le ticket",
     "submitting": "Envoi...",
     "created": "Ticket envoyé avec succès",
