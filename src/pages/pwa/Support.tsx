@@ -14,9 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LifeBuoy, Tag, AlertTriangle } from "lucide-react";
+import { LifeBuoy, Tag, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import PwaHeader from "@/components/pwa/Header";
+import { ScreenshotPicker } from "@/components/ScreenshotPicker";
 
 export default function PwaSupport() {
   const { t } = useTranslation("pwa");
@@ -26,6 +27,7 @@ export default function PwaSupport() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("question");
   const [priority, setPriority] = useState("medium");
+  const [screenshotUrls, setScreenshotUrls] = useState<string[]>([]);
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
@@ -40,6 +42,7 @@ export default function PwaSupport() {
         description: description.trim(),
         category,
         priority,
+        screenshot_urls: screenshotUrls,
       },
     });
 
@@ -91,6 +94,25 @@ export default function PwaSupport() {
                   rows={5}
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Screenshots */}
+          <Card className="border-l-4 border-l-gold-500">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <ImagePlus className="h-4 w-4 text-gold-600" />
+                {t("support.screenshotsTitle")}
+              </CardTitle>
+              <CardDescription>{t("support.screenshotsDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScreenshotPicker
+                urls={screenshotUrls}
+                onUrlsChange={setScreenshotUrls}
+                maxFiles={3}
+                disabled={submitting}
+              />
             </CardContent>
           </Card>
 

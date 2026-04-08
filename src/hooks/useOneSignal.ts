@@ -130,12 +130,18 @@ export const useOneSignal = () => {
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
 
+      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      if (!appId) {
+        console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
+        return;
+      }
+
       // Start new initialization
       initializationPromise = (async () => {
         try {
           // Set a timeout for init
           const initPromise = OneSignal.init({
-            appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
+            appId,
             allowLocalhostAsSecureOrigin: true,
             // Use 'focus' instead of 'navigate' - we'll handle navigation ourselves
             notificationClickHandlerMatch: "origin",

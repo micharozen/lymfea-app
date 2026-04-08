@@ -529,6 +529,14 @@
       "loadError": "Erreur lors du chargement des tickets"
     },
     "empty": "Aucun ticket de support",
+    "emptyOpen": "Aucun ticket ouvert",
+    "emptyClosed": "Aucun ticket fermé",
+    "openTickets": "Tickets ouverts",
+    "closedTickets": "Tickets fermés",
+    "closedAt": "Fermé le",
+    "screenshots": "Captures d'écran",
+    "screenshotsDesc": "Ajoutez jusqu'à 3 captures d'écran (optionnel)",
+    "viewScreenshots": "Voir les captures d'écran",
     "viewNotion": "Voir dans Notion"
   }
 }
