@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { CreditCard, Building2, Loader2, ExternalLink, Check, AlertTriangle, X, CheckCircle2, Smartphone } from "lucide-react";
 import QRCode from "qrcode";
@@ -204,7 +205,8 @@ export const PaymentSelectionDrawer = ({
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollingRef = useRef<number | null>(null); // Remplace NodeJS.Timeout par number;
+  const isProcessingCardRef = useRef(false); // <-- AJOUTE CETTE LIGNE (Verrou anti double-clic)
 
   // Calculate breakdown
   const totalHT = totalPrice / (1 + vatRate / 100);
@@ -287,11 +289,15 @@ export const PaymentSelectionDrawer = ({
   }, [onOpenChange, onPaymentComplete]);
 
   const handleCardPayment = async () => {
+    // 1. Verrouillage strict anti-double-clic
+    if (isProcessingCardRef.current || processing) return;
+    
+    isProcessingCardRef.current = true;
     setProcessing(true);
-    setStep('card-processing');
+    // 🛑 ON NE CHANGE PLUS L'ÉTAPE ICI, pour que le bouton reste affiché et se grise !
 
     try {
-      const { data, error } = await invokeEdgeFunction<unknown, { payment_url?: string }>('finalize-payment', {
+      const { data, error } = await invokeEdgeFunction<unknown, { success?: boolean; payment_url?: string; error?: string }>('finalize-payment', {
         body: {
           booking_id: bookingId,
           payment_method: 'card',
@@ -301,21 +307,23 @@ export const PaymentSelectionDrawer = ({
 
       if (error) throw error;
 
-      if (data?.payment_url) {
+      if (data?.success && !data?.payment_url) {
+        setStep('success'); // On affiche l'animation de validation !
+      } 
+      else if (data?.payment_url) {
         setPaymentUrl(data.payment_url);
         setStep('card-ready');
       } else {
-        throw new Error("No payment URL returned");
+        throw new Error(data?.error || "Erreur inattendue lors du paiement");
       }
     } catch (error: any) {
       console.error("Card payment error:", error);
       toast.error(error.message || t('payment.errorCreating'));
-      setStep('selection');
     } finally {
+      isProcessingCardRef.current = false;
       setProcessing(false);
     }
   };
-
   const handleRoomPayment = () => {
     // Close this drawer and trigger signature flow
     // The signature flow will handle the room payment finalization
@@ -444,13 +452,19 @@ export const PaymentSelectionDrawer = ({
                 <button
                   onClick={handleCardPayment}
                   disabled={processing}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-2xl p-5 flex items-center gap-4 hover:from-blue-700 hover:to-blue-600 transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-2xl p-5 flex items-center gap-4 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
                 >
                   <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center">
-                    <CreditCard className="w-7 h-7" />
+                    {processing ? (
+                      <Loader2 className="w-7 h-7 animate-spin" />
+                    ) : (
+                      <CreditCard className="w-7 h-7" />
+                    )}
                   </div>
                   <div className="text-left flex-1">
-                    <p className="font-bold text-lg">{t('payment.payByCard')}</p>
+                    <p className="font-bold text-lg">
+                       {processing ? "Traitement en cours..." : t('payment.payByCard')}
+                    </p>
                     <p className="text-sm text-white/80">{t('payment.cardDescription')}</p>
                   </div>
                 </button>
@@ -489,12 +503,12 @@ export const PaymentSelectionDrawer = ({
               </div>
             )}
 
-            {/* Card Processing Step - LOCKED */}
+           {/* Card Processing Step - LOCKED */}
             {step === 'card-processing' && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">{t('payment.creatingLink')}</p>
-                <p className="text-xs text-muted-foreground mt-2">{t('payment.pleaseWait')}</p>
+                <p className="text-muted-foreground font-medium">Traitement du paiement en cours...</p> {/* <--- Modifie cette ligne */}
+                <p className="text-xs text-muted-foreground mt-2">Veuillez patienter, ne quittez pas cette page.</p> {/* <--- Modifie cette ligne */}
               </div>
             )}
 

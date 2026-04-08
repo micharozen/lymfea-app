@@ -59,38 +59,37 @@ export function useBookingData() {
         (bookingsData || []).map(async (booking) => {
           const { data: treatments } = await supabase
             .from("booking_treatments")
-            .select(
-              `
+            .select(`
               treatment_id,
               treatment_menus (
                 name,
                 duration,
                 price
               )
-            `,
-            )
+            `)
             .eq("booking_id", booking.id);
 
           const treatmentsTotalDuration =
-            treatments?.reduce((sum, t: BookingTreatmentJoin) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
 
           const treatmentsTotalPrice =
-            treatments?.reduce((sum, t: BookingTreatmentJoin) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
 
           const totalDuration = booking.duration && booking.duration > 0
             ? booking.duration
             : treatmentsTotalDuration;
 
-const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
+          const treatmentsList = (treatments as any[] | null)
             ?.map((t): Treatment | null => {
               if (!t.treatment_menus) return null;
               return {
                 ...t.treatment_menus,
                 id: t.treatment_id,
                 treatment_id: t.treatment_id
-              } as Treatment; // <-- On force TypeScript à accepter notre format !
+              } as Treatment;
             })
             .filter((m): m is Treatment => m !== null) || [];
+
           return {
             ...booking,
             totalDuration,
@@ -134,30 +133,32 @@ const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
   useEffect(() => {
     const channelName = 'bookings-admin-realtime';
 
-    // 1. On nettoie préventivement au cas où le canal existerait déjà
+    // 1. On nettoie tout ce qui pourrait traîner pour éviter les conflits de callbacks
     supabase.removeAllChannels();
 
-    // 2. On recrée un canal tout neuf
+    // 2. On crée le canal
     const channel = supabase.channel(channelName);
 
-    // 3. On y attache l'écouteur
+    // 3. On attache l'écouteur AVANT de souscrire (ordre crucial pour Supabase)
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'bookings' },
-      () => {
-        console.log("Mise à jour d'une réservation reçue, rechargement...");
+      (payload) => {
+        console.log('✅ Changement détecté (Admin) :', payload);
         refetchBookings();
       }
     );
 
-    // 4. On démarre la connexion
+    // 4. On lance la souscription
     channel.subscribe((status) => {
-      console.log("Statut de la connexion en temps réel :", status);
+      if (status === 'SUBSCRIBED') {
+        console.log('📡 Connecté aux changements en temps réel');
+      }
     });
 
-    // 5. Nettoyage strict au démontage
+    // 5. Nettoyage propre au démontage
     return () => {
-      console.log("Fermeture de la connexion temps réel");
+      console.log('🔌 Nettoyage du canal realtime');
       supabase.removeChannel(channel);
     };
   }, [refetchBookings]);

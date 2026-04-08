@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,6 @@ import { ProposeAlternativeDialog } from "./ProposeAlternativeDialog";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
-import { Skeleton } from "@/components/ui/skeleton";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import {
   Drawer,
@@ -67,18 +66,13 @@ interface Booking {
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
   if (!paymentStatus) return null;
-  
   switch (paymentStatus) {
-    case 'paid':
-      return { label: 'Payé', className: 'bg-green-100 text-green-700' };
-    case 'charged_to_room':
-      return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
-    case 'pending':
-      return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
-    case 'failed':
-      return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
-    default:
-      return null;
+    case 'paid': return { label: 'Payé', className: 'bg-green-100 text-green-700' };
+    case 'charged_to_room': return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
+    case 'card_saved': return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
+    case 'pending': return { label: 'En attente', className: 'bg-yellow-100 text-yellow-700' };
+    case 'failed': return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
+    default: return null;
   }
 };
 
@@ -94,20 +88,6 @@ interface Treatment {
   } | null;
 }
 
-interface ConciergeContact {
-  phone: string;
-  country_code: string;
-  first_name: string;
-  last_name: string;
-}
-
-interface AdminContact {
-  phone: string;
-  country_code: string;
-  first_name: string;
-  last_name: string;
-}
-
 const PwaBookingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -118,17 +98,12 @@ const PwaBookingDetail = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [showAddTreatmentDialog, setShowAddTreatmentDialog] = useState(false);
-  
   const [showContactDrawer, setShowContactDrawer] = useState(false);
   const [showUnassignDialog, setShowUnassignDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
-  const [pendingSlotNumber, setPendingSlotNumber] = useState<1 | 2 | 3 | null>(null);
   const [showProposeAlternativeDialog, setShowProposeAlternativeDialog] = useState(false);
   const [treatmentToDelete, setTreatmentToDelete] = useState<string | null>(null);
-  const [conciergeContact, setConciergeContact] = useState<ConciergeContact | null>(null);
-  const [adminContact, setAdminContact] = useState<AdminContact | null>(null);
-  const [therapistProfile, setTherapistProfile] = useState<any>(null);
   const [showNavigationDrawer, setShowNavigationDrawer] = useState(false);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
@@ -136,107 +111,33 @@ const PwaBookingDetail = () => {
   const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
   const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
+  
   const isAcceptingRef = useRef(false);
-  // Proposed slots for awaiting_hairdresser_selection status (DB enum value)
-  const [proposedSlots, setProposedSlots] = useState<{
-    slot_1_date: string; slot_1_time: string;
-    slot_2_date?: string | null; slot_2_time?: string | null;
-    slot_3_date?: string | null; slot_3_time?: string | null;
-  } | null>(null);
-  const [validatingSlot, setValidatingSlot] = useState<number | null>(null);
+  const isChargingRef = useRef(false);
 
-  // Fetch booking detail when ID changes - keep existing data while loading new booking
   useEffect(() => {
-    // Only clear data if navigating to a DIFFERENT booking
-    if (booking && booking.id !== id) {
-      setBooking(null);
-      setTreatments([]);
-      setLoading(true);
-    } else if (!booking) {
-      setLoading(true);
-    }
-    
     fetchBookingDetail();
-
-    // Set up real-time subscriptions with unique channel name per booking
     const bookingChannel = supabase
       .channel(`booking-changes-${id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bookings',
-          filter: `id=eq.${id}`
-        },
-        () => {
-          // Don't refresh if we're in the middle of accepting
-          if (!isAcceptingRef.current) {
-            fetchBookingDetail();
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'booking_treatments',
-          filter: `booking_id=eq.${id}`
-        },
-        () => {
-          // Don't refresh if we're in the middle of accepting
-          if (!isAcceptingRef.current) {
-            fetchBookingDetail();
-          }
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `id=eq.${id}` }, () => fetchBookingDetail())
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(bookingChannel);
-    };
+    return () => { supabase.removeChannel(bookingChannel); };
   }, [id]);
 
   const fetchBookingDetail = async () => {
     try {
-      const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
-        .select("*")
-        .eq("id", id)
-        .single();
-
+      const { data: bookingData, error: bookingError } = await supabase.from("bookings").select("*").eq("id", id).single();
       if (bookingError) throw bookingError;
 
-      // Fetch hotel data including commission
-      let hotelData = null;
-      if (bookingData.hotel_id) {
-        const { data: hotel } = await supabase
-          .from("hotels")
-          .select("image, address, city, vat, therapist_commission, global_therapist_commission, currency")
-          .eq("id", bookingData.hotel_id)
-          .single();
-        hotelData = hotel;
-      }
-
-      // Fetch therapist rates if individual mode
-      let therapistHourlyRate: number | null = null;
-      let therapistRate45: number | null = null;
-      let therapistRate60: number | null = null;
-      let therapistRate90: number | null = null;
+      const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
+      
+      let rates = { hr: null, r45: null, r60: null, r90: null };
       if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
-        const { data: therapistData } = await supabase
-          .from("therapists")
-          .select("hourly_rate, rate_45, rate_60, rate_90")
-          .eq("id", bookingData.therapist_id)
-          .single();
-        therapistHourlyRate = therapistData?.hourly_rate ?? null;
-        therapistRate45 = therapistData?.rate_45 ?? null;
-        therapistRate60 = therapistData?.rate_60 ?? null;
-        therapistRate90 = therapistData?.rate_90 ?? null;
+        const { data: tData } = await supabase.from("therapists").select("hourly_rate, rate_45, rate_60, rate_90").eq("id", bookingData.therapist_id).single();
+        rates = { hr: tData?.hourly_rate, r45: tData?.rate_45, r60: tData?.rate_60, r90: tData?.rate_90 };
       }
 
-      const bookingWithHotel = {
+      setBooking({
         ...bookingData,
         hotel_image_url: hotelData?.image,
         hotel_address: hotelData?.address,
@@ -244,92 +145,18 @@ const PwaBookingDetail = () => {
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
         global_therapist_commission: hotelData?.global_therapist_commission !== false,
-        therapist_hourly_rate: therapistHourlyRate,
-        therapist_rate_45: therapistRate45,
-        therapist_rate_60: therapistRate60,
-        therapist_rate_90: therapistRate90,
+        therapist_hourly_rate: rates.hr,
+        therapist_rate_45: rates.r45,
+        therapist_rate_60: rates.r60,
+        therapist_rate_90: rates.r90,
         hotel_currency: hotelData?.currency || 'EUR'
-      };
-      setBooking(bookingWithHotel);
+      });
 
-      // Fetch treatments
-      const { data: treatmentsData, error: treatmentsError } = await supabase
-        .from("booking_treatments")
-        .select(`
-          *,
-          treatment_menus (
-            name,
-            description,
-            duration,
-            price,
-            image
-          )
-        `)
-        .eq("booking_id", id);
+      const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*)").eq("booking_id", id);
+      if (trData) setTreatments(trData as any);
 
-      if (!treatmentsError && treatmentsData) {
-        setTreatments(treatmentsData as any);
-      }
-
-      // Fetch therapist profile if assigned
-      if (bookingData.therapist_id) {
-        const { data: therapistData } = await supabase
-          .from("therapists")
-          .select("profile_image, first_name, last_name")
-          .eq("id", bookingData.therapist_id)
-          .single();
-
-        if (therapistData) {
-          setTherapistProfile(therapistData);
-        }
-      }
-
-      // Fetch proposed slots if awaiting therapist selection
-      if (bookingData.status === "awaiting_hairdresser_selection") {
-        const { data: slotsData } = await supabase
-          .from("booking_proposed_slots")
-          .select("*")
-          .eq("booking_id", id)
-          .single();
-        if (slotsData) {
-          setProposedSlots(slotsData);
-        }
-      } else {
-        setProposedSlots(null);
-      }
-
-      // Fetch concierge contact
-      const { data: conciergeData } = await supabase
-        .from("concierge_hotels")
-        .select(`
-          concierges (
-            phone,
-            country_code,
-            first_name,
-            last_name
-          )
-        `)
-        .eq("hotel_id", bookingData.hotel_id)
-        .limit(1)
-        .maybeSingle();
-
-      if (conciergeData && conciergeData.concierges) {
-        setConciergeContact(conciergeData.concierges as any);
-      }
-
-      // Fetch admin contact
-      const { data: adminData } = await supabase
-        .from("admins")
-        .select("phone, country_code, first_name, last_name")
-        .in("status", ["active", "Actif"])
-        .limit(1)
-        .maybeSingle();
-
-      if (adminData) {
-        setAdminContact(adminData);
-      }
     } catch (error) {
-      console.error("Error fetching booking:", error);
+      console.error(error);
       toast.error(t('common:errors.generic'));
     } finally {
       setLoading(false);
@@ -338,329 +165,91 @@ const PwaBookingDetail = () => {
 
   const handleSignatureConfirm = async (signatureData: string) => {
     if (!booking) return;
-    
     setSigningLoading(true);
     try {
-      // If this is a room payment flow, call finalize-payment
       if (pendingRoomPayment) {
-        const { data, error } = await invokeEdgeFunction<unknown, { success: boolean; error?: string }>('finalize-payment', {
-          body: {
-            booking_id: booking.id,
-            payment_method: 'room',
-            final_amount: totalPrice,
-            signature_data: signatureData,
-          },
+        const { data, error } = await invokeEdgeFunction<any, any>('finalize-payment', {
+          body: { booking_id: booking.id, payment_method: 'room', final_amount: totalPrice, signature_data: signatureData },
         });
-
+        if (error || !data?.success) throw new Error(data?.error || "Erreur finalisation");
+        toast.success("Prestation finalisée !");
+      } else {
+        const { error } = await supabase.from("bookings").update({ 
+          client_signature: signatureData, 
+          signed_at: new Date().toISOString(), 
+          status: "completed" 
+        }).eq("id", booking.id);
         if (error) throw error;
-
-        if (!data?.success) {
-          throw new Error(data?.error || "Payment finalization failed");
-        }
-
-        toast.success("Prestation finalisée ! Votre paiement sera versé sous peu.");
-        setShowSignatureDialog(false);
-        setPendingRoomPayment(false);
-        navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-        return;
+        toast.success(t('bookingDetail.completed'));
       }
-
-      // Flow for already-paid bookings (card payment at reservation time)
-      // Just need signature and mark as completed
-      const { error } = await supabase
-        .from("bookings")
-        .update({ 
-          client_signature: signatureData,
-          signed_at: new Date().toISOString(),
-          status: "completed",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-
-      // Notify concierge of completion with final payment method (non-blocking)
-      invokeEdgeFunction('notify-concierge-completion', {
-        body: { bookingId: booking.id }
-      }).catch(err => console.error("Concierge notification error:", err));
-
-      // Send rating email to client (non-blocking)
-      if (booking.client_email) {
-        invokeEdgeFunction('send-rating-email', {
-          body: { bookingId: booking.id }
-        }).catch(err => console.error("Rating email error:", err));
-      }
-
-      toast.success(t('bookingDetail.completed'));
-      setShowSignatureDialog(false);
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error: any) {
-      console.error("Error:", error);
       toast.error(error.message || t('common:errors.generic'));
     } finally {
       setSigningLoading(false);
     }
   };
 
-  const handleRoomPaymentSignature = () => {
-    setPendingRoomPayment(true);
-    setShowSignatureDialog(true);
-  };
-
-  const handlePaymentComplete = () => {
-    toast.success("Paiement finalisé !");
-    navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-  };
-
-  const handleTapToPayConfirm = async () => {
-    console.log("[TapToPay] Handler called", { bookingId: booking?.id, totalPrice });
-    if (!booking) return;
-
-    setTapToPayLoading(true);
-    try {
-      console.log("[TapToPay] Invoking edge function...");
-      const { data, error } = await invokeEdgeFunction(
-        'mark-tap-to-pay-paid',
-        {
-          body: {
-            booking_id: booking.id,
-            final_amount: totalPrice,
-          },
-        }
-      );
-
-      console.log("[TapToPay] Response:", JSON.stringify({ data, error }));
-
-      if (error) throw error;
-      if (!(data as any)?.success) {
-        throw new Error((data as any)?.error || "Payment finalization failed");
-      }
-
-      toast.success(t('payment.tapToPaySuccess'));
-      setShowTapToPayDialog(false);
-      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error: any) {
-      console.error("[TapToPay] Error:", error);
-      toast.error(error.message || t('common:errors.generic'));
-    } finally {
-      setTapToPayLoading(false);
-    }
-  };
-
-  const handleValidateSlot = async (slotNumber: 1 | 2 | 3) => {
-    if (!booking) return;
-
-    // Get current therapist's ID
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: therapistData } = await supabase
-      .from("therapists")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!therapistData) {
-      toast.error("Profil thérapeute introuvable");
-      return;
-    }
-
-    setValidatingSlot(slotNumber);
-    try {
-      const { data, error } = await invokeEdgeFunction("validate-booking-slot", {
-        body: {
-          bookingId: booking.id,
-          slotNumber,
-          hairdresserId: therapistData.id,
-        },
-      });
-
-      if (error) throw error;
-
-      toast.success("Créneau validé ! Le lien de paiement a été envoyé au client.");
-      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error: any) {
-      console.error("Error validating slot:", error);
-      toast.error(error?.message || "Erreur lors de la validation du créneau");
-    } finally {
-      setValidatingSlot(null);
-    }
-  };
-
-  const handleUnassignBooking = async () => {
-    if (!booking) return;
-    
+  const handleChargeSavedCard = async (amount: number) => {
+    if (!booking || updating || isChargingRef.current) return;
+    isChargingRef.current = true;
     setUpdating(true);
     try {
-      // Get current user's therapist ID
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: therapistData } = await supabase
-        .from("therapists")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!therapistData) return;
-
-      // Use RPC function to unassign booking (bypasses RLS issues)
-      const { data, error } = await supabase.rpc('unassign_booking', {
-        _booking_id: booking.id,
-        _hairdresser_id: therapistData.id
+      const { data, error } = await invokeEdgeFunction('charge-saved-card', {
+        body: { bookingId: booking.id, finalAmount: amount },
       });
-
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string } | null;
-      if (result && !result.success) {
-        toast.error(t('bookingDetail.notAssigned'));
-        return;
-      }
-
-      toast.success(t('bookingDetail.unassigned'));
-      setShowUnassignDialog(false);
-      // Navigate with forceRefresh state to clear cache
+      if (error || !(data as any)?.success) throw new Error((data as any)?.error || "Échec débit");
+      toast.success("Carte débitée avec succès !");
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur");
+    } catch (error: any) {
+      toast.error(error.message || "Erreur débit");
     } finally {
+      isChargingRef.current = false;
       setUpdating(false);
     }
   };
 
   const handleAcceptBooking = async () => {
-    console.log('[Booking] 🚀 BUTTON CLICKED - Function called!');
-    
-    if (!booking) {
-      console.log('[Booking] ❌ No booking data');
-      return;
-    }
-    
-    // Prevent double-clicks by checking if already updating (using both state and ref)
-    if (updating || isAcceptingRef.current) {
-      console.log('[Booking] ⏳ Already updating, ignoring click');
-      return;
-    }
-    
-    console.log('[Booking] ✅ Booking exists:', booking.id);
+    if (!booking || updating || isAcceptingRef.current) return;
     isAcceptingRef.current = true;
     setUpdating(true);
-
     try {
-      console.log('[Booking] 🎯 Starting accept booking process...');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('[Booking] ❌ No user found');
-        toast.error('Non authentifié');
-        setUpdating(false);
-        return;
-      }
+      const { data: tData } = await supabase.from("therapists").select("id, first_name, last_name").eq("user_id", user?.id).single();
+      if (!tData) throw new Error("Thérapeute non trouvé");
 
-      console.log('[Booking] 👤 User authenticated:', user.id);
-      const { data: therapistData } = await supabase
-        .from("therapists")
-        .select("id, first_name, last_name")
-        .eq("user_id", user.id)
-        .single();
+      // Vérification des conflits d'horaires
+      const { data: existing } = await supabase.from("bookings").select("*, booking_treatments(treatment_menus(duration))")
+        .eq("therapist_id", tData.id).eq("booking_date", booking.booking_date).not("status", "in", '("Annulé","Terminé")');
 
-      if (!therapistData) {
-        console.error('[Booking] ❌ No therapist found for user');
-        toast.error('Profil thérapeute non trouvé');
-        setUpdating(false);
-        return;
-      }
+      if (existing && existing.length > 0) {
+        const start = new Date(`${booking.booking_date}T${booking.booking_time}`);
+        const dur = treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0);
+        const end = new Date(start.getTime() + dur * 60000);
 
-      console.log('[Booking] 💆 Therapist found:', therapistData.id);
+        for (const b of existing) {
+          const bStart = new Date(`${b.booking_date}T${b.booking_time}`);
+          const bDur = b.booking_treatments.reduce((s: number, bt: any) => s + (bt.treatment_menus?.duration || 0), 0);
+          const bEnd = new Date(bStart.getTime() + bDur * 60000);
 
-      // Check for conflicts with existing bookings (exclude cancelled/completed)
-      console.log('[Booking] 🔍 Checking for schedule conflicts...');
-      const { data: existingBookings } = await supabase
-        .from("bookings")
-        .select(`
-          *,
-          booking_treatments (
-            treatment_menus (
-              duration
-            )
-          )
-        `)
-        .eq("therapist_id", therapistData.id)
-        .eq("booking_date", booking.booking_date)
-        .not("status", "in", '("Annulé","Terminé")');
-
-      console.log('[Booking] 📅 Existing bookings:', existingBookings?.length || 0);
-
-      if (existingBookings && existingBookings.length > 0) {
-        const newBookingStart = new Date(`${booking.booking_date}T${booking.booking_time}`);
-        const newBookingDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
-        const newBookingEnd = new Date(newBookingStart.getTime() + newBookingDuration * 60000);
-
-        for (const existingBooking of existingBookings) {
-          const existingStart = new Date(`${existingBooking.booking_date}T${existingBooking.booking_time}`);
-          const existingDuration = existingBooking.booking_treatments.reduce(
-            (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 
-            0
-          );
-          const existingEnd = new Date(existingStart.getTime() + existingDuration * 60000);
-
-          // Check if bookings overlap
-          if (
-            (newBookingStart >= existingStart && newBookingStart < existingEnd) ||
-            (newBookingEnd > existingStart && newBookingEnd <= existingEnd) ||
-            (newBookingStart <= existingStart && newBookingEnd >= existingEnd)
-          ) {
-            console.warn('[Booking] ⚠️ Schedule conflict detected');
-            toast.error(
-              `⚠️ Conflit d'horaire détecté avec une réservation existante à ${existingBooking.booking_time.substring(0, 5)}`
-            );
-            setUpdating(false);
+          if ((start >= bStart && start < bEnd) || (end > bStart && end <= bEnd)) {
+            toast.error("Conflit d'horaire détecté !");
             return;
           }
         }
       }
 
-      const totalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-      const finalPrice = Math.max(booking.total_price || 0, totalPrice);
-      console.log('[Booking] 💰 Total price:', finalPrice);
-      
-      console.log('[Booking] 📞 Updating booking in database...');
-      // 1. On met à jour la réservation directement dans la table
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          therapist_id: therapistData.id,
-          status: 'confirmed',
-          total_price: finalPrice,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', booking.id);
+      const finalPrice = Math.max(booking.total_price || 0, treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0));
+      const { error } = await supabase.from('bookings').update({
+        therapist_id: tData.id, status: 'confirmed', total_price: finalPrice
+      }).eq('id', booking.id);
 
-      // 2. Vérification de l'erreur
-      if (error) {
-        console.error("Erreur Supabase lors de l'acceptation :", error);
-        throw error;
-      }
-
-      console.log('[Booking] 🎉 Booking accepted successfully!');
+      if (error) throw error;
       
-      // Trigger email notifications to admins and concierges
-      try {
-        console.log('[Booking] 📧 Sending email notifications...');
-        await invokeEdgeFunction('notify-booking-confirmed', {
-          body: { bookingId: booking.id }
-        });
-        console.log('[Booking] 📧 Email notifications sent');
-      } catch (notifError) {
-        console.error('[Booking] ⚠️ Email notification error (non-blocking):', notifError);
-      }
-      
+      invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       toast.success(t('bookingDetail.accepted'));
-      // Navigate with forceRefresh state to clear cache
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error) {
-      console.error("Error:", error);
       toast.error(t('common:errors.generic'));
     } finally {
       isAcceptingRef.current = false;
@@ -668,819 +257,142 @@ const PwaBookingDetail = () => {
     }
   };
 
-  const handleDeclineBooking = async () => {
+  const handleDeleteTreatment = async (treatmentId: string) => {
     if (!booking) return;
-    
     setUpdating(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const deletedPrice = treatments.find(t => t.id === treatmentId)?.treatment_menus?.price || 0;
+      const { data, error } = await supabase.from("booking_treatments").delete().eq("id", treatmentId).select();
+      if (error || !data?.length) throw new Error("Suppression impossible (RLS ?)");
 
-      const { data: therapistData } = await supabase
-        .from("therapists")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!therapistData) return;
-
-      const { data: currentBooking } = await supabase
-        .from("bookings")
-        .select("declined_by")
-        .eq("id", booking.id)
-        .single();
-
-      const currentDeclined = currentBooking?.declined_by || [];
-      const updatedDeclined = [...currentDeclined, therapistData.id];
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({ declined_by: updatedDeclined })
-        .eq("id", booking.id);
-
-      if (error) throw error;
-
-      toast.success(t('bookingDetail.declined'));
-      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error(t('common:errors.generic'));
+      const newTotal = Math.max(0, (booking.total_price || 0) - deletedPrice);
+      await supabase.from("bookings").update({ total_price: newTotal }).eq("id", id);
+      
+      toast.success(t('bookingDetail.treatmentDeleted'));
+      setTreatmentToDelete(null);
+      fetchBookingDetail();
+    } catch (error: any) {
+      toast.error(error.message);
     } finally {
       setUpdating(false);
     }
   };
 
-  const handleDeleteTreatment = async (treatmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from("booking_treatments")
-        .delete()
-        .eq("id", treatmentId);
-
-      if (error) throw error;
-
-      toast.success(t('bookingDetail.treatmentDeleted'));
-      setTreatmentToDelete(null);
-      fetchBookingDetail();
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error(t('common:errors.generic'));
-    }
-  };
-
-  const openInMaps = (app: 'apple' | 'google' | 'waze') => {
+  const handleUnassignBooking = async () => {
     if (!booking) return;
-    
-    // Use dynamic address from booking data
-    const address = booking.hotel_address && booking.hotel_city 
-      ? `${booking.hotel_address}, ${booking.hotel_city}`
-      : booking.hotel_name || "Paris, France";
-    
-    let url = '';
-    
-    switch (app) {
-      case 'apple':
-        url = `maps://maps.apple.com/?q=${encodeURIComponent(address)}`;
-        break;
-      case 'google':
-        url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-        break;
-      case 'waze':
-        url = `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
-        break;
+    setUpdating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: tData } = await supabase.from("therapists").select("id").eq("user_id", user?.id).single();
+      const { error } = await supabase.rpc('unassign_booking', { _booking_id: booking.id, _hairdresser_id: tData?.id });
+      if (error) throw error;
+      toast.success(t('bookingDetail.unassigned'));
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error) {
+      toast.error("Erreur désassignation");
+    } finally {
+      setUpdating(false);
     }
-    
-    window.open(url, '_blank');
-    setShowNavigationDrawer(false);
   };
 
-  // Only show loader on first load when we have no booking data
-  if (loading && !booking) {
-    return (
-      <PwaPageLoader 
-        title={t('bookingDetail.myBooking')} 
-        showBack 
-        backPath="/pwa/dashboard" 
-      />
-    );
-  }
-
-  if (!booking) {
-    return (
-      <div className="flex flex-1 items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">{t('bookingDetail.notFound')}</div>
-      </div>
-    );
-  }
-
-  // Priority: Use booking values if set (admin custom price/duration), otherwise calculate from treatments
-  const treatmentsTotalDuration = treatments.reduce((sum, t) => sum + (t.treatment_menus?.duration || 0), 0);
-  const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-  
-  // For "on request" bookings, the admin sets custom price/duration directly on the booking
-  const totalDuration = (booking as any).duration && (booking as any).duration > 0 
-    ? (booking as any).duration 
-    : (treatmentsTotalDuration > 0 ? treatmentsTotalDuration : 60);
-  const totalPrice = booking.total_price && booking.total_price > 0 ? booking.total_price : treatmentsTotalPrice;
-  
-  // Calculate earnings on HT (before VAT), matching finalize-payment logic
-  const vatRate = booking.hotel_vat || 20;
-  const totalHT = totalPrice / (1 + vatRate / 100);
-  const hotelCommissionRate = 0; // Not needed for therapist earnings display
-  let estimatedEarnings = 0;
-
-  if (booking.global_therapist_commission === false && (booking.therapist_rate_45 || booking.therapist_rate_60 || booking.therapist_rate_90 || booking.therapist_hourly_rate)) {
-    // Mode individuel : taux par palier de durée
-    if (totalDuration === 45 && booking.therapist_rate_45) {
-      estimatedEarnings = booking.therapist_rate_45;
-    } else if (totalDuration === 60 && booking.therapist_rate_60) {
-      estimatedEarnings = booking.therapist_rate_60;
-    } else if (totalDuration === 90 && booking.therapist_rate_90) {
-      estimatedEarnings = booking.therapist_rate_90;
-    } else if (booking.therapist_rate_60) {
-      // Hors palier : proportionnel depuis taux 1h
-      estimatedEarnings = Math.round(booking.therapist_rate_60 * (totalDuration / 60) * 100) / 100;
-    } else if (booking.therapist_hourly_rate) {
-      // Fallback legacy
-      estimatedEarnings = Math.round(booking.therapist_hourly_rate * (totalDuration / 60) * 100) / 100;
+  const handleTapToPayConfirm = async () => {
+    if (!booking) return;
+    setTapToPayLoading(true);
+    try {
+      const { error } = await invokeEdgeFunction('mark-tap-to-pay-paid', { body: { booking_id: booking.id, final_amount: totalPrice } });
+      if (error) throw error;
+      toast.success("Paiement validé !");
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error) {
+      toast.error("Erreur paiement");
+    } finally {
+      setTapToPayLoading(false);
     }
-    // Cap au totalHT
-    estimatedEarnings = Math.min(estimatedEarnings, Math.round(totalHT * 100) / 100);
-  } else if (booking.therapist_commission) {
-    // Mode global : pourcentage
-    estimatedEarnings = Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100;
-  }
+  };
+
+  if (loading && !booking) return <PwaPageLoader title={t('bookingDetail.myBooking')} showBack backPath="/pwa/dashboard" />;
+  if (!booking) return <div className="flex h-screen items-center justify-center">RDV non trouvé</div>;
+
+  const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
+  const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
+  const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
+  const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
+  const estimatedEarnings = booking.global_therapist_commission !== false 
+    ? Math.round(totalHT * ((booking.therapist_commission || 70) / 100) * 100) / 100
+    : Math.min(booking.therapist_rate_60 || 0, totalHT);
 
   return (
-    <>
-       <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
-        <PwaHeader
-          title={t('bookingDetail.myBooking')}
-          showBack
-          onBack={() => {
-            const from = (location.state as any)?.from;
-            navigate(from === 'notifications' ? '/pwa/notifications' : '/pwa/dashboard');
-          }}
-        />
-
-        <div className="flex-1 overflow-y-auto pb-20 px-4 pt-3">
-          {/* Hotel Header - Centered */}
-          <div className="flex flex-col items-center mb-4">
-            {/* Hotel Image - Centered */}
-            <div className="w-16 h-16 mb-2">
-              {booking.hotel_image_url ? (
-                <img 
-                  src={booking.hotel_image_url} 
-                  alt={booking.hotel_name}
-                  className="w-full h-full object-cover rounded-xl"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted rounded-xl" />
-              )}
-            </div>
-
-            {/* Hotel Name */}
-            <h2 className="font-semibold text-sm text-foreground text-center">{booking.hotel_name}</h2>
-            
-            {/* Address */}
-            <button 
-              onClick={() => setShowNavigationDrawer(true)}
-              className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-colors mt-0.5"
-            >
-              <Navigation className="w-3 h-3" />
-              <span>
-                {booking.hotel_address && booking.hotel_city 
-                  ? `${booking.hotel_address}`
-                  : booking.hotel_name}
-              </span>
-            </button>
-
-            {/* Payment Status Badge */}
-            {booking.payment_status && (
-              <div className="mt-1.5">
-                {(() => {
-                  const badge = getPaymentStatusBadge(booking.payment_status);
-                  return badge ? (
-                    <Badge className={`text-[10px] px-2 py-0 h-4 ${badge.className}`}>
-                      {badge.label}
-                    </Badge>
-                  ) : null;
-                })()}
-              </div>
-            )}
-          </div>
-
-          {/* Details List - Vertical Uniform */}
-          <div className="space-y-0 mb-3">
-            <div className="flex items-center gap-3 py-2 border-b border-border/50">
-              <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground w-16">{t('booking.date')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">
-                {booking.status === "awaiting_hairdresser_selection" && proposedSlots
-                  ? "Voir créneaux ci-dessous"
-                  : format(new Date(booking.booking_date), "d MMM yyyy")}
-              </span>
-            </div>
-
-            {!(booking.status === "awaiting_hairdresser_selection" && proposedSlots) && (
-              <div className="flex items-center gap-3 py-2 border-b border-border/50">
-                <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <span className="text-xs text-muted-foreground w-16">{t('booking.time')}</span>
-                <span className="text-xs font-medium text-foreground ml-auto">
-                  {booking.booking_time.substring(0, 5)}
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 py-2 border-b border-border/50">
-              <Timer className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground w-16">{t('booking.duration')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">{totalDuration} min</span>
-            </div>
-
-            <div className="flex items-center gap-3 py-2 border-b border-border/50">
-              <Euro className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-xs text-muted-foreground w-16">{t('bookingDetail.price')}</span>
-              <span className="text-xs font-medium text-foreground ml-auto">{formatPrice(totalPrice, booking.hotel_currency)}</span>
-            </div>
-          </div>
-
-          {/* Earnings */}
-          {estimatedEarnings > 0 && (
-            <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
-              <Wallet className="w-4 h-4 text-success flex-shrink-0" />
-              <span className="text-xs text-success font-medium">{t('bookingDetail.yourEarnings')}</span>
-              <span className="text-xs font-bold text-success ml-auto">
-                {formatPrice(estimatedEarnings, booking.hotel_currency)}
-              </span>
-            </div>
-          )}
-
-          {/* Client Info */}
-          <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
-            <User className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-foreground">
-                {booking.client_first_name} {booking.client_last_name}
-              </p>
-              {booking.room_number && (
-                <p className="text-[10px] text-muted-foreground">
-                  {t('booking.room')}: {booking.room_number}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Client Note */}
-          {booking.client_note && (
-            <div className="mb-3 p-2.5 bg-muted/50 rounded-lg">
-              <div className="flex items-start gap-2">
-                <MessageSquare className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-medium text-foreground mb-0.5">Note du client</p>
-                  <p className="text-xs text-muted-foreground">{booking.client_note}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Treatments */}
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold text-foreground">{t('booking.treatments')}</h3>
-              {booking.status === "confirmed" && (
-                <button
-                  onClick={() => setShowAddTreatmentDialog(true)}
-                  className="px-4 py-1 bg-primary text-primary-foreground font-medium text-[10px] rounded hover:bg-primary/90 transition-all active:scale-[0.98]"
-                >
-                  + {t('bookingDetail.add')}
-                </button>
-              )}
-            </div>
-            {treatments.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t('bookingDetail.noTreatments')}</p>
-            ) : (
-              <div className="space-y-1.5">
-                {treatments.map((treatment) => (
-                  <div key={treatment.id} className="flex items-center gap-2 group py-1">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">{treatment.treatment_menus?.name || 'Treatment'}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        {formatPrice(treatment.treatment_menus?.price || 0, booking.hotel_currency)} • {treatment.treatment_menus?.duration || 0}min
-                      </p>
-                    </div>
-                    {(booking.status !== "completed" && booking.status !== "pending") && (
-                      <button
-                        onClick={() => setTreatmentToDelete(treatment.id)}
-                        className="p-1 hover:bg-destructive/10 rounded transition-all active:scale-95"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+    <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
+      <PwaHeader title={t('bookingDetail.myBooking')} showBack onBack={() => navigate('/pwa/dashboard')} />
+      <div className="flex-1 overflow-y-auto pb-48 px-4 pt-3">
+        <div className="flex flex-col items-center mb-4">
+          <img src={booking.hotel_image_url || ""} className="w-16 h-16 object-cover rounded-xl mb-2 bg-muted" />
+          <h2 className="font-semibold text-sm">{booking.hotel_name}</h2>
+          <p className="text-xs text-muted-foreground flex items-center gap-1"><Navigation className="w-3 h-3"/> {booking.hotel_address}</p>
+          {booking.payment_status && <Badge className={`mt-2 ${getPaymentStatusBadge(booking.payment_status)?.className}`}>{getPaymentStatusBadge(booking.payment_status)?.label}</Badge>}
         </div>
 
-        {/* Bottom Actions - Compact */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+6px)] z-10">
-          <div className="flex flex-col gap-2">
-            {/* For Awaiting Therapist Selection (concierge flow with proposed slots) */}
-            {booking.status === "awaiting_hairdresser_selection" && proposedSlots ? (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-center text-muted-foreground">Choisissez un créneau</p>
-                {/* Slot 1 - Preferred */}
-                <button
-                  onClick={() => setPendingSlotNumber(1)}
-                  disabled={validatingSlot !== null}
-                  className="w-full p-3 rounded-xl border-2 border-primary bg-primary/5 hover:bg-primary/10 flex items-center justify-between transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">
-                        {format(new Date(proposedSlots.slot_1_date + "T00:00:00"), "EEE d MMM")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_1_time.substring(0, 5)}</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-primary/10 text-primary text-[10px] border-0">Préféré</Badge>
-                </button>
+        <div className="space-y-3 border-t pt-3">
+          <div className="flex justify-between text-xs"><span>Date</span><span className="font-medium">{format(new Date(booking.booking_date), "d MMM yyyy")}</span></div>
+          <div className="flex justify-between text-xs"><span>Heure</span><span className="font-medium">{booking.booking_time.substring(0, 5)}</span></div>
+          <div className="flex justify-between text-xs"><span>Prix</span><span className="font-medium">{formatPrice(totalPrice, booking.hotel_currency)}</span></div>
+          <div className="flex justify-between text-xs text-success"><span>Vos revenus</span><span className="font-bold">{formatPrice(estimatedEarnings, booking.hotel_currency)}</span></div>
+        </div>
 
-                {/* Slot 2 */}
-                {proposedSlots.slot_2_date && proposedSlots.slot_2_time && (
-                  <button
-                    onClick={() => setPendingSlotNumber(2)}
-                    disabled={validatingSlot !== null}
-                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">2</span>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">
-                        {format(new Date(proposedSlots.slot_2_date + "T00:00:00"), "EEE d MMM")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_2_time.substring(0, 5)}</p>
-                    </div>
-                  </button>
-                )}
-
-                {/* Slot 3 */}
-                {proposedSlots.slot_3_date && proposedSlots.slot_3_time && (
-                  <button
-                    onClick={() => setPendingSlotNumber(3)}
-                    disabled={validatingSlot !== null}
-                    className="w-full p-3 rounded-xl border border-border hover:bg-muted/50 flex items-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    <span className="w-7 h-7 rounded-full bg-muted text-muted-foreground text-xs flex items-center justify-center font-bold">3</span>
-                    <div className="text-left">
-                      <p className="font-semibold text-sm">
-                        {format(new Date(proposedSlots.slot_3_date + "T00:00:00"), "EEE d MMM")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{proposedSlots.slot_3_time.substring(0, 5)}</p>
-                    </div>
-                  </button>
-                )}
-
-                {validatingSlot && (
-                  <p className="text-xs text-center text-muted-foreground animate-pulse">Validation en cours...</p>
-                )}
-
-                {/* Decline button for multi-slot bookings */}
-                <button
-                  onClick={() => setShowDeclineDialog(true)}
-                  disabled={updating || validatingSlot !== null}
-                  className="w-full py-2.5 rounded-full border border-destructive text-destructive text-xs font-medium hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-[0.98] mt-2"
-                >
-                  Refuser cette demande
-                </button>
-              </div>
-            ) : booking.status === "pending" && !booking.therapist_id ? (
-              <>
-                {/* Decline Button */}
-                <button
-                  onClick={() => setShowDeclineDialog(true)}
-                  disabled={updating}
-                  className="w-10 h-10 rounded-full border-2 border-destructive flex items-center justify-center bg-background hover:bg-destructive/10 disabled:opacity-50 transition-all active:scale-95"
-                >
-                  <X className="w-4 h-4 text-destructive" />
-                </button>
-
-                {/* More Options Button */}
-                <Drawer>
-                  <DrawerTrigger asChild>
-                    <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
-                      <MoreVertical className="w-4 h-4 text-foreground" />
-                    </button>
-                  </DrawerTrigger>
-                  <DrawerContent className="pb-safe">
-                    <div className="p-4 space-y-1">
-                      {conciergeContact && (
-                        <button
-                          onClick={() => window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer')}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                        >
-                          <Phone className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </button>
-                      )}
-                      {booking.phone ? (
-                        <button
-                          onClick={() => window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer')}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                        >
-                          <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                            <span className="text-xs text-muted-foreground">{booking.phone}</span>
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
-                          <Phone className="w-4 h-4" />
-                          <span className="text-sm">{t('booking.contactClient')} - N/A</span>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer')}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                      >
-                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                        <span className="text-sm font-medium">{t('bookingDetail.contactSupport')}</span>
-                      </button>
-                      <div className="border-t my-2" />
-                      <DrawerClose asChild>
-                        <button
-                          onClick={() => setShowProposeAlternativeDialog(true)}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                        >
-                          <Clock className="w-4 h-4 text-orange-500" />
-                          <span className="text-sm font-medium">Proposer un autre créneau</span>
-                        </button>
-                      </DrawerClose>
-                    </div>
-                  </DrawerContent>
-                </Drawer>
-
-                {/* Accept Button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowAcceptDialog(true);
-                  }}
-                  disabled={updating}
-                  className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-medium hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
-                >
-                  {updating ? "..." : t('dashboard.accept')}
-                </button>
-              </>
-            ) : (
-              /* For Accepted Bookings */
-              <>
-                {/* Contact Drawer */}
-                <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
-                  <DrawerTrigger asChild>
-                    <button className="w-10 h-10 rounded-full border border-border flex items-center justify-center bg-background hover:bg-muted transition-all active:scale-95">
-                      <MoreVertical className="w-4 h-4 text-foreground" />
-                    </button>
-                  </DrawerTrigger>
-                  <DrawerContent className="pb-safe">
-                    <div className="p-4 space-y-1">
-                      {conciergeContact && (
-                        <button
-                          onClick={() => {
-                            setShowContactDrawer(false);
-                            window.open(`https://wa.me/${conciergeContact.country_code}${conciergeContact.phone}`, '_blank', 'noopener,noreferrer');
-                          }}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                        >
-                          <Phone className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">{t('bookingDetail.contactConcierge')}</span>
-                        </button>
-                      )}
-                      {booking.phone ? (
-                        <button
-                          onClick={() => {
-                            setShowContactDrawer(false);
-                            window.open(`https://wa.me/${booking.phone.startsWith('+') ? booking.phone.substring(1) : booking.phone}`, '_blank', 'noopener,noreferrer');
-                          }}
-                          className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                        >
-                          <Phone className="w-4 h-4 text-primary" />
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm font-medium">{t('booking.contactClient')}</span>
-                            <span className="text-xs text-muted-foreground">{booking.phone}</span>
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2.5 p-3 rounded-lg text-muted-foreground">
-                          <Phone className="w-4 h-4" />
-                          <span className="text-sm">{t('booking.contactClient')} - N/A</span>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => {
-                          setShowContactDrawer(false);
-                          window.open('https://wa.me/33769627754', '_blank', 'noopener,noreferrer');
-                        }}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full"
-                      >
-                        <MessageCircle className="w-4 h-4 text-[#25D366]" />
-                        <span className="text-sm font-medium">{t('bookingDetail.contactSupport')}</span>
-                      </button>
-                      
-                      <div className="h-px bg-border my-1" />
-                      
-                      <button
-                        onClick={() => {
-                          setShowContactDrawer(false);
-                          setShowUnassignDialog(true);
-                        }}
-                        className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-destructive/10 transition-colors w-full"
-                      >
-                        <X className="w-4 h-4 text-destructive" />
-                        <span className="text-sm font-medium text-destructive">{t('bookingDetail.unassignBooking')}</span>
-                      </button>
-                    </div>
-                  </DrawerContent>
-                </Drawer>
-
-                {/* Main Action Button - Smart Cashier */}
-                {/* Only show payment selection if NOT already paid by card */}
-                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status !== 'paid' && (
-                  <button
-                    onClick={() => setShowPaymentSelection(true)}
-                    disabled={updating}
-                    className="flex-1 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:from-primary/90 hover:to-primary/80 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
-                  </button>
-                )}
-                
-                {/* If already paid by card, show signature-only button */}
-                {["confirmed", "ongoing"].includes(booking.status) && !booking.client_signature && booking.payment_status === 'paid' && (
-                  <button
-                    onClick={() => setShowSignatureDialog(true)}
-                    disabled={updating}
-                    className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
-                  >
-                    <Pen className="w-4 h-4" />
-                    Signature client
-                  </button>
-                )}
-              </>
-            )}
+        <div className="mt-6">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-xs font-semibold">Soins</h3>
+            {booking.status === "confirmed" && <button onClick={() => setShowAddTreatmentDialog(true)} className="text-[10px] bg-primary text-white px-3 py-1 rounded">+ Ajouter</button>}
           </div>
+          {treatments.map(t => (
+            <div key={t.id} className="flex justify-between items-center py-2 border-b border-border/50">
+              <div className="text-xs"><p className="font-medium">{t.treatment_menus?.name}</p><p className="text-[10px] text-muted-foreground">{t.treatment_menus?.duration}min</p></div>
+              <div className="flex items-center gap-3"><span className="text-xs">{formatPrice(t.treatment_menus?.price || 0, booking.hotel_currency)}</span>
+              {booking.status !== "completed" && <button onClick={() => setTreatmentToDelete(t.id)}><Trash2 className="w-3.5 h-3.5 text-destructive"/></button>}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Navigation App Selector Drawer */}
-      <Drawer open={showNavigationDrawer} onOpenChange={setShowNavigationDrawer}>
+      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 pb-safe z-30">
+        {booking.status === "pending" && !booking.therapist_id ? (
+          <div className="flex gap-2">
+            <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
+            <button onClick={handleAcceptBooking} disabled={updating} className="flex-1 bg-primary text-white rounded-full font-bold">Accepter</button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button onClick={() => setShowContactDrawer(true)} className="w-12 h-12 rounded-full border flex items-center justify-center"><MoreVertical/></button>
+            {booking.payment_status === 'card_saved' && !booking.client_signature ? (
+              <button onClick={() => handleChargeSavedCard(totalPrice)} disabled={updating} className="flex-1 bg-purple-600 text-white rounded-full font-bold flex items-center justify-center gap-2">
+                {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>} 
+                Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
+              </button>
+            ) : booking.payment_status !== 'paid' && !booking.client_signature ? (
+              <button onClick={() => setShowPaymentSelection(true)} className="flex-1 bg-primary text-white rounded-full font-bold">Finaliser</button>
+            ) : !booking.client_signature && (
+              <button onClick={() => setShowSignatureDialog(true)} className="flex-1 bg-green-600 text-white rounded-full font-bold flex items-center justify-center gap-2"><Pen className="w-4 h-4"/> Signature</button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
         <DrawerContent className="pb-safe">
-          <div className="p-4 space-y-1">
-            <h3 className="text-sm font-semibold mb-2">{t('bookingDetail.chooseApp')}</h3>
-            <button
-              onClick={() => openInMaps('apple')}
-              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
-            >
-              <Navigation className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Apple Maps</span>
-            </button>
-            <button
-              onClick={() => openInMaps('google')}
-              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
-            >
-              <Navigation className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Google Maps</span>
-            </button>
-            <button
-              onClick={() => openInMaps('waze')}
-              className="flex items-center gap-2.5 p-3 rounded-lg hover:bg-muted transition-colors w-full text-left"
-            >
-              <Navigation className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Waze</span>
-            </button>
+          <div className="p-4 space-y-2">
+            <button onClick={() => window.open(`https://wa.me/${booking.phone.replace(/\D/g,'')}`)} className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium"><Phone className="text-primary"/> WhatsApp Client</button>
+            <button onClick={() => setShowUnassignDialog(true)} className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium"><X/> Désassigner</button>
           </div>
         </DrawerContent>
       </Drawer>
 
-      {/* Add Treatment Dialog */}
-      <AddTreatmentDialog
-        open={showAddTreatmentDialog}
-        onOpenChange={setShowAddTreatmentDialog}
-        bookingId={booking.id}
-        hotelId={booking.hotel_id}
-        onTreatmentsAdded={fetchBookingDetail}
-      />
-
-      {/* Propose Alternative Dialog */}
-      <ProposeAlternativeDialog
-        open={showProposeAlternativeDialog}
-        onOpenChange={setShowProposeAlternativeDialog}
-        booking={{
-          id: booking.id,
-          booking_date: booking.booking_date,
-          booking_time: booking.booking_time,
-          client_first_name: booking.client_first_name,
-          client_last_name: booking.client_last_name,
-          phone: booking.phone,
-        }}
-        onProposalSent={() => {
-          fetchBookingDetail();
-          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-        }}
-      />
-
-      {/* Signature Dialog */}
-      <InvoiceSignatureDialog
-        open={showSignatureDialog}
-        onOpenChange={setShowSignatureDialog}
-        onConfirm={handleSignatureConfirm}
-        loading={signingLoading}
-        treatments={treatments.map(t => ({
-          name: t.treatment_menus?.name || "Treatment",
-          duration: t.treatment_menus?.duration || 0,
-          price: t.treatment_menus?.price || 0,
-        }))}
-        vatRate={booking.hotel_vat || 20}
-      />
-
-      {/* Delete Treatment Confirmation Dialog */}
-      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('bookingDetail.deleteTreatmentTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('bookingDetail.deleteTreatmentDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>
-              {t('common:buttons.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Unassign Booking Confirmation Dialog */}
-      <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('bookingDetail.unassignTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('bookingDetail.unassignDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('bookingDetail.keepBooking')}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleUnassignBooking}
-              disabled={updating}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t('bookingDetail.confirmUnassign')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Decline Booking Confirmation Dialog */}
-      <AlertDialog open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('bookingDetail.declineTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('bookingDetail.declineDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeclineBooking}
-              disabled={updating}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t('bookingDetail.confirmDecline')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Accept Booking Confirmation Dialog */}
-      <AlertDialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('bookingDetail.acceptTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('bookingDetail.acceptDesc')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleAcceptBooking}
-              disabled={updating}
-            >
-              {t('bookingDetail.confirmAccept')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Validate Slot Confirmation Dialog */}
-      <AlertDialog open={pendingSlotNumber !== null} onOpenChange={(open) => { if (!open) setPendingSlotNumber(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('bookingDetail.validateSlotTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingSlotNumber && proposedSlots ? t('bookingDetail.validateSlotDesc', {
-                date: format(
-                  new Date(
-                    (pendingSlotNumber === 1 ? proposedSlots.slot_1_date :
-                     pendingSlotNumber === 2 ? proposedSlots.slot_2_date :
-                     proposedSlots.slot_3_date) + "T00:00:00"
-                  ),
-                  "EEE d MMM"
-                ),
-                time: (pendingSlotNumber === 1 ? proposedSlots.slot_1_time :
-                       pendingSlotNumber === 2 ? proposedSlots.slot_2_time :
-                       proposedSlots.slot_3_time)?.substring(0, 5)
-              }) : ''}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingSlotNumber) {
-                  handleValidateSlot(pendingSlotNumber);
-                  setPendingSlotNumber(null);
-                }
-              }}
-              disabled={validatingSlot !== null}
-            >
-              {t('bookingDetail.confirmSlot')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Payment Selection Drawer - Smart Cashier */}
-      <PaymentSelectionDrawer
-        open={showPaymentSelection}
-        onOpenChange={setShowPaymentSelection}
-        bookingId={booking.id}
-        bookingNumber={booking.booking_id}
-        totalPrice={totalPrice}
-        currency={booking.hotel_currency}
-        treatments={treatments.map(t => ({
-          name: t.treatment_menus?.name || "Treatment",
-          duration: t.treatment_menus?.duration || 0,
-          price: t.treatment_menus?.price || 0,
-        }))}
-        vatRate={booking.hotel_vat || 20}
-        onSignatureRequired={handleRoomPaymentSignature}
-        onPaymentComplete={handlePaymentComplete}
-        onTapToPayRequested={() => {
-          setShowPaymentSelection(false);
-          setShowTapToPayDialog(true);
-        }}
-      />
-
-      {/* Tap to Pay Confirmation Dialog */}
-      <AlertDialog open={showTapToPayDialog} onOpenChange={(open) => {
-        if (!tapToPayLoading) setShowTapToPayDialog(open);
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('payment.tapToPayConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('payment.tapToPayConfirmDesc', { amount: formatPrice(totalPrice, booking.hotel_currency) })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={tapToPayLoading}>
-              {t('common:buttons.cancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleTapToPayConfirm();
-              }}
-              disabled={tapToPayLoading}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              {tapToPayLoading ? "..." : t('payment.tapToPayConfirmButton')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      <AddTreatmentDialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog} bookingId={booking.id} hotelId={booking.hotel_id} onTreatmentsAdded={fetchBookingDetail} />
+      <InvoiceSignatureDialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog} onConfirm={handleSignatureConfirm} loading={signingLoading} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} />
+      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} onSignatureRequired={() => { setPendingRoomPayment(true); setShowSignatureDialog(true); }} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} />
+      
+      <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+      <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    </div>
   );
 };
 
