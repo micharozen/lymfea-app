@@ -19,6 +19,22 @@ serve(async (req) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
     const meta = session.metadata || {};
 
+    // --- AJOUT DE CETTE VÉRIFICATION ---
+    // On regarde si on n'a pas déjà une réservation pour ce sessionId
+    const { data: existingBooking } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('stripe_session_id', sessionId)
+      .maybeSingle();
+
+    if (existingBooking) {
+      console.log("[CONFIRM-SETUP] Réservation déjà existante pour cette session :", existingBooking.id);
+      return new Response(JSON.stringify({ success: true, bookingId: existingBooking.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
     if (!meta.hotelId) throw new Error("Données de réservation introuvables dans la session Stripe.");
 
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
@@ -27,7 +43,9 @@ serve(async (req) => {
     const { data: treatments } = await supabase.from('treatment_menus').select('price, duration').in('id', treatmentIds);
     const verifiedPrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
-    const { data: hotel } = await supabase.from('hotels').select('name').eq('id', meta.hotelId).single();
+    
+    // CORRECTION 1 : .maybeSingle() au lieu de .single() pour éviter l'erreur 406
+    const { data: hotel } = await supabase.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
 
     // 3. Création de la réservation (RPC avec les 20 paramètres)
     const { data: bookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
@@ -53,20 +71,35 @@ serve(async (req) => {
       _treatment_ids: treatmentIds
     });
 
-    if (rpcError) throw rpcError;
+    // CORRECTION 2 : Gestion propre des erreurs de créneaux (Race condition)
+    if (rpcError) {
+      console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
+      throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+    }
 
-    // 4. Sauvegarde carte
+    if (!bookingId) {
+      throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+    }
+// 🌟 RÈGLE MÉTIER : On force le retour dans le "Pool" commun
+    // On annule l'assignation automatique pour que tous les thérapeutes voient la demande
+    await supabase.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+
+    
+    // 4. Sauvegarde de la carte dans la nouvelle table
     const setupIntent = session.setup_intent as Stripe.SetupIntent;
     const paymentMethod = setupIntent?.payment_method as Stripe.PaymentMethod;
-    await supabase.from('booking_payment_infos').insert({
-      booking_id: bookingId,
-      stripe_payment_method_id: paymentMethod?.id,
-      stripe_setup_intent_id: setupIntent?.id,
-      card_brand: paymentMethod?.card?.brand,
-      card_last4: paymentMethod?.card?.last4,
-      estimated_price: verifiedPrice,
-      payment_status: 'card_saved'
-    });
+    
+    if (paymentMethod && setupIntent) {
+      await supabase.from('booking_payment_infos').insert({
+        booking_id: bookingId,
+        stripe_payment_method_id: paymentMethod.id,
+        stripe_setup_intent_id: setupIntent.id,
+        card_brand: paymentMethod.card?.brand,
+        card_last4: paymentMethod.card?.last4,
+        estimated_price: verifiedPrice,
+        payment_status: 'card_saved'
+      });
+    }
 
     return new Response(JSON.stringify({ success: true, bookingId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,6 +107,7 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
+    // Si une erreur contrôlée est levée, elle arrive ici et est renvoyée proprement au client (sans faire crasher le système)
     console.error("[CONFIRM-SETUP] Erreur :", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500

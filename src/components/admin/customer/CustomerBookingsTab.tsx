@@ -22,7 +22,6 @@ interface CustomerBookingsTabProps {
   customerId: string;
 }
 
-// 🛠️ NOUVEAU : Fonction pour afficher le paiement en texte clair (sans icône)
 const formatPaymentText = (status: string | null) => {
   switch (status) {
     case 'charged_to_room':
@@ -33,6 +32,8 @@ const formatPaymentText = (status: string | null) => {
       return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">Remboursé</Badge>;
     case 'failed':
       return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-none font-medium">Échec</Badge>;
+    case 'card_saved':
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">Carte enregistrée</Badge>;
     case 'pending':
     default:
       return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 shadow-none font-medium">En attente</Badge>;
@@ -46,6 +47,25 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["customer-bookings", customerId],
     queryFn: async () => {
+      // 1. On récupère d'abord l'email et le téléphone du client
+      const { data: customer } = await supabase
+        .from("customers")
+        .select("email, phone")
+        .eq("id", customerId)
+        .single();
+
+      // 2. On construit une requête dynamique (customer_id OU email OU téléphone)
+      let searchCondition = `customer_id.eq.${customerId}`;
+      
+      if (customer?.email && customer.email.trim() !== "") {
+        searchCondition += `,client_email.eq.${customer.email}`;
+      }
+      if (customer?.phone && customer.phone.trim() !== "") {
+        // Attention au format du numéro (avec ou sans +)
+        searchCondition += `,phone.eq.${customer.phone}`;
+      }
+
+      // 3. On interroge les réservations avec cette condition large
       const { data, error } = await supabase
         .from("bookings")
         .select(`
@@ -54,11 +74,15 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
           therapists:therapists!bookings_hairdresser_id_fkey(id, first_name, last_name),
           booking_treatments(treatment_menus(name))
         `)
-        .eq("customer_id", customerId)
+        .or(searchCondition) // <-- La magie opère ici !
         .order("booking_date", { ascending: false });
       
       if (error) throw error;
-      return data || [];
+
+      // 4. On déduplique au cas où une réservation matcherait plusieurs critères
+      const uniqueBookings = Array.from(new Map(data?.map(item => [item.id, item])).values());
+      
+      return uniqueBookings || [];
     },
     enabled: !!customerId,
   });
@@ -80,12 +104,12 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
             </TableRow>
           </TableHeader>
           {isLoading ? (
-            <TableSkeleton rows={5} columns={7} />
+            <TableSkeleton rows={5} columns={8} />
           ) : bookings.length === 0 ? (
-            <TableEmptyState colSpan={7} icon={Calendar} message={t("customers.bookingHistory.noBookings")} />
+            <TableEmptyState colSpan={8} icon={Calendar} message={t("customers.bookingHistory.noBookings")} />
           ) : (
             <TableBody>
-              {bookings.map((booking) => {
+              {bookings.map((booking: any) => {
                 const hotel = booking.hotels as any;
                 const treatmentNames = booking.booking_treatments
                   ?.map((bt: any) => bt.treatment_menus?.name)
@@ -116,7 +140,6 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
                       <StatusBadge status={booking.status} type="booking" />
                     </TableCell>
 
-                    {/* 🛠️ MODIFICATION ICI : On utilise notre texte clair au lieu du StatusBadge */}
                     <TableCell className="px-3">
                       {formatPaymentText(booking.payment_status)}
                     </TableCell>
