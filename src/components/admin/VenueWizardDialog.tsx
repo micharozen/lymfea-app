@@ -22,10 +22,10 @@ import { VenueGeneralInfoStep } from "./steps/VenueGeneralInfoStep";
 import { VenueDeploymentStep, DeploymentScheduleState } from "./steps/VenueDeploymentStep";
 import { VenueCategoriesStep } from "./steps/VenueCategoriesStep";
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
   hotel_id: string | null;
 }
@@ -50,20 +50,28 @@ const createFormSchema = (t: TFunction) => z.object({
   currency: z.string().default("EUR"),
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
-  hairdresser_commission: z.string().default("0"),
+  therapist_commission: z.string().default("0"),
+  global_therapist_commission: z.boolean().default(true),
   status: z.string().default("active"),
   timezone: z.string().default("Europe/Paris"),
-  opening_time: z.string().default("06:00"),
-  closing_time: z.string().default("23:00"),
+  opening_time: z.string().default("10:00"),
+  closing_time: z.string().default("20:00"),
   slot_interval: z.number().default(30),
   auto_validate_bookings: z.boolean().default(false),
+  allow_out_of_hours_booking: z.boolean().default(false),
+  out_of_hours_surcharge_percent: z.string().default("0"),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  name_en: z.string().optional(),
+  landing_subtitle_en: z.string().optional(),
+  description_en: z.string().optional(),
+  calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
+  if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
-  const hairdresserComm = parseFloat(data.hairdresser_commission) || 0;
-  return hotelComm + hairdresserComm <= 100;
+  const therapistComm = parseFloat(data.therapist_commission) || 0;
+  return hotelComm + therapistComm <= 100;
 }, {
   message: t('errors.validation.commissionExceeds100'),
   path: ["hotel_commission"],
@@ -98,8 +106,8 @@ export function VenueWizardDialog({
   const [savedHotelId, setSavedHotelId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [trunks, setTrunks] = useState<Trunk[]>([]);
-  const [selectedTrunkIds, setSelectedTrunkIds] = useState<string[]>([]);
+  const [rooms, setRooms] = useState<TreatmentRoom[]>([]);
+  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
 
@@ -144,11 +152,11 @@ export function VenueWizardDialog({
       currency: "EUR",
       vat: "20",
       hotel_commission: "0",
-      hairdresser_commission: "0",
+      therapist_commission: "0",
       status: "active",
       timezone: "Europe/Paris",
-      opening_time: "06:00",
-      closing_time: "23:00",
+      opening_time: "10:00",
+      closing_time: "20:00",
       slot_interval: 30,
       auto_validate_bookings: false,
       offert: false,
@@ -161,7 +169,7 @@ export function VenueWizardDialog({
   useEffect(() => {
     if (open) {
       setCurrentStep(1);
-      fetchTrunks();
+      fetchRooms();
       if (mode === 'edit' && hotelId) {
         setSavedHotelId(hotelId);
         loadHotelData();
@@ -170,7 +178,7 @@ export function VenueWizardDialog({
         form.reset();
         setHotelImage("");
         setCoverImage("");
-        setSelectedTrunkIds([]);
+        setSelectedRoomIds([]);
         setDeploymentState({
           isAlwaysOpen: true,
           scheduleType: "specific_days",
@@ -187,18 +195,18 @@ export function VenueWizardDialog({
     }
   }, [open, mode, hotelId]);
 
-  const fetchTrunks = async () => {
+  const fetchRooms = async () => {
     const { data, error } = await supabase
-      .from("trunks")
-      .select("id, name, trunk_id, image, hotel_id")
+      .from("treatment_rooms")
+      .select("id, name, room_number, image, hotel_id")
       .order("name");
 
     if (error) {
-      toast.error("Erreur lors du chargement des trunks");
+      toast.error("Erreur lors du chargement des salles de soin");
       return;
     }
 
-    setTrunks(data || []);
+    setRooms(data || []);
   };
 
   const loadHotelData = async () => {
@@ -226,11 +234,11 @@ export function VenueWizardDialog({
           currency: hotel.currency || "EUR",
           vat: hotel.vat?.toString() || "20",
           hotel_commission: hotel.hotel_commission?.toString() || "0",
-          hairdresser_commission: hotel.hairdresser_commission?.toString() || "0",
+          therapist_commission: hotel.therapist_commission?.toString() || "0",
           status: hotel.status || "active",
           timezone: hotel.timezone || "Europe/Paris",
-          opening_time: hotel.opening_time?.substring(0, 5) || "06:00",
-          closing_time: hotel.closing_time?.substring(0, 5) || "23:00",
+          opening_time: hotel.opening_time?.substring(0, 5) || "10:00",
+          closing_time: hotel.closing_time?.substring(0, 5) || "20:00",
           slot_interval: hotel.slot_interval || 30,
           auto_validate_bookings: hotel.auto_validate_bookings || false,
           offert: hotel.offert || false,
@@ -242,14 +250,14 @@ export function VenueWizardDialog({
         setCoverImage(hotel.cover_image || "");
       }
 
-      // Load trunk associations
-      const { data: trunkData } = await supabase
-        .from("trunks")
+      // Load treatment room associations
+      const { data: roomData } = await supabase
+        .from("treatment_rooms")
         .select("id")
         .eq("hotel_id", hotelId);
 
-      if (trunkData) {
-        setSelectedTrunkIds(trunkData.map(t => t.id));
+      if (roomData) {
+        setSelectedRoomIds(roomData.map(r => r.id));
       }
 
       // Load deployment schedule
@@ -309,7 +317,7 @@ export function VenueWizardDialog({
       "currency",
       "vat",
       "hotel_commission",
-      "hairdresser_commission",
+      "therapist_commission",
       "status",
       "timezone",
     ]);
@@ -383,7 +391,8 @@ export function VenueWizardDialog({
           currency: values.currency,
           vat: parseFloat(values.vat),
           hotel_commission: parseFloat(values.hotel_commission),
-          hairdresser_commission: parseFloat(values.hairdresser_commission),
+          therapist_commission: parseFloat(values.therapist_commission),
+          global_therapist_commission: values.global_therapist_commission,
           status: values.status,
           image: hotelImage || null,
           cover_image: coverImage || null,
@@ -404,12 +413,12 @@ export function VenueWizardDialog({
       const newHotelId = insertedHotel.id;
       setSavedHotelId(newHotelId);
 
-      // Associate trunks
-      if (selectedTrunkIds.length > 0) {
+      // Associate treatment rooms
+      if (selectedRoomIds.length > 0) {
         await supabase
-          .from("trunks")
+          .from("treatment_rooms")
           .update({ hotel_id: newHotelId })
-          .in("id", selectedTrunkIds);
+          .in("id", selectedRoomIds);
       }
 
       // Insert deployment schedule
@@ -470,7 +479,7 @@ export function VenueWizardDialog({
             currency: values.currency,
             vat: parseFloat(values.vat),
             hotel_commission: parseFloat(values.hotel_commission),
-            hairdresser_commission: parseFloat(values.hairdresser_commission),
+            therapist_commission: parseFloat(values.therapist_commission),
             status: values.status,
             image: hotelImage || null,
             cover_image: coverImage || null,
@@ -490,12 +499,12 @@ export function VenueWizardDialog({
 
         const newHotelId = insertedHotel.id;
 
-        // Associate trunks
-        if (selectedTrunkIds.length > 0) {
+        // Associate treatment rooms
+        if (selectedRoomIds.length > 0) {
           await supabase
-            .from("trunks")
+            .from("treatment_rooms")
             .update({ hotel_id: newHotelId })
-            .in("id", selectedTrunkIds);
+            .in("id", selectedRoomIds);
         }
 
         // Insert deployment schedule
@@ -519,7 +528,7 @@ export function VenueWizardDialog({
             currency: values.currency,
             vat: parseFloat(values.vat),
             hotel_commission: parseFloat(values.hotel_commission),
-            hairdresser_commission: parseFloat(values.hairdresser_commission),
+            therapist_commission: parseFloat(values.therapist_commission),
             status: values.status,
             image: hotelImage || null,
             cover_image: coverImage || null,
@@ -536,19 +545,19 @@ export function VenueWizardDialog({
 
         if (hotelError) throw hotelError;
 
-        // Update trunk associations
-        // First, remove all trunk associations for this hotel
+        // Update treatment room associations
+        // First, remove all room associations for this hotel
         await supabase
-          .from("trunks")
+          .from("treatment_rooms")
           .update({ hotel_id: null })
           .eq("hotel_id", hotelId);
 
         // Then, add new associations
-        if (selectedTrunkIds.length > 0) {
+        if (selectedRoomIds.length > 0) {
           await supabase
-            .from("trunks")
+            .from("treatment_rooms")
             .update({ hotel_id: hotelId })
-            .in("id", selectedTrunkIds);
+            .in("id", selectedRoomIds);
         }
 
         // Update deployment schedule
@@ -693,9 +702,9 @@ export function VenueWizardDialog({
                   <VenueGeneralInfoStep
                     form={form}
                     mode={mode}
-                    trunks={trunks}
-                    selectedTrunkIds={selectedTrunkIds}
-                    setSelectedTrunkIds={setSelectedTrunkIds}
+                    rooms={rooms}
+                    selectedRoomIds={selectedRoomIds}
+                    setSelectedRoomIds={setSelectedRoomIds}
                     hotelImage={hotelImage}
                     coverImage={coverImage}
                     uploadingHotel={uploadingHotel}

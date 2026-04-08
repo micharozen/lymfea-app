@@ -35,7 +35,7 @@ import {
   Calendar,
   Clock,
   Building2,
-  Scissors,
+  HandHeart,
   CreditCard,
   Timer,
   Send,
@@ -204,9 +204,9 @@ export default function AdminPwaBookingDetail() {
               </div>
               <div className="bg-muted/50 rounded-lg p-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                  <Scissors className="h-3.5 w-3.5" /> Coiffeur
+                  <HandHeart className="h-3.5 w-3.5" /> Thérapeute
                 </div>
-                <p className="font-medium text-sm">{booking.hairdresser_name || "Non assigné"}</p>
+                <p className="font-medium text-sm">{booking.therapist_name || "Non assigné"}</p>
               </div>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function AdminPwaBookingDetail() {
           {/* Treatments */}
           <div className="space-y-2">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-              <Scissors className="h-4 w-4" /> Soins ({booking.treatments.length})
+              <HandHeart className="h-4 w-4" /> Soins ({booking.treatments.length})
             </h3>
             {booking.treatments.length > 0 ? (
               <div className="space-y-2">

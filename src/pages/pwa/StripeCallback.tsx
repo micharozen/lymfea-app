@@ -32,8 +32,8 @@ const PwaStripeCallback = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-sm p-8 text-center max-w-sm w-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="bg-card rounded-2xl p-8 text-center max-w-sm w-full">
         {status === 'loading' && (
           <>
             <Loader2 className="w-16 h-16 text-primary mx-auto mb-4 animate-spin" />
@@ -45,7 +45,7 @@ const PwaStripeCallback = () => {
 
         {status === 'success' && (
           <>
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <CheckCircle className="w-16 h-16 text-success mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground mb-2">
               {t('wallet.stripeConnected', 'Stripe account connected!')}
             </h2>
@@ -57,7 +57,7 @@ const PwaStripeCallback = () => {
 
         {status === 'refresh' && (
           <>
-            <XCircle className="w-16 h-16 text-orange-500 mx-auto mb-4" />
+            <XCircle className="w-16 h-16 text-warning mx-auto mb-4" />
             <h2 className="text-lg font-semibold text-foreground mb-2">
               {t('wallet.stripeIncomplete', 'Setup incomplete')}
             </h2>

@@ -1,0 +1,113 @@
+{
+  "name": "Lymfea",
+  "tagline": {
+    "fr": "Éveillez vos sens",
+    "en": "Awaken Your Senses"
+  },
+  "fullName": "Lymfea – Centre Holistique",
+  "description": {
+    "fr": "Centre holistique de soins et massages – Bien plus qu'un lieu de détente, une expérience qui éveille les sens à travers des soins holistiques qui transforment et équilibrent tout l'être",
+    "en": "Holistic wellness center – More than a relaxation venue, an experience that awakens the senses through holistic treatments that transform and balance your whole being"
+  },
+  "website": "https://lymfea.fr",
+  "appDomain": "app.lymfea.fr",
+
+  "philosophy": {
+    "fr": "Votre renaissance commence ici",
+    "en": "Your rebirth begins here"
+  },
+
+  "serviceCategories": [
+    { "key": "esprit_clair", "fr": "Esprit Clair", "en": "Clear Mind" },
+    { "key": "corps_pur", "fr": "Corps Pur", "en": "Pure Body" },
+    { "key": "ame_connectee", "fr": "Âme Connectée", "en": "Connected Soul" }
+  ],
+
+  "social": {
+    "instagram": "https://instagram.com/lymf.ea",
+    "facebook": "https://facebook.com/people/Lymfea-institut"
+  },
+
+  "legal": {
+    "companyName": "LYMFEA SAS",
+    "companyType": "SAS (Société par Actions Simplifiée)",
+    "companyTypeEn": "SAS (Simplified Joint Stock Company)",
+    "capital": "1 258,57 €",
+    "siren": "900 979 592",
+    "siret": "900 979 592 00012",
+    "rcs": "900 979 592",
+    "vatNumber": "FR32900979592",
+    "address": "71 av. Victor Hugo, 75116 Paris, France",
+    "founder": "Sarah-Line Attlan",
+    "contactEmail": "hello@lymfea.fr",
+    "bookingEmail": "booking@lymfea.fr",
+    "phone": "+33 1 88 60 94 96",
+    "host": {
+      "name": "OVHcloud",
+      "address": "2 rue Kellermann, 59100 Roubaix, France"
+    }
+  },
+
+  "locations": [
+    { "name": "Lymfea – Centre Holistique", "address": "71 av. Victor Hugo, 75116 Paris", "main": true },
+    { "name": "Hôtel Hanna", "address": "17 rue du 4 septembre, 75002 Paris" },
+    { "name": "Monsieur George", "address": "17 rue Washington, 75008 Paris" },
+    { "name": "Soho House", "address": "45 rue la Bruyère, 75009 Paris" },
+    { "name": "Hôtel de Buci", "address": "22 rue de Buci, 75006 Paris" },
+    { "name": "Studio by Holy", "address": "19 rue Guersant, 75017 Paris" }
+  ],
+
+  "emails": {
+    "from": {
+      "default": "Lymfea <booking@lymfea.fr>",
+      "noreply": "Lymfea <noreply@lymfea.fr>",
+      "transactional": "Lymfea Booking <noreply@transactional.lymfea.fr>"
+    },
+    "adminRecipient": "hello@lymfea.fr",
+    "bookingRecipient": "booking@lymfea.fr"
+  },
+
+  "logos": {
+    "primary": "/assets/brand-logo.svg",
+    "monogram": "/assets/brand-monogram.svg",
+    "monogramWhite": "/assets/brand-monogram-white.svg",
+    "monogramBlack": "/assets/brand-monogram-black.svg",
+    "monogramWhiteClient": "/assets/brand-monogram-white-client.svg",
+    "emailLogo": "/images/brand-logo-email.png",
+    "emailLogoWhite": "/images/brand-logo-email-white.png",
+    "ogImage": "/images/brand-og-image.png",
+    "secondaryBlack": "/images/brand-logo-secondary-black.svg"
+  },
+
+  "colors": {
+    "primary": "#03bfac",
+    "dark": "#1b1b1b"
+  },
+
+  "pwa": {
+    "therapist": {
+      "name": "Lymfea – Éveillez vos sens",
+      "shortName": "Lymfea",
+      "description": {
+        "fr": "Centre holistique de soins et massages – Gérez vos rendez-vous",
+        "en": "Holistic wellness center – Manage your appointments"
+      }
+    },
+    "admin": {
+      "name": "Lymfea Admin",
+      "shortName": "Lymfea Admin",
+      "description": {
+        "fr": "Lymfea Admin – Gestion des réservations et soins",
+        "en": "Lymfea Admin – Booking & treatment management"
+      }
+    }
+  },
+
+  "storageKeys": {
+    "guestSession": "lymfea-guest-session",
+    "analyticsSession": "lymfea-analytics-session",
+    "trackedPages": "lymfea-tracked-pages",
+    "debug": "lymfea-debug",
+    "venueLangPrefix": "lymfea-venue-lang-applied"
+  }
+}

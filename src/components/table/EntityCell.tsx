@@ -121,47 +121,47 @@ export function HotelsCell({ hotels, className }: HotelsCellProps) {
   );
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
   image?: string | null;
 }
 
-interface TrunkCellProps {
-  trunk: Trunk | null | undefined;
+interface TreatmentRoomCellProps {
+  room: TreatmentRoom | null | undefined;
   className?: string;
 }
 
-export function TrunkCell({ trunk, className }: TrunkCellProps) {
-  if (!trunk) return <span className="text-foreground">-</span>;
-  
+export function TreatmentRoomCell({ room, className }: TreatmentRoomCellProps) {
+  if (!room) return <span className="text-foreground">-</span>;
+
   return (
     <EntityCell
-      image={trunk.image}
-      name={trunk.name}
-      fallback="🧳"
+      image={room.image}
+      name={room.name}
+      fallback="🚪"
       className={className}
     />
   );
 }
 
-interface TrunksCellProps {
-  trunks: Trunk[];
+interface TreatmentRoomsCellProps {
+  rooms: TreatmentRoom[];
   displayName?: string;
   className?: string;
 }
 
-export function TrunksCell({ trunks, displayName, className }: TrunksCellProps) {
-  if (!trunks || trunks.length === 0) return <span className="text-foreground">-</span>;
-  
-  const firstTrunk = trunks[0];
-  const name = displayName || trunks.map(t => t.name).join(", ");
-  
+export function TreatmentRoomsCell({ rooms, displayName, className }: TreatmentRoomsCellProps) {
+  if (!rooms || rooms.length === 0) return <span className="text-foreground">-</span>;
+
+  const firstRoom = rooms[0];
+  const name = displayName || rooms.map(r => r.name).join(", ");
+
   return (
     <EntityCell
-      image={firstTrunk.image}
+      image={firstRoom.image}
       name={name}
-      fallback="🧳"
+      fallback="🚪"
       className={className}
     />
   );

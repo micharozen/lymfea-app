@@ -4,6 +4,7 @@ import {
   sendWhatsAppInteractive,
   buildAlternativeSlotOffer1Message,
 } from "../_shared/whatsapp-meta.ts";
+import { isInBlockedSlot } from "../_shared/blocked-slots.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +14,7 @@ const corsHeaders = {
 
 interface ProposeAlternativeRequest {
   bookingId: string;
-  hairdresserId: string;
+  therapistId: string;
   alternative1: {
     date: string; // YYYY-MM-DD
     time: string; // HH:MM
@@ -35,12 +36,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: ProposeAlternativeRequest = await req.json();
-    const { bookingId, hairdresserId, alternative1, alternative2 } = body;
+    const { bookingId, therapistId, alternative1, alternative2 } = body;
 
     console.log("Proposing alternative for booking:", bookingId);
 
     // Validate required fields
-    if (!bookingId || !hairdresserId || !alternative1 || !alternative2) {
+    if (!bookingId || !therapistId || !alternative1 || !alternative2) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -66,6 +67,19 @@ serve(async (req) => {
     if (booking.status !== "pending") {
       return new Response(
         JSON.stringify({ error: "Booking is not in pending status" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate proposed alternatives don't overlap with blocked slots
+    const bookingDuration = booking.duration || 30;
+    const alt1Blocked = await isInBlockedSlot(supabase, booking.hotel_id, alternative1.date, alternative1.time, bookingDuration);
+    const alt2Blocked = await isInBlockedSlot(supabase, booking.hotel_id, alternative2.date, alternative2.time, bookingDuration);
+
+    if (alt1Blocked || alt2Blocked) {
+      console.log("Rejected: proposed alternative overlaps with blocked slot", { alt1Blocked, alt2Blocked });
+      return new Response(
+        JSON.stringify({ error: "BLOCKED_SLOT" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -98,7 +112,7 @@ serve(async (req) => {
       .from("booking_alternative_proposals")
       .insert({
         booking_id: bookingId,
-        hairdresser_id: hairdresserId,
+        therapist_id: therapistId,
         original_date: booking.booking_date,
         original_time: booking.booking_time,
         alternative_1_date: alternative1.date,

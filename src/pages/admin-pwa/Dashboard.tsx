@@ -191,10 +191,10 @@ export default function AdminPwaDashboard() {
                               <span>{booking.booking_time?.substring(0, 5)}</span>
                               <span>·</span>
                               <span className="truncate">{hotel?.name || booking.hotel_name || "-"}</span>
-                              {booking.hairdresser_name && (
+                              {booking.therapist_name && (
                                 <>
                                   <span>·</span>
-                                  <span className="truncate">{booking.hairdresser_name}</span>
+                                  <span className="truncate">{booking.therapist_name}</span>
                                 </>
                               )}
                             </div>

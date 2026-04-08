@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import oomLogo from "@/assets/oom-monogram.svg";
+import { brand, brandLogos } from "@/config/brand";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
 const Home = () => {
@@ -38,8 +38,8 @@ const Home = () => {
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
         <div className="animate-fade-in">
           <img 
-            src={oomLogo} 
-            alt="OOM" 
+            src={brandLogos.monogram}
+            alt={brand.name} 
             className="w-32 h-32"
           />
         </div>

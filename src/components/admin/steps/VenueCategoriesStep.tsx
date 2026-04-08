@@ -16,14 +16,18 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
     isLoading,
     addCategory,
     renameCategory,
+    updateNameEn,
     isAdding,
     isRenaming,
     getTreatmentCountByCategory,
   } = useTreatmentCategories(hotelId);
 
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryNameEn, setNewCategoryNameEn] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingEnId, setEditingEnId] = useState<string | null>(null);
+  const [editingEnName, setEditingEnName] = useState("");
   const [treatmentCounts, setTreatmentCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -42,8 +46,12 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    await addCategory(newCategoryName.trim());
+    const result = await addCategory(newCategoryName.trim());
+    if (result && newCategoryNameEn.trim()) {
+      await updateNameEn(result.id, newCategoryNameEn.trim());
+    }
     setNewCategoryName("");
+    setNewCategoryNameEn("");
   };
 
   const handleStartEdit = (id: string, name: string) => {
@@ -109,6 +117,18 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
             placeholder="Nom de la catégorie"
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddCategory();
+              }
+            }}
+            disabled={isAdding}
+          />
+          <Input
+            placeholder="🇬🇧 English name"
+            value={newCategoryNameEn}
+            onChange={(e) => setNewCategoryNameEn(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -197,12 +217,68 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
                     </div>
                   ) : (
                     <>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium">{category.name}</span>
-                        {treatmentCount > 0 && (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            ({treatmentCount} soin{treatmentCount > 1 ? "s" : ""})
-                          </span>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{category.name}</span>
+                          {treatmentCount > 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              ({treatmentCount} soin{treatmentCount > 1 ? "s" : ""})
+                            </span>
+                          )}
+                        </div>
+                        {/* EN name inline edit */}
+                        {editingEnId === category.id ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs shrink-0">🇬🇧</span>
+                            <Input
+                              value={editingEnName}
+                              onChange={(e) => setEditingEnName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  updateNameEn(category.id, editingEnName.trim() || null);
+                                  setEditingEnId(null);
+                                } else if (e.key === "Escape") {
+                                  setEditingEnId(null);
+                                }
+                              }}
+                              autoFocus
+                              className="h-6 text-xs"
+                              placeholder="English name"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                updateNameEn(category.id, editingEnName.trim() || null);
+                                setEditingEnId(null);
+                              }}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Check className="h-3 w-3 text-green-600" />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingEnId(null)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <X className="h-3 w-3 text-red-600" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingEnId(category.id);
+                              setEditingEnName(category.name_en || "");
+                            }}
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <span className="text-xs">🇬🇧</span>
+                            {category.name_en || "Add English name"}
+                          </button>
                         )}
                       </div>
                       <Button

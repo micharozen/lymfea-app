@@ -75,25 +75,25 @@ serve(async (req) => {
       if (isOnboardingComplete) {
         logStep("Onboarding appears complete, updating database");
         
-        // Update hairdresser record
-        const { data: hairdresser, error: findError } = await supabaseClient
-          .from("hairdressers")
+        // Update therapist record
+        const { data: therapist, error: findError } = await supabaseClient
+          .from("therapists")
           .select("id")
           .eq("stripe_account_id", account.id)
           .single();
 
-        if (findError || !hairdresser) {
-          logStep("Hairdresser not found for Stripe account", { stripeAccountId: account.id });
+        if (findError || !therapist) {
+          logStep("Therapist not found for Stripe account", { stripeAccountId: account.id });
         } else {
           const { error: updateError } = await supabaseClient
-            .from("hairdressers")
+            .from("therapists")
             .update({ stripe_onboarding_completed: true })
-            .eq("id", hairdresser.id);
+            .eq("id", therapist.id);
 
           if (updateError) {
             logStep("Error updating onboarding status", { error: updateError });
           } else {
-            logStep("Onboarding status updated to complete", { hairdresserId: hairdresser.id });
+            logStep("Onboarding status updated to complete", { therapistId: therapist.id });
           }
         }
       }

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { brand } from "@/config/brand";
 
 const countryCodes = [
   { code: "+33", name: "France", flag: "🇫🇷" },
@@ -54,19 +55,19 @@ const PwaLogin = () => {
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
-          .eq('role', 'hairdresser')
+          .eq('role', 'therapist')
           .maybeSingle();
 
         if (roles) {
-          // User is a hairdresser - redirect to PWA
-          const { data: hairdresser } = await supabase
-            .from('hairdressers')
+          // User is a therapist - redirect to PWA
+          const { data: therapist } = await supabase
+            .from('therapists')
             .select('status')
             .eq('user_id', session.user.id)
             .single();
 
-          if (hairdresser) {
-            if (hairdresser.status === "pending") {
+          if (therapist) {
+            if (therapist.status === "pending") {
               navigate("/pwa/onboarding", { replace: true });
             } else {
               navigate("/pwa/dashboard", { replace: true });
@@ -125,7 +126,7 @@ const PwaLogin = () => {
 
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error(
-            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
           );
         } else {
@@ -138,7 +139,7 @@ const PwaLogin = () => {
       if (data && (data as any).success === false) {
         const msg = (data as any).error || t('common:errors.generic');
         toast.error(
-          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
           { duration: 8000 },
         );
         console.warn('send-otp rejected:', msg);
@@ -155,7 +156,7 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+        toast.error(`Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`, {
           duration: 8000,
         });
       } else {
@@ -184,7 +185,7 @@ const PwaLogin = () => {
 
         if (errorMessage.includes('non trouvé') || errorMessage.includes('not found')) {
           toast.error(
-            "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+            `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
             { duration: 8000 },
           );
         } else {
@@ -195,7 +196,7 @@ const PwaLogin = () => {
 
       if (data && (data as any).success === false) {
         toast.error(
-          "Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.",
+          `Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`,
           { duration: 8000 },
         );
         return;
@@ -212,7 +213,7 @@ const PwaLogin = () => {
       const errorMsg = error?.context?.body?.error || error.message || t('common:errors.generic');
       
       if (errorMsg.includes('non trouvé') || errorMsg.includes('not found')) {
-        toast.error("Ce numéro n'est pas associé à un compte coiffeur. Contactez booking@oomworld.com pour être ajouté.", {
+        toast.error(`Ce numéro n'est pas associé à un compte thérapeute. Contactez ${brand.legal.bookingEmail} pour être ajouté.`, {
           duration: 8000,
         });
       } else {
@@ -296,7 +297,7 @@ const PwaLogin = () => {
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      if (data.hairdresser.status === "pending") {
+      if (data.therapist.status === "pending") {
         navigate("/pwa/onboarding", { replace: true });
       } else {
         navigate("/pwa/dashboard", { replace: true });
@@ -339,7 +340,7 @@ const PwaLogin = () => {
 
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
+    <div className="flex flex-1 flex-col bg-background">
       <div className="p-4 flex justify-between items-center">
         <button 
           onClick={() => step === "otp" ? setStep("phone") : navigate("/pwa/welcome")}
@@ -354,7 +355,7 @@ const PwaLogin = () => {
         {step === "phone" ? (
           <>
             <h1 className="text-2xl font-semibold mb-2">{t('login.title')}</h1>
-            <p className="text-sm text-gray-500 mb-8">{t('login.subtitle')}</p>
+            <p className="text-sm text-muted-foreground mb-8">{t('login.subtitle')}</p>
 
             <div className="flex items-center gap-3 mb-8">
               <Popover open={openCountrySelect} onOpenChange={setOpenCountrySelect}>
@@ -405,7 +406,7 @@ const PwaLogin = () => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 placeholder="6 40 50 18 49"
-                className="flex-1 h-12 rounded-lg border border-gray-300 text-lg"
+                className="flex-1 h-12 rounded-lg border border-border text-lg"
               />
             </div>
 
@@ -415,7 +416,7 @@ const PwaLogin = () => {
               className={`w-full h-12 rounded-full mb-8 ${
                 phone.length >= 9
                   ? "bg-black text-white hover:bg-black/90"
-                  : "bg-gray-200 text-gray-400"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               {loading ? "Envoi..." : t('login.continue')}
@@ -425,7 +426,7 @@ const PwaLogin = () => {
         ) : (
           <>
             <h1 className="text-2xl font-semibold mb-2">{t('login.enterCode')}</h1>
-            <p className="text-sm text-gray-500 mb-8">{t('login.codeSent')} ***{phone.slice(-4)}</p>
+            <p className="text-sm text-muted-foreground mb-8">{t('login.codeSent')} ***{phone.slice(-4)}</p>
 
             <div className="flex justify-center gap-1.5 sm:gap-2 mb-4 px-2">
               {otp.map((digit, index) => (
@@ -442,8 +443,8 @@ const PwaLogin = () => {
                   className={cn(
                     "w-12 sm:w-14 h-14 sm:h-16 text-center text-xl sm:text-2xl font-semibold rounded-lg border-2 transition-all flex-shrink-0",
                     isCodeExpired 
-                      ? "border-orange-300 bg-orange-50 text-gray-400 cursor-not-allowed"
-                      : "border-blue-500 bg-white"
+                      ? "border-orange-300 bg-orange-50 text-muted-foreground cursor-not-allowed"
+                      : "border-primary bg-background"
                   )}
                 />
               ))}
@@ -463,11 +464,11 @@ const PwaLogin = () => {
               </div>
             )}
             
-            <p className="text-xs text-center text-gray-400 mb-8">
+            <p className="text-xs text-center text-muted-foreground mb-8">
               {canResend ? (
                 <button
                   onClick={handleResendOtp}
-                  className="text-blue-500 underline"
+                  className="text-primary underline"
                   disabled={loading}
                 >
                   {t('login.resend')}
@@ -484,7 +485,7 @@ const PwaLogin = () => {
                 "w-full h-12 rounded-full mb-8",
                 otp.join("").length >= 6 && !isCodeExpired
                   ? "bg-black text-white hover:bg-black/90"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
               {loading ? "Vérification..." : isCodeExpired ? t('login.expired') : t('login.verify')}

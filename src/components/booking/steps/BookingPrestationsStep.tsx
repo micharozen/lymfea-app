@@ -2,9 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Minus, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Minus, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
+import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
+import type { VenueAmenity } from "@/hooks/useVenueAmenities";
 import { CartItem } from "../CreateBookingDialog.schema";
 
 interface Treatment {
@@ -36,8 +39,16 @@ interface BookingPrestationsStepProps {
   setCustomPrice: (v: string) => void;
   customDuration: string;
   setCustomDuration: (v: string) => void;
+  isBookingOutOfHours?: boolean;
+  surchargeAmount?: number;
+  surchargePercent?: number;
+  finalPriceWithSurcharge?: number;
   isPending: boolean;
   onBack: () => void;
+  // Amenity access
+  venueAmenities?: VenueAmenity[];
+  selectedAmenityIds?: string[];
+  onToggleAmenity?: (amenityId: string, enabled: boolean) => void;
 }
 
 export function BookingPrestationsStep({
@@ -58,8 +69,15 @@ export function BookingPrestationsStep({
   setCustomPrice,
   customDuration,
   setCustomDuration,
+  isBookingOutOfHours,
+  surchargeAmount,
+  surchargePercent,
+  finalPriceWithSurcharge,
   isPending,
   onBack,
+  venueAmenities,
+  selectedAmenityIds,
+  onToggleAmenity,
 }: BookingPrestationsStepProps) {
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
 
@@ -208,6 +226,60 @@ export function BookingPrestationsStep({
           </div>
         )}
 
+        {/* Out-of-hours surcharge line */}
+        {/* Amenity access toggles */}
+        {venueAmenities && venueAmenities.length > 0 && onToggleAmenity && (
+          <div className="space-y-1.5 border rounded-md p-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Accès commodités
+            </span>
+            {venueAmenities.filter(a => a.is_enabled).map((amenity) => {
+              const typeDef = getAmenityType(amenity.type);
+              const Icon = typeDef?.icon;
+              const isSelected = selectedAmenityIds?.includes(amenity.id) ?? false;
+              const priceLabel = amenity.lymfea_access_included
+                ? "Inclus"
+                : formatPrice(Number(amenity.price_lymfea) || 0, amenity.currency || "EUR");
+
+              return (
+                <div key={amenity.id} className="flex items-center justify-between gap-2 py-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {Icon && (
+                      <Icon className="h-3.5 w-3.5 flex-shrink-0" style={{ color: amenity.color }} />
+                    )}
+                    <span className="text-xs truncate">
+                      {amenity.name || getAmenityLabel(amenity.type, "fr")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {amenity.lymfea_access_duration || amenity.slot_duration}min
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-[10px] text-muted-foreground">{priceLabel}</span>
+                    <Switch
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onToggleAmenity(amenity.id, checked)}
+                      className="scale-75"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {isBookingOutOfHours && surchargeAmount != null && surchargeAmount > 0 && (
+          <div className="flex items-center justify-between rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-2.5 py-1.5">
+            <span className="flex items-center gap-1.5 text-[10px] text-amber-800 dark:text-amber-300">
+              <Clock className="h-3 w-3 shrink-0" />
+              Majoration hors horaires ({surchargePercent}%)
+            </span>
+            <span className="text-[10px] font-semibold text-amber-800 dark:text-amber-300">
+              +{formatPrice(surchargeAmount, selectedHotel?.currency || 'EUR')}
+            </span>
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           {/* Back button */}
           <Button
@@ -233,7 +305,7 @@ export function BookingPrestationsStep({
                 {cartDetails.length > 3 && (
                   <span className="text-[9px] text-muted-foreground shrink-0">+{cartDetails.length - 3}</span>
                 )}
-                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPrice, selectedHotel?.currency || 'EUR')}</span>
+                <span className="font-bold text-sm shrink-0 ml-1">{formatPrice(finalPriceWithSurcharge ?? finalPrice, selectedHotel?.currency || 'EUR')}</span>
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground">Aucun service</span>

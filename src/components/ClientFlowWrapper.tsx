@@ -32,7 +32,7 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
   useClientPrefetch();
 
   // Set default language based on venue type and country
-  useVenueDefaultLanguage(hotelId);
+  const { isLanguageReady } = useVenueDefaultLanguage(hotelId);
 
   useEffect(() => {
     if (!hotelId) return;
@@ -45,6 +45,10 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
       initSession(hotelId);
     }
   }, [hotelId]);
+
+  if (!isLanguageReady) {
+    return <div className="lymfea-client min-h-screen bg-white" />;
+  }
 
   return (
     <AnalyticsProvider hotelId={hotelId}>

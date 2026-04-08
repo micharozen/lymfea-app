@@ -1,13 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// OOM Logo URL (hosted publicly)
-const OOM_LOGO_URL = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
+// Logo URL (hosted publicly)
+const LOGO_URL = EMAIL_LOGO_URL;
 
 // Security: Escape HTML entities to prevent XSS attacks
 const escapeHtml = (unsafe: string | null | undefined): string => {
@@ -295,7 +296,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
   <div class="document">
     <div class="header">
       <div class="logo">
-        <img src="${OOM_LOGO_URL}" alt="Object of Metamorphosis" />
+        <img src="${LOGO_URL}" alt="${brand.name}" />
       </div>
       <div class="doc-meta">
         <div class="doc-type">Bon de Prestation</div>
@@ -370,7 +371,7 @@ const generateInvoiceHTML = (data: InvoiceData): string => {
     </div>
 
     <div class="footer">
-      Merci d'avoir choisi OOM · Ce document constitue un justificatif de prestation
+      Merci d'avoir choisi ${brand.name} · Ce document constitue un justificatif de prestation
     </div>
   </div>
 </body>

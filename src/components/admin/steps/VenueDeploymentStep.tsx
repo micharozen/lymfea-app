@@ -101,9 +101,10 @@ interface VenueDeploymentStepProps {
   onChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
   onBlockedSlotsChange: (slots: BlockedSlot[]) => void;
+  disabled?: boolean;
 }
 
-export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlockedSlotsChange }: VenueDeploymentStepProps) {
+export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlockedSlotsChange, disabled = false }: VenueDeploymentStepProps) {
   const {
     isAlwaysOpen,
     scheduleType,
@@ -206,7 +207,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   Heure d'ouverture
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -232,7 +233,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   Heure de fermeture
                 </FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select value={field.value} onValueChange={field.onChange} disabled={disabled}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -262,6 +263,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
               <Select
                 value={String(field.value ?? 30)}
                 onValueChange={(val) => field.onChange(Number(val))}
+                disabled={disabled}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -308,154 +310,158 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                     <span className="text-xs text-muted-foreground">Tous les jours</span>
                   )}
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeBlockedSlot(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                {!disabled && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeBlockedSlot(index)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
         )}
 
-        {showAddBlockedSlot ? (
-          <div className="p-4 border rounded-lg bg-muted/10 space-y-3">
-            <div className="space-y-1.5">
-              <Label className="text-sm">Nom</Label>
-              <Input
-                value={newBlockedSlot.label}
-                onChange={(e) => setNewBlockedSlot(prev => ({ ...prev, label: e.target.value }))}
-                placeholder="ex: Pause déjeuner"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
+        {!disabled && (
+          showAddBlockedSlot ? (
+            <div className="p-4 border rounded-lg bg-muted/10 space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-sm">Début</Label>
-                <div className="flex gap-1.5">
-                  <Select
-                    value={newBlockedSlot.start_time.split(':')[0]}
-                    onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${h}:${prev.start_time.split(':')[1]}` }))}
-                  >
-                    <SelectTrigger className="w-[70px]">
-                      <SelectValue placeholder="HH" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map(h => (
-                        <SelectItem key={h} value={h}>{h}h</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={newBlockedSlot.start_time.split(':')[1]}
-                    onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${prev.start_time.split(':')[0]}:${m}` }))}
-                  >
-                    <SelectTrigger className="w-[70px]">
-                      <SelectValue placeholder="MM" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MINUTES.map(m => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm">Fin</Label>
-                <div className="flex gap-1.5">
-                  <Select
-                    value={newBlockedSlot.end_time.split(':')[0]}
-                    onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${h}:${prev.end_time.split(':')[1]}` }))}
-                  >
-                    <SelectTrigger className="w-[70px]">
-                      <SelectValue placeholder="HH" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {HOURS.map(h => (
-                        <SelectItem key={h} value={h}>{h}h</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={newBlockedSlot.end_time.split(':')[1]}
-                    onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${prev.end_time.split(':')[0]}:${m}` }))}
-                  >
-                    <SelectTrigger className="w-[70px]">
-                      <SelectValue placeholder="MM" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MINUTES.map(m => (
-                        <SelectItem key={m} value={m}>{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm">Jours spécifiques</Label>
-                <Switch
-                  checked={newBlockedSlot.days_of_week !== null}
-                  onCheckedChange={(checked) =>
-                    setNewBlockedSlot(prev => ({
-                      ...prev,
-                      days_of_week: checked ? [] : null,
-                    }))
-                  }
+                <Label className="text-sm">Nom</Label>
+                <Input
+                  value={newBlockedSlot.label}
+                  onChange={(e) => setNewBlockedSlot(prev => ({ ...prev, label: e.target.value }))}
+                  placeholder="ex: Pause déjeuner"
                 />
               </div>
-              {newBlockedSlot.days_of_week !== null && (
-                <div className="flex flex-wrap gap-2">
-                  {DAYS_OF_WEEK.map(day => (
-                    <button
-                      key={day.value}
-                      type="button"
-                      onClick={() => toggleNewBlockedSlotDay(day.value)}
-                      className={cn(
-                        "px-3 py-2 text-sm rounded-md border transition-colors",
-                        newBlockedSlot.days_of_week?.includes(day.value)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background hover:bg-muted border-input"
-                      )}
-                    >
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddBlockedSlot(false)}
-              >
-                Annuler
-              </Button>
-              <Button type="button" size="sm" onClick={addBlockedSlot}>
-                Ajouter
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Début</Label>
+                  <div className="flex gap-1.5">
+                    <Select
+                      value={newBlockedSlot.start_time.split(':')[0]}
+                      onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${h}:${prev.start_time.split(':')[1]}` }))}
+                    >
+                      <SelectTrigger className="w-[70px]">
+                        <SelectValue placeholder="HH" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HOURS.map(h => (
+                          <SelectItem key={h} value={h}>{h}h</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={newBlockedSlot.start_time.split(':')[1]}
+                      onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, start_time: `${prev.start_time.split(':')[0]}:${m}` }))}
+                    >
+                      <SelectTrigger className="w-[70px]">
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MINUTES.map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">Fin</Label>
+                  <div className="flex gap-1.5">
+                    <Select
+                      value={newBlockedSlot.end_time.split(':')[0]}
+                      onValueChange={(h) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${h}:${prev.end_time.split(':')[1]}` }))}
+                    >
+                      <SelectTrigger className="w-[70px]">
+                        <SelectValue placeholder="HH" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {HOURS.map(h => (
+                          <SelectItem key={h} value={h}>{h}h</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={newBlockedSlot.end_time.split(':')[1]}
+                      onValueChange={(m) => setNewBlockedSlot(prev => ({ ...prev, end_time: `${prev.end_time.split(':')[0]}:${m}` }))}
+                    >
+                      <SelectTrigger className="w-[70px]">
+                        <SelectValue placeholder="MM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MINUTES.map(m => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm">Jours spécifiques</Label>
+                  <Switch
+                    checked={newBlockedSlot.days_of_week !== null}
+                    onCheckedChange={(checked) =>
+                      setNewBlockedSlot(prev => ({
+                        ...prev,
+                        days_of_week: checked ? [] : null,
+                      }))
+                    }
+                  />
+                </div>
+                {newBlockedSlot.days_of_week !== null && (
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS_OF_WEEK.map(day => (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleNewBlockedSlotDay(day.value)}
+                        className={cn(
+                          "px-3 py-2 text-sm rounded-md border transition-colors",
+                          newBlockedSlot.days_of_week?.includes(day.value)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted border-input"
+                        )}
+                      >
+                        {day.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddBlockedSlot(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="button" size="sm" onClick={addBlockedSlot}>
+                  Ajouter
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowAddBlockedSlot(true)}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter une plage bloquée
-          </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddBlockedSlot(true)}
+              className="w-full"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter une plage bloquée
+            </Button>
+          )
         )}
       </div>
 
@@ -473,6 +479,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
             id="always-open"
             checked={isAlwaysOpen}
             onCheckedChange={(checked) => updateState({ isAlwaysOpen: checked })}
+            disabled={disabled}
           />
         </div>
 
@@ -486,6 +493,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 variant={scheduleType === "specific_days" ? "default" : "outline"}
                 size="sm"
                 onClick={() => updateState({ scheduleType: "specific_days" })}
+                disabled={disabled}
                 className="flex-1"
               >
                 <Repeat className="h-4 w-4 mr-2" />
@@ -496,6 +504,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                 variant={scheduleType === "one_time" ? "default" : "outline"}
                 size="sm"
                 onClick={() => updateState({ scheduleType: "one_time" })}
+                disabled={disabled}
                 className="flex-1"
               >
                 <CalendarCheck className="h-4 w-4 mr-2" />
@@ -517,12 +526,15 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                       <button
                         key={day.value}
                         type="button"
-                        onClick={() => handleDayToggle(day.value)}
+                        onClick={() => !disabled && handleDayToggle(day.value)}
+                        disabled={disabled}
                         className={cn(
                           "px-3 py-2 text-sm rounded-md border transition-colors",
+                          disabled && "cursor-not-allowed opacity-60",
                           selectedDays.includes(day.value)
                             ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background hover:bg-muted border-input"
+                            : "bg-background border-input",
+                          !disabled && !selectedDays.includes(day.value) && "hover:bg-muted"
                         )}
                       >
                         {day.label}
@@ -543,6 +555,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   <Select
                     value={recurrenceInterval.toString()}
                     onValueChange={(value) => updateState({ recurrenceInterval: parseInt(value, 10) })}
+                    disabled={disabled}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Chaque semaine" />
@@ -573,6 +586,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
+                          disabled={disabled}
                           className={cn(
                             "w-full justify-start text-left font-normal",
                             !recurringStartDate && "text-muted-foreground"
@@ -605,6 +619,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
+                          disabled={disabled}
                           className={cn(
                             "w-full justify-start text-left font-normal",
                             !recurringEndDate && "text-muted-foreground"
@@ -628,7 +643,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                         />
                       </PopoverContent>
                     </Popover>
-                    {recurringEndDate && (
+                    {recurringEndDate && !disabled && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -655,7 +670,7 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start">
+                      <Button variant="outline" disabled={disabled} className="w-full justify-start">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         Ajouter une date
                       </Button>
@@ -694,13 +709,15 @@ export function VenueDeploymentStep({ form, state, onChange, blockedSlots, onBlo
                           className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
                         >
                           {format(date, "d MMM yyyy", { locale: fr })}
-                          <button
-                            type="button"
-                            onClick={() => removeSpecificDate(index)}
-                            className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
+                          {!disabled && (
+                            <button
+                              type="button"
+                              onClick={() => removeSpecificDate(index)}
+                              className="ml-1 hover:bg-primary/20 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>

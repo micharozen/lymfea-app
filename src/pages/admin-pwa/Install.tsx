@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Share, Menu, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { brand } from "@/config/brand";
 
 export default function AdminPwaInstall() {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function AdminPwaInstall() {
           </div>
           <h1 className="text-2xl font-bold">App installée !</h1>
           <p className="text-muted-foreground">
-            OOM Admin est maintenant sur votre écran d'accueil
+            {brand.pwa.admin.shortName} est maintenant sur votre écran d'accueil
           </p>
           <Button onClick={() => navigate("/admin-pwa")} className="w-full">
             Ouvrir l'application
@@ -69,9 +70,9 @@ export default function AdminPwaInstall() {
       <div className="max-w-md mx-auto p-6 space-y-8">
         <div className="text-center space-y-4">
           <div className="w-24 h-24 mx-auto bg-black rounded-2xl flex items-center justify-center">
-            <span className="text-white text-3xl font-bold">oom</span>
+            <span className="text-white text-3xl font-bold">{brand.name.toLowerCase()}</span>
           </div>
-          <h2 className="text-2xl font-bold">OOM Admin</h2>
+          <h2 className="text-2xl font-bold">{brand.pwa.admin.shortName}</h2>
           <p className="text-muted-foreground">
             Installez l'app pour gérer vos réservations depuis votre mobile
           </p>

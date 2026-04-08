@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CreateBookingDialog from "@/components/booking/CreateBookingDialog";
@@ -8,11 +9,13 @@ import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 
+import { useTranslation } from "react-i18next";
 import {
   useBookingData,
   useBookingFilters,
   useCalendarLogic,
   useBookingSelection,
+  useAmenityBookingData,
   type BookingWithTreatments,
 } from "@/hooks/booking";
 
@@ -23,13 +26,24 @@ import {
   InvoicePreviewDialog,
   SendPaymentLinkDialog,
 } from "@/components/booking";
+import {
+  CalendarSidebarDesktop,
+  CalendarSidebarMobile,
+  buildCalendarEntries,
+} from "@/components/booking/CalendarSidebar";
+import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
+  const navigate = useNavigate();
   const { isAdmin, isConcierge } = useUserContext();
   const { activeTimezone } = useTimezone();
+  const { i18n } = useTranslation();
+  
+  // AJOUT : Récupération des paramètres de recherche de l'URL
+  const [searchParams] = useSearchParams();
 
   // Data
-  const { bookings, hotels, hairdressers, getHotelInfo, refetch } = useBookingData();
+  const { bookings, hotels, therapists, getHotelInfo, refetch } = useBookingData();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // UI state
@@ -40,6 +54,33 @@ export default function Booking() {
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [selectedTime, setSelectedTime] = useState<string>();
   const [viewedBooking, setViewedBooking] = useState<BookingWithTreatments | null>(null);
+
+  // --- LOGIQUE DE REDIRECTION (ADAPTÉE À LA NOUVELLE PAGE) ---
+useEffect(() => {
+  const bookingId = searchParams.get("id");
+  if (bookingId && bookings.length > 0) {
+    const target = bookings.find(
+      (b) => b.id === bookingId || b.booking_id?.toString() === bookingId
+    );
+    
+    if (target) {
+      // Au lieu d'ouvrir l'ancienne modale 
+      // On redirige vers la nouvelle page 
+      navigate(`/admin/bookings/${target.id}`);
+    }
+  }
+}, [searchParams, bookings, navigate]); // Se déclenche quand l'URL change ou quand les données arrivent
+  // -----------------------------------------------------------
+
+  // Day count with localStorage persistence
+  const [dayCount, setDayCount] = useState<number>(() => {
+    const saved = localStorage.getItem('planning-day-count');
+    return saved ? Number(saved) : 5;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('planning-day-count', String(dayCount));
+  }, [dayCount]);
 
   // Invoice state
   const [isInvoicePreviewOpen, setIsInvoicePreviewOpen] = useState(false);
@@ -59,10 +100,39 @@ export default function Booking() {
     setStatusFilter,
     hotelFilter,
     setHotelFilter,
-    hairdresserFilter,
-    setHairdresserFilter,
+    therapistFilter,
+    setTherapistFilter,
     filteredBookings,
   } = useBookingFilters(bookings);
+
+  // Amenity data
+  const hasVenueFilter = hotelFilter && hotelFilter !== "all";
+  const { amenities: venueAmenities } = useVenueAmenities(hasVenueFilter ? hotelFilter : "");
+  const { amenityBookings, getAmenityBookingsForDay } = useAmenityBookingData({
+    hotelFilter: hasVenueFilter ? hotelFilter : undefined,
+  });
+
+  // Calendar sidebar state
+  const [visibleCalendars, setVisibleCalendars] = useState<Record<string, boolean>>({ treatments: true });
+
+  const calendarEntries = hasVenueFilter
+    ? buildCalendarEntries(venueAmenities, i18n.language)
+    : [];
+  const showSidebar = calendarEntries.length > 1 && view === "calendar";
+
+  const handleCalendarToggle = (id: string, visible: boolean) => {
+    setVisibleCalendars((prev) => ({ ...prev, [id]: visible }));
+  };
+  const handleShowAll = () => {
+    const all: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { all[e.id] = true; });
+    setVisibleCalendars(all);
+  };
+  const handleHideAll = () => {
+    const none: Record<string, boolean> = {};
+    calendarEntries.forEach((e) => { none[e.id] = false; });
+    setVisibleCalendars(none);
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -78,6 +148,7 @@ export default function Booking() {
   const calendar = useCalendarLogic({
     filteredBookings,
     activeTimezone,
+    dayCount,
   });
 
   // Overflow control
@@ -125,8 +196,8 @@ export default function Booking() {
 
   const handleBookingClick = (booking: typeof selectedBooking) => {
     if (booking) {
-      setViewedBooking(booking);
-      setIsDetailDialogOpen(true);
+      // Navigation vers la nouvelle page détaillée au lieu d'ouvrir la modale
+      navigate(`/admin/bookings/${booking.id}`);
     }
   };
 
@@ -166,24 +237,33 @@ export default function Booking() {
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header & Filters */}
-      <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-            📅 Bookings
+      <div ref={headerRef} className="flex-shrink-0 px-4 md:px-6 pt-3 md:pt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            Planning
           </h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {showSidebar && (
+              <CalendarSidebarMobile
+                entries={calendarEntries}
+                visibleCalendars={visibleCalendars}
+                onToggle={handleCalendarToggle}
+                onShowAll={handleShowAll}
+                onHideAll={handleHideAll}
+              />
+            )}
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              title="Refresh bookings"
+              title="Refresh"
             >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white">
-              <Plus className="h-4 w-4" />
-              {isConcierge ? "Créer une demande" : "Créer une réservation"}
+            <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="h-8 text-xs">
+              {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
             </Button>
           </div>
         </div>
@@ -195,37 +275,57 @@ export default function Booking() {
           onStatusChange={handleFilterChange(setStatusFilter)}
           hotelFilter={hotelFilter}
           onHotelChange={handleFilterChange(setHotelFilter)}
-          hairdresserFilter={hairdresserFilter}
-          onHairdresserChange={handleFilterChange(setHairdresserFilter)}
+          therapistFilter={therapistFilter}
+          onTherapistChange={handleFilterChange(setTherapistFilter)}
           view={view}
           onViewChange={setView}
+          dayCount={dayCount}
+          onDayCountChange={setDayCount}
           isAdmin={isAdmin}
           hotels={hotels}
-          hairdressers={hairdressers}
+          therapists={therapists}
         />
       </div>
 
       {/* Content */}
       <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-row overflow-hidden">
+          {showSidebar && (
+            <CalendarSidebarDesktop
+              entries={calendarEntries}
+              visibleCalendars={visibleCalendars}
+              onToggle={handleCalendarToggle}
+              onShowAll={handleShowAll}
+              onHideAll={handleHideAll}
+            />
+          )}
+          <div className="flex-1 flex flex-col overflow-hidden">
           {view === "calendar" ? (
             <BookingCalendarView
               weekDays={calendar.weekDays}
               currentWeekStart={calendar.currentWeekStart}
+              dayCount={dayCount}
               onPreviousWeek={calendar.handlePreviousWeek}
               onNextWeek={calendar.handleNextWeek}
+              onGoToToday={calendar.goToToday}
+              onSetViewDate={calendar.setViewDate}
               getBookingsForDay={calendar.getBookingsForDay}
               getBookingPosition={calendar.getBookingPosition}
+              getBookingsLayoutForDay={calendar.getBookingsLayoutForDay}
               getCurrentTimePosition={calendar.getCurrentTimePosition}
               getStatusColor={calendar.getStatusColor}
               getTranslatedStatus={calendar.getTranslatedStatus}
-              getStatusCardColor={calendar.getStatusCardColor}
+              getCalendarCardColor={calendar.getCalendarCardColor}
               onCalendarClick={handleCalendarClick}
               onBookingClick={handleBookingClick}
               hours={calendar.hours}
               hourHeight={calendar.hourHeight}
               startHour={calendar.startHour}
               getHotelInfo={getHotelInfo}
+              hotels={hotels}
+              hotelFilter={hotelFilter}
+              amenityBookings={hasVenueFilter ? amenityBookings : undefined}
+              visibleCalendars={hasVenueFilter ? visibleCalendars : undefined}
             />
           ) : (
             <BookingListView
@@ -245,6 +345,7 @@ export default function Booking() {
               onPageChange={setCurrentPage}
             />
           )}
+          </div>
         </div>
       </div>
 

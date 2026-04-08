@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,14 +73,14 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const resend = new Resend(resendApiKey);
-    const siteUrl = Deno.env.get("SITE_URL") || "https://app.oom-world.com";
+    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const hotelName = booking.hotel_name || "N/A";
 
     // Send email to all admins
     const emailPromises = admins.map(async (admin: { email: string; first_name: string }) => {
       try {
         const emailResult = await resend.emails.send({
-          from: "OOM World <booking@oomworld.com>",
+          from: brand.emails.from.default,
           to: [admin.email],
           subject: `Action requise : Devis à valider (Hôtel ${hotelName})`,
           html: `
@@ -92,7 +93,7 @@ const handler = async (req: Request): Promise<Response> => {
             <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
               <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="text-align: center; margin-bottom: 24px;">
-                  <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
+                  <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" style="height: 40px;">
                 </div>
                 
                 <div style="background-color: #fff7ed; border: 2px solid #f97316; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
@@ -117,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
                 </div>
                 
                 <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 24px;">
-                  OOM World - Luxury Hair Services
+                  ${brand.fullName}
                 </p>
               </div>
             </body>

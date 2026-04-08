@@ -135,8 +135,8 @@ interface Booking {
   booking_date: string;
   booking_time: string;
   status: string;
-  hairdresser_id: string | null;
-  hairdresser_name: string | null;
+  therapist_id: string | null;
+  therapist_name: string | null;
   assigned_at: string | null;
   total_price?: number | null;
   duration?: number | null;
@@ -148,17 +148,18 @@ interface Booking {
   client_note?: string | null;
 }
 
-
 interface EditBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: Booking | null;
+  initialMode?: "view" | "edit" | "quote"; // On garde la logique demandée
 }
 
 export default function EditBookingDialog({
   open,
   onOpenChange,
   booking,
+  initialMode = "view",
 }: EditBookingDialogProps) {
   const queryClient = useQueryClient();
   const [hotelId, setHotelId] = useState("");
@@ -170,7 +171,7 @@ export default function EditBookingDialog({
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
-  const [hairdresserId, setHairdresserId] = useState("");
+  const [therapistId, setTherapistId] = useState("");
   const [cart, setCart] = useState<{ treatmentId: string; quantity: number }[]>([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
@@ -178,8 +179,8 @@ export default function EditBookingDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
-  const [showAssignHairdresser, setShowAssignHairdresser] = useState(false);
-  const [selectedHairdresserId, setSelectedHairdresserId] = useState("");
+  const [showAssignTherapist, setShowAssignTherapist] = useState(false);
+  const [selectedTherapistId, setSelectedTherapistId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
@@ -192,31 +193,34 @@ export default function EditBookingDialog({
   // Payment link dialog state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   
-
-  // Pre-fill form when booking changes
+  // LE COEUR DU PROBLÈME RÉSOLU : On réagit à l'ouverture ET au changement de réservation
   useEffect(() => {
-    if (booking) {
-      setViewMode("view"); // Reset to view mode when opening
-      setHotelId(booking.hotel_id);
-      setClientFirstName(booking.client_first_name);
-      setClientLastName(booking.client_last_name);
+    if (booking && open) {
+      setViewMode(initialMode);
+      setHotelId(booking.hotel_id || "");
+      setClientFirstName(booking.client_first_name || "");
+      setClientLastName(booking.client_last_name || "");
       
-      // Extract country code and phone number from stored phone
-      const phoneMatch = booking.phone.match(/^(\+\d+)\s+(.+)$/);
+      const phoneStr = booking.phone || "";
+      const phoneMatch = phoneStr.match(/^(\+\d+)\s+(.+)$/);
       if (phoneMatch) {
         setCountryCode(phoneMatch[1]);
         setPhone(phoneMatch[2]);
       } else {
-        setPhone(booking.phone);
+        setPhone(phoneStr);
       }
       
       setRoomNumber(booking.room_number || "");
       setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
-      setTime(booking.booking_time);
-      setStatus(booking.status);
-      setHairdresserId(booking.hairdresser_id || "");
+      setTime(booking.booking_time || "");
+      setStatus(booking.status || "En attente");
+     // On ne pré-sélectionne le thérapeute que s'il a bien un ID ET un nom valide
+setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapist_id : "");
+      
+      // On s'assure que le petit menu déroulant des thérapeutes est fermé
+      setShowAssignTherapist(false);
     }
-  }, [booking]);
+  }, [booking, open, initialMode]);
 
   const { data: userRole } = useQuery({
     queryKey: ["user-role"],
@@ -239,7 +243,6 @@ export default function EditBookingDialog({
   const isConcierge = userRole === "concierge";
   const canCancelBooking = isAdmin || isConcierge;
 
-  // Calculate if booking is within 2 hours (late cancellation)
   const isLateCancellation = useMemo(() => {
     if (!booking?.booking_date || !booking?.booking_time) return false;
     
@@ -266,60 +269,64 @@ export default function EditBookingDialog({
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers", booking?.hotel_id],
-    enabled: !!booking?.hotel_id,
+  
+  // REQUÊTE DES THÉRAPEUTES : Filtre intelligent (gère "active" et "Actif")
+  const queryHotelId = hotelId || booking?.hotel_id;
+  
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists", queryHotelId],
+    enabled: !!queryHotelId,
     queryFn: async () => {
-      // Récupérer les coiffeurs assignés à l'hôtel de cette réservation
       const { data, error } = await supabase
-        .from("hairdresser_hotels")
+        .from("therapist_venues")
         .select(`
-          hairdresser_id,
-          hairdressers (
+          therapist_id,
+          therapists (
             id,
             first_name,
             last_name,
             status
           )
         `)
-        .eq("hotel_id", booking!.hotel_id);
+        .eq("hotel_id", queryHotelId!);
 
       if (error) throw error;
       
-      // Filtrer pour ne garder que les coiffeurs actifs
       return data
-        ?.map((hh: any) => hh.hairdressers)
-        .filter((h: any) => h && h.status === "active")
-        .sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
+        ?.map((hh: any) => Array.isArray(hh.therapists) ? hh.therapists[0] : hh.therapists)
+        .filter((h: any) => {
+          if (!h) return false;
+          // On met tout en minuscule pour comparer facilement
+          const statut = h.status?.toLowerCase() || "";
+          // On accepte les deux orthographes !
+          return statut === "active" || statut === "actif"; 
+        })
+        .sort((a: any, b: any) => a.first_name?.localeCompare(b.first_name)) || [];
     },
   });
 
-  // Query to get hairdresser availability for the selected date/time
-  const { data: hairdresserAvailability } = useQuery({
-    queryKey: ["hairdresser-availability", booking?.hotel_id, date, time, cart, booking?.id],
-    enabled: !!booking?.hotel_id && !!date && !!time && viewMode === "edit",
+  const { data: therapistAvailability } = useQuery({
+    queryKey: ["therapist-availability", hotelId, date, time, cart, booking?.id],
+    enabled: !!hotelId && !!date && !!time && viewMode === "edit",
     queryFn: async () => {
       if (!date || !time) return {};
       
       const selectedDate = format(date, "yyyy-MM-dd");
       
-      // Calculate total duration of selected treatments
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
-      }, 0) || 60; // Default 60 min if no treatments selected
+      }, 0) || 60; 
       
-      // Calculate start and end time in minutes
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = hours * 60 + minutes;
       const endTime = startTime + calcDuration;
       
-      // Fetch all bookings for the hotel on this date (excluding current booking)
       const { data: existingBookings, error } = await supabase
         .from("bookings")
         .select(`
           id,
-          hairdresser_id,
+          therapist_id,
           booking_time,
           booking_treatments (
             treatment_menus (
@@ -329,24 +336,21 @@ export default function EditBookingDialog({
         `)
         .eq("booking_date", selectedDate)
         .neq("id", booking!.id)
-        .not("hairdresser_id", "is", null);
+        .not("therapist_id", "is", null);
       
       if (error) {
         console.error("Error fetching availability:", error);
         return {};
       }
       
-      // Build availability map
       const availability: Record<string, { available: boolean; conflict?: string }> = {};
       
-      // Initialize all hairdressers as available
-      hairdressers?.forEach(h => {
+      therapists?.forEach(h => {
         availability[h.id] = { available: true };
       });
       
-      // Check each existing booking for conflicts
       existingBookings?.forEach((existingBooking) => {
-        if (!existingBooking.hairdresser_id) return;
+        if (!existingBooking.therapist_id) return;
         
         const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
         const existingStartTime = existingHours * 60 + existingMinutes;
@@ -356,15 +360,14 @@ export default function EditBookingDialog({
         }, 0) || 60;
         const existingEndTime = existingStartTime + existingDuration;
         
-        // Check for overlap
         const hasOverlap = 
           (startTime >= existingStartTime && startTime < existingEndTime) ||
           (endTime > existingStartTime && endTime <= existingEndTime) ||
           (startTime <= existingStartTime && endTime >= existingEndTime);
         
-        if (hasOverlap && availability[existingBooking.hairdresser_id]) {
+        if (hasOverlap && availability[existingBooking.therapist_id]) {
           const conflictTime = `${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')}-${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}`;
-          availability[existingBooking.hairdresser_id] = { 
+          availability[existingBooking.therapist_id] = { 
             available: false, 
             conflict: conflictTime 
           };
@@ -425,16 +428,13 @@ export default function EditBookingDialog({
     },
   });
 
-  // Separate fixed and variable treatments for mixed cart logic
   const fixedTreatments = bookingTreatments?.filter((t: any) => !t.price_on_request) || [];
   const variableTreatments = bookingTreatments?.filter((t: any) => t.price_on_request) || [];
   const fixedTreatmentsTotal = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.price || 0), 0);
   const hasVariableTreatments = variableTreatments.length > 0;
 
-  // Charger les traitements existants quand la réservation change
   useEffect(() => {
     if (existingTreatments) {
-      // Convert existing treatments to cart format (each treatment = quantity 1)
       const treatmentCounts: Record<string, number> = {};
       existingTreatments.forEach(t => {
         treatmentCounts[t.treatment_id] = (treatmentCounts[t.treatment_id] || 0) + 1;
@@ -443,7 +443,6 @@ export default function EditBookingDialog({
     }
   }, [existingTreatments]);
 
-  // Recalculer le prix et durée totale quand le cart change
   useEffect(() => {
     if (treatments && cart.length > 0) {
       let price = 0;
@@ -463,7 +462,6 @@ export default function EditBookingDialog({
     }
   }, [cart, treatments]);
 
-  // Calculer le prix total depuis les traitements de la réservation pour la vue
   useEffect(() => {
     if (bookingTreatments && bookingTreatments.length > 0 && viewMode === "view") {
       const total = bookingTreatments.reduce((sum, treatment) => {
@@ -477,35 +475,28 @@ export default function EditBookingDialog({
     mutationFn: async (bookingData: any) => {
       if (!booking?.id) return { wasAssigned: false };
 
-      const hairdresser = hairdressers?.find((h) => h.id === bookingData.hairdresser_id);
-      
-      // Gestion du statut et de assigned_at
+      const therapist = therapists?.find((h) => h.id === bookingData.therapist_id);
+
       let newStatus = bookingData.status;
       let assignedAt = booking.assigned_at;
-      
-      // Track if a hairdresser was newly assigned OR changed
-      const wasAssigned = bookingData.hairdresser_id && !booking.hairdresser_id;
-      const hairdresserChanged = bookingData.hairdresser_id && booking.hairdresser_id && 
-                                  bookingData.hairdresser_id !== booking.hairdresser_id;
-      // Track if booking was cancelled
+
+      const wasAssigned = bookingData.therapist_id && !booking.therapist_id;
+      const therapistChanged = bookingData.therapist_id && booking.therapist_id &&
+                                  bookingData.therapist_id !== booking.therapist_id;
       const wasCancelled = bookingData.status === "cancelled" && booking.status !== "cancelled";
-      
-      // Si on assigne un coiffeur pour la première fois (statut "En attente"), passer à "Assigné"
-      if (bookingData.hairdresser_id && booking.status === "En attente") {
+
+      if (bookingData.therapist_id && booking.status === "En attente") {
         newStatus = "Assigné";
         assignedAt = new Date().toISOString();
       }
       
-      // Si on change de coiffeur (nouveau coiffeur différent de l'ancien), mettre à jour assigned_at
-      if (bookingData.hairdresser_id && booking.hairdresser_id && 
-          bookingData.hairdresser_id !== booking.hairdresser_id && 
+      if (bookingData.therapist_id && booking.therapist_id && 
+          bookingData.therapist_id !== booking.therapist_id && 
           booking.status === "Assigné") {
-        // Le statut reste "Assigné" mais on met à jour la date d'assignation
         assignedAt = new Date().toISOString();
       }
       
-      // Si on retire le coiffeur d'une réservation "Assigné", remettre à "En attente"
-      if (!bookingData.hairdresser_id && booking.status === "Assigné") {
+      if (!bookingData.therapist_id && booking.status === "Assigné") {
         newStatus = "En attente";
         assignedAt = null;
       }
@@ -520,8 +511,8 @@ export default function EditBookingDialog({
           room_number: bookingData.room_number,
           booking_date: bookingData.booking_date,
           booking_time: bookingData.booking_time,
-          hairdresser_id: bookingData.hairdresser_id || null,
-          hairdresser_name: bookingData.hairdresser_id && hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+          therapist_id: bookingData.therapist_id || null,
+          therapist_name: bookingData.therapist_id && therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
           total_price: bookingData.total_price,
           status: newStatus,
           assigned_at: assignedAt,
@@ -550,56 +541,45 @@ export default function EditBookingDialog({
         if (treatmentsError) throw treatmentsError;
       }
       
-      return { wasAssigned, hairdresserChanged, wasCancelled };
+      return { wasAssigned, therapistChanged, wasCancelled };
     },
     onSuccess: async (result) => {
-      console.log("Update success - wasAssigned:", result?.wasAssigned, "hairdresserChanged:", result?.hairdresserChanged, "wasCancelled:", result?.wasCancelled, "bookingId:", booking?.id);
-      
-      // Send push notification if hairdresser was newly assigned OR changed
-      if ((result?.wasAssigned || result?.hairdresserChanged) && booking?.id) {
-        console.log("Triggering push notification for booking:", booking.id);
+      if ((result?.wasAssigned || result?.therapistChanged) && booking?.id) {
         try {
-          const { data, error } = await invokeEdgeFunction('trigger-new-booking-notifications', {
+          await invokeEdgeFunction('trigger-new-booking-notifications', {
             body: { bookingId: booking.id }
           });
-          console.log("Push notification result:", data, error);
         } catch (notifError) {
           console.error("Error sending push notification:", notifError);
         }
       }
 
-      // Send push notification if booking was cancelled
       if (result?.wasCancelled && booking?.id) {
-        console.log("Triggering cancellation push notification for booking:", booking.id);
         try {
-          const { data, error } = await invokeEdgeFunction('trigger-booking-cancelled-notification', {
+          await invokeEdgeFunction('trigger-booking-cancelled-notification', {
             body: { bookingId: booking.id }
           });
-          console.log("Cancellation push notification result:", data, error);
         } catch (notifError) {
           console.error("Error sending cancellation push notification:", notifError);
         }
       }
       
-      // Invalidate and refetch queries, then close
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
       
-      // Wait a bit for data to propagate before closing
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Build success message
       let description = "La réservation a été modifiée avec succès";
-      if (result?.hairdresserChanged && hairdressers) {
-        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
-        if (newHairdresser) {
-          description = `Réservation réassignée à ${newHairdresser.first_name} ${newHairdresser.last_name}`;
+      if (result?.therapistChanged && therapists) {
+        const newTherapist = therapists.find(h => h.id === therapistId);
+        if (newTherapist) {
+          description = `Réservation réassignée à ${newTherapist.first_name} ${newTherapist.last_name}`;
         }
-      } else if (result?.wasAssigned && hairdressers) {
-        const newHairdresser = hairdressers.find(h => h.id === hairdresserId);
-        if (newHairdresser) {
-          description = `Coiffeur ${newHairdresser.first_name} ${newHairdresser.last_name} assigné avec succès`;
+      } else if (result?.wasAssigned && therapists) {
+        const newTherapist = therapists.find(h => h.id === therapistId);
+        if (newTherapist) {
+          description = `Thérapeute ${newTherapist.first_name} ${newTherapist.last_name} assigné avec succès`;
         }
       }
       
@@ -607,7 +587,6 @@ export default function EditBookingDialog({
         title: "Succès",
         description,
       });
-      // Fermer le dialog après modification
       onOpenChange(false);
     },
     onError: (error) => {
@@ -635,11 +614,9 @@ export default function EditBookingDialog({
       if (error) throw error;
     },
     onSuccess: async () => {
-      // Call the backend cancellation handler directly (DB trigger is unreliable in this environment)
       if (booking?.id) {
         try {
-          console.log("Calling handle-booking-cancellation for booking:", booking.id);
-          const { data, error } = await invokeEdgeFunction(
+          await invokeEdgeFunction(
             "handle-booking-cancellation",
             {
               body: {
@@ -648,12 +625,6 @@ export default function EditBookingDialog({
               },
             }
           );
-
-          if (error) {
-            console.error("handle-booking-cancellation error:", error);
-          } else {
-            console.log("handle-booking-cancellation result:", data);
-          }
         } catch (e) {
           console.error("handle-booking-cancellation exception:", e);
         }
@@ -674,21 +645,17 @@ export default function EditBookingDialog({
         description: "Une erreur est survenue lors de l'annulation de la réservation",
         variant: "destructive",
       });
-      console.error("Error cancelling booking:", error);
     },
   });
 
-  // Quote validation mutation - sends to client for approval
   const validateQuoteMutation = useMutation({
     mutationFn: async ({ quotedVariablePrice, quotedVariableDuration }: { quotedVariablePrice: number; quotedVariableDuration: number }) => {
       if (!booking?.id) throw new Error("No booking ID");
 
-      // Calculate totals: fixed items + quoted variable items
       const totalPrice = fixedTreatmentsTotal + quotedVariablePrice;
       const fixedDuration = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.duration || 0), 0);
       const totalDuration = fixedDuration + quotedVariableDuration;
 
-      // Update booking with total price, duration and set to waiting_approval
       const { error } = await supabase
         .from("bookings")
         .update({
@@ -700,7 +667,6 @@ export default function EditBookingDialog({
 
       if (error) throw error;
 
-      // Prepare breakdown for email
       const fixedItemsBreakdown = fixedTreatments.map((t: any) => ({
         name: t.name,
         price: t.price || 0,
@@ -709,11 +675,10 @@ export default function EditBookingDialog({
       
       const variableItemsBreakdown = variableTreatments.map((t: any) => ({
         name: t.name,
-        price: quotedVariablePrice / variableTreatments.length, // Split evenly for display
+        price: quotedVariablePrice / variableTreatments.length, 
         isFixed: false,
       }));
 
-      // Send quote email to client with breakdown
       const { error: emailError } = await invokeEdgeFunction('send-quote-email', {
         body: {
           bookingId: booking.id,
@@ -727,7 +692,6 @@ export default function EditBookingDialog({
       });
 
       if (emailError) {
-        console.error("Error sending quote email:", emailError);
         throw new Error("Failed to send quote email");
       }
     },
@@ -748,16 +712,13 @@ export default function EditBookingDialog({
         description: "Une erreur est survenue lors de l'envoi du devis",
         variant: "destructive",
       });
-      console.error("Error validating quote:", error);
     },
   });
 
-  // Admin can directly approve a quote without needing the token
   const approveQuoteMutation = useMutation({
     mutationFn: async () => {
       if (!booking?.id) throw new Error("No booking ID");
 
-      // Admin directly updates the booking status to pending
       const { error } = await supabase
         .from("bookings")
         .update({ 
@@ -769,7 +730,6 @@ export default function EditBookingDialog({
 
       if (error) throw error;
 
-      // Trigger notifications for hairdressers
       await invokeEdgeFunction("trigger-new-booking-notifications", {
         body: { bookingId: booking.id },
       });
@@ -780,7 +740,7 @@ export default function EditBookingDialog({
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast({
         title: "Devis accepté",
-        description: "La réservation est maintenant en attente d'un coiffeur.",
+        description: "La réservation est maintenant en attente d'un thérapeute.",
       });
       onOpenChange(false);
     },
@@ -833,23 +793,20 @@ export default function EditBookingDialog({
       return;
     }
 
-    // Vérifier les chevauchements SEULEMENT si on change le coiffeur ou l'heure
-    const hairdresserChanged = hairdresserId !== booking?.hairdresser_id;
+    const therapistChanged = therapistId !== booking?.therapist_id;
     const timeChanged = time !== booking?.booking_time;
     const dateChanged = date && format(date, "yyyy-MM-dd") !== booking?.booking_date;
-    
-    if (hairdresserId && cart.length > 0 && (hairdresserChanged || timeChanged || dateChanged)) {
+
+    if (therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
       }, 0);
 
-      // Calculer l'heure de fin
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = hours * 60 + minutes;
       const endTime = startTime + calcDuration;
 
-      // Vérifier les réservations existantes pour ce coiffeur
       const { data: existingBookings, error } = await supabase
         .from("bookings")
         .select(`
@@ -862,24 +819,22 @@ export default function EditBookingDialog({
             )
           )
         `)
-        .eq("hairdresser_id", hairdresserId)
+        .eq("therapist_id", therapistId)
         .eq("booking_date", format(date, "yyyy-MM-dd"))
-        .neq("id", booking?.id); // Exclure la réservation actuelle
+        .neq("id", booking?.id); 
 
       if (error) {
         console.error("Error checking for overlaps:", error);
       } else if (existingBookings && existingBookings.length > 0) {
-        // Vérifier chaque réservation existante
         for (const existingBooking of existingBookings) {
           const [existingHours, existingMinutes] = existingBooking.booking_time.split(':').map(Number);
           const existingStartTime = existingHours * 60 + existingMinutes;
           
           const existingDuration = (existingBooking.booking_treatments as any[]).reduce((sum, bt) => {
             return sum + (bt.treatment_menus?.duration || 0);
-          }, 0) || 60; // Durée par défaut de 60 min si pas de traitements
+          }, 0) || 60; 
           const existingEndTime = existingStartTime + existingDuration;
 
-          // Vérifier le chevauchement
           if (
             (startTime >= existingStartTime && startTime < existingEndTime) ||
             (endTime > existingStartTime && endTime <= existingEndTime) ||
@@ -887,7 +842,7 @@ export default function EditBookingDialog({
           ) {
             toast({
               title: "Chevauchement détecté",
-              description: `Ce coiffeur a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
+              description: `Ce thérapeute a déjà une réservation de ${String(Math.floor(existingStartTime / 60)).padStart(2, '0')}:${String(existingStartTime % 60).padStart(2, '0')} à ${String(Math.floor(existingEndTime / 60)).padStart(2, '0')}:${String(existingEndTime % 60).padStart(2, '0')}.`,
               variant: "destructive",
             });
             return;
@@ -904,7 +859,7 @@ export default function EditBookingDialog({
       room_number: roomNumber,
       booking_date: date ? format(date, "yyyy-MM-dd") : "",
       booking_time: time,
-      hairdresser_id: hairdresserId,
+      therapist_id: therapistId === "none" ? null : therapistId,
       total_price: totalPrice,
       treatments: cart.flatMap(item => Array(item.quantity).fill(item.treatmentId)),
       status: status,
@@ -915,7 +870,6 @@ export default function EditBookingDialog({
     onOpenChange(false);
   };
 
-  // Cart functions
   const addToCart = (treatmentId: string) => {
     setCart(prev => {
       const existing = prev.find(x => x.treatmentId === treatmentId);
@@ -947,8 +901,6 @@ export default function EditBookingDialog({
     treatment: treatments?.find(t => t.id === item.treatmentId)
   })).filter(item => item.treatment);
 
-  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-
   return (
     <Dialog open={open} onOpenChange={(open) => {
       onOpenChange(open);
@@ -975,7 +927,7 @@ export default function EditBookingDialog({
                   )}
                 </div>
               </div>
-              {!showAssignHairdresser && (
+              {!showAssignTherapist && (
                 <ButtonGroup className="pr-10">
                   {booking?.payment_status !== 'paid' &&
                    booking?.payment_status !== 'charged_to_room' &&
@@ -1036,7 +988,6 @@ export default function EditBookingDialog({
           )}
         </DialogHeader>
 
-        {/* QUOTE VIEW */}
         {viewMode === "quote" ? (
           <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -1050,7 +1001,6 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              {/* Prestations sur devis */}
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Prestations sur devis</p>
                 {variableTreatments.map((treatment: any) => (
@@ -1060,7 +1010,6 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
-              {/* Note du client */}
               {booking?.client_note && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                   <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note du client</p>
@@ -1068,7 +1017,6 @@ export default function EditBookingDialog({
                 </div>
               )}
 
-              {/* Form */}
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="quote-price-form" className="text-sm">Prix (€)</Label>
@@ -1095,7 +1043,6 @@ export default function EditBookingDialog({
               </div>
             </div>
 
-            {/* Actions - Fixed at bottom */}
             <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
               <Button variant="outline" onClick={() => setViewMode("view")}>
                 Retour
@@ -1112,9 +1059,7 @@ export default function EditBookingDialog({
           </div>
         ) : viewMode === "view" ? (
           <>
-            {/* BODY */}
             <div className="px-4 py-3 space-y-2">
-              {/* En-tête */}
               <div className="flex items-center gap-3 pb-3 border-b">
                 <div className="w-10 h-10 bg-muted rounded flex items-center justify-center shrink-0">
                   <CalendarIcon className="w-5 h-5" />
@@ -1125,7 +1070,6 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              {/* Infos principales */}
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="grid grid-cols-5 gap-3">
                   <div>
@@ -1171,7 +1115,6 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              {/* Prestations */}
               {bookingTreatments && bookingTreatments.length > 0 && (() => {
                 const allOnQuote = bookingTreatments.every(
                   (t) => (!t.price || t.price === 0) && (!t.duration || t.duration === 0)
@@ -1218,79 +1161,78 @@ export default function EditBookingDialog({
                 );
               })()}
 
-              {/* Coiffeur */}
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Coiffeur</p>
-                {booking?.hairdresser_name ? (
+                <p className="text-xs text-muted-foreground mb-2">Thérapeute</p>
+                {booking?.therapist_name ? (
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <p className="font-medium text-sm">{booking.hairdresser_name}</p>
+                    <p className="font-medium text-sm">{booking.therapist_name}</p>
                   </div>
                 ) : isAdmin ? (
-                  showAssignHairdresser ? (
+                  showAssignTherapist ? (
                     <div className="space-y-2">
-                      <Select value={selectedHairdresserId || "none"} onValueChange={setSelectedHairdresserId}>
+                      <Select value={selectedTherapistId || "none"} onValueChange={setSelectedTherapistId}>
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Sélectionner un coiffeur" />
+                          <SelectValue placeholder="Sélectionner un thérapeute" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">Aucun coiffeur</SelectItem>
-                          {hairdressers?.map((hairdresser) => (
-                            <SelectItem key={hairdresser.id} value={hairdresser.id}>
-                              {hairdresser.first_name} {hairdresser.last_name}
+                          <SelectItem value="none">Aucun thérapeute</SelectItem>
+                          {therapists?.map((therapist) => (
+                            <SelectItem key={therapist.id} value={therapist.id}>
+                              {therapist.first_name} {therapist.last_name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                       <div className="flex gap-2">
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={async () => {
-                            const hairdresserId = selectedHairdresserId === "none" ? null : selectedHairdresserId;
-                            const hairdresser = hairdressers?.find(h => h.id === hairdresserId);
-                            
+                            const therapistId = selectedTherapistId === "none" ? null : selectedTherapistId;
+                            const therapist = therapists?.find(h => h.id === therapistId);
+
                             let assignedAt = booking!.assigned_at;
-                            
-                            if (hairdresserId) {
+
+                            if (therapistId) {
                               assignedAt = new Date().toISOString();
                             } else {
                               assignedAt = null;
                             }
-                            
+
                             const { error } = await supabase
                               .from("bookings")
                               .update({
-                                hairdresser_id: hairdresserId,
-                                hairdresser_name: hairdresser ? `${hairdresser.first_name} ${hairdresser.last_name}` : null,
+                                therapist_id: therapistId,
+                                therapist_name: therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
                                 assigned_at: assignedAt,
                               })
                               .eq("id", booking!.id);
-                              
+
                             if (error) {
-                              toast({ title: "Erreur", description: "Impossible d'assigner le coiffeur", variant: "destructive" });
+                              toast({ title: "Erreur", description: "Impossible d'assigner le thérapeute", variant: "destructive" });
                             } else {
-                              const wasAssigned = hairdresserId && !booking!.hairdresser_id;
-                              const hairdresserChanged = hairdresserId && booking!.hairdresser_id && hairdresserId !== booking!.hairdresser_id;
-                              
-                              if (wasAssigned || hairdresserChanged) {
+                              const wasAssigned = therapistId && !booking!.therapist_id;
+                              const therapistChanged = therapistId && booking!.therapist_id && therapistId !== booking!.therapist_id;
+
+                              if (wasAssigned || therapistChanged) {
                                 try {
                                   await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
                                 } catch (e) { console.error(e); }
                               }
-                              
-                              toast({ title: "Succès", description: hairdresserId ? "Coiffeur assigné" : "Coiffeur retiré" });
+
+                              toast({ title: "Succès", description: therapistId ? "Thérapeute assigné" : "Thérapeute retiré" });
                               await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-                              setShowAssignHairdresser(false);
+                              setShowAssignTherapist(false);
                             }
                           }}
                           className="flex-1"
                         >
                           Confirmer
                         </Button>
-                        <Button 
+                        <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => { setShowAssignHairdresser(false); setSelectedHairdresserId(booking?.hairdresser_id || ""); }}
+                          onClick={() => { setShowAssignTherapist(false); setSelectedTherapistId(booking?.therapist_id || ""); }}
                           className="flex-1"
                         >
                           Annuler
@@ -1298,21 +1240,20 @@ export default function EditBookingDialog({
                       </div>
                     </div>
                   ) : (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
-                      onClick={() => { setShowAssignHairdresser(true); setSelectedHairdresserId(""); }}
+                      onClick={() => { setShowAssignTherapist(true); setSelectedTherapistId(""); }}
                       className="h-8 text-xs"
                     >
-                      Assigner un coiffeur
+                      Assigner un thérapeute
                     </Button>
                   )
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucun coiffeur assigné</p>
+                  <p className="text-sm text-muted-foreground">Aucun thérapeute assigné</p>
                 )}
               </div>
 
-              {/* Client */}
               <div className="p-3 bg-muted/30 rounded-lg">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1327,7 +1268,6 @@ export default function EditBookingDialog({
               </div>
             </div>
 
-            {/* FOOTER */}
             <div className="px-4 py-3 border-t bg-muted/30 flex flex-row gap-3">
               {booking?.status === "quote_pending" && isAdmin ? (
                 <Button
@@ -1379,47 +1319,47 @@ export default function EditBookingDialog({
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="edit-hairdresser" className="text-xs">Coiffeur / Prestataire</Label>
+                  <Label htmlFor="edit-therapist" className="text-xs">Thérapeute / Prestataire</Label>
                   <Select
-                    value={hairdresserId || "none"}
+                    value={therapistId || "none"}
                     onValueChange={(value) => {
                       const newValue = value === "none" ? "" : value;
-                      setHairdresserId(newValue);
+                      setTherapistId(newValue);
                     }}
                   >
-                    <SelectTrigger id="edit-hairdresser" className="h-9">
-                      <SelectValue placeholder="Sélectionner un coiffeur" />
+                    <SelectTrigger id="edit-therapist" className="h-9">
+                      <SelectValue placeholder="Sélectionner un thérapeute" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border shadow-lg">
-                      <SelectItem value="none">Aucun coiffeur</SelectItem>
-                      {/* Show current hairdresser if not in list */}
-                      {booking?.hairdresser_id && booking?.hairdresser_name &&
-                       !hairdressers?.find(h => h.id === booking.hairdresser_id) && (
-                        <SelectItem value={booking.hairdresser_id}>
-                          {booking.hairdresser_name} (Actuel)
+                      <SelectItem value="none">Aucun thérapeute</SelectItem>
+                      {booking?.therapist_id && booking?.therapist_name &&
+                       !therapists?.find(h => h.id === booking.therapist_id) && (
+                        <SelectItem value={booking.therapist_id}>
+                          {booking.therapist_name} (Actuel)
                         </SelectItem>
                       )}
-                      {hairdressers?.map((hairdresser) => {
-                        const availability = hairdresserAvailability?.[hairdresser.id];
+                      {therapists?.map((therapist) => {
+                        const availability = therapistAvailability?.[therapist.id];
                         const isUnavailable = availability && !availability.available;
-                        const isCurrentHairdresser = hairdresser.id === booking?.hairdresser_id;
+                        // On s'assure que le thérapeute est vraiment le "vrai" thérapeute actuel
+const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.therapist_name;
 
                         return (
                           <SelectItem
-                            key={hairdresser.id}
-                            value={hairdresser.id}
-                            disabled={isUnavailable && !isCurrentHairdresser}
+                            key={therapist.id}
+                            value={therapist.id}
+                            disabled={isUnavailable && !isCurrentTherapist}
                           >
-                            {hairdresser.first_name} {hairdresser.last_name}
-                            {isCurrentHairdresser && " (Actuel)"}
-                            {isUnavailable && !isCurrentHairdresser && " - Occupé"}
+                            {therapist.first_name} {therapist.last_name}
+                            {isCurrentTherapist && " (Actuel)"}
+                            {isUnavailable && !isCurrentTherapist && " - Occupé"}
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
                   <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
-                    Seuls les coiffeurs disponibles pour ce créneau sont sélectionnables.
+                    Seuls les thérapeutes disponibles pour ce créneau sont sélectionnables.
                   </p>
                 </div>
               </div>
@@ -1578,7 +1518,6 @@ export default function EditBookingDialog({
                 </div>
               </div>
 
-              {/* Footer fixé en bas de l'onglet info */}
               <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
@@ -1603,7 +1542,6 @@ export default function EditBookingDialog({
             </TabsContent>
 
             <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
-              {/* Menu Tabs */}
               <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
                 {(["female", "male"] as const).map(f => (
                   <button
@@ -1622,7 +1560,6 @@ export default function EditBookingDialog({
                 ))}
               </div>
 
-              {/* SERVICE LIST - Scrollable with max height */}
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {(() => {
                   const filtered = treatments?.filter(t => 
@@ -1705,10 +1642,8 @@ export default function EditBookingDialog({
                 })()}
               </div>
               
-              {/* Compact Footer */}
               <div className="shrink-0 border-t border-border bg-background pt-2 mt-2">
                 <div className="flex items-center justify-between gap-3">
-                  {/* Cart Summary */}
                   <div className="flex-1 min-w-0">
                     {cart.length > 0 ? (
                       <div className="flex items-center gap-1.5 overflow-x-auto">
@@ -1727,7 +1662,6 @@ export default function EditBookingDialog({
                     )}
                   </div>
 
-                  {/* Total + Actions */}
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-bold text-sm">{totalPrice}€</span>
                     <Button 
@@ -1769,7 +1703,6 @@ export default function EditBookingDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
-            {/* Late cancellation warning for concierges */}
             {isConcierge && isLateCancellation && (
               <Alert variant="destructive" className="bg-amber-50 border-amber-200">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -1834,7 +1767,6 @@ export default function EditBookingDialog({
           }}
         />
       )}
-
     </Dialog>
   );
 }

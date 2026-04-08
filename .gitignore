@@ -25,3 +25,4 @@ Icon?
 *.sw?
 .env.local
 .env.old
+supabase/snippets/

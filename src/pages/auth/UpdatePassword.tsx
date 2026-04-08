@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import oomLogo from "@/assets/oom-logo.svg";
+import { brand, brandLogos } from "@/config/brand";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
 const UpdatePassword = () => {
@@ -150,7 +150,7 @@ const UpdatePassword = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={oomLogo} alt="OOM Logo" className="h-24 w-auto" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
         </div>
 
         {/* Title */}
@@ -210,7 +210,7 @@ const UpdatePassword = () => {
           <Button
             onClick={handleSubmit}
             disabled={isLoading}
-            className="w-full h-14 text-base font-medium rounded-xl bg-gray-400 hover:bg-black text-white transition-colors disabled:opacity-50"
+            className="w-full h-14 text-base font-medium rounded-xl"
           >
             {isLoading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
             {isLoading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}

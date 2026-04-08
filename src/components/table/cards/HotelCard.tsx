@@ -13,10 +13,10 @@ interface Concierge {
   profile_image: string | null;
 }
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
 }
 
@@ -40,7 +40,7 @@ interface Hotel {
   venue_type: "hotel" | "coworking" | "enterprise" | null;
   status: string;
   concierges?: Concierge[];
-  trunks?: Trunk[];
+  treatment_rooms?: TreatmentRoom[];
   stats?: HotelStats;
   deployment_schedule?: DeploymentSchedule;
 }
@@ -141,18 +141,16 @@ export function HotelCard({
             {hotel.stats?.bookingsCount || 0}
           </span>
         </div>
-        {hotel.venue_type === "hotel" && (
-          <div className="bg-muted/50 rounded px-2.5 py-1.5">
-            <span className="text-muted-foreground text-xs">Concierges: </span>
-            <span className="font-medium text-foreground text-xs">
-              {hotel.concierges?.length || 0}
-            </span>
-          </div>
-        )}
         <div className="bg-muted/50 rounded px-2.5 py-1.5">
-          <span className="text-muted-foreground text-xs">Trunks: </span>
+          <span className="text-muted-foreground text-xs">Équipe lieu: </span>
           <span className="font-medium text-foreground text-xs">
-            {hotel.trunks?.length || 0}
+            {hotel.concierges?.length || 0}
+          </span>
+        </div>
+        <div className="bg-muted/50 rounded px-2.5 py-1.5">
+          <span className="text-muted-foreground text-xs">Salles: </span>
+          <span className="font-medium text-foreground text-xs">
+            {hotel.treatment_rooms?.length || 0}
           </span>
         </div>
       </div>

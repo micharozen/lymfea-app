@@ -1,5 +1,5 @@
 export { useBookingData } from "./useBookingData";
-export type { BookingWithTreatments, Treatment, Hotel, Hairdresser } from "./useBookingData";
+export type { BookingWithTreatments, Treatment, Hotel, Therapist } from "./useBookingData";
 
 export { useBookingFilters } from "./useBookingFilters";
 
@@ -10,3 +10,9 @@ export { useBookingSelection } from "./useBookingSelection";
 export { useBookingCart } from "./useBookingCart";
 export { useCreateBookingMutation } from "./useCreateBookingMutation";
 export type { CreateBookingPayload } from "./useCreateBookingMutation";
+
+export { useVenueAvailability } from "./useVenueAvailability";
+export type { VenueAvailabilityData, DaySummary, HourAvailability, AvailabilityLevel } from "./useVenueAvailability";
+
+export { useAmenityBookingData } from "./useAmenityBookingData";
+export type { AmenityBookingForCalendar } from "./useAmenityBookingData";

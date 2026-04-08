@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -59,10 +60,10 @@ serve(async (req) => {
       `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
     ).join('');
 
-    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
-    
+    const logoUrl = EMAIL_LOGO_URL;
+
     // Deep link URL for booking details
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
+    const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     // Compact admin/concierge email with CTA
@@ -77,7 +78,7 @@ serve(async (req) => {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <tr>
             <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
               <span style="display:inline-block;background:#22c55e;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">✓ Confirmée</span>
             </td>
           </tr>
@@ -97,7 +98,7 @@ serve(async (req) => {
                 <tr><td style="padding:5px 0;color:#6b7280;width:70px;">Client</td><td style="padding:5px 0;font-weight:500;">${booking.client_first_name} ${booking.client_last_name}</td></tr>
                 <tr><td style="padding:5px 0;color:#6b7280;">Tél</td><td style="padding:5px 0;">${booking.phone || '-'}</td></tr>
                 <tr><td style="padding:5px 0;color:#6b7280;">Hôtel</td><td style="padding:5px 0;">${booking.hotel_name || '-'}${booking.room_number ? ` · Ch.${booking.room_number}` : ''}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Coiffeur</td><td style="padding:5px 0;font-weight:600;">${booking.hairdresser_name || '-'}</td></tr>
+                <tr><td style="padding:5px 0;color:#6b7280;">Thérapeute</td><td style="padding:5px 0;font-weight:600;">${booking.therapist_name || '-'}</td></tr>
               </table>
               
               <div style="margin-bottom:12px;">${treatmentsHtml}</div>
@@ -124,7 +125,7 @@ serve(async (req) => {
             </td>
           </tr>
           <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">OOM</td>
+            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">${brand.name}</td>
           </tr>
         </table>
       </td>
@@ -146,14 +147,14 @@ serve(async (req) => {
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
           <tr>
             <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
               <span style="display:inline-block;background:#22c55e;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">✓ RDV Confirmé</span>
             </td>
           </tr>
           <tr>
             <td style="padding:16px;">
               <p style="margin:0 0 8px;font-size:15px;">Bonjour ${booking.client_first_name},</p>
-              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Votre coiffeur ${booking.hairdresser_name || ''} est confirmé pour votre rendez-vous.</p>
+              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Votre thérapeute ${booking.therapist_name || ''} est confirmé pour votre rendez-vous.</p>
               
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">
                 <tr>
@@ -171,7 +172,7 @@ serve(async (req) => {
               <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
                 <tr><td style="padding:5px 0;color:#6b7280;width:70px;">Résa</td><td style="padding:5px 0;font-weight:500;">#${booking.booking_id}</td></tr>
                 <tr><td style="padding:5px 0;color:#6b7280;">Hôtel</td><td style="padding:5px 0;">${booking.hotel_name || '-'}${booking.room_number ? ` · Ch.${booking.room_number}` : ''}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Coiffeur</td><td style="padding:5px 0;font-weight:600;color:#22c55e;">${booking.hairdresser_name || '-'}</td></tr>
+                <tr><td style="padding:5px 0;color:#6b7280;">Thérapeute</td><td style="padding:5px 0;font-weight:600;color:#22c55e;">${booking.therapist_name || '-'}</td></tr>
               </table>
               
               <div style="margin-bottom:12px;">${treatmentsHtml}</div>
@@ -185,7 +186,7 @@ serve(async (req) => {
             </td>
           </tr>
           <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">OOM · Beauty & Wellness</td>
+            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">${brand.name} · ${brand.tagline}</td>
           </tr>
         </table>
       </td>
@@ -208,9 +209,9 @@ serve(async (req) => {
       for (const admin of admins) {
         try {
           const { error: emailError } = await resend.emails.send({
-            from: 'OOM <booking@oomworld.com>',
+            from: brand.emails.from.default,
             to: [admin.email],
-            subject: `✅ #${booking.booking_id} confirmée · ${booking.hairdresser_name}`,
+            subject: `✅ #${booking.booking_id} confirmée · ${booking.therapist_name}`,
             html: createEmailHtml('admin'),
           });
 
@@ -247,7 +248,7 @@ serve(async (req) => {
         for (const concierge of concierges) {
           try {
             const { error: emailError } = await resend.emails.send({
-              from: 'OOM <booking@oomworld.com>',
+              from: brand.emails.from.default,
               to: [concierge.email],
               subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
               html: createEmailHtml('concierge'),
@@ -272,7 +273,7 @@ serve(async (req) => {
     if (booking.client_email) {
       try {
         const { error: emailError } = await resend.emails.send({
-          from: 'OOM <booking@oomworld.com>',
+          from: brand.emails.from.default,
           to: [booking.client_email],
           subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
           html: createClientEmailHtml(),
@@ -288,23 +289,23 @@ serve(async (req) => {
       }
     }
 
-    // 4. Send push notification to assigned hairdresser
-    if (booking.hairdresser_id) {
-      const { data: hairdresser } = await supabase
-        .from('hairdressers')
+    // 4. Send push notification to assigned therapist
+    if (booking.therapist_id) {
+      const { data: therapist } = await supabase
+        .from('therapists')
         .select('user_id, first_name')
-        .eq('id', booking.hairdresser_id)
+        .eq('id', booking.therapist_id)
         .single();
 
-      if (hairdresser?.user_id) {
+      if (therapist?.user_id) {
         try {
-          console.log('[notify-booking-confirmed] Sending push to hairdresser:', hairdresser.first_name);
+          console.log('[notify-booking-confirmed] Sending push to therapist:', therapist.first_name);
 
           const { error: pushError } = await supabase.functions.invoke(
             'send-push-notification',
             {
               body: {
-                userId: hairdresser.user_id,
+                userId: therapist.user_id,
                 title: '🎉 Nouvelle réservation confirmée !',
                 body: `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formattedDate} à ${formattedTime}`,
                 data: {
@@ -320,14 +321,14 @@ serve(async (req) => {
 
           if (pushError) {
             console.error('[notify-booking-confirmed] Push error:', pushError);
-            errors.push(`push:${hairdresser.first_name}`);
+            errors.push(`push:${therapist.first_name}`);
           } else {
-            console.log('[notify-booking-confirmed] ✅ Push sent to hairdresser');
-            emailsSent.push(`push:${hairdresser.first_name}`);
+            console.log('[notify-booking-confirmed] ✅ Push sent to therapist');
+            emailsSent.push(`push:${therapist.first_name}`);
           }
         } catch (e) {
           console.error('[notify-booking-confirmed] Push exception:', e);
-          errors.push(`push:${hairdresser.first_name}`);
+          errors.push(`push:${therapist.first_name}`);
         }
       }
     }
@@ -348,7 +349,7 @@ serve(async (req) => {
             user_id: admin.user_id,
             booking_id: booking.id,
             type: 'booking_confirmed',
-            message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.hairdresser_name || 'un coiffeur'} · ${formattedDate} à ${formattedTime}`,
+            message: `✅ Réservation #${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
           });
         } catch (e) {
           console.error(`[notify-booking-confirmed] Notification insert error for admin ${admin.first_name}:`, e);
@@ -360,7 +361,7 @@ serve(async (req) => {
             body: {
               userId: admin.user_id,
               title: '✅ Réservation confirmée',
-              body: `#${booking.booking_id} confirmée par ${booking.hairdresser_name || 'un coiffeur'} · ${formattedDate} à ${formattedTime}`,
+              body: `#${booking.booking_id} confirmée par ${booking.therapist_name || 'un thérapeute'} · ${formattedDate} à ${formattedTime}`,
               data: {
                 bookingId: booking.id,
                 url: `/admin-pwa/booking/${booking.id}`,
@@ -391,7 +392,7 @@ serve(async (req) => {
           hotelName: booking.hotel_name || '',
           bookingDate: booking.booking_date,
           bookingTime: booking.booking_time,
-          hairdresserName: booking.hairdresser_name,
+          therapistName: booking.therapist_name,
           totalPrice: booking.total_price,
           currency: '€',
           treatments: treatmentNames,

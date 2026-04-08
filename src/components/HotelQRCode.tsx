@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { brand } from '@/config/brand';
 import { Button } from '@/components/ui/button';
 import { Download, QrCode as QrCodeIcon, ExternalLink, Copy, Check } from 'lucide-react';
 import {
@@ -11,6 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
+type Lang = 'fr' | 'en';
+
 interface HotelQRCodeProps {
   hotelId: string;
   hotelName: string;
@@ -19,60 +22,51 @@ interface HotelQRCodeProps {
 export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<Lang | null>(null);
+  const [selectedLang, setSelectedLang] = useState<Lang>('fr');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Production domain for public QR codes
-  const PRODUCTION_DOMAIN = 'https://oom-clone-genesis.lovable.app';
+  const PRODUCTION_DOMAIN = `https://${brand.appDomain}`;
 
   const getPublicBaseUrl = () => {
     const { hostname } = window.location;
-
-    // If we're in preview mode (lovableproject.com), use the production domain
     if (hostname.endsWith('.lovableproject.com')) {
       return PRODUCTION_DOMAIN;
     }
-
-    // Otherwise use current origin (already on production or localhost)
     return window.location.origin;
   };
 
-  const bookingUrl = `${getPublicBaseUrl()}/client/${hotelId}`;
-  
+  const getBookingUrl = (lang: Lang) =>
+    `${getPublicBaseUrl()}/client/${hotelId}?lang=${lang}`;
+
+  const bookingUrl = getBookingUrl(selectedLang);
+
   useEffect(() => {
     if (isOpen) {
-      // Small delay to ensure canvas is mounted
       const timer = setTimeout(() => {
         generateQRCode();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, hotelId]);
+  }, [isOpen, hotelId, selectedLang]);
 
   const generateQRCode = async () => {
     try {
-      if (!canvasRef.current) {
-        console.error('Canvas not found');
-        return;
-      }
+      if (!canvasRef.current) return;
 
       await QRCode.toCanvas(canvasRef.current, bookingUrl, {
         width: 280,
         margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
+        color: { dark: '#000000', light: '#FFFFFF' },
       });
 
-      // Also generate data URL for download
       const dataUrl = await QRCode.toDataURL(bookingUrl, {
         width: 800,
         margin: 2,
       });
       setQrCodeUrl(dataUrl);
     } catch (error) {
-      console.error('Error generating QR code:', error);
       toast.error('Erreur lors de la génération du QR code');
     }
   };
@@ -84,18 +78,18 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
     }
     const link = document.createElement('a');
     link.href = qrCodeUrl;
-    link.download = `qr-${hotelName.toLowerCase().replace(/\s+/g, '-')}.png`;
+    link.download = `qr-${hotelName.toLowerCase().replace(/\s+/g, '-')}-${selectedLang}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     toast.success('QR code téléchargé');
   };
 
-  const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(bookingUrl);
-    setCopied(true);
+  const handleCopyLink = async (lang: Lang) => {
+    await navigator.clipboard.writeText(getBookingUrl(lang));
+    setCopied(lang);
     toast.success('Lien copié');
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleOpenLink = () => {
@@ -105,20 +99,38 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-7 w-7 hover:bg-muted"
           title="Voir le QR code"
+          onClick={(e) => e.stopPropagation()}
         >
           <QrCodeIcon className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="text-center">{hotelName}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
+          {/* Language Toggle */}
+          <div className="flex rounded-lg border overflow-hidden">
+            {(['fr', 'en'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setSelectedLang(lang)}
+                className={`px-4 py-1.5 text-sm font-medium transition-colors ${
+                  selectedLang === lang
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {lang === 'fr' ? '🇫🇷 Français' : '🇬🇧 English'}
+              </button>
+            ))}
+          </div>
+
           {/* QR Code */}
           <div className="bg-white p-4 rounded-xl shadow-sm border">
             <canvas ref={canvasRef} />
@@ -134,13 +146,13 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
           {/* Actions */}
           <div className="grid grid-cols-3 gap-2 w-full">
             <Button
-              onClick={handleCopyLink}
+              onClick={() => handleCopyLink(selectedLang)}
               variant="outline"
               size="sm"
               className="gap-1.5"
             >
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              <span className="text-xs">{copied ? 'Copié' : 'Copier'}</span>
+              {copied === selectedLang ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              <span className="text-xs">{copied === selectedLang ? 'Copié' : 'Copier'}</span>
             </Button>
             <Button
               onClick={handleOpenLink}

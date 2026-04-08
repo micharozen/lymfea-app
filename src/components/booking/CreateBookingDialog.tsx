@@ -26,12 +26,16 @@ import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
+import { isOutOfHours } from "@/lib/bookingUtils";
 import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from "./CreateBookingDialog.schema";
 import { BookingInfoStep } from "./steps/BookingInfoStep";
+import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
+import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
+import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
 
-export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime }: CreateBookingDialogProps) {
+export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { isConcierge, hotelIds, isAdmin } = useUserContext();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
@@ -41,8 +45,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      hotelId: isConcierge && hotelIds.length > 0 ? hotelIds[0] : "",
-      hairdresserId: "",
+      hotelId: presetHotelId || (isConcierge && hotelIds.length > 0 ? hotelIds[0] : ""),
+      therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -60,6 +64,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const hotelId = form.watch("hotelId");
   const date = form.watch("date");
   const time = form.watch("time");
+  const slot2Date = form.watch("slot2Date");
+  const slot3Date = form.watch("slot3Date");
   const countryCode = form.watch("countryCode");
   const clientFirstName = form.watch("clientFirstName");
   const clientLastName = form.watch("clientLastName");
@@ -81,23 +87,30 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
     queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name, timezone, currency").order("name");
+      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, pms_guest_lookup_enabled, slot_interval").order("name");
       return data || [];
     }
   });
 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
+  const venueSlotInterval = (selectedHotel as any)?.slot_interval || 30;
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers-for-hotel", hotelId],
+  const { isSlotAvailable, isLoading: isAvailabilityLoading } = useSlotAvailability({
+    hotelId,
+    dates: [date, slot2Date, slot3Date],
+    slotInterval: venueSlotInterval,
+  });
+
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists-for-hotel", hotelId],
     queryFn: async () => {
       if (!hotelId) {
-        const { data } = await supabase.from("hairdressers").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
+        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
         return data || [];
       }
-      const { data } = await supabase.from("hairdresser_hotels").select(`hairdresser_id, hairdressers (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
-      return data?.map((hh: any) => hh.hairdressers).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
+      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
+      return data?.map((hh: any) => hh.therapists).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
 
@@ -117,6 +130,28 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
 
+  // Venue amenities for "include amenity access" option
+  const { amenities: venueAmenities } = useVenueAmenities(hotelId || "");
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([]);
+
+  const handleToggleAmenity = (amenityId: string, enabled: boolean) => {
+    setSelectedAmenityIds((prev) =>
+      enabled ? [...prev, amenityId] : prev.filter((id) => id !== amenityId)
+    );
+  };
+
+  const amenityAccessPayload: AmenityAccessPayload[] = selectedAmenityIds
+    .map((id) => {
+      const a = venueAmenities.find((va) => va.id === id);
+      if (!a) return null;
+      return {
+        venueAmenityId: a.id,
+        duration: a.lymfea_access_included ? (a.lymfea_access_duration || a.slot_duration) : a.slot_duration,
+        price: a.lymfea_access_included ? 0 : (Number(a.price_lymfea) || 0),
+      };
+    })
+    .filter((x): x is AmenityAccessPayload => x !== null);
+
   useEffect(() => {
     if (isAdmin && hasOnRequestService && cart.length > 0) {
       if (!customPrice) setCustomPrice(String(totalPrice));
@@ -131,9 +166,19 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const finalPrice = isAdmin && hasOnRequestService && customPrice ? Number(customPrice) : totalPrice;
   const finalDuration = isAdmin && hasOnRequestService && customDuration ? Number(customDuration) : totalDuration;
 
+  // Out-of-hours surcharge detection
+  const isBookingOutOfHours = useMemo(() => {
+    if (!isAdmin || !selectedHotel?.allow_out_of_hours_booking) return false;
+    return isOutOfHours(time, selectedHotel.opening_time || '10:00', selectedHotel.closing_time || '20:00');
+  }, [isAdmin, selectedHotel, time]);
+
+  const surchargePercent = selectedHotel?.out_of_hours_surcharge_percent || 0;
+  const surchargeAmount = isBookingOutOfHours ? Math.round(finalPrice * surchargePercent / 100) : 0;
+  const finalPriceWithSurcharge = finalPrice + surchargeAmount;
+
   const mutation = useCreateBookingMutation({
     hotels,
-    hairdressers,
+    therapists,
     onSuccess: (data) => {
       if (data) {
         setCreatedBooking({
@@ -153,8 +198,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
     ];
     const result = await form.trigger(fields);
-    if (isAdmin && !form.getValues("hairdresserId")) {
-      form.setError("hairdresserId", { message: "Veuillez sélectionner un coiffeur" });
+    if (isAdmin && !form.getValues("therapistId")) {
+      form.setError("therapistId", { message: "Veuillez sélectionner un thérapeute" });
       return false;
     }
     const now = new Date();
@@ -221,15 +266,18 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       roomNumber: values.roomNumber,
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
       time: values.time,
-      hairdresserId: values.hairdresserId,
+      therapistId: values.therapistId,
       slot2Date: values.slot2Date ? format(values.slot2Date, "yyyy-MM-dd") : null,
       slot2Time: values.slot2Time || null,
       slot3Date: values.slot3Date ? format(values.slot3Date, "yyyy-MM-dd") : null,
       slot3Time: values.slot3Time || null,
       treatmentIds: flatIds,
-      totalPrice: finalPrice,
+      totalPrice: finalPriceWithSurcharge,
       totalDuration: finalDuration,
       isAdmin,
+      isOutOfHours: isBookingOutOfHours,
+      surchargeAmount,
+      amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
     });
   };
 
@@ -250,8 +298,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setShowConfirmClose(false);
     setActiveTab("info");
     form.reset({
-      hotelId: "",
-      hairdresserId: "",
+      hotelId: presetHotelId || "",
+      therapistId: "",
       date: selectedDate,
       time: selectedTime || "",
       slot2Date: undefined,
@@ -267,6 +315,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setCart([]);
     setCustomPrice("");
     setCustomDuration("");
+    setSelectedAmenityIds([]);
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -294,12 +343,18 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isConcierge={isConcierge}
                   hotelIds={hotelIds}
                   hotels={hotels}
-                  hairdressers={hairdressers}
+                  therapists={therapists}
                   hotelTimezone={hotelTimezone}
                   hotelId={hotelId}
                   countryCode={countryCode}
                   visibleSlots={visibleSlots}
                   setVisibleSlots={setVisibleSlots}
+                  isBookingOutOfHours={isBookingOutOfHours}
+                  surchargePercent={surchargePercent}
+                  pmsLookupEnabled={!!(selectedHotel as any)?.pms_guest_lookup_enabled}
+                  isSlotAvailable={isSlotAvailable}
+                  isAvailabilityLoading={isAvailabilityLoading}
+                  slotInterval={venueSlotInterval}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />
@@ -324,8 +379,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   setCustomPrice={setCustomPrice}
                   customDuration={customDuration}
                   setCustomDuration={setCustomDuration}
+                  isBookingOutOfHours={isBookingOutOfHours}
+                  surchargeAmount={surchargeAmount}
+                  surchargePercent={surchargePercent}
+                  finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
+                  venueAmenities={venueAmenities}
+                  selectedAmenityIds={selectedAmenityIds}
+                  onToggleAmenity={handleToggleAmenity}
                 />
             </TabsContent>
 
@@ -336,7 +398,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     isAdmin={isAdmin}
                     clientFirstName={clientFirstName}
                     clientLastName={clientLastName}
-                    finalPrice={finalPrice}
+                    finalPrice={finalPriceWithSurcharge}
                     currency={selectedHotel?.currency || 'EUR'}
                     onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
                     onClose={handleClose}
@@ -362,7 +424,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           room_number: roomNumber || undefined,
           booking_date: date ? format(date, "yyyy-MM-dd") : "",
           booking_time: time,
-          total_price: finalPrice,
+          total_price: finalPriceWithSurcharge,
           hotel_name: createdBooking.hotel_name,
           treatments: cartDetails.map(item => ({
             name: item.treatment?.name || 'Service',

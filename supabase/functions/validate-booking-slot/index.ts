@@ -9,7 +9,7 @@ const corsHeaders = {
 interface ValidateSlotRequest {
   bookingId: string;
   slotNumber: 1 | 2 | 3;
-  hairdresserId: string;
+  therapistId: string;
 }
 
 serve(async (req) => {
@@ -24,13 +24,13 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { bookingId, slotNumber, hairdresserId }: ValidateSlotRequest = await req.json();
+    const { bookingId, slotNumber, therapistId }: ValidateSlotRequest = await req.json();
 
-    if (!bookingId || !slotNumber || !hairdresserId) {
-      throw new Error("Missing required fields: bookingId, slotNumber, hairdresserId");
+    if (!bookingId || !slotNumber || !therapistId) {
+      throw new Error("Missing required fields: bookingId, slotNumber, therapistId");
     }
 
-    console.log(`[VALIDATE-SLOT] Booking ${bookingId}, slot ${slotNumber}, hairdresser ${hairdresserId}`);
+    console.log(`[VALIDATE-SLOT] Booking ${bookingId}, slot ${slotNumber}, therapist ${therapistId}`);
 
     // Fetch booking
     const { data: booking, error: bookingError } = await supabase
@@ -44,7 +44,7 @@ serve(async (req) => {
     }
 
     if (booking.status !== "awaiting_hairdresser_selection") {
-      throw new Error(`Booking is not awaiting hairdresser selection (current status: ${booking.status})`);
+      throw new Error(`Booking is not awaiting therapist selection (current status: ${booking.status})`);
     }
 
     // Fetch proposed slots
@@ -60,7 +60,7 @@ serve(async (req) => {
 
     // Check if already validated (first-come-first-served)
     if (slots.validated_slot !== null) {
-      throw new Error("This booking has already been validated by another hairdresser");
+      throw new Error("This booking has already been validated by another therapist");
     }
 
     // Get the selected slot date/time
@@ -86,25 +86,25 @@ serve(async (req) => {
         throw new Error("Invalid slot number");
     }
 
-    // Fetch hairdresser details
-    const { data: hairdresser, error: hdError } = await supabase
-      .from("hairdressers")
+    // Fetch therapist details
+    const { data: therapist, error: thError } = await supabase
+      .from("therapists")
       .select("id, first_name, last_name")
-      .eq("id", hairdresserId)
+      .eq("id", therapistId)
       .single();
 
-    if (hdError || !hairdresser) {
-      throw new Error("Hairdresser not found");
+    if (thError || !therapist) {
+      throw new Error("Therapist not found");
     }
 
-    const hairdresserName = `${hairdresser.first_name} ${hairdresser.last_name}`;
+    const therapistName = `${therapist.first_name} ${therapist.last_name}`;
 
     // Update proposed slots with validation info (atomic check via validated_slot IS NULL)
     const { data: updatedSlots, error: updateSlotsError } = await supabase
       .from("booking_proposed_slots")
       .update({
         validated_slot: slotNumber,
-        validated_by: hairdresserId,
+        validated_by: therapistId,
         validated_at: new Date().toISOString(),
       })
       .eq("booking_id", bookingId)
@@ -113,17 +113,17 @@ serve(async (req) => {
       .single();
 
     if (updateSlotsError || !updatedSlots) {
-      throw new Error("This booking has already been validated by another hairdresser");
+      throw new Error("This booking has already been validated by another therapist");
     }
 
-    // Update booking with validated slot and hairdresser
+    // Update booking with validated slot and therapist
     const { error: updateBookingError } = await supabase
       .from("bookings")
       .update({
         booking_date: selectedDate,
         booking_time: selectedTime,
-        hairdresser_id: hairdresserId,
-        hairdresser_name: hairdresserName,
+        therapist_id: therapistId,
+        therapist_name: therapistName,
         status: "confirmed",
         assigned_at: new Date().toISOString(),
       })
@@ -133,7 +133,7 @@ serve(async (req) => {
       throw new Error(`Failed to update booking: ${updateBookingError.message}`);
     }
 
-    console.log(`[VALIDATE-SLOT] Booking ${bookingId} confirmed with slot ${slotNumber} (${selectedDate} ${selectedTime}) by ${hairdresserName}`);
+    console.log(`[VALIDATE-SLOT] Booking ${bookingId} confirmed with slot ${slotNumber} (${selectedDate} ${selectedTime}) by ${therapistName}`);
 
     // Send payment link to client
     try {
@@ -181,7 +181,7 @@ serve(async (req) => {
           hotelName: booking.hotel_name || "",
           bookingDate: selectedDate,
           bookingTime: selectedTime,
-          hairdresserName,
+          therapistName,
           totalPrice: booking.total_price,
           currency,
         },
@@ -199,7 +199,7 @@ serve(async (req) => {
         success: true,
         selectedDate,
         selectedTime,
-        hairdresserName,
+        therapistName,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

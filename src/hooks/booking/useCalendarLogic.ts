@@ -1,22 +1,37 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
+import { format, addDays, startOfWeek, startOfDay } from "date-fns";
 import { getBookingStatusConfig, getPaymentStatusConfig } from "@/utils/statusStyles";
 import type { BookingWithTreatments } from "./useBookingData";
 
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  HOUR_HEIGHT: 40,
+  HOUR_HEIGHT: 48,
 } as const;
 
 interface UseCalendarLogicOptions {
   filteredBookings: BookingWithTreatments[] | undefined;
   activeTimezone: string;
+  dayCount?: number;
 }
 
-export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalendarLogicOptions) {
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
+export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 7 }: UseCalendarLogicOptions) {
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    if (dayCount === 7) {
+      return startOfWeek(new Date(), { weekStartsOn: 1 });
+    }
+    return startOfDay(new Date());
+  });
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Reset start date when dayCount changes
+  useEffect(() => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(new Date()));
+    }
+  }, [dayCount]);
 
   // Update current time every minute
   useEffect(() => {
@@ -45,16 +60,32 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
   }, []);
 
   const weekDays = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
-  }, [currentWeekStart]);
+    return Array.from({ length: dayCount }, (_, i) => addDays(currentWeekStart, i));
+  }, [currentWeekStart, dayCount]);
 
-  const handlePreviousWeek = useCallback(() => {
-    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-  }, [currentWeekStart]);
+  const handlePrevious = useCallback(() => {
+    setCurrentWeekStart(prev => addDays(prev, -dayCount));
+  }, [dayCount]);
 
-  const handleNextWeek = useCallback(() => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-  }, [currentWeekStart]);
+  const handleNext = useCallback(() => {
+    setCurrentWeekStart(prev => addDays(prev, dayCount));
+  }, [dayCount]);
+
+  const goToToday = useCallback(() => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(new Date()));
+    }
+  }, [dayCount]);
+
+  const setViewDate = useCallback((date: Date) => {
+    if (dayCount === 7) {
+      setCurrentWeekStart(startOfWeek(date, { weekStartsOn: 1 }));
+    } else {
+      setCurrentWeekStart(startOfDay(date));
+    }
+  }, [dayCount]);
 
   const getBookingsForDay = useCallback((date: Date) => {
     return filteredBookings?.filter((booking) => {
@@ -79,6 +110,74 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     const height = (duration / 60) * CALENDAR_CONSTANTS.HOUR_HEIGHT;
 
     return { top, height: Math.max(height, 20) };
+  }, []);
+
+  const getBookingsLayoutForDay = useCallback((bookings: BookingWithTreatments[]): Map<string, { column: number; totalColumns: number }> => {
+    const layout = new Map<string, { column: number; totalColumns: number }>();
+    if (bookings.length === 0) return layout;
+
+    const getStartMinutes = (b: BookingWithTreatments) => {
+      if (!b.booking_time) return 0;
+      const [h, m] = b.booking_time.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const getDuration = (b: BookingWithTreatments) =>
+      (b.totalDuration && b.totalDuration > 0) ? b.totalDuration : 60;
+
+    // Sort by start time, then by id for stable ordering
+    const sorted = [...bookings].sort((a, b) => {
+      const diff = getStartMinutes(a) - getStartMinutes(b);
+      return diff !== 0 ? diff : (a.id || '').localeCompare(b.id || '');
+    });
+
+    // Group overlapping bookings into clusters
+    const clusters: BookingWithTreatments[][] = [];
+    let currentCluster: BookingWithTreatments[] = [];
+    let clusterEnd = -1;
+
+    for (const booking of sorted) {
+      const start = getStartMinutes(booking);
+      const end = start + getDuration(booking);
+
+      if (currentCluster.length === 0 || start < clusterEnd) {
+        currentCluster.push(booking);
+        clusterEnd = Math.max(clusterEnd, end);
+      } else {
+        clusters.push(currentCluster);
+        currentCluster = [booking];
+        clusterEnd = end;
+      }
+    }
+    if (currentCluster.length > 0) clusters.push(currentCluster);
+
+    // Assign columns within each cluster
+    for (const cluster of clusters) {
+      const columns: number[] = []; // end time of each column
+      const assignments = new Map<string, number>();
+
+      for (const booking of cluster) {
+        const start = getStartMinutes(booking);
+        // Find first column where this booking fits (no overlap)
+        let col = columns.findIndex(colEnd => colEnd <= start);
+        if (col === -1) {
+          col = columns.length;
+          columns.push(0);
+        }
+        columns[col] = start + getDuration(booking);
+        assignments.set(booking.id, col);
+      }
+
+      const totalColumns = columns.length;
+      for (const booking of cluster) {
+        layout.set(booking.id, {
+          column: assignments.get(booking.id) || 0,
+          totalColumns,
+        });
+      }
+    }
+
+    return layout;
   }, []);
 
   const isCurrentHour = useCallback((date: Date, hour: number) => {
@@ -116,6 +215,14 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     return getBookingStatusConfig(status).cardClass;
   }, []);
 
+  const getCalendarCardColor = useCallback((status: string, paymentStatus?: string | null) => {
+    if (paymentStatus === 'pending' && status !== 'cancelled') {
+      return 'bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-100';
+    }
+    const config = getBookingStatusConfig(status);
+    return config.calendarCardClass || config.cardClass;
+  }, []);
+
   const getCombinedStatusLabel = useCallback((status: string, paymentStatus?: string | null) => {
     if (paymentStatus === 'pending' && status !== 'cancelled') {
       return "€ Paiement";
@@ -130,11 +237,13 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
   }, []);
 
   return {
-    // Week navigation
+    // Navigation
     currentWeekStart,
     weekDays,
-    handlePreviousWeek,
-    handleNextWeek,
+    handlePreviousWeek: handlePrevious,
+    handleNextWeek: handleNext,
+    goToToday,
+    setViewDate,
 
     // Time
     currentTime,
@@ -144,6 +253,7 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     // Booking helpers
     getBookingsForDay,
     getBookingPosition,
+    getBookingsLayoutForDay,
     isCurrentHour,
     getCurrentTimePosition,
 
@@ -151,6 +261,7 @@ export function useCalendarLogic({ filteredBookings, activeTimezone }: UseCalend
     getStatusColor,
     getTranslatedStatus,
     getStatusCardColor,
+    getCalendarCardColor,
     getCombinedStatusLabel,
     getPaymentStatusBadge,
 
