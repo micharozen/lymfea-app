@@ -33,6 +33,7 @@ import {
 
 interface Booking {
   id: string;
+  signature_token?: string;
   booking_id: number;
   booking_date: string;
   booking_time: string;
@@ -210,48 +211,83 @@ const PwaBookingDetail = () => {
   };
 
   const handleAcceptBooking = async () => {
-    if (!booking || updating || isAcceptingRef.current) return;
+    console.log('--- 🚀 DÉBUT handleAcceptBooking ---');
+    console.log('1. Etat initial booking ID:', booking?.id, '| Status:', booking?.status);
+    
+    if (!booking || updating || isAcceptingRef.current) {
+      console.log('❌ Annulé: booking manquant ou clic déjà en cours d\'exécution');
+      return;
+    }
+    
     isAcceptingRef.current = true;
     setUpdating(true);
+    
     try {
+      console.log('2. Récupération de l\'utilisateur...');
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: tData } = await supabase.from("therapists").select("id, first_name, last_name").eq("user_id", user?.id).single();
-      if (!tData) throw new Error("Thérapeute non trouvé");
+      console.log('User ID trouvé:', user?.id);
+      
+      console.log('3. Récupération profil thérapeute...');
+      const { data: tData, error: tError } = await supabase
+        .from("therapists")
+        .select("id, first_name, last_name")
+        .eq("user_id", user?.id)
+        .single();
+        
+      if (tError || !tData) {
+        console.error('❌ Erreur Thérapeute:', tError);
+        throw new Error("Profil thérapeute non trouvé");
+      }
+      console.log('✅ Thérapeute trouvé:', tData.id, tData.first_name);
 
-      // Vérification des conflits d'horaires
-      const { data: existing } = await supabase.from("bookings").select("*, booking_treatments(treatment_menus(duration))")
-        .eq("therapist_id", tData.id).eq("booking_date", booking.booking_date).not("status", "in", '("Annulé","Terminé")');
+      const treatmentsPrice = treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0);
+      const finalPrice = Math.max(booking.total_price || 0, treatmentsPrice);
+      console.log(`4. Prix final calculé: ${finalPrice}€ (Base: ${booking.total_price}€, Soins ajoutés: ${treatmentsPrice}€)`);
 
-      if (existing && existing.length > 0) {
-        const start = new Date(`${booking.booking_date}T${booking.booking_time}`);
-        const dur = treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0);
-        const end = new Date(start.getTime() + dur * 60000);
+      console.log('5. Tentative de mise à jour directe dans supabase...');
+      const { data: updateData, error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          therapist_id: tData.id,
+          status: 'confirmed',
+          total_price: finalPrice
+        })
+        .eq('id', booking.id)
+        .select();
+        
+      console.log('6. Résultat de la requête Update Direct:', { retourData: updateData, erreur: updateError });
 
-        for (const b of existing) {
-          const bStart = new Date(`${b.booking_date}T${b.booking_time}`);
-          const bDur = b.booking_treatments.reduce((s: number, bt: any) => s + (bt.treatment_menus?.duration || 0), 0);
-          const bEnd = new Date(bStart.getTime() + bDur * 60000);
-
-          if ((start >= bStart && start < bEnd) || (end > bStart && end <= bEnd)) {
-            toast.error("Conflit d'horaire détecté !");
-            return;
-          }
-        }
+      // Si l'update direct échoue ou renvoie 0 ligne, on tente l'ancien RPC de ta branche
+      if (updateError || !updateData || updateData.length === 0) {
+         console.warn('⚠️ Update direct a échoué (ou 0 ligne modifiée). Tentative de secours avec RPC...');
+         const { data: rpcData, error: rpcError } = await supabase.rpc('accept_booking', {
+           _booking_id: booking.id,
+           _hairdresser_id: tData.id,
+           _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
+           _total_price: finalPrice
+         });
+         console.log('7. Résultat de la tentative RPC:', { retourRPC: rpcData, erreurRPC: rpcError });
+         
+         if (rpcError) {
+             throw new Error(`Échec total de l'update ET du RPC. Erreur RPC: ${rpcError.message}`);
+         }
+      } else {
+         console.log('✅ Mise à jour directe réussie !');
       }
 
-      const finalPrice = Math.max(booking.total_price || 0, treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0));
-      const { error } = await supabase.from('bookings').update({
-        therapist_id: tData.id, status: 'confirmed', total_price: finalPrice
-      }).eq('id', booking.id);
-
-      if (error) throw error;
+      console.log('8. Lancement de la notification Edge Function (non-bloquant)...');
+      invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } })
+        .catch(err => console.log('Log Notif (ignoré pour la suite):', err));
       
-      invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       toast.success(t('bookingDetail.accepted'));
+      console.log('9. Redirection vers /pwa/dashboard avec forceRefresh = true');
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error) {
-      toast.error(t('common:errors.generic'));
+      
+    } catch (error: any) {
+      console.error("❌ Erreur FATALE dans handleAcceptBooking:", error);
+      toast.error(error.message || t('common:errors.generic'));
     } finally {
+      console.log('--- 🏁 FIN handleAcceptBooking ---');
       isAcceptingRef.current = false;
       setUpdating(false);
     }
@@ -364,7 +400,11 @@ const PwaBookingDetail = () => {
           <div className="flex gap-2">
             <button onClick={() => setShowContactDrawer(true)} className="w-12 h-12 rounded-full border flex items-center justify-center"><MoreVertical/></button>
             {booking.payment_status === 'card_saved' && !booking.client_signature ? (
-              <button onClick={() => handleChargeSavedCard(totalPrice)} disabled={updating} className="flex-1 bg-purple-600 text-white rounded-full font-bold flex items-center justify-center gap-2">
+              <button 
+                onClick={() => handleChargeSavedCard(totalPrice)} 
+                disabled={updating} 
+                className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+              >
                 {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>} 
                 Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
               </button>
@@ -387,7 +427,17 @@ const PwaBookingDetail = () => {
       </Drawer>
 
       <AddTreatmentDialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog} bookingId={booking.id} hotelId={booking.hotel_id} onTreatmentsAdded={fetchBookingDetail} />
-      <InvoiceSignatureDialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog} onConfirm={handleSignatureConfirm} loading={signingLoading} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} />
+     <InvoiceSignatureDialog 
+        open={showSignatureDialog} 
+        onOpenChange={setShowSignatureDialog} 
+        onConfirm={handleSignatureConfirm} 
+        signatureToken={booking.signature_token}
+        loading={signingLoading} 
+        treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} 
+        vatRate={booking.hotel_vat || 20} 
+        totalPrice={totalPrice} 
+        isAlreadyPaid={booking.payment_status === 'paid' || booking.payment_status === 'card_saved'} 
+      />
       <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} onSignatureRequired={() => { setPendingRoomPayment(true); setShowSignatureDialog(true); }} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} />
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
