@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,7 +122,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (admins && admins.length > 0) {
             for (const admin of admins) {
               const emailResult = await resend.emails.send({
-                from: "OOM World <booking@oomworld.com>",
+                from: brand.emails.from.default,
                 to: [admin.email],
                 subject: `✅ Devis accepté - Commande #${booking.booking_id}`,
                 html: `
@@ -133,13 +134,13 @@ const handler = async (req: Request): Promise<Response> => {
                   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px;">
                       <div style="text-align: center; margin-bottom: 24px;">
-                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
+                        <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" style="height: 40px;">
                       </div>
                       
                       <div style="background-color: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
                         <h2 style="color: #166534; margin: 0 0 12px 0; font-size: 18px;">✅ Devis accepté par le client</h2>
                         <p style="color: #15803d; margin: 0; font-size: 14px;">
-                          Le client a accepté le devis pour la commande #${booking.booking_id}. La réservation est maintenant en attente d'assignation d'un coiffeur.
+                          Le client a accepté le devis pour la commande #${booking.booking_id}. La réservation est maintenant en attente d'assignation d'un thérapeute.
                         </p>
                       </div>
                       
@@ -153,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
                       </div>
                       
                       <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 24px;">
-                        OOM World - Luxury Hair Services
+                        ${brand.fullName}
                       </p>
                     </div>
                   </body>
@@ -168,14 +169,14 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      // Trigger notifications to hairdressers
+      // Trigger notifications to therapists
       try {
         console.log("Triggering push notifications for approved booking:", bookingId);
         await supabase.functions.invoke('trigger-new-booking-notifications', {
           body: { bookingId: bookingId }
         });
       } catch (notifError) {
-        console.error("Error triggering hairdresser notifications:", notifError);
+        console.error("Error triggering therapist notifications:", notifError);
       }
 
       console.log("Quote approved for booking:", bookingId);
@@ -184,7 +185,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ 
           success: true, 
           action: "approved",
-          message: "Merci ! Un coiffeur va confirmer votre rdv sous peu."
+          message: "Merci ! Un thérapeute va confirmer votre rdv sous peu."
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -219,7 +220,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (admins && admins.length > 0) {
             for (const admin of admins) {
               const emailResult = await resend.emails.send({
-                from: "OOM World <booking@oomworld.com>",
+                from: brand.emails.from.default,
                 to: [admin.email],
                 subject: `Devis refusé - Commande #${booking.booking_id}`,
                 html: `
@@ -231,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
                   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
                     <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; padding: 32px;">
                       <div style="text-align: center; margin-bottom: 24px;">
-                        <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
+                        <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" style="height: 40px;">
                       </div>
                       
                       <div style="background-color: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
@@ -249,7 +250,7 @@ const handler = async (req: Request): Promise<Response> => {
                       </div>
                       
                       <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 24px;">
-                        OOM World - Luxury Hair Services
+                        ${brand.fullName}
                       </p>
                     </div>
                   </body>

@@ -182,11 +182,11 @@ serve(async (req) => {
     // Format phone number with country code for rate limiting
     const fullPhoneNumber = `${countryCode}${normalizedPhone}`;
     
-    console.log('Checking if phone exists in hairdressers:', normalizedPhone, countryCode);
+    console.log('Checking if phone exists in therapists:', normalizedPhone, countryCode);
 
-    // Check if phone number exists in hairdressers table
-    const { data: hairdressers, error: dbError } = await supabase
-      .from('hairdressers')
+    // Check if phone number exists in therapists table
+    const { data: therapists, error: dbError } = await supabase
+      .from('therapists')
       .select('id, phone, country_code')
       .eq('country_code', countryCode);
 
@@ -198,19 +198,19 @@ serve(async (req) => {
       );
     }
 
-    // Check if any hairdresser matches the normalized phone number
-    const hairdresserExists = hairdressers?.some((h: any) => {
+    // Check if any therapist matches the normalized phone number
+    const therapistExists = therapists?.some((h: any) => {
       const dbNormalizedPhone = h.phone.replace(/\s/g, '').replace(/^0/, '');
       return dbNormalizedPhone === normalizedPhone;
     });
 
-    if (!hairdresserExists) {
-      console.log('Phone number not found in hairdressers table');
+    if (!therapistExists) {
+      console.log('Phone number not found in therapists table');
       // Return 200 to avoid surfacing as a runtime/network error in the client.
       return new Response(
         JSON.stringify({
           success: false,
-          code: 'HAIRDRESSER_NOT_FOUND',
+          code: 'THERAPIST_NOT_FOUND',
           error: "Numéro de téléphone non trouvé. Veuillez contacter l'administrateur.",
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -269,7 +269,7 @@ serve(async (req) => {
       );
     }
     
-    console.log('Sending OTP to verified hairdresser:', fullPhoneNumber);
+    console.log('Sending OTP to verified therapist:', fullPhoneNumber);
 
     // Use Twilio Verify API to send OTP
     const response = await fetch(

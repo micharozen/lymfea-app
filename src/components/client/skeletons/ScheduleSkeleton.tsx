@@ -11,7 +11,7 @@ export function ScheduleSkeleton() {
         </div>
         {/* Progress bar */}
         <div className="w-full bg-gray-200 h-0.5">
-          <Skeleton className="bg-gold-400/50 h-full w-1/4" />
+          <Skeleton className="bg-gold-500/50 h-full w-1/4" />
         </div>
       </div>
 

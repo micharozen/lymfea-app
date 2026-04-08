@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
+import { brand } from "../_shared/brand.ts";
 import {
   getPaymentLinkEmailSubject,
   getPaymentLinkEmailHtml,
@@ -68,7 +69,7 @@ serve(async (req) => {
         payment_method,
         hotel_id,
         hotel_name,
-        hairdresser_name
+        therapist_name
       `)
       .eq('id', bookingId)
       .single();
@@ -151,7 +152,7 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    const siteUrl = Deno.env.get("SITE_URL") || "https://oomworld.com";
+    const siteUrl = Deno.env.get("SITE_URL") || brand.website;
 
     // Create product and price for the payment link
     const treatmentNames = treatments.map(t => t.name).join(', ');
@@ -161,7 +162,7 @@ serve(async (req) => {
         price_data: {
           currency: currency,
           product_data: {
-            name: language === 'fr' ? 'Prestations bien-être OOM World' : 'OOM World Wellness Services',
+            name: language === 'fr' ? `Prestations bien-être ${brand.name}` : `${brand.name} Wellness Services`,
             description: treatmentNames,
           },
           unit_amount: Math.round(totalPrice * 100), // Stripe uses cents
@@ -212,7 +213,7 @@ serve(async (req) => {
         const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
         const emailResult = await resend.emails.send({
-          from: 'OOM World <booking@oomworld.com>',
+          from: brand.emails.from.default,
           to: email,
           subject: getPaymentLinkEmailSubject(language, templateData),
           html: getPaymentLinkEmailHtml(language, templateData),
@@ -231,11 +232,11 @@ serve(async (req) => {
       try {
         const treatmentsList = treatments.map(t => t.name).join(', ');
 
-        const hairdresserName = booking.hairdresser_name || (language === 'fr' ? 'Votre professionnel OOM' : 'Your OOM professional');
+        const therapistName = booking.therapist_name || (language === 'fr' ? `Votre professionnel ${brand.name}` : `Your ${brand.name} professional`);
         const template = buildPaymentLinkTemplateMessage(
           language,
           templateData.clientName,
-          hairdresserName,
+          therapistName,
           templateData.hotelName,
           templateData.bookingDate,
           templateData.bookingTime,

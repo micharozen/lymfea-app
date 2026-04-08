@@ -27,15 +27,15 @@ export function SuccessStep({
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 animate-fade-in">
       <div className="flex flex-col items-center gap-2 mb-6">
-        {/* Pulsing gold ring */}
+        {/* Pulsing primary ring */}
         <div className="relative mb-2">
-          <div className="absolute inset-0 bg-gold-400/20 rounded-full animate-ping" />
-          <div className="relative bg-gold-400/10 rounded-full p-5 ring-1 ring-gold-400/30">
-            <CheckCircle2 className="h-12 w-12 text-gold-400" strokeWidth={1.5} />
+          <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+          <div className="relative bg-primary/10 rounded-full p-5 ring-1 ring-primary/30">
+            <CheckCircle2 className="h-12 w-12 text-primary" strokeWidth={1.5} />
           </div>
         </div>
 
-        <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 font-semibold">
+        <h3 className="text-[10px] uppercase tracking-[0.3em] text-primary font-semibold">
           Confirmé
         </h3>
         <h2 className="font-serif text-xl text-foreground">

@@ -95,12 +95,12 @@ export default function PwaTestNotifications() {
                       <div className="mt-3 pt-3 border-t border-green-500/20">
                         <strong>Pour tester les notifications:</strong>
                         <ul className="ml-4 mt-1 space-y-1">
-                          <li>• Email: {result.hairdresser?.email}</li>
-                          <li>• Téléphone: {result.hairdresser?.phone}</li>
+                          <li>• Email: {result.therapist?.email || result.hairdresser?.email}</li>
+                          <li>• Téléphone: {result.therapist?.phone || result.hairdresser?.phone}</li>
                           <li>• Mot de passe: Test123456!</li>
                         </ul>
                         <p className="mt-2 text-xs opacity-80">
-                          {result.hairdresser?.message}
+                          {result.therapist?.message || result.hairdresser?.message}
                         </p>
                       </div>
                       {result.notifications && (
@@ -121,7 +121,7 @@ export default function PwaTestNotifications() {
               <p><strong>Ce test va:</strong></p>
               <ul className="space-y-1 ml-4">
                 <li>• Créer un hôtel de test si nécessaire</li>
-                <li>• Créer un compte coiffeur de test avec les infos ci-dessus</li>
+                <li>• Créer un compte thérapeute de test avec les infos ci-dessus</li>
                 <li>• Créer un menu de traitement</li>
                 <li>• Créer une réservation "En attente"</li>
                 <li>• Déclencher l'envoi de notifications push</li>
@@ -130,7 +130,7 @@ export default function PwaTestNotifications() {
                 <strong>Pour vérifier:</strong>
               </p>
               <ul className="space-y-1 ml-4">
-                <li>• Connectez-vous avec le compte coiffeur</li>
+                <li>• Connectez-vous avec le compte thérapeute</li>
                 <li>• Activez les notifications push si demandé</li>
                 <li>• Vous devriez recevoir une notification</li>
               </ul>

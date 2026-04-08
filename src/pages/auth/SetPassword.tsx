@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Check, X, Loader2 } from "lucide-react";
-import oomLogo from "@/assets/oom-logo.svg";
+import { Eye, EyeOff, Check, X, Loader2, Lock } from "lucide-react";
+import { brand, brandLogos } from "@/config/brand";
 import { z } from "zod";
 import { getRoleRedirect } from "@/hooks/useRoleRedirect";
 
@@ -130,10 +130,10 @@ const SetPassword = () => {
           .update({ status: "Actif" })
           .eq("user_id", data.user.id);
 
-        // Also update hairdresser if applicable
+        // Also update therapist if applicable
         await supabase
-          .from("hairdressers")
-          .update({ password_set: true })
+          .from("therapists")
+          .update({ status: "Actif" })
           .eq("user_id", data.user.id);
       }
 
@@ -166,7 +166,7 @@ const SetPassword = () => {
   if (!isValidLink) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-lg">Vérification...</div>
+        <div className="text-lg text-muted-foreground">Vérification...</div>
       </div>
     );
   }
@@ -176,14 +176,14 @@ const SetPassword = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="flex justify-center">
-          <img src={oomLogo} alt="OOM Logo" className="h-24 w-auto" />
+          <img src={brandLogos.primary} alt={brand.name} className="h-24 w-auto" />
         </div>
 
         {/* Title */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-semibold text-foreground">Créez votre mot de passe</h1>
           <p className="text-muted-foreground">
-            Bienvenue dans l'équipe OOM ! Choisissez un mot de passe sécurisé pour protéger votre compte.
+            Bienvenue dans l'équipe {brand.name} ! Choisissez un mot de passe sécurisé pour protéger votre compte.
           </p>
         </div>
 
@@ -279,7 +279,7 @@ const SetPassword = () => {
           {/* Submit Button */}
           <Button
             type="submit"
-            className="w-full bg-muted hover:bg-foreground text-foreground hover:text-background transition-colors"
+            className="w-full"
             disabled={isLoading || !allRequirementsMet || !passwordsMatch}
           >
             {isLoading ? "Création en cours..." : "Créer mon compte"}
@@ -288,8 +288,9 @@ const SetPassword = () => {
         </form>
 
         {/* Security Note */}
-        <div className="text-center text-xs text-muted-foreground">
-          <p>🔒 Votre mot de passe est chiffré et sécurisé</p>
+        <div className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+          <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          <p>Votre mot de passe est chiffré et sécurisé</p>
         </div>
       </div>
     </div>

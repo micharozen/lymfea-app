@@ -21,7 +21,7 @@ export function ProgressBar({ currentStep, className }: ProgressBarProps) {
   return (
     <div className={cn("w-full bg-gray-200 h-0.5", className)}>
       <div
-        className="bg-gold-400 h-full transition-all duration-500"
+        className="bg-gold-500 h-full transition-all duration-500"
         style={{ width: `${percentage}%` }}
       />
     </div>

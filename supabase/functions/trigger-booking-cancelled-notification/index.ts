@@ -29,7 +29,7 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hairdresser_id, booking_date, booking_time, hotel_name, booking_id, client_first_name, client_last_name")
+      .select("*, therapist_id, booking_date, booking_time, hotel_name, booking_id, client_first_name, client_last_name")
       .eq("id", bookingId)
       .single();
 
@@ -38,31 +38,31 @@ serve(async (req) => {
       throw new Error("Booking not found");
     }
 
-    // Only notify if there's an assigned hairdresser
-    if (!booking.hairdresser_id) {
-      console.log("No hairdresser assigned to this booking, skipping notification");
+    // Only notify if there's an assigned therapist
+    if (!booking.therapist_id) {
+      console.log("No therapist assigned to this booking, skipping notification");
       return new Response(
-        JSON.stringify({ success: true, message: "No hairdresser to notify" }),
+        JSON.stringify({ success: true, message: "No therapist to notify" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get hairdresser's user_id
-    const { data: hairdresser, error: hairdresserError } = await supabaseClient
-      .from("hairdressers")
+    // Get therapist's user_id
+    const { data: therapist, error: therapistError } = await supabaseClient
+      .from("therapists")
       .select("id, user_id, first_name, last_name")
-      .eq("id", booking.hairdresser_id)
+      .eq("id", booking.therapist_id)
       .single();
 
-    if (hairdresserError || !hairdresser) {
-      console.error("Hairdresser not found:", hairdresserError);
-      throw new Error("Hairdresser not found");
+    if (therapistError || !therapist) {
+      console.error("Therapist not found:", therapistError);
+      throw new Error("Therapist not found");
     }
 
-    if (!hairdresser.user_id) {
-      console.log("Hairdresser has no user_id, skipping push notification");
+    if (!therapist.user_id) {
+      console.log("Therapist has no user_id, skipping push notification");
       return new Response(
-        JSON.stringify({ success: true, message: "Hairdresser has no user account" }),
+        JSON.stringify({ success: true, message: "Therapist has no user account" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -82,7 +82,7 @@ serve(async (req) => {
         "send-push-notification",
         {
           body: {
-            userId: hairdresser.user_id,
+            userId: therapist.user_id,
             title: "❌ Réservation annulée",
             body: notificationBody,
             data: {
@@ -95,19 +95,19 @@ serve(async (req) => {
       );
 
       if (pushError) {
-        console.error(`Error sending push to ${hairdresser.first_name}:`, pushError);
+        console.error(`Error sending push to ${therapist.first_name}:`, pushError);
         return new Response(
           JSON.stringify({ success: false, error: pushError.message }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      console.log(`✅ Cancellation push sent to ${hairdresser.first_name} ${hairdresser.last_name}`);
+      console.log(`✅ Cancellation push sent to ${therapist.first_name} ${therapist.last_name}`);
 
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Push notification sent to ${hairdresser.first_name}`,
+          message: `Push notification sent to ${therapist.first_name}`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

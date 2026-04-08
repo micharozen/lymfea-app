@@ -134,9 +134,13 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right";
     variant?: "sidebar" | "floating" | "inset";
     collapsible?: "offcanvas" | "icon" | "none";
+    expandOnHover?: boolean;
   }
->(({ side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props }, ref) => {
+>(({ side = "left", variant = "sidebar", collapsible = "offcanvas", expandOnHover = false, className, children, ...props }, ref) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const [hoverExpanded, setHoverExpanded] = React.useState(false);
+  const isCollapsed = state === "collapsed";
+  const isHoverExpanded = expandOnHover && isCollapsed && hoverExpanded && collapsible === "icon";
 
   if (collapsible === "none") {
     return (
@@ -176,7 +180,7 @@ const Sidebar = React.forwardRef<
       ref={ref}
       className="group peer hidden text-sidebar-foreground md:block"
       data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
+      data-collapsible={isHoverExpanded ? "" : (isCollapsed ? collapsible : "")}
       data-variant={variant}
       data-side={side}
     >
@@ -190,8 +194,11 @@ const Sidebar = React.forwardRef<
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]"
             : "group-data-[collapsible=icon]:w-[--sidebar-width-icon]",
         )}
+        {...(isHoverExpanded ? { style: { width: 'var(--sidebar-width-icon)' } } : {})}
       />
       <div
+        onMouseEnter={() => { if (expandOnHover && isCollapsed && collapsible === "icon") setHoverExpanded(true); }}
+        onMouseLeave={() => setHoverExpanded(false)}
         className={cn(
           "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
@@ -201,6 +208,7 @@ const Sidebar = React.forwardRef<
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]"
             : "group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l",
+          isHoverExpanded && "!w-[--sidebar-width] shadow-xl z-30",
           className,
         )}
         {...props}

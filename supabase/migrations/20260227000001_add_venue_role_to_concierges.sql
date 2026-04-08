@@ -1,0 +1,1 @@
+ALTER TABLE concierges ADD COLUMN venue_role TEXT DEFAULT NULL;

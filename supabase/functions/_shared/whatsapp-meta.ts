@@ -1,6 +1,8 @@
 // Meta WhatsApp Business API utilities
 // https://developers.facebook.com/docs/whatsapp/cloud-api/
 
+import { brand } from './brand.ts';
+
 export interface WhatsAppTemplateMessage {
   templateName: string;
   languageCode: string;
@@ -232,7 +234,7 @@ export function buildAlternativeSlotOffer1Message(
   return {
     type: 'button',
     body: {
-      text: `Bonjour ${clientName} !\n\nVotre coiffeur n'est pas disponible le ${formattedOriginalDate} à ${formattedOriginalTime}.\n\nIl vous propose le ${formattedAltDate} à ${formattedAltTime}.\n\nCe créneau vous convient ?`,
+      text: `Bonjour ${clientName} !\n\nVotre thérapeute n'est pas disponible le ${formattedOriginalDate} à ${formattedOriginalTime}.\n\nIl vous propose le ${formattedAltDate} à ${formattedAltTime}.\n\nCe créneau vous convient ?`,
     },
     action: {
       buttons: [
@@ -294,7 +296,7 @@ export function buildAllRejectedMessage(): WhatsAppInteractiveMessage {
   return {
     type: 'button',
     body: {
-      text: `Nous avons informé votre coiffeur. Il vous recontactera prochainement pour trouver un créneau qui vous convient.\n\nL'équipe OOM World`,
+      text: `Nous avons informé votre thérapeute. Il vous recontactera prochainement pour trouver un créneau qui vous convient.\n\nL'équipe ${brand.name}`,
     },
     action: {
       buttons: [
@@ -321,7 +323,7 @@ export function buildSlotAcceptedMessage(
   return {
     type: 'button',
     body: {
-      text: `Parfait ! Votre réservation est confirmée pour le ${formattedDate} à ${formattedTime}.\n\nÀ très bientôt !\nL'équipe OOM World`,
+      text: `Parfait ! Votre réservation est confirmée pour le ${formattedDate} à ${formattedTime}.\n\nÀ très bientôt !\nL'équipe ${brand.name}`,
     },
     action: {
       buttons: [
@@ -344,7 +346,7 @@ export function buildSlotAcceptedMessage(
 export function buildPaymentLinkTemplateMessage(
   language: 'fr' | 'en',
   clientName: string,
-  hairdresserName: string,
+  therapistName: string,
   hotelName: string,
   bookingDate: string,
   bookingTime: string,
@@ -361,7 +363,7 @@ export function buildPaymentLinkTemplateMessage(
         type: 'body',
         parameters: [
           { type: 'text', text: clientName },              // {{1}} Nom client
-          { type: 'text', text: hairdresserName },         // {{2}} Nom praticien
+          { type: 'text', text: therapistName },         // {{2}} Nom praticien
           { type: 'text', text: hotelName },               // {{3}} Nom hôtel
           { type: 'text', text: bookingDate },             // {{4}} Date
           { type: 'text', text: bookingTime },             // {{5}} Heure

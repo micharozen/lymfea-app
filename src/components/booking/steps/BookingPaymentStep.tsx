@@ -40,7 +40,7 @@ export function BookingPaymentStep({
         <p className="text-sm font-medium">{formatPrice(finalPrice, currency)}</p>
         {!isAdmin && (
           <p className="text-xs text-muted-foreground text-center max-w-xs">
-            Les coiffeurs du lieu ont été notifiés. Le lien de paiement sera envoyé automatiquement au client une fois qu'un coiffeur aura validé un créneau.
+            Les thérapeutes du lieu ont été notifiés. Le lien de paiement sera envoyé automatiquement au client une fois qu'un thérapeute aura validé un créneau.
           </p>
         )}
       </div>

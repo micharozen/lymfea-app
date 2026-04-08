@@ -1,8 +1,31 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
+import brandConfig from './src/config/brand.json';
+
+// Injects brand values into index.html at build time
+// Replaces {{brand.x.y}} placeholders with values from brand.json
+function brandPlugin(): Plugin {
+  return {
+    name: 'brand-inject',
+    transformIndexHtml(html: string) {
+      return html.replace(/\{\{brand\.([a-zA-Z.]+)\}\}/g, (_match, keyPath: string) => {
+        const keys = keyPath.split('.');
+        let value: unknown = brandConfig;
+        for (const key of keys) {
+          if (value && typeof value === 'object' && key in value) {
+            value = (value as Record<string, unknown>)[key];
+          } else {
+            return _match; // Leave placeholder if path not found
+          }
+        }
+        return String(value);
+      });
+    }
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -32,7 +55,8 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 500, // Warn if chunks exceed 500KB
   },
   plugins: [
-    react(), 
+    brandPlugin(),
+    react(),
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',

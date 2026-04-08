@@ -41,21 +41,21 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Get hairdresser profile
-    const { data: hairdresser, error: hairdresserError } = await supabaseClient
-      .from("hairdressers")
+    // Get therapist profile
+    const { data: therapist, error: therapistError } = await supabaseClient
+      .from("therapists")
       .select("id, first_name, last_name, email, stripe_account_id, stripe_onboarding_completed")
       .eq("user_id", user.id)
       .single();
 
-    if (hairdresserError || !hairdresser) {
-      throw new Error("Hairdresser profile not found");
+    if (therapistError || !therapist) {
+      throw new Error("Therapist profile not found");
     }
-    logStep("Hairdresser found", { hairdresserId: hairdresser.id, existingStripeId: hairdresser.stripe_account_id });
+    logStep("Therapist found", { therapistId: therapist.id, existingStripeId: therapist.stripe_account_id });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
 
-    let stripeAccountId = hairdresser.stripe_account_id;
+    let stripeAccountId = therapist.stripe_account_id;
 
     // Create Stripe Connect account using V2 API if doesn't exist
     if (!stripeAccountId) {
@@ -76,13 +76,13 @@ serve(async (req) => {
             },
           },
           country: "FR",
-          email: hairdresser.email,
+          email: therapist.email,
           capabilities: {
             transfers: { requested: true },
           },
           business_type: "individual",
           metadata: {
-            hairdresser_id: hairdresser.id,
+            therapist_id: therapist.id,
             user_id: user.id,
           },
         });
@@ -92,12 +92,12 @@ serve(async (req) => {
 
         // Save to database
         const { error: updateError } = await supabaseClient
-          .from("hairdressers")
+          .from("therapists")
           .update({ 
             stripe_account_id: stripeAccountId,
             stripe_onboarding_completed: false 
           })
-          .eq("id", hairdresser.id);
+          .eq("id", therapist.id);
 
         if (updateError) {
           logStep("Error saving stripe_account_id", { error: updateError });

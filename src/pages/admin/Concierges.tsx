@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users } from "lucide-react";
+import { VENUE_ROLES } from "@/lib/venueRoles";
 import { toast } from "sonner";
 import {
   Table,
@@ -49,6 +50,7 @@ interface Concierge {
   hotel_id: string | null;
   profile_image: string | null;
   status: string;
+  venue_role: string | null;
   hotels?: { hotel_id: string }[];
 }
 
@@ -148,7 +150,7 @@ export default function Concierges() {
       if (error) throw error;
       setConcierges(data || []);
     } catch (error: any) {
-      toast.error("Erreur lors du chargement des concierges");
+      toast.error("Erreur lors du chargement de l'équipe lieu");
       console.error(error);
     } finally {
       setLoading(false);
@@ -202,23 +204,23 @@ export default function Concierges() {
 
       if (error) throw error;
 
-      toast.success("Concierge supprimé avec succès");
+      toast.success("Membre supprimé avec succès");
       closeDelete();
       fetchConcierges();
     } catch (error: any) {
-      toast.error("Erreur lors de la suppression du concierge");
+      toast.error("Erreur lors de la suppression du membre");
       console.error(error);
     }
   };
 
-  const columnCount = userRole === "admin" ? 6 : 5;
+  const columnCount = userRole === "admin" ? 7 : 6;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
-            🛎️ Concierges
+          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+            Équipe lieu
           </h1>
         </div>
       </div>
@@ -263,11 +265,10 @@ export default function Concierges() {
 
             {userRole === "admin" && (
               <Button
-                className="ml-auto bg-foreground text-background hover:bg-foreground/90"
+                className="ml-auto"
                 onClick={openAdd}
               >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">Ajouter un concierge</span>
+                Nouveau membre
               </Button>
             )}
           </div>
@@ -287,7 +288,10 @@ export default function Concierges() {
                     Telephone
                   </TableHead>
                   <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
-                    Hotel
+                    Lieu(x)
+                  </TableHead>
+                  <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">
+                    Rôle
                   </TableHead>
                   <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                     Statut
@@ -305,9 +309,9 @@ export default function Concierges() {
                 <TableEmptyState
                   colSpan={columnCount}
                   icon={Users}
-                  message="Aucun concierge trouve"
+                  message="Aucun membre trouvé"
                   description={searchQuery || hotelFilter !== "all" || statusFilter !== "all" ? "Essayez de modifier vos filtres" : undefined}
-                  actionLabel={userRole === "admin" ? "Ajouter un concierge" : undefined}
+                  actionLabel={userRole === "admin" ? "Ajouter un membre" : undefined}
                   onAction={userRole === "admin" ? openAdd : undefined}
                 />
               ) : (
@@ -331,6 +335,13 @@ export default function Concierges() {
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <HotelsCell hotels={getHotelsInfo(concierge.hotels)} />
+                      </TableCell>
+                      <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                        <span className="truncate block text-foreground">
+                          {concierge.venue_role
+                            ? VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role
+                            : '-'}
+                        </span>
                       </TableCell>
                       <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                         <StatusBadge status={concierge.status} type="entity" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
@@ -378,7 +389,7 @@ export default function Concierges() {
               totalItems={filteredConcierges.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
-              itemName="concierges"
+              itemName="membres"
             />
           )}
         </div>
@@ -404,7 +415,7 @@ export default function Concierges() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmer la suppression</AlertDialogTitle>
             <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer ce concierge ? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer ce membre ? Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

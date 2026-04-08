@@ -18,7 +18,7 @@ const DebugViewportOverlay = () => {
     safeAreaBottom: "0px",
     safeAreaLeft: "0px",
     safeAreaRight: "0px",
-    oomSafeBottom: "0px",
+    appSafeBottom: "0px",
     dvh: "N/A",
     vh: "N/A",
     // Layout elements
@@ -33,7 +33,7 @@ const DebugViewportOverlay = () => {
     // Check localStorage or URL param
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      return localStorage.getItem("oom-debug") === "true" || urlParams.get("debug") === "true";
+      return localStorage.getItem("app-debug") === "true" || urlParams.get("debug") === "true";
     }
     return false;
   });
@@ -48,7 +48,7 @@ const DebugViewportOverlay = () => {
         tapCount = 0;
         const newState = !debugEnabled;
         setDebugEnabled(newState);
-        localStorage.setItem("oom-debug", newState.toString());
+        localStorage.setItem("app-debug", newState.toString());
         if (newState) {
           alert("🛠️ Debug mode activé!");
         } else {
@@ -108,7 +108,7 @@ const DebugViewportOverlay = () => {
         safeAreaBottom: cs.paddingBottom,
         safeAreaLeft: cs.paddingLeft,
         safeAreaRight: cs.paddingRight,
-        oomSafeBottom: getComputedStyle(document.documentElement).getPropertyValue("--oom-safe-bottom") || "0px",
+        appSafeBottom: getComputedStyle(document.documentElement).getPropertyValue("--app-safe-bottom") || "0px",
         dvh: `${dvhValue}px`,
         vh: `${vhValue}px`,
         // Layout elements
@@ -189,8 +189,8 @@ const DebugViewportOverlay = () => {
         <div>left: {values.safeAreaLeft}</div>
         <div>right: {values.safeAreaRight}</div>
         
-        <div className="text-pink-400 mt-2">OOM Clamped</div>
-        <div>--oom-safe-bottom: {values.oomSafeBottom}</div>
+        <div className="text-pink-400 mt-2">App Clamped</div>
+        <div>--app-safe-bottom: {values.appSafeBottom}</div>
         
         <div className="text-cyan-400 mt-2">Layout Elements</div>
         <div>TabBar H: {values.tabBarHeight}px</div>
@@ -202,7 +202,7 @@ const DebugViewportOverlay = () => {
       <button
         onClick={() => {
           setDebugEnabled(false);
-          localStorage.setItem("oom-debug", "false");
+          localStorage.setItem("app-debug", "false");
         }}
         className="mt-3 w-full bg-red-600 text-white text-[10px] py-1 rounded"
       >

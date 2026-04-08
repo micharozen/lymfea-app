@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 
+export type TherapistGender = 'female' | 'male' | null;
+
 export interface BookingDateTime {
   date: string;
   time: string;
@@ -13,18 +15,22 @@ export interface ClientInfo {
   email: string;
   roomNumber: string;
   note?: string;
+  pmsGuestCheckIn?: string;
+  pmsGuestCheckOut?: string;
 }
 
 interface ClientFlowState {
   bookingDateTime: BookingDateTime | null;
   clientInfo: ClientInfo | null;
   pendingCheckoutSession: string | null;
+  therapistGenderPreference: TherapistGender;
 }
 
 interface ClientFlowContextType extends ClientFlowState {
   setBookingDateTime: (data: BookingDateTime) => void;
   setClientInfo: (data: ClientInfo) => void;
   setPendingCheckoutSession: (sessionId: string) => void;
+  setTherapistGenderPreference: (gender: TherapistGender) => void;
   clearFlow: () => void;
   canProceedToStep: (step: "info" | "payment" | "confirmation") => boolean;
 }
@@ -35,6 +41,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const [bookingDateTime, setBookingDateTimeState] = useState<BookingDateTime | null>(null);
   const [clientInfo, setClientInfoState] = useState<ClientInfo | null>(null);
   const [pendingCheckoutSession, setPendingCheckoutSessionState] = useState<string | null>(null);
+  const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(null);
 
   const setBookingDateTime = useCallback((data: BookingDateTime) => {
     setBookingDateTimeState(data);
@@ -48,10 +55,15 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setPendingCheckoutSessionState(sessionId);
   }, []);
 
+  const setTherapistGenderPreference = useCallback((gender: TherapistGender) => {
+    setTherapistGenderPreferenceState(gender);
+  }, []);
+
   const clearFlow = useCallback(() => {
     setBookingDateTimeState(null);
     setClientInfoState(null);
     setPendingCheckoutSessionState(null);
+    setTherapistGenderPreferenceState(null);
   }, []);
 
   const canProceedToStep = useCallback(
@@ -75,9 +87,11 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       bookingDateTime,
       clientInfo,
       pendingCheckoutSession,
+      therapistGenderPreference,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
+      setTherapistGenderPreference,
       clearFlow,
       canProceedToStep,
     }),
@@ -85,9 +99,11 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       bookingDateTime,
       clientInfo,
       pendingCheckoutSession,
+      therapistGenderPreference,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
+      setTherapistGenderPreference,
       clearFlow,
       canProceedToStep,
     ]

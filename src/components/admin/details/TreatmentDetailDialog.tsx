@@ -1,8 +1,10 @@
 import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField, DetailGrid, DetailStat } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Euro, Scissors, Building2, Clock } from "lucide-react";
+import { Euro, HandHeart, Building2, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
+import { useTranslation } from "react-i18next";
 
 interface Hotel {
   id: string;
@@ -24,6 +26,7 @@ interface TreatmentMenu {
   price_on_request: boolean | null;
   hotel_id: string | null;
   image: string | null;
+  treatment_type: string | null;
 }
 
 interface TreatmentDetailDialogProps {
@@ -43,6 +46,8 @@ export function TreatmentDetailDialog({
   onEdit,
   onDuplicate,
 }: TreatmentDetailDialogProps) {
+  const { t, i18n } = useTranslation('common');
+
   if (!treatment) return null;
 
   const formatDuration = (minutes: number | null) => {
@@ -114,13 +119,21 @@ export function TreatmentDetailDialog({
       </DetailSection>
 
       {/* Details */}
-      <DetailSection icon={Scissors} title="Details">
+      <DetailSection icon={HandHeart} title="Details">
         <DetailCard>
           <div className="space-y-3">
             <div className="flex items-center gap-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Categorie</p>
                 <p className="text-sm font-medium">{treatment.category || "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">{t('admin:treatments.specialty')}</p>
+                <p className="text-sm font-medium">
+                  {treatment.treatment_type
+                    ? getSpecialtyLabel(treatment.treatment_type, i18n.language)
+                    : "-"}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Public</p>

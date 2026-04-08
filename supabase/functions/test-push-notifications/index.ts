@@ -15,31 +15,31 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('🧪 Starting push notification test for Aaron Coiffeur...');
+    console.log('🧪 Starting push notification test for Aaron Therapist...');
 
-    // 1. Find Aaron Coiffeur
-    const { data: aaronHairdresser, error: findError } = await supabase
-      .from('hairdressers')
+    // 1. Find Aaron Therapist
+    const { data: aaronTherapist, error: findError } = await supabase
+      .from('therapists')
       .select('id, user_id, first_name, last_name, email')
       .eq('email', 'test.coiffeur@oomworld.com')
       .single();
 
-    if (findError || !aaronHairdresser) {
-      throw new Error('Aaron Coiffeur not found. Please make sure the hairdresser exists with email: test.coiffeur@oomworld.com');
+    if (findError || !aaronTherapist) {
+      throw new Error('Aaron Therapist not found. Please make sure the therapist exists with email: test.coiffeur@oomworld.com');
     }
 
-    console.log('✅ Found hairdresser:', aaronHairdresser.first_name, aaronHairdresser.last_name);
+    console.log('✅ Found therapist:', aaronTherapist.first_name, aaronTherapist.last_name);
 
     // 2. Get Aaron's hotel
     const { data: hotelAssignment, error: hotelError } = await supabase
-      .from('hairdresser_hotels')
+      .from('therapist_venues')
       .select('hotel_id')
-      .eq('hairdresser_id', aaronHairdresser.id)
+      .eq('therapist_id', aaronTherapist.id)
       .limit(1)
       .single();
 
     if (hotelError || !hotelAssignment) {
-      throw new Error('No hotel found for Aaron Coiffeur');
+      throw new Error('No hotel found for Aaron Therapist');
     }
 
     const testHotelId = hotelAssignment.hotel_id;
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       .eq('id', testHotelId)
       .single();
 
-    const hairdresserId = aaronHairdresser.id;
+    const therapistId = aaronTherapist.id;
 
     // 3. Create test treatment menu if it doesn't exist
     const { data: existingMenu } = await supabase
@@ -154,9 +154,9 @@ Deno.serve(async (req) => {
           date: booking.booking_date,
           time: booking.booking_time,
         },
-        hairdresser: {
-          name: `${aaronHairdresser.first_name} ${aaronHairdresser.last_name}`,
-          email: aaronHairdresser.email,
+        therapist: {
+          name: `${aaronTherapist.first_name} ${aaronTherapist.last_name}`,
+          email: aaronTherapist.email,
         },
         notifications: notifResult,
       }),

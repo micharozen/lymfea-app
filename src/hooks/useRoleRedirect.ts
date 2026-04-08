@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type UserRole = "admin" | "concierge" | "hairdresser" | "user" | null;
+export type UserRole = "admin" | "concierge" | "therapist" | "user" | null;
 
 export interface RoleRedirectResult {
   role: UserRole;
@@ -40,7 +40,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     const roleList = roles?.map((r) => r.role) || [];
     log("user_roles result", { roleList });
 
-    // Priority: admin > concierge > hairdresser
+    // Priority: admin > concierge > therapist
     if (roleList.includes("admin")) {
       log("match: admin (user_roles) -> /admin/dashboard");
       return { role: "admin", redirectPath: adminPath };
@@ -51,26 +51,26 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
       return { role: "concierge", redirectPath: adminPath };
     }
 
-    if (roleList.includes("hairdresser")) {
-      log("match: hairdresser (user_roles) -> checking status");
-      const { data: hairdresser, error: hairdresserError } = await supabase
-        .from("hairdressers")
+    if (roleList.includes("therapist")) {
+      log("match: therapist (user_roles) -> checking status");
+      const { data: therapist, error: therapistError } = await supabase
+        .from("therapists")
         .select("status")
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (hairdresserError) {
-        console.warn("[getRoleRedirect] hairdressers status error:", hairdresserError);
+      if (therapistError) {
+        console.warn("[getRoleRedirect] therapists status error:", therapistError);
       }
 
-      log("hairdresser status", { status: hairdresser?.status ?? null });
+      log("therapist status", { status: therapist?.status ?? null });
 
-      if (hairdresser?.status === "En attente") {
-        log("match: hairdresser pending -> /pwa/onboarding");
-        return { role: "hairdresser", redirectPath: "/pwa/onboarding" };
+      if (therapist?.status === "En attente") {
+        log("match: therapist pending -> /pwa/onboarding");
+        return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
-      log("match: hairdresser -> /pwa/dashboard");
-      return { role: "hairdresser", redirectPath: "/pwa/dashboard" };
+      log("match: therapist -> /pwa/dashboard");
+      return { role: "therapist", redirectPath: "/pwa/dashboard" };
     }
 
     // 1b) If RLS prevents reading user_roles/admins tables on the client,
@@ -91,30 +91,30 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     log("has_role(concierge)", { isConcierge: !!isConcierge });
     if (isConcierge) return { role: "concierge", redirectPath: adminPath };
 
-    const { data: isHairdresser, error: isHairdresserErr } = await supabase.rpc("has_role", {
+    const { data: isTherapist, error: isTherapistErr } = await supabase.rpc("has_role", {
       _user_id: userId,
-      _role: "hairdresser",
+      _role: "therapist",
     });
-    if (isHairdresserErr) console.warn("[getRoleRedirect] has_role(hairdresser) error:", isHairdresserErr);
-    log("has_role(hairdresser)", { isHairdresser: !!isHairdresser });
+    if (isTherapistErr) console.warn("[getRoleRedirect] has_role(therapist) error:", isTherapistErr);
+    log("has_role(therapist)", { isTherapist: !!isTherapist });
 
-    if (isHairdresser) {
-      const { data: hairdresser, error: hairdresserError } = await supabase
-        .from("hairdressers")
+    if (isTherapist) {
+      const { data: therapist, error: therapistError } = await supabase
+        .from("therapists")
         .select("status")
         .eq("user_id", userId)
         .maybeSingle();
 
-      if (hairdresserError) {
-        console.warn("[getRoleRedirect] hairdressers status error:", hairdresserError);
+      if (therapistError) {
+        console.warn("[getRoleRedirect] therapists status error:", therapistError);
       }
 
-      log("hairdresser status (rpc confirmed)", { status: hairdresser?.status ?? null });
+      log("therapist status (rpc confirmed)", { status: therapist?.status ?? null });
 
-      if (hairdresser?.status === "En attente") {
-        return { role: "hairdresser", redirectPath: "/pwa/onboarding" };
+      if (therapist?.status === "En attente") {
+        return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
-      return { role: "hairdresser", redirectPath: "/pwa/dashboard" };
+      return { role: "therapist", redirectPath: "/pwa/dashboard" };
     }
 
     // 2) Fallback inference (for legacy users missing user_roles) — read-only, no role writes
@@ -150,22 +150,22 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
       return { role: "concierge", redirectPath: adminPath };
     }
 
-    const { data: hairdresserRow, error: hairdresserRowError } = await supabase
-      .from("hairdressers")
+    const { data: therapistRow, error: therapistRowError } = await supabase
+      .from("therapists")
       .select("status")
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (hairdresserRowError) {
-      console.warn("[getRoleRedirect] hairdressers lookup error:", hairdresserRowError);
+    if (therapistRowError) {
+      console.warn("[getRoleRedirect] therapists lookup error:", therapistRowError);
     }
 
-    if (hairdresserRow) {
-      log("legacy match: hairdresser", { status: hairdresserRow.status });
-      if (hairdresserRow.status === "En attente") {
-        return { role: "hairdresser", redirectPath: "/pwa/onboarding" };
+    if (therapistRow) {
+      log("legacy match: therapist", { status: therapistRow.status });
+      if (therapistRow.status === "En attente") {
+        return { role: "therapist", redirectPath: "/pwa/onboarding" };
       }
-      return { role: "hairdresser", redirectPath: "/pwa/dashboard" };
+      return { role: "therapist", redirectPath: "/pwa/dashboard" };
     }
 
     // Default: unknown role -> PWA welcome

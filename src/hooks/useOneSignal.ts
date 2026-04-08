@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
+import { brand } from '@/config/brand';
 
 const PENDING_URL_KEY = 'onesignal_pending_url';
 
@@ -101,9 +102,8 @@ export const useOneSignal = () => {
 
       // Check if we're on a supported domain for OneSignal
       const allowedDomains = [
-        'oom-clone-genesis.lovable.app',
+        brand.appDomain,
         'localhost',
-        'app.oomworld.com',
       ];
       const currentHost = window.location.hostname;
       const isAllowedDomain = allowedDomains.some(domain => currentHost.includes(domain));
@@ -130,12 +130,18 @@ export const useOneSignal = () => {
       console.log('[OneSignal] User Agent:', navigator.userAgent);
       console.log('[OneSignal] Notification permission:', Notification.permission);
 
+      const appId = import.meta.env.VITE_ONESIGNAL_APP_ID;
+      if (!appId) {
+        console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
+        return;
+      }
+
       // Start new initialization
       initializationPromise = (async () => {
         try {
           // Set a timeout for init
           const initPromise = OneSignal.init({
-            appId: "a04ba112-a065-4f25-abbf-0abc870092ec",
+            appId,
             allowLocalhostAsSecureOrigin: true,
             // Use 'focus' instead of 'navigate' - we'll handle navigation ourselves
             notificationClickHandlerMatch: "origin",

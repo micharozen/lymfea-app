@@ -24,7 +24,7 @@ export function BookingProgressBar({ currentStep }: BookingProgressBarProps) {
             className={cn(
               'text-[10px] uppercase tracking-widest transition-colors duration-300',
               currentStep >= step.id
-                ? 'text-gold-400 font-semibold'
+                ? 'text-primary font-semibold'
                 : 'text-muted-foreground font-medium'
             )}
           >
@@ -34,7 +34,7 @@ export function BookingProgressBar({ currentStep }: BookingProgressBarProps) {
       </div>
       <div className="w-full bg-border/50 h-1 rounded-full overflow-hidden">
         <div
-          className="bg-gold-400 h-full rounded-full transition-all duration-500 ease-out"
+          className="bg-primary h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
         />
       </div>

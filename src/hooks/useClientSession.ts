@@ -7,10 +7,12 @@
  * 
  * Storage Keys:
  * - Staff/PWA: Uses standard Supabase auth (sb-* localStorage keys)
- * - Client: Uses 'oom-guest-session' localStorage key
+ * - Client: Uses branded localStorage key (see brand.storageKeys.guestSession)
  */
 
-const CLIENT_SESSION_KEY = 'oom-guest-session';
+import { brand } from '@/config/brand';
+
+const CLIENT_SESSION_KEY = brand.storageKeys.guestSession;
 
 export interface ClientGuestSession {
   hotelId: string;

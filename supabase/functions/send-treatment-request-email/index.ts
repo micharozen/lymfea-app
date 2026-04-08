@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { brand } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -32,8 +33,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { treatmentName, clientName, clientPhone, clientEmail, hotelName, roomNumber, preferredDate, preferredTime, description } = payload;
 
-    const adminEmail = "tom@oomworld.com";
-    const siteUrl = Deno.env.get("SITE_URL") || "https://app.oomworld.com";
+    const adminEmail = brand.emails.adminRecipient;
+    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const backOfficeLink = `${siteUrl}/admin/bookings`;
 
     const emailHtml = `
@@ -66,7 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: "OOM Booking <noreply@transactional.oomworld.com>",
+        from: brand.emails.from.default,
         to: [adminEmail],
         subject: `📋 Nouvelle demande On Request - ${treatmentName} - ${hotelName}`,
         html: emailHtml,

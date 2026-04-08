@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender } = await req.json();
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -25,8 +25,8 @@ serve(async (req) => {
 
     const _debug: Record<string, any> = {};
     console.log(`[DEBUG] ====== CHECK-AVAILABILITY START ======`);
-    console.log(`[DEBUG] hotelId: ${hotelId}, date: ${date}, treatmentIds: ${JSON.stringify(treatmentIds)}`);
-    _debug.input = { hotelId, date, treatmentIds };
+    console.log(`[DEBUG] hotelId: ${hotelId}, date: ${date}, treatmentIds: ${JSON.stringify(treatmentIds)}, therapistGender: ${therapistGender}`);
+    _debug.input = { hotelId, date, treatmentIds, therapistGender };
 
     // Check if venue is deployed on this date
     const { data: isVenueAvailable, error: scheduleError } = await supabase
@@ -68,20 +68,24 @@ serve(async (req) => {
       console.error('Error fetching hotel:', hotelError);
     }
 
-    // Parse hours, defaulting to 06:00 and 23:00 if not set
-    const openingHour = hotelData?.opening_time
-      ? parseInt(hotelData.opening_time.split(':')[0], 10)
-      : 6;
-    const closingHour = hotelData?.closing_time
-      ? parseInt(hotelData.closing_time.split(':')[0], 10)
-      : 23;
+    // Parse full opening/closing times (HH:MM), defaulting to 06:00 and 23:00 if not set
+    const openingMinutes = hotelData?.opening_time
+      ? parseInt(hotelData.opening_time.split(':')[0], 10) * 60
+        + parseInt(hotelData.opening_time.split(':')[1] || '0', 10)
+      : 6 * 60;
+    const closingMinutes = hotelData?.closing_time
+      ? parseInt(hotelData.closing_time.split(':')[0], 10) * 60
+        + parseInt(hotelData.closing_time.split(':')[1] || '0', 10)
+      : 23 * 60;
 
     const slotInterval = hotelData?.slot_interval || 30;
 
-    console.log(`Venue hours: ${openingHour}:00 - ${closingHour}:00, slot interval: ${slotInterval}min`);
+    const openingDisplay = `${Math.floor(openingMinutes / 60)}:${(openingMinutes % 60).toString().padStart(2, '0')}`;
+    const closingDisplay = `${Math.floor(closingMinutes / 60)}:${(closingMinutes % 60).toString().padStart(2, '0')}`;
+    console.log(`Venue hours: ${openingDisplay} - ${closingDisplay}, slot interval: ${slotInterval}min`);
     _debug.hotelData = hotelData;
-    _debug.openingHour = openingHour;
-    _debug.closingHour = closingHour;
+    _debug.openingMinutes = openingMinutes;
+    _debug.closingMinutes = closingMinutes;
     _debug.slotInterval = slotInterval;
 
     // Fetch active blocked slots for this hotel
@@ -102,96 +106,167 @@ serve(async (req) => {
 
     console.log(`[DEBUG] requestedDayOfWeek: ${requestedDayOfWeek}, blockedSlots count: ${blockedSlots?.length || 0}`);
 
-    // Get the maximum lead_time from selected treatments (if provided)
+    // Get the maximum lead_time and categories from selected treatments (if provided)
     let maxLeadTime = 0;
+    const requiredCategories = new Set<string>();
     if (treatmentIds && treatmentIds.length > 0) {
       const { data: treatments, error: treatmentsError } = await supabase
         .from('treatment_menus')
-        .select('lead_time')
+        .select('lead_time, category')
         .in('id', treatmentIds);
-      
+
       if (treatmentsError) {
         console.error('Error fetching treatments:', treatmentsError);
       } else if (treatments && treatments.length > 0) {
         maxLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
         console.log(`Maximum lead_time from selected treatments: ${maxLeadTime} minutes`);
+        // Build set of required categories from selected treatments
+        treatments.forEach((t: any) => {
+          if (t.category) requiredCategories.add(t.category);
+        });
       }
     }
+    console.log(`[DEBUG] requiredCategories: ${JSON.stringify([...requiredCategories])}`);
+    _debug.requiredCategories = [...requiredCategories];
 
-    // Get all active hairdressers for this hotel
-    const { data: hairdressers, error: hairdressersError } = await supabase
-      .from('hairdresser_hotels')
+    // Get all active therapists for this hotel (with optional gender filter)
+    let therapistQuery = supabase
+      .from('therapist_venues')
       .select(`
-        hairdresser_id,
-        hairdressers!inner(
+        therapist_id,
+        therapists!inner(
           id,
-          status
+          status,
+          skills,
+          gender
         )
       `)
       .eq('hotel_id', hotelId);
 
-    console.log(`[DEBUG] hairdresser_hotels raw result: ${JSON.stringify(hairdressers)}, error: ${JSON.stringify(hairdressersError)}`);
-    _debug.hairdressersRaw = hairdressers;
-    _debug.hairdressersError = hairdressersError;
-
-    // Filter active hairdressers (case-insensitive)
-    const activeHairdressers = hairdressers?.filter((h: any) =>
-      h.hairdressers?.status?.toLowerCase() === 'active'
-    ) || [];
-
-    console.log(`[DEBUG] activeHairdressers after filter: ${JSON.stringify(activeHairdressers)}`);
-    _debug.activeHairdressers = activeHairdressers;
-
-    if (hairdressersError) {
-      console.error('Error fetching hairdressers:', hairdressersError);
-      throw hairdressersError;
+    if (therapistGender) {
+      therapistQuery = therapistQuery.eq('therapists.gender', therapistGender);
     }
 
-    // Get trunk count for this hotel (CAPACITY CONSTRAINT)
-    const { data: trunks, error: trunksError } = await supabase
-      .from('trunks')
+    const { data: therapists, error: therapistsError } = await therapistQuery;
+
+    console.log(`[DEBUG] therapist_venues raw result: ${JSON.stringify(therapists)}, error: ${JSON.stringify(therapistsError)}`);
+    _debug.therapistsRaw = therapists;
+    _debug.therapistsError = therapistsError;
+
+    // Filter active therapists (case-insensitive, supports both EN "active" and FR "actif")
+    const activeTherapists = therapists?.filter((h: any) => {
+      const status = h.therapists?.status?.toLowerCase();
+      return status === 'active' || status === 'actif';
+    }) || [];
+
+    console.log(`[DEBUG] activeTherapists after filter: ${JSON.stringify(activeTherapists)}`);
+    _debug.activeTherapists = activeTherapists;
+
+    if (therapistsError) {
+      console.error('Error fetching therapists:', therapistsError);
+      throw therapistsError;
+    }
+
+    // Filter therapists by category/skills matching
+    // If no categories required, all active therapists qualify
+    // If therapist has no skills assigned (null/empty), they qualify (backward compat)
+    // Otherwise, therapist must have at least one skill matching a required category
+    const qualifiedTherapists = requiredCategories.size === 0
+      ? activeTherapists
+      : activeTherapists.filter((h: any) => {
+          const skills: string[] | null = h.therapists?.skills;
+          if (!skills || skills.length === 0) return true; // backward compat
+          return [...requiredCategories].some(cat => skills.includes(cat));
+        });
+
+    console.log(`[DEBUG] qualifiedTherapists after category filter: ${qualifiedTherapists.length}/${activeTherapists.length}`);
+    _debug.qualifiedTherapists = qualifiedTherapists.length;
+
+    // Get treatment room count for this hotel (CAPACITY CONSTRAINT)
+    const { data: treatmentRooms, error: roomsError } = await supabase
+      .from('treatment_rooms')
       .select('id')
       .eq('hotel_id', hotelId)
       .in('status', ['active', 'Actif']);
 
-    if (trunksError) {
-      console.error('Error fetching trunks:', trunksError);
-      throw trunksError;
+    if (roomsError) {
+      console.error('Error fetching treatment rooms:', roomsError);
+      throw roomsError;
     }
 
-    const totalTrunks = trunks?.length || 0;
-    console.log(`[DEBUG] trunks: ${JSON.stringify(trunks)}, totalTrunks: ${totalTrunks}`);
-    _debug.trunks = trunks;
-    _debug.totalTrunks = totalTrunks;
+    const totalRooms = treatmentRooms?.length || 0;
+    console.log(`[DEBUG] treatment_rooms: ${JSON.stringify(treatmentRooms)}, totalRooms: ${totalRooms}`);
+    _debug.treatmentRooms = treatmentRooms;
+    _debug.totalRooms = totalRooms;
 
-    // If no trunks, no availability
-    if (totalTrunks === 0) {
-      console.log('[DEBUG] EARLY EXIT: no active trunks');
-      _debug.earlyExit = 'no_active_trunks';
+    // If no treatment rooms, no availability
+    if (totalRooms === 0) {
+      console.log('[DEBUG] EARLY EXIT: no active treatment rooms');
+      _debug.earlyExit = 'no_active_treatment_rooms';
       return new Response(
         JSON.stringify({ availableSlots: [], _debug }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!activeHairdressers || activeHairdressers.length === 0) {
-      console.log('[DEBUG] EARLY EXIT: no active hairdressers');
-      _debug.earlyExit = 'no_active_hairdressers';
+    if (!qualifiedTherapists || qualifiedTherapists.length === 0) {
+      console.log('[DEBUG] EARLY EXIT: no qualified therapists (active + category match)');
+      _debug.earlyExit = 'no_qualified_therapists';
       return new Response(
         JSON.stringify({ availableSlots: [], _debug }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const hairdresserIds = activeHairdressers.map((h: any) => h.hairdresser_id);
-    console.log(`Found ${hairdresserIds.length} active hairdressers`);
+    const therapistIds = qualifiedTherapists.map((h: any) => h.therapist_id);
+    console.log(`Found ${therapistIds.length} qualified therapists (active + category)`);
+
+    // THERAPIST SCHEDULE CHECK: Filter by therapist_availability table
+    const { data: therapistSchedules, error: scheduleCheckError } = await supabase
+      .from('therapist_availability')
+      .select('therapist_id, is_available, shifts')
+      .eq('date', date)
+      .in('therapist_id', therapistIds);
+
+    if (scheduleCheckError) {
+      console.error('Error fetching therapist schedules:', scheduleCheckError);
+    }
+
+    // Build schedule map: therapist_id -> { is_available, shifts }
+    const scheduleMap = new Map<string, { is_available: boolean; shifts: any[] }>();
+    (therapistSchedules || []).forEach((s: any) => {
+      scheduleMap.set(s.therapist_id, {
+        is_available: s.is_available,
+        shifts: Array.isArray(s.shifts) ? s.shifts : [],
+      });
+    });
+
+    // Filter therapists: available if schedule says available OR no schedule data (backward compat)
+    const scheduledTherapistIds = therapistIds.filter((id: string) => {
+      const schedule = scheduleMap.get(id);
+      if (!schedule) return true; // No schedule data = available (transition period)
+      return schedule.is_available;
+    });
+
+    console.log(`[DEBUG] therapists after schedule filter: ${scheduledTherapistIds.length}/${therapistIds.length}`);
+    _debug.scheduledTherapistIds = scheduledTherapistIds;
+    _debug.therapistSchedules = therapistSchedules;
+
+    if (scheduledTherapistIds.length === 0) {
+      console.log('[DEBUG] EARLY EXIT: no therapists available per schedule');
+      _debug.earlyExit = 'no_therapists_per_schedule';
+      return new Response(
+        JSON.stringify({ availableSlots: [], _debug }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get all bookings for this hotel on this date (for trunk capacity check)
     // Exclude cancelled/terminated bookings
     // Include duration for overlap checking
     const { data: allHotelBookings, error: allBookingsError } = await supabase
       .from('bookings')
-      .select('booking_time, hairdresser_id, status, trunk_id, duration')
+      .select('booking_time, therapist_id, status, room_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
       .not('status', 'in', '("Annulé","Terminé","cancelled")');
@@ -247,8 +322,6 @@ serve(async (req) => {
 
     // Generate time slots based on venue opening hours and slot interval
     const timeSlots = [];
-    const openingMinutes = openingHour * 60;
-    const closingMinutes = closingHour * 60;
     for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
       const h = Math.floor(minutes / 60);
       const m = minutes % 60;
@@ -256,7 +329,7 @@ serve(async (req) => {
       timeSlots.push(time24);
     }
 
-    console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingHour}:00 - ${closingHour}:00 => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
+    console.log(`[DEBUG] generated ${timeSlots.length} time slots: ${openingDisplay} - ${closingDisplay} => [${timeSlots[0]} ... ${timeSlots[timeSlots.length - 1]}]`);
 
     // Calculate the earliest bookable time based on lead_time
     const now = new Date();
@@ -279,7 +352,7 @@ serve(async (req) => {
       console.log(`Lead time filter: earliest bookable slot is ${earliestBookableTime} (current time + ${maxLeadTime} min)`);
     }
 
-    // Check which slots have availability (both hairdresser AND trunk)
+    // Check which slots have availability (both therapist AND room)
     const availableSlots = timeSlots.filter(slot => {
       // Filter out slots that fall in blocked time ranges (e.g., lunch breaks)
       if (isSlotInBlockedRange(slot)) {
@@ -296,22 +369,41 @@ serve(async (req) => {
         isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30)
       );
 
-      // TRUNK CAPACITY CHECK: Count bookings blocking this slot
+      // ROOM CAPACITY CHECK: Count bookings blocking this slot
       const activeBookingsCount = bookingsBlockingSlot.length;
-      if (activeBookingsCount >= totalTrunks) {
-        // All trunks are occupied at this time
+      if (activeBookingsCount >= totalRooms) {
+        // All treatment rooms are occupied at this time
         return false;
       }
 
-      // HAIRDRESSER CHECK: At least one hairdresser must be free
-      const busyHairdressers = new Set(
+      // THERAPIST CHECK: At least one therapist must be free AND within their shift hours
+      const busyTherapists = new Set(
         bookingsBlockingSlot
-          .filter((b: any) => b.hairdresser_id !== null)
-          .map((b: any) => b.hairdresser_id)
+          .filter((b: any) => b.therapist_id !== null)
+          .map((b: any) => b.therapist_id)
       );
 
-      const availableHairdresserCount = hairdresserIds.length - busyHairdressers.size;
-      return availableHairdresserCount > 0;
+      const slotMinutes = timeToMinutes(slot);
+
+      // Count therapists who are: scheduled for this time slot AND not busy with a booking
+      const availableTherapistCount = scheduledTherapistIds.filter((id: string) => {
+        if (busyTherapists.has(id)) return false;
+
+        // Check if slot falls within one of the therapist's shifts
+        const schedule = scheduleMap.get(id);
+        if (!schedule || schedule.shifts.length === 0) {
+          // No shift data (backward compat): available all day
+          return true;
+        }
+
+        return schedule.shifts.some((shift: any) => {
+          const shiftStart = timeToMinutes(shift.start + ':00');
+          const shiftEnd = timeToMinutes(shift.end + ':00');
+          return slotMinutes >= shiftStart && slotMinutes < shiftEnd;
+        });
+      }).length;
+
+      return availableTherapistCount > 0;
     });
 
     console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);
@@ -320,7 +412,7 @@ serve(async (req) => {
     _debug.earliestBookableTime = earliestBookableTime;
     _debug.now = now.toISOString();
     _debug.blockedSlotsData = blockedSlots;
-    _debug.hairdresserIds = hairdresserIds;
+    _debug.therapistIds = therapistIds;
 
     return new Response(
       JSON.stringify({ availableSlots, _debug }),

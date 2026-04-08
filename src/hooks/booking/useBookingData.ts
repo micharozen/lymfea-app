@@ -6,6 +6,8 @@ import type { Database } from "@/integrations/supabase/types";
 type BookingRow = Database['public']['Tables']['bookings']['Row'];
 
 export interface Treatment {
+  id?: string;             
+  treatment_id?: string;
   name: string;
   duration: number | null;
   price: number | null;
@@ -28,9 +30,12 @@ export interface Hotel {
   name: string;
   image: string | null;
   currency: string | null;
+  calendar_color: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
 }
 
-export interface Hairdresser {
+export interface Therapist {
   id: string;
   first_name: string;
   last_name: string;
@@ -76,8 +81,16 @@ export function useBookingData() {
             ? booking.duration
             : treatmentsTotalDuration;
 
-          const treatmentsList = (treatments as BookingTreatmentJoin[] | null)?.map((t) => t.treatment_menus).filter((m): m is Treatment => m !== null) || [];
-
+const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
+            ?.map((t): Treatment | null => {
+              if (!t.treatment_menus) return null;
+              return {
+                ...t.treatment_menus,
+                id: t.treatment_id,
+                treatment_id: t.treatment_id
+              } as Treatment; // <-- On force TypeScript à accepter notre format !
+            })
+            .filter((m): m is Treatment => m !== null) || [];
           return {
             ...booking,
             totalDuration,
@@ -97,23 +110,23 @@ export function useBookingData() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
-        .select("id, name, image, currency")
+        .select("id, name, image, currency, calendar_color, opening_time, closing_time")
         .order("name");
       if (error) throw error;
       return data as Hotel[];
     },
   });
 
-  const { data: hairdressers } = useQuery({
-    queryKey: ["hairdressers"],
+  const { data: therapists } = useQuery({
+    queryKey: ["therapists"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("hairdressers")
+        .from("therapists")
         .select("id, first_name, last_name")
         .eq("status", "active")
         .order("first_name");
       if (error) throw error;
-      return data as Hairdresser[];
+      return data as Therapist[];
     },
   });
 
@@ -143,7 +156,7 @@ export function useBookingData() {
   return {
     bookings,
     hotels,
-    hairdressers,
+    therapists,
     getHotelInfo,
     refetch: refetchBookings,
   };

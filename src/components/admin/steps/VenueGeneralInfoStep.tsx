@@ -46,11 +46,12 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VenueWizardFormValues } from "../VenueWizardDialog";
+import { brand } from "@/config/brand";
 
-interface Trunk {
+interface TreatmentRoom {
   id: string;
   name: string;
-  trunk_id: string;
+  room_number: string;
   image: string | null;
   hotel_id: string | null;
 }
@@ -65,25 +66,25 @@ function SectionHeader({ icon: Icon, title }: { icon: React.ElementType; title: 
   );
 }
 
-// Component to display calculated OOM commission
-function OomCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
+// Component to display calculated Lymfea commission
+function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
   const hotelCommission = useWatch({ control, name: "hotel_commission" });
-  const hairdresserCommission = useWatch({ control, name: "hairdresser_commission" });
+  const therapistCommission = useWatch({ control, name: "therapist_commission" });
 
   const hotelComm = parseFloat(hotelCommission) || 0;
-  const hairdresserComm = parseFloat(hairdresserCommission) || 0;
-  const oomCommission = Math.max(0, 100 - hotelComm - hairdresserComm);
-  const isInvalid = hotelComm + hairdresserComm > 100;
+  const therapistComm = parseFloat(therapistCommission) || 0;
+  const lymfeaCommission = Math.max(0, 100 - hotelComm - therapistComm);
+  const isInvalid = hotelComm + therapistComm > 100;
 
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium flex items-center gap-1.5">
         <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-        Commission OOM
+        {`Commission ${brand.name}`}
       </label>
       <div className={`relative flex items-center h-10 px-3 border rounded-md bg-muted/50 ${isInvalid ? 'border-destructive' : ''}`}>
         <span className={`text-sm font-medium ${isInvalid ? 'text-destructive' : 'text-foreground'}`}>
-          {isInvalid ? 'Erreur' : `${oomCommission.toFixed(2)}%`}
+          {isInvalid ? 'Erreur' : `${lymfeaCommission.toFixed(2)}%`}
         </span>
       </div>
       {isInvalid && (
@@ -96,9 +97,9 @@ function OomCommissionDisplay({ control }: { control: Control<VenueWizardFormVal
 interface VenueGeneralInfoStepProps {
   form: UseFormReturn<VenueWizardFormValues>;
   mode: 'add' | 'edit';
-  trunks: Trunk[];
-  selectedTrunkIds: string[];
-  setSelectedTrunkIds: (ids: string[]) => void;
+  rooms: TreatmentRoom[];
+  selectedRoomIds: string[];
+  setSelectedRoomIds: (ids: string[]) => void;
   hotelImage: string;
   coverImage: string;
   uploadingHotel: boolean;
@@ -114,9 +115,9 @@ interface VenueGeneralInfoStepProps {
 export function VenueGeneralInfoStep({
   form,
   mode,
-  trunks,
-  selectedTrunkIds,
-  setSelectedTrunkIds,
+  rooms,
+  selectedRoomIds,
+  setSelectedRoomIds,
   hotelImage,
   coverImage,
   uploadingHotel,
@@ -136,6 +137,9 @@ export function VenueGeneralInfoStep({
 
   // Watch country field and auto-suggest timezone, currency, VAT (only for add mode)
   const countryValue = useWatch({ control: form.control, name: "country" });
+
+  // Watch global therapist commission toggle
+  const globalTherapistCommission = useWatch({ control: form.control, name: "global_therapist_commission" });
 
   useEffect(() => {
     if (mode === 'add' && countryValue) {
@@ -330,11 +334,11 @@ export function VenueGeneralInfoStep({
             />
           )}
 
-          {/* Trunk Selection */}
+          {/* Treatment Room Selection */}
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <Package className="h-3.5 w-3.5 text-muted-foreground" />
-              Trunks (Malles)
+              Salles de soin
             </Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -343,11 +347,11 @@ export function VenueGeneralInfoStep({
                   className="w-full justify-between font-normal h-9 text-xs hover:bg-background hover:text-foreground"
                 >
                   <span className="truncate">
-                    {selectedTrunkIds.length === 0
-                      ? "Sélectionner des trunks"
-                      : trunks
-                          .filter((t) => selectedTrunkIds.includes(t.id))
-                          .map((t) => t.name)
+                    {selectedRoomIds.length === 0
+                      ? "Sélectionner des salles"
+                      : rooms
+                          .filter((r) => selectedRoomIds.includes(r.id))
+                          .map((r) => r.name)
                           .join(", ")}
                   </span>
                   <svg className="h-3 w-3 opacity-50 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -363,22 +367,22 @@ export function VenueGeneralInfoStep({
               >
                 <ScrollArea className="h-40 touch-pan-y">
                   <div className="p-1">
-                    {trunks.map((trunk) => {
-                      const isSelected = selectedTrunkIds.includes(trunk.id);
+                    {rooms.map((room) => {
+                      const isSelected = selectedRoomIds.includes(room.id);
                       return (
                         <button
-                          key={trunk.id}
+                          key={room.id}
                           type="button"
                           onClick={() => {
                             if (isSelected) {
-                              setSelectedTrunkIds(selectedTrunkIds.filter((id) => id !== trunk.id));
+                              setSelectedRoomIds(selectedRoomIds.filter((id) => id !== room.id));
                             } else {
-                              setSelectedTrunkIds([...selectedTrunkIds, trunk.id]);
+                              setSelectedRoomIds([...selectedRoomIds, room.id]);
                             }
                           }}
                           className="w-full grid grid-cols-[1fr_auto] items-center gap-2 rounded-sm px-3 py-1.5 text-sm text-popover-foreground transition-colors hover:bg-foreground/5"
                         >
-                          <span className="min-w-0 truncate text-left">{trunk.name}</span>
+                          <span className="min-w-0 truncate text-left">{room.name}</span>
                           {isSelected ? (
                             <span className="h-4 w-4 grid place-items-center rounded-sm bg-primary text-primary-foreground">
                               <Check className="h-3 w-3" strokeWidth={3} />
@@ -533,49 +537,80 @@ export function VenueGeneralInfoStep({
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="hotel_commission"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-1.5">
-                  <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                  Commission lieu
-                </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input type="number" step="0.01" min="0" max="100" {...field} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField
+          control={form.control}
+          name="hotel_commission"
+          render={({ field }) => (
+            <FormItem className="mb-4">
+              <FormLabel className="flex items-center gap-1.5">
+                <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                Commission lieu
+              </FormLabel>
+              <FormControl>
+                <div className="relative w-40">
+                  <Input type="number" step="0.01" min="0" max="100" {...field} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          <FormField
-            control={form.control}
-            name="hairdresser_commission"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-1.5">
-                  <Percent className="h-3.5 w-3.5 text-muted-foreground" />
-                  Commission coiffeur
+        <FormField
+          control={form.control}
+          name="global_therapist_commission"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border p-3 mb-4">
+              <div className="space-y-0.5 pr-4">
+                <FormLabel className="text-sm font-medium">
+                  Commission thérapeute globale
                 </FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input type="number" step="0.01" min="0" max="100" {...field} />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <p className="text-xs text-muted-foreground">
+                  Appliquer le même pourcentage de commission à tous les thérapeutes
+                </p>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
 
-          <OomCommissionDisplay control={form.control} />
-        </div>
+        {globalTherapistCommission ? (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="therapist_commission"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Percent className="h-3.5 w-3.5 text-muted-foreground" />
+                    Commission thérapeute
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input type="number" step="0.01" min="0" max="100" {...field} />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <LymfeaCommissionDisplay control={form.control} />
+          </div>
+        ) : (
+          <div className="rounded-lg bg-muted/50 p-3">
+            <p className="text-sm text-muted-foreground">
+              La commission thérapeute est définie individuellement sur chaque fiche thérapeute (taux par durée de soin). Le reste revient à {brand.name}.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Section: Paramètres */}
@@ -590,7 +625,7 @@ export function VenueGeneralInfoStep({
               <div className="space-y-0.5">
                 <FormLabel className="text-base">Auto-validation des réservations</FormLabel>
                 <p className="text-sm text-muted-foreground">
-                  Si activé et qu'un seul coiffeur est assigné au lieu, les réservations seront automatiquement confirmées sans validation manuelle.
+                  Si activé et qu'un seul thérapeute est assigné au lieu, les réservations seront automatiquement confirmées sans validation manuelle.
                 </p>
               </div>
               <FormControl>
@@ -603,46 +638,6 @@ export function VenueGeneralInfoStep({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="offert"
-          render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Journée offerte (Démo)</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Si activé, tous les soins seront affichés comme gratuits pour les clients. Idéal pour une journée de démonstration.
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="company_offered"
-          render={({ field }) => (
-            <FormItem className="flex items-center justify-between rounded-lg border p-4 mt-3">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Offert par l'entreprise</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Si activé, les prix sont masqués pour les clients. Les réservations sont créées comme offertes.
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
       </div>
     </div>
   );

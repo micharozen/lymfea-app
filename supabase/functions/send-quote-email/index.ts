@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.81.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,7 +107,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const resend = new Resend(resendApiKey);
-    const siteUrl = Deno.env.get("SITE_URL") || "https://app.oom-world.com";
+    const siteUrl = Deno.env.get("SITE_URL") || `https://${brand.appDomain}`;
     const hotelName = booking.hotel_name || "l'hôtel";
 
     // Create approve and refuse URLs
@@ -128,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const emailResponse = await resend.emails.send({
-      from: "OOM World <booking@oomworld.com>",
+      from: brand.emails.from.default,
       to: [booking.client_email],
       subject: `Votre devis pour ${treatmentNames} est prêt`,
       html: `
@@ -147,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
                   <tr>
                     <td align="center">
-                      <img src="https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png" alt="OOM World" style="height: 40px;">
+                      <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" style="height: 40px;">
                     </td>
                   </tr>
                 </table>
@@ -159,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
                       <h1 style="color: #1f2937; font-size: 24px; margin: 0 0 16px 0;">Votre devis est prêt</h1>
                       <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0;">
                         Bonjour ${booking.client_first_name},<br>
-                        L'équipe OOM a estimé votre soin.
+                        L'équipe ${brand.name} a estimé votre soin.
                       </p>
                     </td>
                   </tr>
@@ -292,7 +293,7 @@ const handler = async (req: Request): Promise<Response> => {
                     <td align="center">
                       <p style="color: #9ca3af; font-size: 12px; margin: 0;">
                         Si vous n'avez pas fait cette demande, vous pouvez ignorer cet email.<br>
-                        OOM World - Luxury Hair Services
+                        ${brand.fullName}
                       </p>
                     </td>
                   </tr>

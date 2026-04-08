@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,10 +72,10 @@ serve(async (req) => {
 
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
-    const logoUrl = 'https://jpvgfxchupfukverhcgt.supabase.co/storage/v1/object/public/assets/oom-logo-email.png';
-    
+    const logoUrl = EMAIL_LOGO_URL;
+
     // Deep link URL for booking details
-    const siteUrl = Deno.env.get('SITE_URL') || 'https://app.oomworld.com';
+    const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
     // Informative email - NO billing info - WITH CTA BUTTON
@@ -90,7 +91,7 @@ serve(async (req) => {
           <!-- Header -->
           <tr>
             <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="OOM" style="height:50px;display:block;margin:0 auto 10px;" />
+              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
               <span style="display:inline-block;background:#3b82f6;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">📅 Nouvelle réservation</span>
             </td>
           </tr>
@@ -156,7 +157,7 @@ serve(async (req) => {
           <!-- Footer -->
           <tr>
             <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">
-              OOM · Pour info uniquement
+              ${brand.name} · Pour info uniquement
             </td>
           </tr>
         </table>
@@ -189,7 +190,7 @@ serve(async (req) => {
         for (const concierge of concierges) {
           try {
             const { error: emailError } = await resend.emails.send({
-              from: 'OOM <booking@oomworld.com>',
+              from: brand.emails.from.default,
               to: [concierge.email],
               subject: `📅 RDV prévu · Ch.${booking.room_number || 'N/A'} · ${formattedTime} · #${booking.booking_id}`,
               html: createInfoEmailHtml(),

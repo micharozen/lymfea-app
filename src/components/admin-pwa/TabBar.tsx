@@ -66,7 +66,7 @@ const AdminTabBar = ({ unreadCount = 0 }: AdminTabBarProps) => {
               strokeWidth={isActive("/admin-pwa/notifications") ? 2.5 : 1.5}
             />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-gold-400 text-black text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+              <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}

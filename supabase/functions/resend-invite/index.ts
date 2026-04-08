@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { brand } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -90,9 +91,9 @@ serve(async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "OOM App <booking@oomworld.com>",
+        from: brand.emails.from.default,
         to: [email],
-        subject: "Nouveau lien d'activation - OOM App",
+        subject: `Nouveau lien d'activation - ${brand.name}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -110,7 +111,7 @@ serve(async (req: Request): Promise<Response> => {
                 <p style="font-size: 16px; margin-bottom: 20px;">Bonjour ${admin.first_name} ${admin.last_name},</p>
                 
                 <p style="font-size: 16px; margin-bottom: 20px;">
-                  Voici un nouveau lien pour activer votre compte sur OOM App.
+                  Voici un nouveau lien pour activer votre compte sur ${brand.name}.
                 </p>
 
                 <div style="text-align: center; margin: 35px 0;">
@@ -128,12 +129,12 @@ serve(async (req: Request): Promise<Response> => {
 
                 <p style="font-size: 16px; margin-top: 40px; color: #666;">
                   Cordialement,<br>
-                  <strong style="color: #000000;">L'équipe OOM App</strong>
+                  <strong style="color: #000000;">L'équipe ${brand.name}</strong>
                 </p>
               </div>
 
               <div style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 12px;">
-                <p style="margin: 0;">© ${new Date().getFullYear()} OOM World. Tous droits réservés.</p>
+                <p style="margin: 0;">© ${new Date().getFullYear()} ${brand.legal.companyName}. Tous droits réservés.</p>
               </div>
             </body>
           </html>

@@ -1,13 +1,16 @@
-import { User } from "lucide-react";
+import { User, Globe } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function Profile() {
+  const { t } = useTranslation('pwa');
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -182,8 +185,8 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-4xl">
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
-          <Card className="border border-border bg-card shadow-sm">
+          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
+          <Card className="border border-border bg-card">
             <CardContent className="p-4 md:p-8">
               <p className="text-muted-foreground">Chargement...</p>
             </CardContent>
@@ -196,9 +199,9 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-4xl">
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground mb-4 md:mb-8">Profil</h1>
+        <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
 
-        <Card className="border border-border bg-card shadow-sm">
+        <Card className="border border-border bg-card">
           <CardContent className="p-4 md:p-8">
             {/* Photo de profil */}
             <div className="flex items-center gap-4 md:gap-6 mb-6 md:mb-8">
@@ -295,11 +298,19 @@ export default function Profile() {
               </div>
             </div>
 
+            {/* Language Preference */}
+            <div className="pt-4 border-t mb-6">
+              <Label className="text-sm text-muted-foreground mb-3 flex items-center gap-2">
+                <Globe className="h-4 w-4" />
+                {t('profile.language')}
+              </Label>
+              <LanguageSwitcher variant="list" persistToProfile />
+            </div>
+
             <div className="flex justify-end gap-3">
               {!isEditing ? (
                 <Button 
                   onClick={() => setIsEditing(true)}
-                  className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   Modifier le profil
                 </Button>
@@ -313,7 +324,6 @@ export default function Profile() {
                   </Button>
                   <Button 
                     onClick={handleSave}
-                    className="bg-foreground text-background hover:bg-foreground/90"
                   >
                     Enregistrer les modifications
                   </Button>
