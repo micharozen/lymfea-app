@@ -476,5 +476,67 @@
     "calendars": "Calendriers",
     "showAll": "Tout",
     "hideAll": "Rien"
+  },
+  "support": {
+    "title": "Support",
+    "description": "Gérez vos tickets de support",
+    "createTicket": "Nouveau ticket",
+    "subject": "Sujet",
+    "description_label": "Description",
+    "category": "Catégorie",
+    "priority": "Priorité",
+    "status": "Statut",
+    "createdBy": "Créé par",
+    "createdAt": "Date",
+    "actions": "Actions",
+    "search": "Rechercher un ticket...",
+    "allStatuses": "Tous les statuts",
+    "allCategories": "Toutes les catégories",
+    "allPriorities": "Toutes les priorités",
+    "categories": {
+      "question": "Question",
+      "billing": "Facturation",
+      "booking": "Réservation",
+      "problem": "Problème",
+      "other": "Autre"
+    },
+    "priorities": {
+      "low": "Basse",
+      "medium": "Moyenne",
+      "high": "Haute",
+      "urgent": "Urgente"
+    },
+    "statuses": {
+      "open": "Ouvert",
+      "in_progress": "En cours",
+      "resolved": "Résolu",
+      "closed": "Fermé"
+    },
+    "createDialog": {
+      "title": "Créer un ticket support",
+      "subjectPlaceholder": "Résumé du problème",
+      "descriptionPlaceholder": "Décrivez le problème en détail...",
+      "submit": "Envoyer",
+      "submitting": "Envoi...",
+      "cancel": "Annuler"
+    },
+    "toast": {
+      "created": "Ticket créé avec succès",
+      "createError": "Erreur lors de la création du ticket",
+      "statusUpdated": "Statut mis à jour",
+      "statusError": "Erreur lors de la mise à jour du statut",
+      "fieldsRequired": "Veuillez remplir tous les champs obligatoires",
+      "loadError": "Erreur lors du chargement des tickets"
+    },
+    "empty": "Aucun ticket de support",
+    "emptyOpen": "Aucun ticket ouvert",
+    "emptyClosed": "Aucun ticket fermé",
+    "openTickets": "Tickets ouverts",
+    "closedTickets": "Tickets fermés",
+    "closedAt": "Fermé le",
+    "screenshots": "Captures d'écran",
+    "screenshotsDesc": "Ajoutez jusqu'à 3 captures d'écran (optionnel)",
+    "viewScreenshots": "Voir les captures d'écran",
+    "viewNotion": "Voir dans Notion"
   }
 }

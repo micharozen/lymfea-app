@@ -131,3 +131,9 @@ verify_jwt = false
 
 [functions.opera-cloud-post-charge]
 verify_jwt = false
+
+[functions.create-support-ticket]
+verify_jwt = false
+
+[functions.notion-ticket-webhook]
+verify_jwt = false

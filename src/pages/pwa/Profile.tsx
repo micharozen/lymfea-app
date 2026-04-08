@@ -208,7 +208,7 @@ const PwaProfile = () => {
     { icon: Bell, label: t('profile.notifications'), onClick: () => navigate("/pwa/profile/notifications") },
     { icon: Globe, label: t('profile.language'), onClick: () => setIsLanguageDialogOpen(true) },
     { icon: Shield, label: t('profile.security'), onClick: () => navigate("/pwa/account-security") },
-    { icon: HelpCircle, label: "Support", onClick: () => window.open("https://wa.me/33769627754", "_blank") },
+    { icon: HelpCircle, label: t('support.title'), onClick: () => navigate("/pwa/support") },
   ];
 
   return (

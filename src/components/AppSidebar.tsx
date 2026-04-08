@@ -25,6 +25,7 @@ import {
   ChevronsLeft,
   User,
   LogOut,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -333,7 +334,13 @@ export function AppSidebar() {
                     <span>Profil</span>
                   </NavLink>
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <NavLink to="/admin/support" className="flex items-center w-full">
+                    <LifeBuoy className="mr-2 h-4 w-4" />
+                    <span>Support</span>
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   className="cursor-pointer text-destructive focus:text-destructive"
                   onClick={handleLogout}
                 >
