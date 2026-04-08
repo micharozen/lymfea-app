@@ -50,20 +50,22 @@ export default function Signature() {
 
     const fetchBooking = async () => {
       try {
+        // La méthode la plus sécurisée : on interroge via la fonction RPC
         const { data, error } = await supabase.rpc('get_booking_by_signature_token', { p_token: token });
         
-        // Si aucune donnée, c'est que le lien est invalide ou la décharge déjà signée
+        // Si le token n'existe pas OU si signed_at n'est pas NULL, la requête renverra 0 résultats.
         if (error || !data || data.length === 0) {
           setIsAlreadySigned(true);
           return;
         }
-        
+
+        const b = data[0] as any; // On force le type pour TS avec le format retourné par le RPC
         setBookingInfo({
-          client_name: `${data[0].client_first_name} ${data[0].client_last_name}`,
-          hotel_name: data[0].hotel_name,
+          client_name: `${b.client_first_name} ${b.client_last_name}`,
+          hotel_name: b.hotel_name,
           room_number: '',
-          treatment_name: data[0].treatment_name || 'Soin', 
-          price: data[0].total_price ? `${data[0].total_price} €` : 'À définir',
+          treatment_name: b.treatment_name || 'Soin', 
+          price: b.total_price ? `${b.total_price} €` : 'À définir',
         });
       } catch (err) {
         console.error('Erreur:', err);
@@ -130,18 +132,19 @@ export default function Signature() {
     const signatureBase64 = canvas?.toDataURL('image/png');
 
     try {
+      // Retour à la méthode ultra-sécurisée de Michael (RPC) pour contourner l'erreur 400 RLS
       const { data, error } = await supabase.rpc('submit_client_signature', {
         p_token: token,
         p_signature: signatureBase64,
         p_form_data: formData,
       });
 
-      if (error || !data) throw error;
+      if (error) throw error;
       
-      // On affiche l'écran de succès sans rediriger
       setIsSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
+      console.error("Erreur lors de la soumission :", err);
       toast({ title: 'Erreur lors de la sauvegarde', variant: 'destructive' });
     } finally {
       setSubmitting(false);
@@ -164,7 +167,6 @@ export default function Signature() {
     );
   }
 
-  // --- ÉCRAN : SUCCÈS APRÈS SIGNATURE ---
   // --- ÉCRAN : SUCCÈS APRÈS SIGNATURE ---
   if (isSuccess) {
     return (
@@ -285,12 +287,12 @@ export default function Signature() {
                 <div className="flex justify-between items-end gap-4">
                   <span className="text-[13px] text-gray-800 uppercase tracking-widest leading-tight">{item.label} :</span>
                   <span className="text-lg font-serif text-black shrink-0 whitespace-nowrap">
-                    {formData[item.field as keyof typeof formData] || 5} <span className="text-sm text-gray-400">/ 10</span>
+                    {(formData[item.field as keyof typeof formData] as string | number) || 5} <span className="text-sm text-gray-400">/ 10</span>
                   </span>
                 </div>
                 <input 
                   type="range" min="1" max="10" 
-                  value={formData[item.field as keyof typeof formData] || 5} 
+                  value={(formData[item.field as keyof typeof formData] as string | number) || 5} 
                   onChange={(e) => handleInputChange(item.field, e.target.value)} 
                   className="w-full h-[1px] bg-gray-300 appearance-none cursor-pointer accent-black mt-1" 
                 />
