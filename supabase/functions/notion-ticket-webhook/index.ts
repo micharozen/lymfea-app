@@ -26,6 +26,9 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get("NOTION_WEBHOOK_SECRET");
     const providedSecret = req.headers.get("x-webhook-secret");
 
+    console.log("[NotionWebhook] Debug - expected:", webhookSecret, "received:", providedSecret);
+    console.log("[NotionWebhook] Debug - all headers:", JSON.stringify(Object.fromEntries(req.headers.entries())));
+
     if (!webhookSecret || providedSecret !== webhookSecret) {
       console.error("[NotionWebhook] Invalid or missing webhook secret");
       return new Response(
@@ -37,9 +40,9 @@ serve(async (req) => {
     const body = await req.json();
     console.log("[NotionWebhook] Received:", JSON.stringify(body));
 
-    // Extract Notion page ID and new status from the webhook payload
-    const notionPageId = body.page_id || body.data?.page_id;
-    const newStatus = body.status || body.data?.status;
+    // Extract Notion page ID and new status from the automation payload
+    const notionPageId = body.data?.id || body.page_id;
+    const newStatus = body.data?.properties?.Status?.select?.name || body.status;
 
     if (!notionPageId) {
       return new Response(

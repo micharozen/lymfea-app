@@ -529,6 +529,14 @@
       "loadError": "Failed to load tickets"
     },
     "empty": "No support tickets",
+    "emptyOpen": "No open tickets",
+    "emptyClosed": "No closed tickets",
+    "openTickets": "Open Tickets",
+    "closedTickets": "Closed Tickets",
+    "closedAt": "Closed at",
+    "screenshots": "Screenshots",
+    "screenshotsDesc": "Add up to 3 screenshots (optional)",
+    "viewScreenshots": "View screenshots",
     "viewNotion": "View in Notion"
   }
 }
