@@ -179,24 +179,24 @@ const PwaOnboarding = () => {
 
   if (step === "welcome") {
     return (
-      <div className="min-h-screen flex flex-col bg-white">
+      <div className="min-h-screen flex flex-col bg-background">
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           <img src={brandLogos.primary} alt={brand.name} className="h-12 mb-12" />
           
-          <div className="w-16 h-16 rounded-full bg-black flex items-center justify-center mb-6">
-            <Check className="h-8 w-8 text-white" strokeWidth={3} />
+          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mb-6">
+            <Check className="h-8 w-8 text-primary-foreground" strokeWidth={3} />
           </div>
           
           <h1 className="text-2xl font-semibold mb-2 text-center">
             {t('onboarding.welcome.accountCreated')}
           </h1>
-          <p className="text-sm text-gray-500 text-center mb-12 max-w-xs">
+          <p className="text-sm text-muted-foreground text-center mb-12 max-w-xs">
             {t('onboarding.welcome.subtitle')}
           </p>
 
           <Button
             onClick={() => setStep("password")}
-            className="w-full h-12 rounded-full bg-black text-white hover:bg-black/90"
+            className="w-full h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {t('onboarding.welcome.start')}
           </Button>
@@ -207,7 +207,7 @@ const PwaOnboarding = () => {
 
   if (step === "password") {
     return (
-      <div className="min-h-screen flex flex-col bg-white">
+      <div className="min-h-screen flex flex-col bg-background">
         <div className="p-4">
           <button onClick={() => setStep("welcome")}>
             <ArrowLeft className="h-6 w-6" />
@@ -215,9 +215,9 @@ const PwaOnboarding = () => {
         </div>
 
         <div className="flex-1 flex flex-col px-6 pt-4">
-          <p className="text-xs text-gray-400 mb-2">{t('onboarding.password.step')}</p>
+          <p className="text-xs text-muted-foreground mb-2">{t('onboarding.password.step')}</p>
           <h1 className="text-2xl font-semibold mb-2">{t('onboarding.password.heading')}</h1>
-          <p className="text-sm text-gray-500 mb-8">{t('onboarding.password.subtitle')}</p>
+          <p className="text-sm text-muted-foreground mb-8">{t('onboarding.password.subtitle')}</p>
 
           <div className="space-y-4 mb-8">
             <div className="space-y-2">
@@ -234,7 +234,7 @@ const PwaOnboarding = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -255,7 +255,7 @@ const PwaOnboarding = () => {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 >
                   {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -275,8 +275,8 @@ const PwaOnboarding = () => {
             disabled={savingPassword || !password || !confirmPassword || password !== confirmPassword || password.length < 6}
             className={`w-full h-12 rounded-full ${
               password && confirmPassword && password === confirmPassword && password.length >= 6
-                ? "bg-black text-white hover:bg-black/90"
-                : "bg-gray-200 text-gray-400"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground"
             }`}
           >
             {savingPassword ? t('onboarding.password.saving') : t('onboarding.password.continue')}
@@ -288,7 +288,7 @@ const PwaOnboarding = () => {
 
   if (step === "photo") {
     return (
-      <div className="min-h-screen flex flex-col bg-white">
+      <div className="min-h-screen flex flex-col bg-background">
         <div className="p-4">
           <button onClick={() => setStep("password")}>
             <ArrowLeft className="h-6 w-6" />
@@ -296,19 +296,19 @@ const PwaOnboarding = () => {
         </div>
 
         <div className="flex-1 flex flex-col px-6 pt-4">
-          <p className="text-xs text-gray-400 mb-2">{t('onboarding.photo.step')}</p>
+          <p className="text-xs text-muted-foreground mb-2">{t('onboarding.photo.step')}</p>
           <h1 className="text-2xl font-semibold mb-2">{t('onboarding.photo.title')}</h1>
-          <p className="text-sm text-gray-500 mb-8">{t('onboarding.photo.subtitle')}</p>
+          <p className="text-sm text-muted-foreground mb-8">{t('onboarding.photo.subtitle')}</p>
 
           <div className="flex justify-center mb-8">
             <div className="relative inline-block">
-              <Avatar className="h-32 w-32 border-2 border-gray-200">
+              <Avatar className="h-32 w-32 border-2 border-border">
                 <AvatarImage src={profileImage || undefined} />
-                <AvatarFallback className="bg-gray-100">
-                  <Camera className="h-12 w-12 text-gray-400" />
+                <AvatarFallback className="bg-muted">
+                  <Camera className="h-12 w-12 text-muted-foreground" />
                 </AvatarFallback>
               </Avatar>
-              <label className="absolute bottom-0 right-0 bg-black text-white p-2.5 rounded-full cursor-pointer hover:bg-black/90 transition-colors">
+              <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground p-2.5 rounded-full cursor-pointer hover:bg-primary/90 transition-colors">
                 <Camera className="h-5 w-5" />
                 <input
                   type="file"
@@ -322,7 +322,7 @@ const PwaOnboarding = () => {
           </div>
 
           {uploading && (
-            <p className="text-sm text-gray-500 text-center mb-4 animate-pulse">
+            <p className="text-sm text-muted-foreground text-center mb-4 animate-pulse">
               {t('onboarding.photo.uploading')}
             </p>
           )}
@@ -331,7 +331,7 @@ const PwaOnboarding = () => {
             <Button
               onClick={() => setStep("notifications")}
               disabled={uploading}
-              className="w-full h-12 rounded-full bg-black text-white hover:bg-black/90"
+              className="w-full h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {t('onboarding.photo.continue')}
             </Button>
@@ -339,7 +339,7 @@ const PwaOnboarding = () => {
               onClick={() => setStep("notifications")}
               variant="ghost"
               disabled={uploading}
-              className="w-full h-12 text-gray-500"
+              className="w-full h-12 text-muted-foreground"
             >
               {t('onboarding.photo.skip')}
             </Button>
@@ -351,7 +351,7 @@ const PwaOnboarding = () => {
 
   // Notifications step
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-background">
       <div className="p-4">
         <button onClick={() => setStep("photo")}>
           <ArrowLeft className="h-6 w-6" />
@@ -359,27 +359,27 @@ const PwaOnboarding = () => {
       </div>
 
       <div className="flex-1 flex flex-col px-6 pt-4">
-        <p className="text-xs text-gray-400 mb-2">{t('onboarding.notifications.step')}</p>
+        <p className="text-xs text-muted-foreground mb-2">{t('onboarding.notifications.step')}</p>
         <h1 className="text-2xl font-semibold mb-2">{t('onboarding.notifications.heading')}</h1>
-        <p className="text-sm text-gray-500 mb-8">{t('onboarding.notifications.subtitle')}</p>
+        <p className="text-sm text-muted-foreground mb-8">{t('onboarding.notifications.subtitle')}</p>
 
         <div className="flex justify-center mb-8">
-          <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
-            <Bell className="h-10 w-10 text-gray-600" />
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <Bell className="h-10 w-10 text-muted-foreground" />
           </div>
         </div>
 
         <div className="space-y-3 mt-auto mb-8">
           <Button
             onClick={handleFinish}
-            className="w-full h-12 rounded-full bg-black text-white hover:bg-black/90"
+            className="w-full h-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {t('onboarding.notifications.enable')}
           </Button>
           <Button
             onClick={handleFinish}
             variant="ghost"
-            className="w-full h-12 text-gray-500"
+            className="w-full h-12 text-muted-foreground"
           >
             {t('onboarding.notifications.later')}
           </Button>

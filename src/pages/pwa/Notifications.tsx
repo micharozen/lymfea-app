@@ -3,7 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, CheckCheck, Trash2, Bell } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Check,
+  CheckCheck,
+  CheckCircle,
+  Mail,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { fr, enUS } from "date-fns/locale";
@@ -215,15 +224,16 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   };
 
   const getNotificationIcon = (type: string) => {
+    const iconClass = "h-5 w-5 shrink-0";
     switch (type) {
       case "new_booking":
-        return "🔔";
+        return <Bell className={iconClass} />;
       case "booking_cancelled":
-        return "❌";
+        return <XCircle className={iconClass} />;
       case "booking_taken":
-        return "✅";
+        return <CheckCircle className={iconClass} />;
       default:
-        return "📬";
+        return <Mail className={iconClass} />;
     }
   };
 
@@ -321,15 +331,15 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       />
 
       {/* Push Notifications Settings */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div className="bg-background border-b border-border px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Bell className="h-5 w-5 text-gray-500" />
+            <Bell className="h-5 w-5 text-muted-foreground" />
             <div>
               <Label htmlFor="push-notifications" className="text-sm font-medium">
                 {t('notifications.pushNotifications')}
               </Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 {t('notifications.pushDescription')}
               </p>
             </div>
@@ -347,16 +357,16 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
       <div className="flex-1 min-h-0 pb-4">
         {notificationsList.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <div className="text-6xl mb-4">🔕</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <BellOff className="h-8 w-8 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {t('notifications.noNotifications')}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               {t('notifications.willBeNotified')}
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-border">
             {notificationsList.map((notification) => {
               const swipeOffset = swipeStates[notification.id] || 0;
               const isSwipingNumber = typeof swipeOffset === 'number' && swipeOffset < 0;
@@ -376,20 +386,20 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
                       transform: isSwipingNumber ? `translateX(${swipeOffset}px)` : 'translateX(0)',
                       transition: isSwipingNumber ? 'none' : 'transform 0.3s ease-out'
                     }}
-                    className={`w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors relative ${
-                      !notification.read ? "bg-blue-50" : "bg-white"
+                    className={`w-full text-left px-4 py-4 hover:bg-muted transition-colors relative ${
+                      !notification.read ? "bg-primary/5" : "bg-background"
                     }`}
                   >
                     <div className="flex gap-3">
-                      <div className="flex-shrink-0 text-2xl">
+                      <div className="flex-shrink-0 flex items-center justify-center">
                         {getNotificationIcon(notification.type)}
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!notification.read ? "font-semibold text-gray-900" : "text-gray-700"}`}>
+                        <p className={`text-sm ${!notification.read ? "font-semibold text-foreground" : "text-foreground"}`}>
                           {notification.message}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(notification.created_at), {
                             addSuffix: true,
                             locale: dateLocale
@@ -399,9 +409,9 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
 
                       <div className="flex-shrink-0 flex items-center gap-2">
                         {!notification.read ? (
-                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" />
+                          <div className="w-2.5 h-2.5 bg-primary rounded-full" />
                         ) : (
-                          <Check className="h-4 w-4 text-gray-400" />
+                          <Check className="h-4 w-4 text-muted-foreground" />
                         )}
                         <button
                           onClick={(e) => deleteNotification(notification.id, e)}

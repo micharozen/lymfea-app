@@ -39,7 +39,7 @@ export function PopularServices({ treatments }: PopularServicesProps) {
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gold-400 rounded-full transition-all duration-500"
+                    className="h-full bg-gold-500 rounded-full transition-all duration-500"
                     style={{ width: `${(treatment.count / maxCount) * 100}%` }}
                   />
                 </div>

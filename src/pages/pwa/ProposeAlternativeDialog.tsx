@@ -173,9 +173,23 @@ export const ProposeAlternativeDialog = ({
 
       onOpenChange(false);
       onProposalSent();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error proposing alternative:", error);
-      toast.error("Erreur lors de l'envoi de la proposition");
+
+      // Check for BLOCKED_SLOT error from edge function
+      const errorBody = error?.context?.body;
+      let errorCode = '';
+      if (typeof errorBody === 'string') {
+        try { errorCode = JSON.parse(errorBody)?.error || ''; } catch { /* ignore */ }
+      } else if (errorBody?.error) {
+        errorCode = errorBody.error;
+      }
+
+      if (errorCode === 'BLOCKED_SLOT') {
+        toast.error("Un des créneaux proposés chevauche une plage horaire indisponible (ex: pause déjeuner)");
+      } else {
+        toast.error("Erreur lors de l'envoi de la proposition");
+      }
     } finally {
       setSending(false);
     }

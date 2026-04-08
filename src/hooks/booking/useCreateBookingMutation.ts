@@ -16,6 +16,17 @@ interface Therapist {
   [key: string]: unknown;
 }
 
+export interface AmenityAccessPayload {
+  venueAmenityId: string;
+  duration: number;
+  price: number;
+}
+
+export interface TreatmentPayload {
+  treatmentId: string;
+  variantId?: string;
+}
+
 export interface CreateBookingPayload {
   hotelId: string;
   clientFirstName: string;
@@ -31,9 +42,13 @@ export interface CreateBookingPayload {
   slot3Date: string | null;
   slot3Time: string | null;
   treatmentIds: string[];
+  treatments?: TreatmentPayload[];
   totalPrice: number;
   totalDuration: number;
   isAdmin: boolean;
+  isOutOfHours: boolean;
+  surchargeAmount: number;
+  amenityAccess?: AmenityAccessPayload[];
 }
 
 interface UseCreateBookingMutationOptions {
@@ -115,6 +130,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         status,
         assigned_at: finalTherapistId ? new Date().toISOString() : null,
         total_price: d.totalPrice,
+        is_out_of_hours: d.isOutOfHours,
+        surcharge_amount: d.surchargeAmount,
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,
@@ -122,11 +139,48 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
       if (error) throw error;
 
-      if (d.treatmentIds.length) {
+      if (d.treatments && d.treatments.length > 0) {
+        const { error: te } = await supabase.from("booking_treatments").insert(
+          d.treatments.map((t) => ({
+            booking_id: booking.id,
+            treatment_id: t.treatmentId,
+            variant_id: t.variantId || null,
+          }))
+        );
+        if (te) throw te;
+      } else if (d.treatmentIds.length) {
         const { error: te } = await supabase.from("booking_treatments").insert(
           d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid }))
         );
         if (te) throw te;
+      }
+
+      // Create linked amenity bookings if any
+      if (d.amenityAccess && d.amenityAccess.length > 0 && booking) {
+        for (const amenity of d.amenityAccess) {
+          const [h, m] = d.time.split(":").map(Number);
+          const endMinutes = h * 60 + m + amenity.duration;
+          const endH = Math.floor(endMinutes / 60) % 24;
+          const endM = endMinutes % 60;
+          const endTime = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+
+          await supabase.from("amenity_bookings").insert({
+            hotel_id: d.hotelId,
+            venue_amenity_id: amenity.venueAmenityId,
+            booking_date: d.date,
+            booking_time: d.time,
+            duration: amenity.duration,
+            end_time: endTime,
+            customer_id: customerId || null,
+            client_type: "lymfea",
+            room_number: d.roomNumber || null,
+            num_guests: 1,
+            price: amenity.price,
+            payment_status: amenity.price === 0 ? "offert" : "pending",
+            status: "confirmed",
+            linked_booking_id: booking.id,
+          });
+        }
       }
 
       // Concierge: create proposed slots record
@@ -148,8 +202,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           // Admin: notify the assigned therapist only
           await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
         } else {
-          // Concierge: notify ALL therapists at this venue
-          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true } });
+          // Concierge: smart dispatch to top-ranked therapists
+          await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
         }
       } catch {}
 

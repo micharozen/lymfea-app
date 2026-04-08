@@ -35,4 +35,5 @@ export interface CreateBookingDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
   selectedTime?: string;
+  presetHotelId?: string;
 }

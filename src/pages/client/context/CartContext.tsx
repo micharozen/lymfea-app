@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 
 export interface BasketItem {
-  id: string;
+  id: string;           // treatment_id
+  variantId?: string;   // selected variant ID
+  variantLabel?: string; // e.g. "60 min"
   name: string;
   price: number;
   currency?: string;
@@ -13,11 +15,14 @@ export interface BasketItem {
   isPriceOnRequest?: boolean; // New field to track variable price items
 }
 
+/** Composite key for cart items — allows same treatment with different variants as separate items */
+const getCartKey = (id: string, variantId?: string) => variantId ? `${id}__${variantId}` : id;
+
 interface BasketContextType {
   items: BasketItem[];
   addItem: (item: Omit<BasketItem, 'quantity' | 'note'>) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
+  removeItem: (id: string, variantId?: string) => void;
+  updateQuantity: (id: string, quantity: number, variantId?: string) => void;
   updateNote: (id: string, note: string) => void;
   clearBasket: () => void;
   total: number;
@@ -45,32 +50,35 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
 
   const addItem = (item: Omit<BasketItem, 'quantity' | 'note'>) => {
     setItems(prev => {
-      const existing = prev.find(i => i.id === item.id);
+      const itemKey = getCartKey(item.id, item.variantId);
+      const existing = prev.find(i => getCartKey(i.id, i.variantId) === itemKey);
       if (existing) {
-        return prev.map(i => 
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        return prev.map(i =>
+          getCartKey(i.id, i.variantId) === itemKey ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
       return [...prev, { ...item, quantity: 1 }];
     });
   };
 
-  const removeItem = (id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
+  const removeItem = (id: string, variantId?: string) => {
+    const key = getCartKey(id, variantId);
+    setItems(prev => prev.filter(i => getCartKey(i.id, i.variantId) !== key));
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = (id: string, quantity: number, variantId?: string) => {
     if (quantity <= 0) {
-      removeItem(id);
+      removeItem(id, variantId);
       return;
     }
-    setItems(prev => prev.map(i => 
-      i.id === id ? { ...i, quantity } : i
+    const key = getCartKey(id, variantId);
+    setItems(prev => prev.map(i =>
+      getCartKey(i.id, i.variantId) === key ? { ...i, quantity } : i
     ));
   };
 
   const updateNote = (id: string, note: string) => {
-    setItems(prev => prev.map(i => 
+    setItems(prev => prev.map(i =>
       i.id === id ? { ...i, note } : i
     ));
   };

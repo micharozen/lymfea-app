@@ -200,7 +200,7 @@ export default function Analytics() {
         {/* Header */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
               Analytics Client
             </h1>
             <p className="text-muted-foreground text-sm mt-1">

@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField, CountryOption } from "@/components/PhoneNumberField";
-import { User, Loader2 } from "lucide-react";
+import { User, Loader2, Wallet } from "lucide-react";
 import type { TherapistFormValues } from "@/pages/admin/TherapistDetail";
 
 const countries: CountryOption[] = [
@@ -58,12 +58,12 @@ export function TherapistGeneralTab({
 
   return (
     <div className="space-y-6">
-      <Card className="border-l-4 border-l-gold-400">
+      <Card className="border-l-4 border-l-gold-500">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <User className="h-4 w-4 text-gold-500" />
+                <User className="h-4 w-4 text-gold-600" />
                 {t("admin:therapists.identity", "Identité")}
               </CardTitle>
               <CardDescription>
@@ -115,7 +115,7 @@ export function TherapistGeneralTab({
             {/* Profile photo */}
             <div className="space-y-1.5 text-center">
               <div
-                className={`relative h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? "cursor-pointer hover:border-gold-400/50" : ""}`}
+                className={`relative h-20 w-20 rounded-full border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? "cursor-pointer hover:border-gold-500/50" : ""}`}
                 onClick={!disabled ? triggerFileSelect : undefined}
               >
                 {profileImage ? (
@@ -223,8 +223,94 @@ export function TherapistGeneralTab({
                   )}
                 />
               </div>
+
+              {/* Gender */}
+              <FormField
+                control={form.control}
+                name="gender"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("admin:therapists.gender", "Genre")}</FormLabel>
+                    <Select
+                      value={field.value || "none"}
+                      onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                      disabled={disabled}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("admin:therapists.genderPlaceholder", "Non renseigné")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          {t("admin:therapists.genderPlaceholder", "Non renseigné")}
+                        </SelectItem>
+                        <SelectItem value="female">
+                          {t("admin:therapists.genderFemale", "Femme")}
+                        </SelectItem>
+                        <SelectItem value="male">
+                          {t("admin:therapists.genderMale", "Homme")}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Finance */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-emerald-500" />
+            Finance
+          </CardTitle>
+          <CardDescription>
+            Taux par durée de soin, utilisé quand le lieu n'applique pas de commission globale
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {([
+            { name: "rate_45" as const, label: "45 min" },
+            { name: "rate_60" as const, label: "1 heure" },
+            { name: "rate_90" as const, label: "1h30" },
+          ]).map(({ name, label }) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-3">
+                  <FormLabel className="w-16 text-sm text-muted-foreground shrink-0 mt-2">
+                    {label}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-32">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="--"
+                        {...field}
+                        disabled={disabled}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        &euro;
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ))}
+          <p className="text-xs text-muted-foreground pt-1">
+            Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel depuis le taux 1 heure.
+          </p>
         </CardContent>
       </Card>
     </div>

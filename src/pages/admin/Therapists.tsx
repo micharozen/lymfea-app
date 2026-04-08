@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, Plus, Pencil, Trash2, Users } from "lucide-react";
+import { Search, Pencil, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import AddTherapistDialog from "@/components/AddTherapistDialog";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -74,6 +76,7 @@ interface Therapist {
 }
 
 export default function Therapists() {
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [filteredTherapists, setFilteredTherapists] = useState<Therapist[]>([]);
@@ -227,21 +230,7 @@ export default function Therapists() {
 
   const getSkillsDisplay = (skills: string[]) => {
     if (!skills || skills.length === 0) return "-";
-
-    const skillMap: Record<string, string> = {
-      men: "👨",
-      women: "👩",
-      barber: "💈",
-      beauty: "💅",
-    };
-
-    const hasEmojiSkills = skills.some(skill => skillMap[skill]);
-
-    if (hasEmojiSkills) {
-      return skills.map((skill) => skillMap[skill] || "").filter(Boolean).join(" ");
-    }
-
-    return skills.join(", ");
+    return skills.map((s) => getSpecialtyLabel(s, i18n.language)).join(", ");
   };
 
   const getRoomInfo = (roomIdOrName: string | null) => {
@@ -333,18 +322,17 @@ export default function Therapists() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">Thérapeutes</h1>
+            <h1 className="text-lg font-semibold tracking-tight">Thérapeutes</h1>
             <p className="text-muted-foreground mt-1">
               Gérez vos thérapeutes et leurs informations
             </p>
           </div>
           {isAdmin && (
             <Button
-              className="bg-foreground text-background hover:bg-foreground/90 flex-shrink-0"
+              className="flex-shrink-0"
               onClick={openAdd}
             >
-              <Plus className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Ajouter un thérapeute</span>
+              Nouveau thérapeute
             </Button>
           )}
         </div>

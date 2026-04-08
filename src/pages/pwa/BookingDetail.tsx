@@ -57,6 +57,11 @@ interface Booking {
   payment_status?: string | null;
   payment_method?: string | null;
   therapist_commission?: number;
+  global_therapist_commission?: boolean;
+  therapist_hourly_rate?: number | null;
+  therapist_rate_45?: number | null;
+  therapist_rate_60?: number | null;
+  therapist_rate_90?: number | null;
   hotel_currency?: string;
 }
 
@@ -208,12 +213,29 @@ const PwaBookingDetail = () => {
       if (bookingData.hotel_id) {
         const { data: hotel } = await supabase
           .from("hotels")
-          .select("image, address, city, vat, therapist_commission, currency")
+          .select("image, address, city, vat, therapist_commission, global_therapist_commission, currency")
           .eq("id", bookingData.hotel_id)
           .single();
         hotelData = hotel;
       }
-      
+
+      // Fetch therapist rates if individual mode
+      let therapistHourlyRate: number | null = null;
+      let therapistRate45: number | null = null;
+      let therapistRate60: number | null = null;
+      let therapistRate90: number | null = null;
+      if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
+        const { data: therapistData } = await supabase
+          .from("therapists")
+          .select("hourly_rate, rate_45, rate_60, rate_90")
+          .eq("id", bookingData.therapist_id)
+          .single();
+        therapistHourlyRate = therapistData?.hourly_rate ?? null;
+        therapistRate45 = therapistData?.rate_45 ?? null;
+        therapistRate60 = therapistData?.rate_60 ?? null;
+        therapistRate90 = therapistData?.rate_90 ?? null;
+      }
+
       const bookingWithHotel = {
         ...bookingData,
         hotel_image_url: hotelData?.image,
@@ -221,6 +243,11 @@ const PwaBookingDetail = () => {
         hotel_city: hotelData?.city,
         hotel_vat: hotelData?.vat || 20,
         therapist_commission: hotelData?.therapist_commission || 70,
+        global_therapist_commission: hotelData?.global_therapist_commission !== false,
+        therapist_hourly_rate: therapistHourlyRate,
+        therapist_rate_45: therapistRate45,
+        therapist_rate_60: therapistRate60,
+        therapist_rate_90: therapistRate90,
         hotel_currency: hotelData?.currency || 'EUR'
       };
       setBooking(bookingWithHotel);
@@ -767,9 +794,30 @@ const PwaBookingDetail = () => {
   // Calculate earnings on HT (before VAT), matching finalize-payment logic
   const vatRate = booking.hotel_vat || 20;
   const totalHT = totalPrice / (1 + vatRate / 100);
-  const estimatedEarnings = booking.therapist_commission
-    ? Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100
-    : 0;
+  const hotelCommissionRate = 0; // Not needed for therapist earnings display
+  let estimatedEarnings = 0;
+
+  if (booking.global_therapist_commission === false && (booking.therapist_rate_45 || booking.therapist_rate_60 || booking.therapist_rate_90 || booking.therapist_hourly_rate)) {
+    // Mode individuel : taux par palier de durée
+    if (totalDuration === 45 && booking.therapist_rate_45) {
+      estimatedEarnings = booking.therapist_rate_45;
+    } else if (totalDuration === 60 && booking.therapist_rate_60) {
+      estimatedEarnings = booking.therapist_rate_60;
+    } else if (totalDuration === 90 && booking.therapist_rate_90) {
+      estimatedEarnings = booking.therapist_rate_90;
+    } else if (booking.therapist_rate_60) {
+      // Hors palier : proportionnel depuis taux 1h
+      estimatedEarnings = Math.round(booking.therapist_rate_60 * (totalDuration / 60) * 100) / 100;
+    } else if (booking.therapist_hourly_rate) {
+      // Fallback legacy
+      estimatedEarnings = Math.round(booking.therapist_hourly_rate * (totalDuration / 60) * 100) / 100;
+    }
+    // Cap au totalHT
+    estimatedEarnings = Math.min(estimatedEarnings, Math.round(totalHT * 100) / 100);
+  } else if (booking.therapist_commission) {
+    // Mode global : pourcentage
+    estimatedEarnings = Math.round(totalHT * (booking.therapist_commission / 100) * 100) / 100;
+  }
 
   return (
     <>
@@ -868,9 +916,9 @@ const PwaBookingDetail = () => {
           {/* Earnings */}
           {estimatedEarnings > 0 && (
             <div className="flex items-center gap-3 py-2 border-b border-border/50 mb-3">
-              <Wallet className="w-4 h-4 text-green-600 dark:text-green-500 flex-shrink-0" />
-              <span className="text-xs text-green-600 dark:text-green-500 font-medium">{t('bookingDetail.yourEarnings')}</span>
-              <span className="text-xs font-bold text-green-600 dark:text-green-500 ml-auto">
+              <Wallet className="w-4 h-4 text-success flex-shrink-0" />
+              <span className="text-xs text-success font-medium">{t('bookingDetail.yourEarnings')}</span>
+              <span className="text-xs font-bold text-success ml-auto">
                 {formatPrice(estimatedEarnings, booking.hotel_currency)}
               </span>
             </div>
@@ -911,7 +959,7 @@ const PwaBookingDetail = () => {
               {booking.status === "confirmed" && (
                 <button
                   onClick={() => setShowAddTreatmentDialog(true)}
-                  className="px-4 py-1 bg-foreground text-background font-medium text-[10px] rounded hover:bg-foreground/90 transition-all active:scale-[0.98]"
+                  className="px-4 py-1 bg-primary text-primary-foreground font-medium text-[10px] rounded hover:bg-primary/90 transition-all active:scale-[0.98]"
                 >
                   + {t('bookingDetail.add')}
                 </button>
@@ -1186,7 +1234,7 @@ const PwaBookingDetail = () => {
                   <button
                     onClick={() => setShowSignatureDialog(true)}
                     disabled={updating}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-full py-2.5 px-4 text-xs font-bold hover:from-green-500 hover:to-green-400 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
+                    className="flex-1 bg-primary text-primary-foreground rounded-full py-2.5 px-4 text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 shadow-lg"
                   >
                     <Pen className="w-4 h-4" />
                     Signature client
@@ -1433,7 +1481,7 @@ const PwaBookingDetail = () => {
                 handleTapToPayConfirm();
               }}
               disabled={tapToPayLoading}
-              className="bg-green-600 text-white hover:bg-green-700"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {tapToPayLoading ? "..." : t('payment.tapToPayConfirmButton')}
             </AlertDialogAction>

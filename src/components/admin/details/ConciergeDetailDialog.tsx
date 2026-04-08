@@ -2,6 +2,7 @@ import { EntityDetailDialog } from "./EntityDetailDialog";
 import { DetailSection, DetailCard, DetailField } from "./DetailSection";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Phone, Building2 } from "lucide-react";
+import { VENUE_ROLES } from "@/lib/venueRoles";
 
 interface Hotel {
   id: string;
@@ -19,6 +20,7 @@ interface Concierge {
   hotel_id: string | null;
   profile_image: string | null;
   status: string;
+  venue_role: string | null;
   hotels?: { hotel_id: string }[];
 }
 
@@ -60,15 +62,21 @@ export function ConciergeDetailDialog({
           <div className="space-y-2">
             <DetailField label="Email" value={concierge.email} />
             <DetailField
-              label="Telephone"
+              label="Téléphone"
               value={`${concierge.country_code} ${concierge.phone}`}
             />
+            {concierge.venue_role && (
+              <DetailField
+                label="Rôle"
+                value={VENUE_ROLES.find(r => r.value === concierge.venue_role)?.labelFr ?? concierge.venue_role}
+              />
+            )}
           </div>
         </DetailCard>
       </DetailSection>
 
       {/* Hotels */}
-      <DetailSection icon={Building2} title={`Hotels (${assignedHotels.length})`} showSeparator={false}>
+      <DetailSection icon={Building2} title={`Lieux (${assignedHotels.length})`} showSeparator={false}>
         {assignedHotels.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {assignedHotels.map((hotel) => (
@@ -87,7 +95,7 @@ export function ConciergeDetailDialog({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Aucun hotel assigne</p>
+          <p className="text-sm text-muted-foreground">Aucun lieu assigné</p>
         )}
       </DetailSection>
     </EntityDetailDialog>

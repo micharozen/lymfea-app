@@ -112,6 +112,74 @@ export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 
     return { top, height: Math.max(height, 20) };
   }, []);
 
+  const getBookingsLayoutForDay = useCallback((bookings: BookingWithTreatments[]): Map<string, { column: number; totalColumns: number }> => {
+    const layout = new Map<string, { column: number; totalColumns: number }>();
+    if (bookings.length === 0) return layout;
+
+    const getStartMinutes = (b: BookingWithTreatments) => {
+      if (!b.booking_time) return 0;
+      const [h, m] = b.booking_time.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const getDuration = (b: BookingWithTreatments) =>
+      (b.totalDuration && b.totalDuration > 0) ? b.totalDuration : 60;
+
+    // Sort by start time, then by id for stable ordering
+    const sorted = [...bookings].sort((a, b) => {
+      const diff = getStartMinutes(a) - getStartMinutes(b);
+      return diff !== 0 ? diff : (a.id || '').localeCompare(b.id || '');
+    });
+
+    // Group overlapping bookings into clusters
+    const clusters: BookingWithTreatments[][] = [];
+    let currentCluster: BookingWithTreatments[] = [];
+    let clusterEnd = -1;
+
+    for (const booking of sorted) {
+      const start = getStartMinutes(booking);
+      const end = start + getDuration(booking);
+
+      if (currentCluster.length === 0 || start < clusterEnd) {
+        currentCluster.push(booking);
+        clusterEnd = Math.max(clusterEnd, end);
+      } else {
+        clusters.push(currentCluster);
+        currentCluster = [booking];
+        clusterEnd = end;
+      }
+    }
+    if (currentCluster.length > 0) clusters.push(currentCluster);
+
+    // Assign columns within each cluster
+    for (const cluster of clusters) {
+      const columns: number[] = []; // end time of each column
+      const assignments = new Map<string, number>();
+
+      for (const booking of cluster) {
+        const start = getStartMinutes(booking);
+        // Find first column where this booking fits (no overlap)
+        let col = columns.findIndex(colEnd => colEnd <= start);
+        if (col === -1) {
+          col = columns.length;
+          columns.push(0);
+        }
+        columns[col] = start + getDuration(booking);
+        assignments.set(booking.id, col);
+      }
+
+      const totalColumns = columns.length;
+      for (const booking of cluster) {
+        layout.set(booking.id, {
+          column: assignments.get(booking.id) || 0,
+          totalColumns,
+        });
+      }
+    }
+
+    return layout;
+  }, []);
+
   const isCurrentHour = useCallback((date: Date, hour: number) => {
     if (format(date, "yyyy-MM-dd") !== format(new Date(), "yyyy-MM-dd")) return false;
     const now = new Date(currentTime.toLocaleString("en-US", { timeZone: activeTimezone }));
@@ -185,6 +253,7 @@ export function useCalendarLogic({ filteredBookings, activeTimezone, dayCount = 
     // Booking helpers
     getBookingsForDay,
     getBookingPosition,
+    getBookingsLayoutForDay,
     isCurrentHour,
     getCurrentTimePosition,
 

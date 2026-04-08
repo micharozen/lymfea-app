@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { brandLogos } from '@/config/brand';
+import { getSpecialtyLabel } from '@/lib/specialtyTypes';
 
 interface PractitionerCardProps {
   firstName: string;
@@ -8,10 +9,10 @@ interface PractitionerCardProps {
 }
 
 export function PractitionerCard({ firstName, profileImage, skills }: PractitionerCardProps) {
-  const { t } = useTranslation('client');
+  const { t, i18n } = useTranslation('client');
 
   const displaySkill = skills && skills.length > 0
-    ? skills[0]
+    ? getSpecialtyLabel(skills[0], i18n.language)
     : t('welcome.expertHairdresser');
 
   return (
@@ -31,7 +32,7 @@ export function PractitionerCard({ firstName, profileImage, skills }: Practition
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
         <div className="absolute bottom-2 left-2 right-2">
           <h5 className="text-xs font-serif text-white truncate">{firstName}</h5>
-          <p className="text-[9px] text-gold-400/90 font-light truncate">{displaySkill}</p>
+          <p className="text-[9px] text-gold-600/90 font-light truncate">{displaySkill}</p>
         </div>
       </div>
     </div>

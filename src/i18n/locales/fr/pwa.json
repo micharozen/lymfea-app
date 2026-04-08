@@ -434,5 +434,37 @@
     "saturday": "Samedi",
     "sunday": "Dimanche",
     "templateSaved": "Modèle enregistré"
+  },
+  "support": {
+    "title": "Support",
+    "detailsTitle": "Décrivez votre demande",
+    "detailsDesc": "Donnez-nous un maximum de détails pour que nous puissions vous aider rapidement.",
+    "classificationTitle": "Classification",
+    "subject": "Sujet",
+    "subjectPlaceholder": "Résumé du problème",
+    "description": "Description",
+    "descriptionPlaceholder": "Décrivez le problème en détail...",
+    "category": "Catégorie",
+    "priority": "Priorité",
+    "categories": {
+      "question": "Question",
+      "billing": "Facturation",
+      "booking": "Réservation",
+      "problem": "Problème",
+      "other": "Autre"
+    },
+    "priorities": {
+      "low": "Basse",
+      "medium": "Moyenne",
+      "high": "Haute",
+      "urgent": "Urgente"
+    },
+    "screenshotsTitle": "Captures d'écran",
+    "screenshotsDesc": "Ajoutez jusqu'à 3 captures d'écran pour nous aider à comprendre le problème",
+    "submit": "Envoyer le ticket",
+    "submitting": "Envoi...",
+    "created": "Ticket envoyé avec succès",
+    "createError": "Erreur lors de l'envoi du ticket",
+    "fieldsRequired": "Veuillez remplir tous les champs obligatoires"
   }
 }

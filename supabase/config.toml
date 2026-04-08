@@ -16,7 +16,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.finalize-payment]
-verify_jwt = true
+verify_jwt = false
 
 [functions.create-client-booking]
 verify_jwt = false
@@ -109,4 +109,31 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.mark-tap-to-pay-paid]
+verify_jwt = false
+
+[functions.pms-test-connection]
+verify_jwt = false
+
+[functions.pms-guest-lookup]
+verify_jwt = false
+
+[functions.pms-post-charge]
+verify_jwt = false
+
+[functions.pms-fetch-services]
+verify_jwt = false
+
+[functions.opera-cloud-test-connection]
+verify_jwt = false
+
+[functions.opera-cloud-guest-lookup]
+verify_jwt = false
+
+[functions.opera-cloud-post-charge]
+verify_jwt = false
+
+[functions.create-support-ticket]
+verify_jwt = false
+
+[functions.notion-ticket-webhook]
 verify_jwt = false

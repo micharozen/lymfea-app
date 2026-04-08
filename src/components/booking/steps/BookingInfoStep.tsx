@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,11 +28,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CalendarIcon, Check, ChevronDown, ChevronsUpDown, Globe, Info, Plus, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
 import { BookingFormValues } from "../CreateBookingDialog.schema";
+import { usePmsGuestLookup } from "@/hooks/usePmsGuestLookup";
+import { toast } from "sonner";
 
 interface BookingInfoStepProps {
   form: UseFormReturn<BookingFormValues>;
@@ -46,6 +48,12 @@ interface BookingInfoStepProps {
   countryCode: string;
   visibleSlots: number;
   setVisibleSlots: React.Dispatch<React.SetStateAction<number>>;
+  isBookingOutOfHours?: boolean;
+  surchargePercent?: number;
+  pmsLookupEnabled?: boolean;
+  isSlotAvailable?: (date: Date | undefined, time: string, slotInterval: number) => boolean;
+  isAvailabilityLoading?: (date: Date | undefined) => boolean;
+  slotInterval?: number;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -62,9 +70,40 @@ export function BookingInfoStep({
   countryCode,
   visibleSlots,
   setVisibleSlots,
+  isBookingOutOfHours,
+  surchargePercent,
+  pmsLookupEnabled,
+  isSlotAvailable,
+  isAvailabilityLoading,
+  slotInterval = 30,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
+  const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
+
+  const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
+    if (!pmsLookupEnabled || !roomNumber || roomNumber.length === 0) return;
+
+    const result = await lookupGuest(roomNumber);
+    if (result?.found && result.guest) {
+      form.setValue('clientFirstName', result.guest.firstName);
+      form.setValue('clientLastName', result.guest.lastName);
+      if (result.guest.phone) {
+        const matchedCountry = countries.find(c => result.guest!.phone!.startsWith(c.code));
+        if (matchedCountry) {
+          form.setValue('countryCode', matchedCountry.code);
+          const formatted = formatPhoneNumber(result.guest.phone.slice(matchedCountry.code.length), matchedCountry.code);
+          form.setValue('phone', formatted);
+        } else {
+          form.setValue('phone', result.guest.phone);
+        }
+      }
+      toast.success("Client trouvé via le PMS");
+    } else if (result && !result.found) {
+      toast.info("Aucun client trouvé pour cette chambre");
+    }
+  }, [pmsLookupEnabled, lookupGuest, form]);
+
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
@@ -84,6 +123,23 @@ export function BookingInfoStep({
     form.setValue('slot3Date', undefined);
     form.setValue('slot3Time', '');
     setVisibleSlots(slotNum - 1);
+  };
+
+  const isHourUnavailable = (date: Date | undefined, hour: string) => {
+    if (!isSlotAvailable) return false;
+    return ['00', '10', '20', '30', '40', '50'].every(
+      m => !isSlotAvailable(date, `${hour}:${m}`, slotInterval)
+    );
+  };
+
+  const isMinuteUnavailable = (date: Date | undefined, hour: string, minute: string) => {
+    if (!isSlotAvailable) return false;
+    return !isSlotAvailable(date, `${hour}:${minute}`, slotInterval);
+  };
+
+  const isSelectedTimeUnavailable = (date: Date | undefined, time: string) => {
+    if (!isSlotAvailable || !date || !time || !time.includes(':')) return false;
+    return !isSlotAvailable(date, time, slotInterval);
   };
 
   return (
@@ -253,7 +309,12 @@ export function BookingInfoStep({
               name="time"
               render={({ field }) => (
                 <FormItem className="space-y-1">
-                  <FormLabel className="text-xs">Heure *</FormLabel>
+                  <FormLabel className="text-xs flex items-center gap-1">
+                    Heure *
+                    {isAvailabilityLoading?.(form.getValues("date")) && (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    )}
+                  </FormLabel>
                   <div className="flex gap-1 items-center">
                     <Popover open={hourOpen} onOpenChange={setHourOpen}>
                       <PopoverTrigger asChild>
@@ -275,7 +336,8 @@ export function BookingInfoStep({
                                 }}
                                 className={cn(
                                   "w-full px-3 py-1.5 text-sm text-center",
-                                  field.value.split(':')[0] === h && "bg-muted"
+                                  field.value.split(':')[0] === h && "bg-muted",
+                                  isHourUnavailable(form.getValues("date"), h) && "opacity-40 text-muted-foreground"
                                 )}
                               >
                                 {h}
@@ -306,7 +368,8 @@ export function BookingInfoStep({
                                 }}
                                 className={cn(
                                   "w-full px-3 py-1.5 text-sm text-center",
-                                  field.value.split(':')[1] === m && "bg-muted"
+                                  field.value.split(':')[1] === m && "bg-muted",
+                                  isMinuteUnavailable(form.getValues("date"), field.value.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground"
                                 )}
                               >
                                 {m}
@@ -328,6 +391,26 @@ export function BookingInfoStep({
               )}
             />
           </div>
+
+          {/* Out-of-hours indicator */}
+          {isBookingOutOfHours && (
+            <div className="col-span-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Hors horaires d'ouverture — Majoration de {surchargePercent}% appliquée
+              </p>
+            </div>
+          )}
+
+          {/* Unavailable slot warning */}
+          {isSelectedTimeUnavailable(form.getValues("date"), form.getValues("time")) && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-800 dark:text-amber-300">
+                Ce créneau pourrait ne pas être disponible (conflit salle ou thérapeute)
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Slot 2 - Alternative 1 (concierge only, dynamic) */}
@@ -369,7 +452,12 @@ export function BookingInfoStep({
                 name="slot2Time"
                 render={({ field }) => (
                   <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Heure</FormLabel>
+                    <FormLabel className="text-xs flex items-center gap-1">
+                      Heure
+                      {isAvailabilityLoading?.(form.getValues("slot2Date")) && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </FormLabel>
                     <div className="flex gap-1 items-center">
                       <Popover open={slot2HourOpen} onOpenChange={setSlot2HourOpen}>
                         <PopoverTrigger asChild>
@@ -382,7 +470,7 @@ export function BookingInfoStep({
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
                               {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot2HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted")}>{h}</button>
+                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot2HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted", isHourUnavailable(form.getValues("slot2Date"), h) && "opacity-40 text-muted-foreground")}>{h}</button>
                               ))}
                             </div>
                           </ScrollArea>
@@ -400,7 +488,7 @@ export function BookingInfoStep({
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
                               {['00','10','20','30','40','50'].map(m => (
-                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot2MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted")}>{m}</button>
+                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot2MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot2Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
                               ))}
                             </div>
                           </ScrollArea>
@@ -412,6 +500,14 @@ export function BookingInfoStep({
                 )}
               />
             </div>
+            {isSelectedTimeUnavailable(form.getValues("slot2Date"), form.getValues("slot2Time")) && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  Ce créneau pourrait ne pas être disponible
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -454,7 +550,12 @@ export function BookingInfoStep({
                 name="slot3Time"
                 render={({ field }) => (
                   <FormItem className="space-y-1">
-                    <FormLabel className="text-xs">Heure</FormLabel>
+                    <FormLabel className="text-xs flex items-center gap-1">
+                      Heure
+                      {isAvailabilityLoading?.(form.getValues("slot3Date")) && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </FormLabel>
                     <div className="flex gap-1 items-center">
                       <Popover open={slot3HourOpen} onOpenChange={setSlot3HourOpen}>
                         <PopoverTrigger asChild>
@@ -467,7 +568,7 @@ export function BookingInfoStep({
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
                               {Array.from({ length: 17 }, (_, i) => String(i + 7).padStart(2, '0')).map(h => (
-                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot3HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted")}>{h}</button>
+                                <button key={h} type="button" onClick={() => { field.onChange(`${h}:${field.value?.split(':')[1] || '00'}`); setSlot3HourOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[0] === h && "bg-muted", isHourUnavailable(form.getValues("slot3Date"), h) && "opacity-40 text-muted-foreground")}>{h}</button>
                               ))}
                             </div>
                           </ScrollArea>
@@ -485,7 +586,7 @@ export function BookingInfoStep({
                           <ScrollArea className="h-40 touch-pan-y">
                             <div>
                               {['00','10','20','30','40','50'].map(m => (
-                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot3MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted")}>{m}</button>
+                                <button key={m} type="button" onClick={() => { field.onChange(`${field.value?.split(':')[0] || '09'}:${m}`); setSlot3MinuteOpen(false); }} className={cn("w-full px-3 py-1.5 text-sm text-center", field.value?.split(':')[1] === m && "bg-muted", isMinuteUnavailable(form.getValues("slot3Date"), field.value?.split(':')[0] || '09', m) && "opacity-40 text-muted-foreground")}>{m}</button>
                               ))}
                             </div>
                           </ScrollArea>
@@ -497,6 +598,14 @@ export function BookingInfoStep({
                 )}
               />
             </div>
+            {isSelectedTimeUnavailable(form.getValues("slot3Date"), form.getValues("slot3Time")) && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  Ce créneau pourrait ne pas être disponible
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -513,6 +622,47 @@ export function BookingInfoStep({
           </Button>
         )}
       </div>
+
+      {/* PMS hint banner + Room number FIRST when PMS enabled */}
+      {pmsLookupEnabled && (
+        <div className="flex gap-2 items-start rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-3">
+          <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-800 dark:text-blue-300">
+            Renseignez le numéro de chambre — les informations client seront récupérées automatiquement depuis le PMS.
+          </p>
+        </div>
+      )}
+      {pmsLookupEnabled && (
+        <FormField
+          control={form.control}
+          name="roomNumber"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">Room number</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input
+                    {...field}
+                    className="h-9 pr-8"
+                    placeholder="1002"
+                    onBlur={(e) => {
+                      field.onBlur();
+                      handleRoomNumberBlur(e.target.value);
+                    }}
+                  />
+                  {isLookingUpGuest && (
+                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!isLookingUpGuest && guestData?.found && (
+                    <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-green-500" />
+                  )}
+                </div>
+              </FormControl>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <FormField
@@ -544,7 +694,7 @@ export function BookingInfoStep({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className={cn("grid gap-2", pmsLookupEnabled ? "grid-cols-1" : "grid-cols-2")}>
         <FormField
           control={form.control}
           name="phone"
@@ -568,19 +718,32 @@ export function BookingInfoStep({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="roomNumber"
-          render={({ field }) => (
-            <FormItem className="space-y-1">
-              <FormLabel className="text-xs">Room number</FormLabel>
-              <FormControl>
-                <Input {...field} className="h-9" placeholder="1002" />
-              </FormControl>
-              <FormMessage className="text-xs" />
-            </FormItem>
-          )}
-        />
+        {/* Room number AFTER phone when PMS disabled */}
+        {!pmsLookupEnabled && (
+          <FormField
+            control={form.control}
+            name="roomNumber"
+            render={({ field }) => (
+              <FormItem className="space-y-1">
+                <FormLabel className="text-xs">Room number</FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      className="h-9 pr-8"
+                      placeholder="1002"
+                      onBlur={(e) => {
+                        field.onBlur();
+                        handleRoomNumberBlur(e.target.value);
+                      }}
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage className="text-xs" />
+              </FormItem>
+            )}
+          />
+        )}
       </div>
 
       </div>

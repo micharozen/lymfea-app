@@ -10,7 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
-import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import { AvailabilityOverlay } from "./AvailabilityOverlay";
+import type { BookingWithTreatments, Hotel, DaySummary, HourAvailability, AmenityBookingForCalendar } from "@/hooks/booking";
+import { getAmenityType } from "@/lib/amenityTypes";
 
 interface BookingCalendarViewProps {
   weekDays: Date[];
@@ -22,6 +24,7 @@ interface BookingCalendarViewProps {
   onSetViewDate: (date: Date) => void;
   getBookingsForDay: (date: Date) => BookingWithTreatments[];
   getBookingPosition: (booking: BookingWithTreatments) => { top: number; height: number };
+  getBookingsLayoutForDay: (bookings: BookingWithTreatments[]) => Map<string, { column: number; totalColumns: number }>;
   getCurrentTimePosition: (date: Date) => { showIndicator: boolean; position: number };
   getStatusColor: (status: string) => string;
   getTranslatedStatus: (status: string) => string;
@@ -34,6 +37,16 @@ interface BookingCalendarViewProps {
   getHotelInfo: (hotelId: string | null) => Hotel | null;
   hotels: Hotel[] | undefined;
   hotelFilter: string;
+  // Availability overlay (optional — only from VenueBookingCalendar)
+  availabilityData?: {
+    daySummaries: Map<string, DaySummary>;
+    hourAvailability: Map<string, HourAvailability[]>;
+  };
+  showAvailability?: boolean;
+  // Amenity bookings (optional — multi-calendar support)
+  amenityBookings?: AmenityBookingForCalendar[];
+  visibleCalendars?: Record<string, boolean>;
+  onAmenityBookingClick?: (booking: AmenityBookingForCalendar) => void;
 }
 
 function getTherapistInitials(name: string | null | undefined): string {
@@ -55,6 +68,7 @@ export function BookingCalendarView({
   onSetViewDate,
   getBookingsForDay,
   getBookingPosition,
+  getBookingsLayoutForDay,
   getCurrentTimePosition,
   getStatusColor,
   getTranslatedStatus,
@@ -67,6 +81,11 @@ export function BookingCalendarView({
   getHotelInfo,
   hotels,
   hotelFilter,
+  availabilityData,
+  showAvailability,
+  amenityBookings,
+  visibleCalendars,
+  onAmenityBookingClick,
 }: BookingCalendarViewProps) {
   const navigate = useNavigate();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -82,6 +101,28 @@ export function BookingCalendarView({
       }
     }
   }, [startHour, hourHeight]);
+
+  // Should treatment bookings be visible?
+  const showTreatments = !visibleCalendars || visibleCalendars["treatments"] !== false;
+
+  // Filter amenity bookings for a given day, respecting calendar visibility
+  const getAmenityBookingsForDay = (day: Date): AmenityBookingForCalendar[] => {
+    if (!amenityBookings) return [];
+    const dateStr = format(day, "yyyy-MM-dd");
+    return amenityBookings.filter((b) => {
+      if (b.booking_date !== dateStr) return false;
+      if (visibleCalendars && visibleCalendars[b.venue_amenity_id] === false) return false;
+      return true;
+    });
+  };
+
+  // Compute position for an amenity booking (same logic as treatment bookings)
+  const getAmenityPosition = (booking: AmenityBookingForCalendar): { top: number; height: number } => {
+    const [h, m] = booking.booking_time.split(":").map(Number);
+    const top = ((h - startHour) + m / 60) * hourHeight;
+    const height = Math.max(20, (booking.duration / 60) * hourHeight);
+    return { top, height };
+  };
 
   // Compute off-hours based on filtered venue or all venues
   const { earliestOpen, latestClose } = useMemo(() => {
@@ -129,9 +170,9 @@ export function BookingCalendarView({
   const gridTemplateColumnsMd = `80px repeat(${dayCount}, 1fr)`;
 
   return (
-    <div className="p-2 md:p-4 flex flex-col h-full overflow-hidden">
+    <div className="p-2 md:p-3 flex flex-col h-full overflow-hidden">
       {/* Navigation bar */}
-      <div className="flex items-center justify-between mb-2 gap-2 flex-shrink-0">
+      <div className="flex items-center justify-between mb-1 gap-2 flex-shrink-0">
         {/* Left: nav arrows + today */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPreviousWeek}>
@@ -169,7 +210,7 @@ export function BookingCalendarView({
 
       {/* Venue legend */}
       {venuesWithBookings.length > 1 && (
-        <div className="flex flex-wrap items-center gap-3 mb-2 px-1 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-3 mb-1 px-1 flex-shrink-0">
           <span className="text-xs text-muted-foreground font-medium">Lieux :</span>
           {venuesWithBookings.map((hotel) => (
             <div key={hotel.id} className="flex items-center gap-1.5">
@@ -192,11 +233,12 @@ export function BookingCalendarView({
             style={{ scrollbarGutter: "stable" }}
           >
             {/* Header with days */}
+            <TooltipProvider>
             <div
               className="sticky top-0 z-20 border-b border-border bg-card hidden md:grid"
               style={{ gridTemplateColumns: gridTemplateColumnsMd }}
             >
-              <div className="p-1 md:p-2 border-r border-border bg-muted">
+              <div className="px-2 py-1.5 border-r border-border bg-muted flex items-center">
                 <span className="text-[10px] md:text-xs font-medium text-muted-foreground">Heure</span>
               </div>
               {weekDays.map((day) => {
@@ -205,23 +247,56 @@ export function BookingCalendarView({
                   <div
                     key={day.toISOString()}
                     className={cn(
-                      "p-1 md:p-2 text-center border-r border-border last:border-r-0 bg-muted",
+                      "px-2 py-1.5 border-r border-border last:border-r-0 bg-muted flex items-center justify-center gap-1.5",
                       isToday && "ring-1 ring-inset ring-primary/20"
                     )}
                   >
-                    <div className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase">
+                    <span className="text-xs font-medium text-muted-foreground uppercase">
                       {format(day, "EEE", { locale: fr })}
-                    </div>
-                    <div className={cn("text-sm md:text-lg font-bold", isToday && "text-primary")}>
+                    </span>
+                    <span className={cn("text-sm font-bold", isToday && "text-primary")}>
                       {format(day, "d")}
-                    </div>
-                    <div className="text-[8px] md:text-[10px] text-muted-foreground">
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
                       {format(day, "MMM", { locale: fr })}
-                    </div>
+                    </span>
+                    {showAvailability && availabilityData && (() => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const summary = availabilityData.daySummaries.get(dateStr);
+                      if (!summary) return null;
+                      const count = summary.availableTherapistCount;
+                      const total = summary.totalTherapistCount;
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={cn(
+                              "text-[9px] font-medium px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5",
+                              count === 0 && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                              count === 1 && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                              count >= 2 && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+                            )}>
+                              <Users className="h-2.5 w-2.5" />
+                              {count}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom">
+                            <div className="text-xs">
+                              <div className="font-medium">{count}/{total} thérapeutes dispo.</div>
+                              {summary.coverageGaps.length > 0 && (
+                                <div className="text-muted-foreground mt-1">
+                                  Trous : {summary.coverageGaps.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                   </div>
                 );
               })}
             </div>
+            </TooltipProvider>
 
             {/* Mobile header */}
             <div
@@ -250,6 +325,23 @@ export function BookingCalendarView({
                     <div className="text-[8px] text-muted-foreground">
                       {format(day, "MMM", { locale: fr })}
                     </div>
+                    {showAvailability && availabilityData && (() => {
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const summary = availabilityData.daySummaries.get(dateStr);
+                      if (!summary) return null;
+                      const count = summary.availableTherapistCount;
+                      return (
+                        <div className={cn(
+                          "mt-0.5 text-[8px] font-medium px-1 py-0.5 rounded-full inline-flex items-center gap-0.5",
+                          count === 0 && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                          count === 1 && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                          count >= 2 && "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+                        )}>
+                          <Users className="h-2 w-2" />
+                          {count}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -276,6 +368,7 @@ export function BookingCalendarView({
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                 const dayBookings = getBookingsForDay(day);
+                const dayLayout = getBookingsLayoutForDay(dayBookings);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -305,22 +398,48 @@ export function BookingCalendarView({
                       );
                     })}
 
-                    {/* Positioned bookings */}
-                    <TooltipProvider>
-                      {dayBookings.map((booking) => (
-                        <BookingCard
-                          key={booking.id}
-                          booking={booking}
-                          getBookingPosition={getBookingPosition}
-                          getCalendarCardColor={getCalendarCardColor}
-                          getStatusColor={getStatusColor}
-                          getTranslatedStatus={getTranslatedStatus}
-                          getHotelInfo={getHotelInfo}
-                          onBookingClick={onBookingClick}
-                          navigate={navigate}
+                    {/* Availability overlay */}
+                    {showAvailability && availabilityData && (
+                      <AvailabilityOverlay
+                        hourAvailability={availabilityData.hourAvailability.get(format(day, "yyyy-MM-dd")) || []}
+                        hours={hours}
+                        hourHeight={hourHeight}
+                        startHour={startHour}
+                      />
+                    )}
+
+                    {/* Positioned treatment bookings */}
+                    {showTreatments && (
+                      <TooltipProvider>
+                        {dayBookings.map((booking) => (
+                          <BookingCard
+                            key={booking.id}
+                            booking={booking}
+                            layoutInfo={dayLayout.get(booking.id)}
+                            getBookingPosition={getBookingPosition}
+                            getCalendarCardColor={getCalendarCardColor}
+                            getStatusColor={getStatusColor}
+                            getTranslatedStatus={getTranslatedStatus}
+                            getHotelInfo={getHotelInfo}
+                            onBookingClick={onBookingClick}
+                            navigate={navigate}
+                          />
+                        ))}
+                      </TooltipProvider>
+                    )}
+
+                    {/* Positioned amenity bookings */}
+                    {(() => {
+                      const dayAmenities = getAmenityBookingsForDay(day);
+                      return dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          onClick={onAmenityBookingClick}
                         />
-                      ))}
-                    </TooltipProvider>
+                      ));
+                    })()}
 
                     {/* Current time indicator */}
                     {showIndicator && (
@@ -357,6 +476,7 @@ export function BookingCalendarView({
               {weekDays.map((day) => {
                 const isToday = format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
                 const dayBookings = getBookingsForDay(day);
+                const dayLayout = getBookingsLayoutForDay(dayBookings);
                 const { showIndicator, position: currentTimeTop } = getCurrentTimePosition(day);
 
                 return (
@@ -385,21 +505,47 @@ export function BookingCalendarView({
                       );
                     })}
 
-                    <TooltipProvider>
-                      {dayBookings.map((booking) => (
-                        <BookingCard
-                          key={booking.id}
-                          booking={booking}
-                          getBookingPosition={getBookingPosition}
-                          getCalendarCardColor={getCalendarCardColor}
-                          getStatusColor={getStatusColor}
-                          getTranslatedStatus={getTranslatedStatus}
-                          getHotelInfo={getHotelInfo}
-                          onBookingClick={onBookingClick}
-                          navigate={navigate}
+                    {/* Availability overlay */}
+                    {showAvailability && availabilityData && (
+                      <AvailabilityOverlay
+                        hourAvailability={availabilityData.hourAvailability.get(format(day, "yyyy-MM-dd")) || []}
+                        hours={hours}
+                        hourHeight={hourHeight}
+                        startHour={startHour}
+                      />
+                    )}
+
+                    {showTreatments && (
+                      <TooltipProvider>
+                        {dayBookings.map((booking) => (
+                          <BookingCard
+                            key={booking.id}
+                            booking={booking}
+                            layoutInfo={dayLayout.get(booking.id)}
+                            getBookingPosition={getBookingPosition}
+                            getCalendarCardColor={getCalendarCardColor}
+                            getStatusColor={getStatusColor}
+                            getTranslatedStatus={getTranslatedStatus}
+                            getHotelInfo={getHotelInfo}
+                            onBookingClick={onBookingClick}
+                            navigate={navigate}
+                          />
+                        ))}
+                      </TooltipProvider>
+                    )}
+
+                    {/* Amenity bookings */}
+                    {(() => {
+                      const dayAmenities = getAmenityBookingsForDay(day);
+                      return dayAmenities.map((ab) => (
+                        <AmenityBookingCard
+                          key={ab.id}
+                          booking={ab}
+                          position={getAmenityPosition(ab)}
+                          onClick={onAmenityBookingClick}
                         />
-                      ))}
-                    </TooltipProvider>
+                      ));
+                    })()}
 
                     {showIndicator && (
                       <div
@@ -423,6 +569,7 @@ export function BookingCalendarView({
 // Extracted booking card component for cleaner code
 function BookingCard({
   booking,
+  layoutInfo,
   getBookingPosition,
   getCalendarCardColor,
   getStatusColor,
@@ -432,6 +579,7 @@ function BookingCard({
   navigate,
 }: {
   booking: BookingWithTreatments;
+  layoutInfo?: { column: number; totalColumns: number };
   getBookingPosition: (booking: BookingWithTreatments) => { top: number; height: number };
   getCalendarCardColor: (status: string, paymentStatus?: string | null) => string;
   getStatusColor: (status: string) => string;
@@ -459,14 +607,17 @@ function BookingCard({
     : (booking.treatmentsTotalPrice || 0);
 
   const therapistInitials = getTherapistInitials(booking.therapist_name);
-  const hasTherapist = !!booking.therapist_id;
+  const hasTherapist = !!booking.therapist_id && !!booking.therapist_name;
+
+  const column = layoutInfo?.column ?? 0;
+  const totalColumns = layoutInfo?.totalColumns ?? 1;
 
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "absolute left-1 right-1 rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
+            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
             getCalendarCardColor(booking.status, booking.payment_status)
           )}
           style={{
@@ -474,6 +625,8 @@ function BookingCard({
             top: `${top}px`,
             height: `${height}px`,
             minHeight: '20px',
+            left: `calc(${(column / totalColumns) * 100}% + 2px)`,
+            width: `calc(${(1 / totalColumns) * 100}% - 4px)`,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -487,6 +640,12 @@ function BookingCard({
                 {booking.booking_time?.substring(0, 5)}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
+                {/* Out-of-hours indicator */}
+                {booking.is_out_of_hours && (
+                  <div className="w-4 h-4 flex items-center justify-center flex-shrink-0" title="Hors horaires">
+                    <Clock className="h-2.5 w-2.5 text-amber-500" />
+                  </div>
+                )}
                 {/* Link to therapist on hover */}
                 {hasTherapist && (
                   <button
@@ -500,18 +659,22 @@ function BookingCard({
                     <ExternalLink className="h-2.5 w-2.5" />
                   </button>
                 )}
-                {/* Therapist initials badge */}
-                <div
-                  className={cn(
-                    "w-5 h-5 rounded-full flex items-center justify-center text-[7px] font-bold flex-shrink-0",
-                    hasTherapist
-                      ? "bg-foreground/10 text-foreground/70"
-                      : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-                  )}
-                  title={booking.therapist_name || "Aucun thérapeute assigné"}
-                >
-                  {therapistInitials}
-                </div>
+                {/* Therapist badge OR "À assigner" alert */}
+                {hasTherapist ? (
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-foreground/10 text-foreground/70"
+                    title={booking.therapist_name || ""}
+                  >
+                    {therapistInitials}
+                  </div>
+                ) : (
+                  <div
+                    className="px-1.5 h-4 rounded-[3px] flex items-center justify-center text-[8px] font-bold flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border border-orange-200 dark:border-orange-800 shadow-sm"
+                    title="Aucun thérapeute assigné"
+                  >
+                    À ASSIGNER
+                  </div>
+                )}
               </div>
             </div>
             {/* Client name (if card is tall enough) */}
@@ -619,6 +782,128 @@ function BookingCard({
             <Euro className="h-3 w-3" />
             <span>Total: {formatPrice(totalPrice, hotelInfo?.currency || 'EUR')}</span>
           </div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Amenity booking card for the calendar grid
+function AmenityBookingCard({
+  booking,
+  position,
+  onClick,
+}: {
+  booking: AmenityBookingForCalendar;
+  position: { top: number; height: number };
+  onClick?: (booking: AmenityBookingForCalendar) => void;
+}) {
+  const { top, height } = position;
+  const typeDef = getAmenityType(booking.amenity_type);
+  const Icon = typeDef?.icon;
+
+  const durationHours = Math.floor(booking.duration / 60);
+  const durationMinutes = booking.duration % 60;
+  const durationFormatted = durationHours > 0
+    ? (durationMinutes > 0 ? `${durationHours}h${durationMinutes}` : `${durationHours}h`)
+    : `${durationMinutes}min`;
+
+  const clientName = booking.customer
+    ? `${booking.customer.first_name} ${booking.customer.last_name || ""}`.trim()
+    : "";
+
+  const clientTypeBadge = {
+    external: "Ext",
+    internal: "Int",
+    lymfea: "Lym",
+  }[booking.client_type];
+
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <div
+          className={cn(
+            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
+            "bg-opacity-20 hover:bg-opacity-30 transition-colors"
+          )}
+          style={{
+            borderLeftColor: booking.amenity_color,
+            backgroundColor: booking.amenity_color + "18",
+            top: `${top}px`,
+            height: `${height}px`,
+            minHeight: "20px",
+            left: "2px",
+            right: "2px",
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick?.(booking);
+          }}
+        >
+          <div className="p-1 h-full flex flex-col">
+            <div className="flex items-start justify-between gap-0.5">
+              <div className="font-bold text-[11px] leading-tight" style={{ color: booking.amenity_color }}>
+                {booking.booking_time?.substring(0, 5)}
+              </div>
+              <div className="flex items-center gap-0.5 flex-shrink-0">
+                {Icon && (
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: booking.amenity_color + "25" }}
+                  >
+                    <Icon className="h-2.5 w-2.5" style={{ color: booking.amenity_color }} />
+                  </div>
+                )}
+              </div>
+            </div>
+            {height >= 32 && (
+              <div className="truncate text-[8px] opacity-80 font-medium">
+                {clientName || booking.amenity_name}
+              </div>
+            )}
+            {height >= 48 && (
+              <div className="flex items-center gap-1 text-[7px] opacity-60">
+                <span>{durationFormatted}</span>
+                <span>·</span>
+                <span>{booking.num_guests}/{booking.capacity_total}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-sm z-50">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            {Icon && <Icon className="h-4 w-4" style={{ color: booking.amenity_color }} />}
+            <span className="font-semibold text-sm">{booking.amenity_name}</span>
+            <Badge variant="secondary" className="text-[8px]">{clientTypeBadge}</Badge>
+          </div>
+          {clientName && (
+            <div className="flex items-center gap-2 text-xs">
+              <User className="h-3 w-3" />
+              <span>{clientName}</span>
+            </div>
+          )}
+          {booking.room_number && (
+            <div className="text-xs">Chambre: {booking.room_number}</div>
+          )}
+          <div className="flex items-center gap-2 text-xs">
+            <Clock className="h-3 w-3" />
+            <span>{booking.booking_time?.substring(0, 5)} · {durationFormatted}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <Users className="h-3 w-3" />
+            <span>{booking.num_guests} / {booking.capacity_total} personnes</span>
+          </div>
+          {booking.price > 0 && (
+            <div className="flex items-center gap-2 text-xs font-semibold border-t pt-2">
+              <Euro className="h-3 w-3" />
+              <span>{formatPrice(booking.price, "EUR")}</span>
+            </div>
+          )}
+          {booking.notes && (
+            <div className="text-xs text-muted-foreground italic">{booking.notes}</div>
+          )}
         </div>
       </TooltipContent>
     </Tooltip>

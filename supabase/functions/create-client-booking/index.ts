@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +46,7 @@ const bookingDataSchema = z.object({
 const treatmentSchema = z.object({
   treatmentId: z.string().uuid('Invalid treatment ID format'),
   quantity: z.number().int().min(1).max(10, 'Quantity must be between 1 and 10'),
+  variantId: z.string().uuid('Invalid variant ID format').optional(),
 });
 
 const requestSchema = z.object({
@@ -54,6 +56,7 @@ const requestSchema = z.object({
   treatments: z.array(treatmentSchema).min(1, 'At least one treatment is required').max(20, 'Maximum 20 treatments allowed'),
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
+  therapistGender: z.enum(['female', 'male']).optional(),
 });
 
 // Sanitize string to prevent injection
@@ -64,55 +67,6 @@ function sanitizeString(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
     .trim();
-}
-
-// Find an available treatment room for the booking
-async function findAvailableRoom(
-  supabase: any,
-  hotelId: string,
-  bookingDate: string,
-  bookingTime: string
-): Promise<string | null> {
-  // Get all active treatment rooms for this hotel
-  const { data: rooms, error: roomsError } = await supabase
-    .from('treatment_rooms')
-    .select('id')
-    .eq('hotel_id', hotelId)
-    .in('status', ['active', 'Actif']);
-
-  if (roomsError || !rooms || rooms.length === 0) {
-    console.log('No active treatment rooms found for hotel:', hotelId);
-    return null;
-  }
-
-  // Get all bookings at this time slot that have rooms assigned
-  const { data: bookingsWithRooms, error: bookingsError } = await supabase
-    .from('bookings')
-    .select('room_id')
-    .eq('hotel_id', hotelId)
-    .eq('booking_date', bookingDate)
-    .eq('booking_time', bookingTime)
-    .not('room_id', 'is', null)
-    .not('status', 'in', '("Annulé","Terminé","cancelled")');
-
-  if (bookingsError) {
-    console.error('Error fetching bookings with rooms:', bookingsError);
-    return null;
-  }
-
-  // Find room IDs that are already in use
-  const usedRoomIds = new Set(bookingsWithRooms?.map((b: any) => b.room_id) || []);
-
-  // Find first available room
-  for (const room of rooms) {
-    if (!usedRoomIds.has(room.id)) {
-      console.log('Found available treatment room:', room.id);
-      return room.id;
-    }
-  }
-
-  console.log('No available treatment rooms at this time slot');
-  return null;
 }
 
 serve(async (req) => {
@@ -128,31 +82,43 @@ serve(async (req) => {
     );
 
     // Parse and validate request body
-    const rawBody = await req.json();
-    
+    let rawBody;
+try {
+  const textBody = await req.text();
+  if (!textBody) throw new Error("Body vide");
+  rawBody = JSON.parse(textBody);
+} catch (err) {
+  console.error('Erreur de parsing JSON:', err);
+  return new Response(
+    JSON.stringify({ success: false, error: 'Requête invalide ou vide envoyée par le site.' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+  );
+}
+
     const validationResult = requestSchema.safeParse(rawBody);
     if (!validationResult.success) {
       console.error('Validation error:', validationResult.error.issues);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: 'Validation failed',
           details: validationResult.error.issues.map(i => i.message)
         }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         }
       );
     }
 
-    const { 
-      hotelId, 
-      clientData, 
-      bookingData, 
-      treatments, 
-      paymentMethod, 
-      totalPrice 
+    const {
+      hotelId,
+      clientData,
+      bookingData,
+      treatments,
+      paymentMethod,
+      totalPrice,
+      therapistGender
     } = validationResult.data;
 
     console.log('Creating booking for hotel:', hotelId);
@@ -165,12 +131,14 @@ serve(async (req) => {
       phone: sanitizeString(clientData.phone),
       roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
       note: clientData.note ? sanitizeString(clientData.note) : null,
+      pmsGuestCheckIn: clientData.pmsGuestCheckIn || null,
+      pmsGuestCheckOut: clientData.pmsGuestCheckOut || null,
     };
 
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone')
       .eq('id', hotelId)
       .single();
 
@@ -197,40 +165,18 @@ serve(async (req) => {
       );
     }
 
-    // Find an available treatment room for this booking
-    const availableRoomId = await findAvailableRoom(
-      supabase,
-      hotelId,
-      bookingData.date,
-      bookingData.time
-    );
-
-    if (!availableRoomId) {
-      console.error('No available treatment room for booking');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Ce créneau n\'est plus disponible (capacité atteinte)'
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        }
-      );
-    }
-
-    // Validate that all treatment IDs exist and check for price_on_request and duration
+    // Validate that all treatment IDs exist and check for price_on_request, duration, lead_time
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request, duration')
+      .select('id, price_on_request, duration, lead_time')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
       console.error('Treatment validation error:', treatmentValidationError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to validate treatments' }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         }
@@ -239,26 +185,17 @@ serve(async (req) => {
 
     const validTreatmentIds = new Set(validTreatments?.map(t => t.id) || []);
     const invalidTreatments = treatmentIds.filter(id => !validTreatmentIds.has(id));
-    
+
     if (invalidTreatments.length > 0) {
       console.error('Invalid treatment IDs:', invalidTreatments);
       return new Response(
         JSON.stringify({ success: false, error: 'One or more treatments are invalid' }),
-        { 
+        {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
         }
       );
     }
-
-    // Check if any treatment is price_on_request
-    const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
-    const isOffert = !!hotel.offert || !!hotel.company_offered;
-    const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
-    const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
-    const effectivePaymentMethod = isOffert ? 'offert' : paymentMethod;
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
-    console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Calculate total duration from treatments (considering quantities)
     let totalDuration = 0;
@@ -269,6 +206,46 @@ serve(async (req) => {
       }
     }
     console.log('Total booking duration:', totalDuration, 'minutes');
+
+    // TOCTOU: Check blocked slots server-side
+    if (await isInBlockedSlot(supabase, hotelId, bookingData.date, bookingData.time, totalDuration || 30)) {
+      console.log('Rejected: overlaps with blocked slot', bookingData.time);
+      return new Response(
+        JSON.stringify({ success: false, error: 'BLOCKED_SLOT' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // TOCTOU: Check lead time server-side (for today's bookings only)
+    const maxLeadTime = Math.max(...(validTreatments?.map(t => t.lead_time || 0) || [0]));
+    if (maxLeadTime > 0) {
+      const now = new Date();
+      const bookingDateStr = bookingData.date;
+      const todayStr = now.toISOString().split('T')[0];
+
+      if (bookingDateStr === todayStr) {
+        const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const minutesUntilBooking = bookingMinutes - nowMinutes;
+
+        if (minutesUntilBooking < maxLeadTime) {
+          console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime });
+          return new Response(
+            JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+      }
+    }
+
+    // Check if any treatment is price_on_request
+    const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
+    const isOffert = !!hotel.offert || !!hotel.company_offered;
+    const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
+    const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    const effectivePaymentMethod = isOffert ? 'offert' : paymentMethod;
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+    console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
     const { data: customerId, error: customerError } = await supabase.rpc('find_or_create_customer', {
@@ -285,52 +262,69 @@ serve(async (req) => {
       console.log('Customer linked:', customerId);
     }
 
-    // Create booking with room_id assigned
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        hotel_id: hotelId,
-        hotel_name: hotel.name,
-        client_first_name: sanitizedClientData.firstName,
-        client_last_name: sanitizedClientData.lastName,
-        client_email: sanitizedClientData.email,
-        phone: sanitizedClientData.phone,
-        room_number: sanitizedClientData.roomNumber,
-        client_note: sanitizedClientData.note,
-        booking_date: bookingData.date,
-        booking_time: bookingData.time,
-        status: bookingStatus,
-        therapist_id: null,
-        room_id: availableRoomId, // Assign treatment room
-        payment_method: effectivePaymentMethod,
-        payment_status: effectivePaymentStatus,
-        total_price: effectiveTotalPrice,
-        duration: totalDuration > 0 ? totalDuration : null,
-        customer_id: customerId || null,
-      })
-      .select()
-      .single();
+    // TOCTOU FIX: Atomically reserve treatment room + create booking via RPC with FOR UPDATE lock
+    const { data: bookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
+      _hotel_id: hotelId,
+      _booking_date: bookingData.date,
+      _booking_time: bookingData.time,
+      _duration: totalDuration > 0 ? totalDuration : null,
+      _hotel_name: hotel.name,
+      _client_first_name: sanitizedClientData.firstName,
+      _client_last_name: sanitizedClientData.lastName,
+      _client_email: sanitizedClientData.email,
+      _phone: sanitizedClientData.phone,
+      _room_number: sanitizedClientData.roomNumber,
+      _client_note: sanitizedClientData.note,
+      _status: bookingStatus,
+      _payment_method: effectivePaymentMethod,
+      _payment_status: effectivePaymentStatus,
+      _total_price: effectiveTotalPrice,
+      _language: 'fr',
+      _treatment_ids: treatmentIds,
+      _customer_id: customerId || null,
+      _therapist_gender: therapistGender || null,
+    });
 
-    if (bookingError || !booking) {
-      console.error('Booking creation error:', bookingError);
+    if (rpcError) {
+      if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
+        console.log('Slot taken (atomic check)');
+        return new Response(
+          JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+        );
+      }
+      console.error('RPC error:', rpcError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to create booking' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500,
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    console.log('Booking created:', booking.id, 'with room:', availableRoomId);
+    console.log('Booking created atomically:', bookingId);
+
+    // Fetch the created booking to get booking_id (sequence number)
+    const { data: booking, error: bookingFetchError } = await supabase
+      .from('bookings')
+      .select('id, booking_id')
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingFetchError || !booking) {
+      console.error('Failed to fetch created booking:', bookingFetchError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Booking created but failed to retrieve details' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
 
     // Create booking treatments
     const treatmentInserts = [];
     for (const treatment of treatments) {
       for (let i = 0; i < treatment.quantity; i++) {
         treatmentInserts.push({
-          booking_id: booking.id,
+          booking_id: bookingId,
           treatment_id: treatment.treatmentId,
+          variant_id: treatment.variantId || null,
         });
       }
     }
@@ -353,8 +347,8 @@ serve(async (req) => {
     if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
       console.log('Auto-validation enabled for hotel, checking for single therapist...');
 
-      // Get active therapists assigned to this hotel
-      const { data: therapistVenues, error: therapistError } = await supabase
+      // Get active therapists assigned to this hotel (filtered by gender if preference set)
+      let autoValidateQuery = supabase
         .from('therapist_venues')
         .select(`
           therapist_id,
@@ -362,10 +356,17 @@ serve(async (req) => {
             id,
             first_name,
             last_name,
-            status
+            status,
+            gender
           )
         `)
         .eq('hotel_id', hotelId);
+
+      if (therapistGender) {
+        autoValidateQuery = autoValidateQuery.eq('therapists.gender', therapistGender);
+      }
+
+      const { data: therapistVenues, error: therapistError } = await autoValidateQuery;
 
       if (!therapistError && therapistVenues) {
         // Filter to get only active therapists
@@ -393,7 +394,7 @@ serve(async (req) => {
               therapist_name: therapistName,
               assigned_at: new Date().toISOString(),
             })
-            .eq('id', booking.id);
+            .eq('id', bookingId);
 
           if (!updateError) {
             wasAutoValidated = true;
@@ -436,7 +437,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               email: sanitizedClientData.email,
-              bookingId: booking.id,
+              bookingId: bookingId,
               bookingNumber: booking.booking_id.toString(),
               clientName: `${sanitizedClientData.firstName} ${sanitizedClientData.lastName}`,
               hotelName: hotel.name,
@@ -465,9 +466,9 @@ serve(async (req) => {
     // For quote_pending bookings, only notify admin (not therapists)
     if (bookingStatus === 'quote_pending') {
       try {
-        console.log('Sending quote pending notification to admin for booking:', booking.id);
+        console.log('Sending quote pending notification to admin for booking:', bookingId);
         const quoteNotifResponse = await supabase.functions.invoke('notify-admin-quote-pending', {
-          body: { bookingId: booking.id }
+          body: { bookingId: bookingId }
         });
 
         if (quoteNotifResponse.error) {
@@ -481,9 +482,9 @@ serve(async (req) => {
     } else if (wasAutoValidated) {
       // Auto-validated booking: send confirmation notifications (not new booking notifications)
       try {
-        console.log('Sending booking confirmed notifications for auto-validated booking:', booking.id);
+        console.log('Sending booking confirmed notifications for auto-validated booking:', bookingId);
         const confirmResponse = await supabase.functions.invoke('notify-booking-confirmed', {
-          body: { bookingId: booking.id }
+          body: { bookingId: bookingId }
         });
 
         if (confirmResponse.error) {
@@ -495,28 +496,28 @@ serve(async (req) => {
         console.error('Error sending booking confirmed notifications:', confirmError);
       }
     } else {
-      // Regular pending booking: trigger push notifications for therapists
+      // Regular pending booking: smart dispatch to top-ranked therapists
       try {
-        console.log('Triggering push notifications for booking:', booking.id);
-        const pushResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
-          body: { bookingId: booking.id }
+        console.log('Dispatching booking to ranked therapists:', bookingId);
+        const dispatchResponse = await supabase.functions.invoke('dispatch-booking-therapist', {
+          body: { bookingId: bookingId }
         });
 
-        if (pushResponse.error) {
-          console.error('Failed to trigger push notifications:', pushResponse.error);
+        if (dispatchResponse.error) {
+          console.error('Failed to dispatch booking:', dispatchResponse.error);
         } else {
-          console.log('Push notifications triggered:', pushResponse.data);
+          console.log('Smart dispatch result:', dispatchResponse.data);
         }
-      } catch (pushError) {
-        console.error('Error triggering push notifications:', pushError);
-        // Continue even if push notifications fail
+      } catch (dispatchError) {
+        console.error('Error dispatching booking:', dispatchError);
+        // Continue even if dispatch fails
       }
 
       // Trigger email notification to admins
       try {
-        console.log('Sending admin email notification for booking:', booking.id);
+        console.log('Sending admin email notification for booking:', bookingId);
         const adminEmailResponse = await supabase.functions.invoke('notify-admin-new-booking', {
-          body: { bookingId: booking.id }
+          body: { bookingId: bookingId }
         });
 
         if (adminEmailResponse.error) {
@@ -533,9 +534,9 @@ serve(async (req) => {
     // If payment method is room, notify concierge to charge the room
     if (paymentMethod === 'room') {
       try {
-        console.log('Sending concierge room payment notification for booking:', booking.id);
+        console.log('Sending concierge room payment notification for booking:', bookingId);
         const conciergeEmailResponse = await supabase.functions.invoke('notify-concierge-room-payment', {
-          body: { bookingId: booking.id }
+          body: { bookingId: bookingId }
         });
 
         if (conciergeEmailResponse.error) {
@@ -549,11 +550,11 @@ serve(async (req) => {
       }
 
       // Attempt PMS auto-charge (non-blocking, concierge already notified as fallback)
-      if (hotel.pms_auto_charge_room && hotel.pms_type === 'opera_cloud') {
+      if (hotel.pms_auto_charge_room && hotel.pms_type) {
         try {
-          console.log('Attempting Opera Cloud auto-charge for booking:', booking.id);
-          const pmsResponse = await supabase.functions.invoke('opera-cloud-post-charge', {
-            body: { bookingId: booking.id }
+          console.log('Attempting PMS auto-charge for booking:', bookingId, 'pms_type:', hotel.pms_type);
+          const pmsResponse = await supabase.functions.invoke('pms-post-charge', {
+            body: { bookingId: bookingId }
           });
 
           if (pmsResponse.error || pmsResponse.data?.fallbackToManual) {
@@ -569,12 +570,12 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        bookingId: booking.id,
+      JSON.stringify({
+        success: true,
+        bookingId: bookingId,
         bookingNumber: booking.booking_id,
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
@@ -583,11 +584,11 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in create-client-booking:', error);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
+      JSON.stringify({
+        success: false,
         error: 'An unexpected error occurred'
       }),
-      { 
+      {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       }

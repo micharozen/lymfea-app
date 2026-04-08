@@ -4,13 +4,13 @@
 -- =============================================================
 
 -- Fixed UUIDs for predictability
--- Admin:      00000000-0000-0000-0000-000000000001
--- Therapist:  00000000-0000-0000-0000-000000000002
--- Concierge:  00000000-0000-0000-0000-000000000003
--- Hotel:      00000000-0000-0000-0000-000000000010
+-- Admin:        00000000-0000-0000-0000-000000000001
+-- Therapist F: 00000000-0000-0000-0000-000000000002
+-- Therapist M: 00000000-0000-0000-0000-000000000004  
+-- Concierge:   00000000-0000-0000-0000-000000000003
+-- Hotel:       00000000-0000-0000-0000-000000000010
 
 -- 1) Auth users (password: "password" for all)
--- GoTrue requires empty strings (not NULL) for token/change columns
 INSERT INTO auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
@@ -58,9 +58,22 @@ INSERT INTO auth.users (
     '', '',
     '{"provider":"email","providers":["email"]}', '{}',
     false
+  ),
+  (
+    '00000000-0000-0000-0000-000000000000',
+    '00000000-0000-0000-0000-000000000004',
+    'authenticated', 'authenticated',
+    'therapist-m@lymfea.dev',
+    crypt('password', gen_salt('bf')),
+    NOW(), NOW(), NOW(),
+    '', '',
+    '', '', '',
+    '', '',
+    '{"provider":"email","providers":["email"]}', '{}',
+    false
   );
 
--- 2) Identity records (required for signInWithPassword)
+-- 2) Identity records
 INSERT INTO auth.identities (
   id, user_id, identity_data, provider, provider_id,
   last_sign_in_at, created_at, updated_at
@@ -87,6 +100,14 @@ INSERT INTO auth.identities (
     jsonb_build_object('sub', '00000000-0000-0000-0000-000000000003', 'email', 'concierge@oom.dev'),
     'email',
     '00000000-0000-0000-0000-000000000003',
+    NOW(), NOW(), NOW()
+  ),
+  (
+    gen_random_uuid(),
+    '00000000-0000-0000-0000-000000000004',
+    jsonb_build_object('sub', '00000000-0000-0000-0000-000000000004', 'email', 'therapist-m@lymfea.dev'),
+    'email',
+    '00000000-0000-0000-0000-000000000004',
     NOW(), NOW(), NOW()
   );
 
@@ -122,19 +143,37 @@ VALUES (
   '+33'
 );
 
--- 5) Therapist record
-INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee)
-VALUES (
-  '00000000-0000-0000-0000-000000000102',
-  '00000000-0000-0000-0000-000000000002',
-  'therapist@lymfea.dev',
-  'Dev', 'Therapist',
-  '0600000002',
-  'Actif',
-  true,
-  '+33',
-  '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}'
-);
+-- 5) Therapist records (Compétences mises à jour pour matcher les soins)
+INSERT INTO public.therapists (id, user_id, email, first_name, last_name, phone, status, password_set, country_code, minimum_guarantee, skills, gender, trunks)
+VALUES
+  (
+    '00000000-0000-0000-0000-000000000102',
+    '00000000-0000-0000-0000-000000000002',
+    'therapist@lymfea.dev',
+    'Dev', 'Therapist',
+    '0600000002',
+    'Actif',
+    true,
+    '+33',
+    '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
+    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    'female',
+    '00000000-0000-0000-0000-000000000030'
+  ),
+  (
+    '00000000-0000-0000-0000-000000000104',
+    '00000000-0000-0000-0000-000000000004',
+    'therapist-m@lymfea.dev',
+    'Marc', 'Therapist',
+    '0600000004',
+    'Actif',
+    true,
+    '+33',
+    '{"1": 3, "2": 2, "3": 4, "4": 3, "5": 2, "6": 1, "0": 0}',
+    '{"Massage","Soin du visage","Soin du corps",barber,beauty}', -- Skills harmonisés
+    'male',
+    '00000000-0000-0000-0000-000000000031'
+  );
 
 -- 6) Concierge record
 INSERT INTO public.concierges (id, user_id, email, first_name, last_name, phone, status, country_code, hotel_id, must_change_password)
@@ -150,7 +189,7 @@ VALUES (
   false
 );
 
--- 7) Link concierge to test hotel (used by UserContext to load hotelIds)
+-- 7) Link concierge to test hotel
 INSERT INTO public.concierge_hotels (id, concierge_id, hotel_id)
 VALUES (
   gen_random_uuid(),
@@ -158,51 +197,34 @@ VALUES (
   '00000000-0000-0000-0000-000000000010'
 );
 
--- 8) Link therapist to test hotel
+-- 8) Link therapists to test hotel
 INSERT INTO public.therapist_venues (id, therapist_id, hotel_id)
-VALUES (
-  gen_random_uuid(),
-  '00000000-0000-0000-0000-000000000102',
-  '00000000-0000-0000-0000-000000000010'
-);
+VALUES
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000102', '00000000-0000-0000-0000-000000000010'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000104', '00000000-0000-0000-0000-000000000010');
 
--- 9) Treatment category + treatment for test hotel
+-- 9) Treatment categories + treatments (Noms harmonisés au singulier)
 INSERT INTO public.treatment_categories (id, name, hotel_id, sort_order)
-VALUES (
-  '00000000-0000-0000-0000-000000000020',
-  'Coiffure',
-  '00000000-0000-0000-0000-000000000010',
-  1
-);
+VALUES
+  ('00000000-0000-0000-0000-000000000020', 'Massage', '00000000-0000-0000-0000-000000000010', 1),
+  ('00000000-0000-0000-0000-000000000022', 'Soin du visage', '00000000-0000-0000-0000-000000000010', 2),
+  ('00000000-0000-0000-0000-000000000023', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 3);
 
-INSERT INTO public.treatment_menus (id, name, category, hotel_id, service_for, duration, price, currency, status, description)
-VALUES (
-  '00000000-0000-0000-0000-000000000021',
-  'Brushing',
-  'Coiffure',
-  '00000000-0000-0000-0000-000000000010',
-  'Female',
-  45,
-  55.00,
-  'EUR',
-  'Actif',
-  'Brushing classique tous types de cheveux'
-);
+INSERT INTO public.treatment_menus (id, name, category, hotel_id, service_for, duration, price, currency, status, description, is_bestseller)
+VALUES
+  ('00000000-0000-0000-0000-000000000021', 'Massage relaxant', 'Massage', '00000000-0000-0000-0000-000000000010', 'All', 60, 90.00, 'EUR', 'active', 'Massage aux huiles essentielles pour une relaxation profonde', true),
+  ('00000000-0000-0000-0000-000000000024', 'Deep tissue', 'Massage', '00000000-0000-0000-0000-000000000010', 'All', 75, 120.00, 'EUR', 'active', 'Massage en profondeur pour soulager les tensions musculaires', false),
+  ('00000000-0000-0000-0000-000000000025', 'Soin éclat visage', 'Soin du visage', '00000000-0000-0000-0000-000000000010', 'All', 45, 75.00, 'EUR', 'active', 'Nettoyage, gommage et masque pour un teint lumineux', true),
+  ('00000000-0000-0000-0000-000000000026', 'Gommage corps', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 30, 55.00, 'EUR', 'active', 'Exfoliation douce au sel marin et huile d''argan', false),
+  ('00000000-0000-0000-0000-000000000027', 'Enveloppement détox', 'Soin du corps', '00000000-0000-0000-0000-000000000010', 'All', 50, 85.00, 'EUR', 'active', 'Enveloppement aux algues pour purifier et revitaliser', true);
 
--- 10) Treatment room assigned to test hotel
+-- 10) Treatment rooms
 INSERT INTO public.treatment_rooms (id, name, room_number, room_type, status, hotel_id, hotel_name, capacity)
-VALUES (
-  '00000000-0000-0000-0000-000000000030',
-  'Salle de Massage #1',
-  'ROOM-DEV-001',
-  'Massage',
-  'Actif',
-  '00000000-0000-0000-0000-000000000010',
-  'Hôtel Hana',
-  1
-);
+VALUES
+  ('00000000-0000-0000-0000-000000000030', 'Salle de Massage #1', 'ROOM-DEV-001', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1),
+  ('00000000-0000-0000-0000-000000000031', 'Salle de Massage #2', 'ROOM-DEV-002', 'Massage', 'Actif', '00000000-0000-0000-0000-000000000010', 'Hôtel Hana', 1);
 
--- 11) Venue deployment schedule (always open)
+-- 11) Venue deployment schedule
 INSERT INTO public.venue_deployment_schedules (id, hotel_id, schedule_type, recurrence_interval)
 VALUES (
   gen_random_uuid(),
@@ -215,5 +237,6 @@ VALUES (
 INSERT INTO public.user_roles (id, user_id, role)
 VALUES
   (gen_random_uuid(), '00000000-0000-0000-0000-000000000001', 'admin'),
- (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'therapist'),
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000000003', 'concierge');
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000002', 'therapist'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000003', 'concierge'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000000004', 'therapist');

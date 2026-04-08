@@ -32,8 +32,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { VENUE_ROLES } from "@/lib/venueRoles";
 
 const createFormSchema = (t: TFunction) => z.object({
   first_name: z.string().min(1, t('errors.validation.firstNameRequired')),
@@ -43,6 +45,7 @@ const createFormSchema = (t: TFunction) => z.object({
   country_code: z.string().default("+33"),
   hotel_ids: z.array(z.string()).min(1, t('errors.validation.hotelRequired')),
   profile_image: z.string().optional(),
+  venue_role: z.string().optional(),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -98,6 +101,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
       country_code: "+33",
       hotel_ids: [],
       profile_image: "",
+      venue_role: "",
     },
   });
 
@@ -135,6 +139,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
           country_code: values.country_code,
           profile_image: profileImage || null,
           status: "pending",
+          venue_role: values.venue_role || null,
         })
         .select()
         .single();
@@ -171,9 +176,9 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
 
       if (inviteError) {
         console.error("Erreur lors de l'envoi de l'invitation:", inviteError);
-        toast.error("Concierge créé mais l'email d'invitation n'a pas pu être envoyé");
+        toast.error("Membre créé mais l'email d'invitation n'a pas pu être envoyé");
       } else {
-        toast.success("Concierge ajouté et invitation envoyée avec succès");
+        toast.success("Membre ajouté et invitation envoyée avec succès");
       }
 
       form.reset();
@@ -181,7 +186,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
       onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error("Erreur lors de l'ajout du concierge");
+      toast.error("Erreur lors de l'ajout du membre");
       console.error(error);
     }
   };
@@ -194,19 +199,19 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
   };
 
   const getSelectedHotelsLabel = (selectedIds: string[]) => {
-    if (selectedIds.length === 0) return "Sélectionner des hôtels";
+    if (selectedIds.length === 0) return "Sélectionner des lieux";
     if (selectedIds.length === 1) {
       const hotel = hotels.find((h) => h.id === selectedIds[0]);
-      return hotel?.name || "1 hôtel sélectionné";
+      return hotel?.name || "1 lieu sélectionné";
     }
-    return `${selectedIds.length} hôtels sélectionnés`;
+    return `${selectedIds.length} lieux sélectionnés`;
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Ajouter un concierge</DialogTitle>
+          <DialogTitle className="text-xl font-semibold">Ajouter un membre</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -309,7 +314,7 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
               name="hotel_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Hôtel(s)</FormLabel>
+                  <FormLabel>Lieu(x)</FormLabel>
                   <Popover open={hotelPopoverOpen} onOpenChange={setHotelPopoverOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -362,6 +367,31 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
                       </ScrollArea>
                     </PopoverContent>
                   </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="venue_role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rôle</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un rôle" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {VENUE_ROLES.map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.labelFr}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

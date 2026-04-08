@@ -1,5 +1,5 @@
 import { useMemo, useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, useFieldArray } from "react-hook-form";
 import { getCurrencySymbol } from "@/lib/formatPrice";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,21 +35,27 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, Plus, Trash2 } from "lucide-react";
+import { SPECIALTY_OPTIONS } from "@/lib/specialtyTypes";
 
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
   description: z.string().optional(),
-  duration: z.string().default("0"),
-  price: z.string().default("0"),
   lead_time: z.string().default("0"),
   service_for: z.string().min(1, t('errors.validation.serviceForRequired')),
   category: z.string().min(1, t('errors.validation.categoryRequired')),
   hotel_id: z.string().min(1, t('errors.validation.hotelRequired')),
   status: z.string().default("active"),
   sort_order: z.string().default("0"),
-  price_on_request: z.boolean().default(false),
   is_bestseller: z.boolean().default(false),
+  specialty: z.string().optional(),
+  variants: z.array(z.object({
+    label: z.string().optional(),
+    duration: z.string().min(1, "Durée requise"),
+    price: z.string().default("0"),
+    price_on_request: z.boolean().default(false),
+    is_default: z.boolean().default(false),
+  })).min(1, "Au moins une variante requise"),
 });
 
 type FormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -65,7 +71,7 @@ export function AddTreatmentMenuDialog({
   onOpenChange,
   onSuccess,
 }: AddTreatmentMenuDialogProps) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const {
@@ -82,21 +88,25 @@ export function AddTreatmentMenuDialog({
     defaultValues: {
       name: "",
       description: "",
-      duration: "0",
-      price: "0",
       lead_time: "0",
       service_for: "",
       category: "",
       hotel_id: "",
       status: "active",
       sort_order: "0",
-      price_on_request: false,
       is_bestseller: false,
+      specialty: "",
+      variants: [{ label: "", duration: "", price: "0", price_on_request: false, is_default: true }],
     },
   });
 
-  const priceOnRequest = useWatch({ control: form.control, name: "price_on_request" });
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "variants",
+  });
+
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
+  const variants = useWatch({ control: form.control, name: "variants" });
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -117,15 +127,37 @@ export function AddTreatmentMenuDialog({
 
   const { categories, isLoading: categoriesLoading } = useTreatmentCategories(selectedHotelId);
 
+  const handleSetDefault = (index: number) => {
+    variants.forEach((_, i) => {
+      form.setValue(`variants.${i}.is_default`, i === index);
+    });
+  };
+
+  const handleAddVariant = () => {
+    append({ label: "", duration: "", price: "0", price_on_request: false, is_default: false });
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    const wasDefault = variants[index]?.is_default;
+    remove(index);
+    if (wasDefault && fields.length > 1) {
+      // Set first remaining variant as default
+      form.setValue("variants.0.is_default", true);
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
     const selectedHotelForSubmit = hotels?.find(h => h.id === values.hotel_id);
     const currencyForSubmit = selectedHotelForSubmit?.currency || 'EUR';
 
-    const { error } = await supabase.from("treatment_menus").insert({
+    // Use default variant values for backward compat on the treatment_menus row
+    const defaultVariant = values.variants.find(v => v.is_default) || values.variants[0];
+
+    const { data: newTreatment, error } = await supabase.from("treatment_menus").insert({
       name: values.name,
       description: values.description || null,
-      duration: parseInt(values.duration),
-      price: parseFloat(values.price),
+      duration: parseInt(defaultVariant.duration),
+      price: parseFloat(defaultVariant.price),
       lead_time: parseInt(values.lead_time),
       service_for: values.service_for,
       category: values.category,
@@ -134,12 +166,30 @@ export function AddTreatmentMenuDialog({
       image: menuImage || null,
       status: values.status,
       sort_order: parseInt(values.sort_order),
-      price_on_request: values.price_on_request,
+      price_on_request: defaultVariant.price_on_request,
       is_bestseller: values.is_bestseller,
-    });
+      treatment_type: values.specialty || null,
+    }).select('id').single();
 
-    if (error) {
+    if (error || !newTreatment) {
       toast.error("Erreur lors de l'ajout du menu");
+      return;
+    }
+
+    // Insert variants
+    const variantsToInsert = values.variants.map((v, index) => ({
+      treatment_id: newTreatment.id,
+      label: v.label || `${v.duration} min`,
+      duration: parseInt(v.duration),
+      price: parseFloat(v.price),
+      price_on_request: v.price_on_request,
+      is_default: v.is_default,
+      sort_order: index,
+    }));
+
+    const { error: variantsError } = await supabase.from("treatment_variants").insert(variantsToInsert);
+    if (variantsError) {
+      toast.error("Erreur lors de l'ajout des variantes");
       return;
     }
 
@@ -224,7 +274,7 @@ export function AddTreatmentMenuDialog({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="name"
@@ -275,6 +325,31 @@ export function AddTreatmentMenuDialog({
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="specialty"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('admin:treatments.specialty')}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('admin:treatments.noSpecialty')} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {SPECIALTY_OPTIONS.map((s) => (
+                          <SelectItem key={s.key} value={s.key}>
+                            {i18n.language === "fr" ? s.labelFr : s.labelEn}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField
@@ -295,84 +370,149 @@ export function AddTreatmentMenuDialog({
               )}
             />
 
-            <div className="grid grid-cols-4 gap-4 items-start">
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Durée (min)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="60" 
-                        {...field} 
-                        disabled={priceOnRequest}
-                        className={priceOnRequest ? "bg-muted text-muted-foreground" : ""}
+            {/* Variants section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FormLabel className="text-base font-semibold">Variantes</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddVariant}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Ajouter une variante
+                </Button>
+              </div>
+
+              {fields.map((field, index) => {
+                const variantPriceOnRequest = variants?.[index]?.price_on_request;
+                return (
+                  <div
+                    key={field.id}
+                    className="flex items-start gap-3 rounded-lg border p-3"
+                  >
+                    <div className="grid grid-cols-4 gap-3 flex-1">
+                      <FormField
+                        control={form.control}
+                        name={`variants.${index}.label`}
+                        render={({ field }) => (
+                          <FormItem>
+                            {index === 0 && <FormLabel className="text-xs">Label</FormLabel>}
+                            <FormControl>
+                              <Input placeholder="ex: 60 minutes" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Prix ({currencySymbol})</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                        disabled={priceOnRequest}
-                        className={priceOnRequest ? "bg-muted text-muted-foreground" : ""}
+                      <FormField
+                        control={form.control}
+                        name={`variants.${index}.duration`}
+                        render={({ field }) => (
+                          <FormItem>
+                            {index === 0 && <FormLabel className="text-xs">Durée (min) *</FormLabel>}
+                            <FormControl>
+                              <Input type="number" placeholder="60" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="lead_time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap">Délai min (min)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormField
+                        control={form.control}
+                        name={`variants.${index}.price`}
+                        render={({ field }) => (
+                          <FormItem>
+                            {index === 0 && <FormLabel className="text-xs">Prix ({currencySymbol})</FormLabel>}
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0.00"
+                                {...field}
+                                disabled={variantPriceOnRequest}
+                                className={variantPriceOnRequest ? "bg-muted text-muted-foreground" : ""}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-              <FormField
-                control={form.control}
-                name="price_on_request"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm whitespace-nowrap opacity-0">Sur demande</FormLabel>
-                    <div className="flex items-center gap-2 h-10">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="h-4 w-4"
-                        />
-                      </FormControl>
-                      <FormLabel className="text-sm cursor-pointer font-normal whitespace-nowrap m-0">
-                        Sur demande
-                      </FormLabel>
+                      <div className="space-y-2">
+                        {index === 0 && <FormLabel className="text-xs block">Options</FormLabel>}
+                        <div className="flex items-center gap-3 h-10">
+                          <FormField
+                            control={form.control}
+                            name={`variants.${index}.price_on_request`}
+                            render={({ field }) => (
+                              <div className="flex items-center gap-1.5">
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="h-3.5 w-3.5"
+                                />
+                                <label className="text-xs cursor-pointer whitespace-nowrap">
+                                  Sur demande
+                                </label>
+                              </div>
+                            )}
+                          />
+
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="radio"
+                              name="default_variant"
+                              checked={variants?.[index]?.is_default || false}
+                              onChange={() => handleSetDefault(index)}
+                              className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                            />
+                            <label className="text-xs cursor-pointer whitespace-nowrap">
+                              Défaut
+                            </label>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </FormItem>
-                )}
-              />
+
+                    {fields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 shrink-0 text-destructive hover:text-destructive mt-0"
+                        style={index === 0 ? { marginTop: '1.25rem' } : undefined}
+                        onClick={() => handleRemoveVariant(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {form.formState.errors.variants?.message && (
+                <p className="text-sm text-destructive">{form.formState.errors.variants.message}</p>
+              )}
             </div>
+
+            {/* Lead time stays at treatment level */}
+            <FormField
+              control={form.control}
+              name="lead_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm whitespace-nowrap">Délai minimum de réservation (min)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="0" className="max-w-[200px]" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -408,9 +548,9 @@ export function AddTreatmentMenuDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="Male">👨 Male</SelectItem>
-                      <SelectItem value="Female">👩 Female</SelectItem>
-                      <SelectItem value="All">👥 All</SelectItem>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="All">All</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

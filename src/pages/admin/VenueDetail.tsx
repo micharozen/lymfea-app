@@ -23,9 +23,10 @@ import {
 import { ArrowLeft, Loader2, Save, Pencil, Euro, CalendarDays } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
-import { VenueDeploymentTab } from "@/components/admin/venue/VenueDeploymentTab";
+import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
 import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
+import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
@@ -44,17 +45,24 @@ const createFormSchema = (t: TFunction) => z.object({
   vat: z.string().default("20"),
   hotel_commission: z.string().default("0"),
   therapist_commission: z.string().default("0"),
+  global_therapist_commission: z.boolean().default(true),
   status: z.string().default("active"),
   timezone: z.string().default("Europe/Paris"),
-  opening_time: z.string().default("06:00"),
-  closing_time: z.string().default("23:00"),
+  opening_time: z.string().default("10:00"),
+  closing_time: z.string().default("20:00"),
   slot_interval: z.number().default(30),
   auto_validate_bookings: z.boolean().default(false),
+  allow_out_of_hours_booking: z.boolean().default(false),
+  out_of_hours_surcharge_percent: z.string().default("0"),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
+  name_en: z.string().optional(),
+  landing_subtitle_en: z.string().optional(),
+  description_en: z.string().optional(),
   calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
+  if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
   const therapistComm = parseFloat(data.therapist_commission) || 0;
   return hotelComm + therapistComm <= 100;
@@ -128,12 +136,15 @@ export default function VenueDetail() {
       vat: "20",
       hotel_commission: "0",
       therapist_commission: "0",
+      global_therapist_commission: true,
       status: "active",
       timezone: "Europe/Paris",
-      opening_time: "06:00",
-      closing_time: "23:00",
+      opening_time: "10:00",
+      closing_time: "20:00",
       slot_interval: 30,
       auto_validate_bookings: false,
+      allow_out_of_hours_booking: false,
+      out_of_hours_surcharge_percent: "0",
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -172,15 +183,21 @@ export default function VenueDetail() {
           vat: hotel.vat?.toString() || "20",
           hotel_commission: hotel.hotel_commission?.toString() || "0",
           therapist_commission: hotel.therapist_commission?.toString() || "0",
+          global_therapist_commission: hotel.global_therapist_commission !== false,
           status: hotel.status || "active",
           timezone: hotel.timezone || "Europe/Paris",
-          opening_time: hotel.opening_time?.substring(0, 5) || "06:00",
-          closing_time: hotel.closing_time?.substring(0, 5) || "23:00",
+          opening_time: hotel.opening_time?.substring(0, 5) || "10:00",
+          closing_time: hotel.closing_time?.substring(0, 5) || "20:00",
           slot_interval: hotel.slot_interval || 30,
           auto_validate_bookings: hotel.auto_validate_bookings || false,
+          allow_out_of_hours_booking: hotel.allow_out_of_hours_booking || false,
+          out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
+          name_en: (hotel as any).name_en || "",
+          landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
+          description_en: (hotel as any).description_en || "",
           calendar_color: hotel.calendar_color || "#3b82f6",
         });
 
@@ -350,13 +367,25 @@ export default function VenueDetail() {
     // Validate form
     const isValid = await form.trigger();
     if (!isValid) {
+      const errors = form.formState.errors;
+      const missingFields: string[] = [];
+      if (errors.name) missingFields.push("Nom");
+      if (errors.address) missingFields.push("Adresse");
+      if (errors.city) missingFields.push("Ville");
+      if (errors.country) missingFields.push("Pays");
+      if (errors.hotel_commission) missingFields.push("Commission");
+      toast.error(
+        missingFields.length > 0
+          ? `Champs requis manquants : ${missingFields.join(", ")}`
+          : "Veuillez corriger les erreurs du formulaire"
+      );
       setActiveTab("general");
       return;
     }
 
     // Validate deployment
     if (!validateDeployment()) {
-      setActiveTab("planning");
+      setActiveTab("general");
       return;
     }
 
@@ -375,6 +404,7 @@ export default function VenueDetail() {
         vat: parseFloat(values.vat),
         hotel_commission: parseFloat(values.hotel_commission),
         therapist_commission: parseFloat(values.therapist_commission),
+        global_therapist_commission: values.global_therapist_commission,
         status: values.status,
         image: hotelImage || null,
         cover_image: coverImage || null,
@@ -383,9 +413,14 @@ export default function VenueDetail() {
         closing_time: values.closing_time + ':00',
         slot_interval: values.slot_interval,
         auto_validate_bookings: values.auto_validate_bookings,
+        allow_out_of_hours_booking: values.allow_out_of_hours_booking,
+        out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
+        name_en: values.name_en || null,
+        landing_subtitle_en: values.landing_subtitle_en || null,
+        description_en: values.description_en || null,
         calendar_color: values.calendar_color || '#3b82f6',
       };
 
@@ -460,6 +495,7 @@ export default function VenueDetail() {
   // Watch name and currency for header display
   const watchedName = form.watch("name");
   const watchedCurrency = form.watch("currency");
+  const watchedVenueType = form.watch("venue_type");
 
   // Fetch booking stats for header
   const { data: stats } = useQuery({
@@ -523,7 +559,7 @@ export default function VenueDetail() {
             {stats && (
               <div className="hidden md:flex items-center gap-3 ml-1 pl-3 border-l">
                 <div className="flex items-center gap-1.5">
-                  <Euro className="h-3.5 w-3.5 text-gold-500" />
+                  <Euro className="h-3.5 w-3.5 text-gold-600" />
                   <span className="text-sm font-medium text-gold-600">
                     {formatPrice(stats.totalSales || 0, watchedCurrency || "EUR")}
                   </span>
@@ -553,7 +589,6 @@ export default function VenueDetail() {
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Enregistrer
@@ -570,7 +605,6 @@ export default function VenueDetail() {
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Enregistrer
@@ -600,9 +634,12 @@ export default function VenueDetail() {
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
               <TabsTrigger value="general" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Général</TabsTrigger>
-              <TabsTrigger value="planning" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Planning</TabsTrigger>
+              <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Planning</TabsTrigger>
               <TabsTrigger value="rooms" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Salles
+              </TabsTrigger>
+              <TabsTrigger value="amenities" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Commodités
               </TabsTrigger>
               <TabsTrigger value="therapists" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Thérapeutes
@@ -636,21 +673,27 @@ export default function VenueDetail() {
                     handleCoverImageUpload={handleCoverImageUpload}
                     triggerHotelImageSelect={triggerHotelImageSelect}
                     triggerCoverImageSelect={triggerCoverImageSelect}
-                  />
-                </TabsContent>
-
-                <TabsContent value="planning" className="mt-0">
-                  <VenueDeploymentTab
-                    form={form}
-                    state={deploymentState}
-                    onChange={setDeploymentState}
+                    deploymentState={deploymentState}
+                    onDeploymentStateChange={setDeploymentState}
                     blockedSlots={blockedSlots}
                     onBlockedSlotsChange={setBlockedSlots}
-                    disabled={!isEditing}
                   />
                 </TabsContent>
               </form>
             </Form>
+
+            <TabsContent value="planning" className="mt-0">
+              {canAccessTabs ? (
+                <VenueBookingCalendar
+                  hotelId={effectiveHotelId!}
+                  hotelName={hotelName || watchedName}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  Enregistrez le lieu pour accéder au planning
+                </div>
+              )}
+            </TabsContent>
 
             {canAccessTabs && (
               <>
@@ -658,6 +701,13 @@ export default function VenueDetail() {
                   <VenueTreatmentRoomsTab
                     hotelId={effectiveHotelId!}
                     hotelName={hotelName || watchedName}
+                  />
+                </TabsContent>
+
+                <TabsContent value="amenities" className="mt-0">
+                  <VenueAmenitiesTab
+                    hotelId={effectiveHotelId!}
+                    venueType={watchedVenueType}
                   />
                 </TabsContent>
 

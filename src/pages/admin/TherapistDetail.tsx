@@ -15,6 +15,7 @@ import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { TherapistGeneralTab } from "@/components/admin/therapist/TherapistGeneralTab";
 import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistAssignmentsTab";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
+import { TherapistActivityTab } from "@/components/admin/therapist/TherapistActivityTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -24,6 +25,10 @@ const createFormSchema = (t: TFunction) =>
     country_code: z.string().default("+33"),
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
+    gender: z.enum(["female", "male", ""]).optional().default(""),
+    rate_45: z.string().optional(),
+    rate_60: z.string().optional(),
+    rate_90: z.string().optional(),
   });
 
 export type TherapistFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -68,6 +73,7 @@ export default function TherapistDetail() {
       country_code: "+33",
       phone: "",
       status: "En attente",
+      gender: "",
     },
   });
 
@@ -96,6 +102,10 @@ export default function TherapistDetail() {
           country_code: therapist.country_code || "+33",
           phone: therapist.phone || "",
           status: therapist.status || "En attente",
+          gender: therapist.gender || "",
+          rate_45: therapist.rate_45?.toString() || "",
+          rate_60: therapist.rate_60?.toString() || "",
+          rate_90: therapist.rate_90?.toString() || "",
         });
 
         setProfileImage(therapist.profile_image || "");
@@ -147,12 +157,16 @@ export default function TherapistDetail() {
         country_code: values.country_code,
         phone: values.phone,
         status: values.status,
+        gender: values.gender || null,
         profile_image: profileImage || null,
         skills: selectedSkills,
         trunks: selectedRooms.length > 0 ? selectedRooms.join(", ") : null,
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
+        rate_45: values.rate_45 ? parseFloat(values.rate_45) : null,
+        rate_60: values.rate_60 ? parseFloat(values.rate_60) : null,
+        rate_90: values.rate_90 ? parseFloat(values.rate_90) : null,
       };
 
       if (isNewMode && !savedTherapistId) {
@@ -304,7 +318,6 @@ export default function TherapistDetail() {
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {saving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -325,7 +338,6 @@ export default function TherapistDetail() {
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   {saving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -377,6 +389,13 @@ export default function TherapistDetail() {
               >
                 {t("admin:therapists.planning", "Planning")}
               </TabsTrigger>
+              <TabsTrigger
+                value="activity"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:therapists.activity", "Activité")}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -419,6 +438,10 @@ export default function TherapistDetail() {
                   <TherapistScheduleSection
                     therapistId={effectiveTherapistId!}
                   />
+                </TabsContent>
+
+                <TabsContent value="activity" className="mt-0">
+                  <TherapistActivityTab therapistId={effectiveTherapistId!} />
                 </TabsContent>
               </>
             )}

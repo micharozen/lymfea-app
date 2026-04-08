@@ -66,6 +66,40 @@
 | `cancelled` | Annulée (par client, admin ou système) |
 | `noshow` | Client ne s'est pas présenté |
 
+### Statuts de Paiement
+
+| Statut | Description |
+|--------|-------------|
+| `pending` | En attente de paiement |
+| `awaiting_payment` | Pré-réservation Stripe Checkout — slot verrouillé 4 min max |
+| `paid` | Payé par carte (Stripe) |
+| `charged_to_room` | Facturé en chambre d'hôtel |
+| `failed` | Paiement échoué |
+| `refunded` | Remboursé |
+| `offert` | Soin offert (gratuit) |
+
+### Protection TOCTOU (anti double-réservation)
+
+Le système empêche les race conditions où deux clients réservent le même créneau simultanément :
+
+```
+Client A clique "Payer"  ──► reserve_trunk_atomically() ──► Salle verrouillée ──► Stripe Checkout
+                                     ↑ FOR UPDATE lock
+Client B clique "Payer"  ──► reserve_trunk_atomically() ──► NO_TRUNK_AVAILABLE → erreur SLOT_TAKEN
+```
+
+**Composants :**
+
+1. **`reserve_trunk_atomically()`** (RPC PostgreSQL) — Verrouille toutes les réservations actives du lieu+date avec `FOR UPDATE`, puis cherche une salle libre + thérapeute qualifié et crée la réservation dans la même transaction.
+
+2. **Pré-réservation `awaiting_payment`** — Lors d'un checkout Stripe, la salle est pré-réservée avec `payment_status = 'awaiting_payment'`. Le client a 4 minutes pour payer. Passé ce délai, un cron PostgreSQL (`cancel-expired-prereservations`, toutes les minutes) annule la réservation et libère la salle.
+
+3. **`reactivate_prereservation()`** (RPC PostgreSQL) — Si le paiement Stripe arrive après l'expiration des 4 minutes mais que la salle est toujours libre, le webhook réactive la réservation. Si la salle a été prise entre-temps, le client est automatiquement remboursé.
+
+4. **Vérifications côté serveur** — `create-client-booking` et `create-checkout-session` vérifient les `venue_blocked_slots` (pauses déjeuner, etc.) et le `lead_time` des traitements avant toute réservation.
+
+5. **Erreurs typées** — Le frontend gère `SLOT_TAKEN`, `BLOCKED_SLOT` et `LEAD_TIME_VIOLATION` et redirige vers la page Schedule avec le contexte de date pour un re-booking rapide.
+
 ### Auto-validation
 
 Si `hotels.auto_validate_bookings = true` et qu'un seul thérapeute est assigné au lieu :

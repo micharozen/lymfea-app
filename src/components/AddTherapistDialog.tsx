@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
+import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -58,12 +59,6 @@ interface TreatmentRoom {
   image: string | null;
 }
 
-const SKILLS_OPTIONS = [
-  { value: "men", label: "👨 Hommes" },
-  { value: "women", label: "👩 Femmes" },
-  { value: "barber", label: "💈 Barbier" },
-  { value: "beauty", label: "💅 Beauté" },
-];
 
 const createFormSchema = (t: TFunction) => z.object({
   first_name: z.string().min(1, t('errors.validation.firstNameRequired')).max(100, t('errors.validation.firstNameTooLong')),
@@ -79,7 +74,8 @@ export default function AddTherapistDialog({
   onOpenChange,
   onSuccess,
 }: AddTherapistDialogProps) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const skillsOptions = getSpecialtySelectOptions(i18n.language);
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
   const [hotels, setHotels] = useState<Hotel[]>([]);
@@ -370,7 +366,7 @@ export default function AddTherapistDialog({
               <MultiSelectPopover
                 selected={selectedSkills}
                 onChange={setSelectedSkills}
-                options={SKILLS_OPTIONS.map((s) => ({ value: s.value, label: s.label }))}
+                options={skillsOptions}
                 popoverWidthClassName="w-36"
                 popoverMaxHeightClassName="h-32"
               />

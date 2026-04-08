@@ -49,14 +49,14 @@ export default function PaymentConfirmation() {
 
         {/* Success Icon */}
         <div className="relative mb-8">
-          <div className="absolute inset-0 bg-gold-400/20 rounded-full animate-ping" />
-          <div className="relative bg-gold-400/10 rounded-full p-6 ring-1 ring-gold-400/30">
-            <CheckCircle2 className="h-16 w-16 text-gold-400" strokeWidth={1.5} />
+          <div className="absolute inset-0 bg-gold-500/20 rounded-full animate-ping" />
+          <div className="relative bg-gold-500/10 rounded-full p-6 ring-1 ring-gold-500/30">
+            <CheckCircle2 className="h-16 w-16 text-gold-600" strokeWidth={1.5} />
           </div>
         </div>
 
         {/* Label */}
-        <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-400 mb-4 font-semibold">
+        <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-4 font-semibold">
           {t('paymentConfirmation.label')}
         </h3>
 
@@ -73,7 +73,7 @@ export default function PaymentConfirmation() {
         {/* Hotel info if available */}
         {booking?.hotel_name && (
           <div className="flex items-center gap-2 text-[10px] text-white/40 uppercase tracking-[0.2em] font-light mb-10 py-4 border-y border-white/5 w-full justify-center">
-            <span className="w-1.5 h-1.5 rounded-full bg-gold-400/50"></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-500/50"></span>
             {booking.hotel_name}
           </div>
         )}

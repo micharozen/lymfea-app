@@ -205,7 +205,6 @@ export default function CustomerDetail() {
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-foreground text-background hover:bg-foreground/90"
               >
                 {saving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -226,7 +225,6 @@ export default function CustomerDetail() {
                 <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="bg-foreground text-background hover:bg-foreground/90"
                 >
                   {saving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

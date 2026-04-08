@@ -1,10 +1,6 @@
--- Add landing_subtitle field for hotel landing page customization
--- Allows each hotel to customize the subtitle shown on the landing page
--- Default: "Beauty Services" (hardcoded in frontend if NULL)
+-- Expose pms_guest_lookup_enabled in the public hotel RPC so the client
+-- booking flow can conditionally reorder the form (room number first).
 
-ALTER TABLE public.hotels ADD COLUMN IF NOT EXISTS landing_subtitle TEXT;
-
--- Update get_public_hotel_by_id to include landing_subtitle
 DROP FUNCTION IF EXISTS public.get_public_hotel_by_id(text);
 
 CREATE FUNCTION public.get_public_hotel_by_id(_hotel_id text)
@@ -27,7 +23,11 @@ RETURNS TABLE(
   "recurring_end_date" date,
   "venue_type" text,
   "description" text,
-  "landing_subtitle" text
+  "landing_subtitle" text,
+  "offert" boolean,
+  "slot_interval" integer,
+  "company_offered" boolean,
+  "pms_guest_lookup_enabled" boolean
 )
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO 'public'
@@ -51,7 +51,11 @@ AS $$
     vds.recurring_end_date,
     h.venue_type,
     h.description,
-    h.landing_subtitle
+    h.landing_subtitle,
+    COALESCE(h.offert, false),
+    COALESCE(h.slot_interval, 30),
+    COALESCE(h.company_offered, false),
+    COALESCE(h.pms_guest_lookup_enabled, false)
   FROM public.hotels h
   LEFT JOIN public.venue_deployment_schedules vds ON vds.hotel_id = h.id
   WHERE h.id = _hotel_id

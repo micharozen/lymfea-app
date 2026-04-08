@@ -5,6 +5,7 @@ import { toast } from "sonner";
 export interface TreatmentCategory {
   id: string;
   name: string;
+  name_en: string | null;
   hotel_id: string;
   sort_order: number | null;
   created_at: string;
@@ -110,6 +111,31 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     },
   });
 
+  const updateNameEnMutation = useMutation({
+    mutationFn: async ({
+      categoryId,
+      nameEn,
+    }: {
+      categoryId: string;
+      nameEn: string | null;
+    }) => {
+      const { error } = await supabase
+        .from("treatment_categories")
+        .update({ name_en: nameEn })
+        .eq("id", categoryId);
+
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["treatment-categories", hotelId] });
+      toast.success("Traduction enregistrée");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour");
+    },
+  });
+
   const updateSortOrderMutation = useMutation({
     mutationFn: async ({
       categoryId,
@@ -154,6 +180,10 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     return updateSortOrderMutation.mutateAsync({ categoryId, sortOrder });
   };
 
+  const updateNameEn = async (categoryId: string, nameEn: string | null) => {
+    return updateNameEnMutation.mutateAsync({ categoryId, nameEn });
+  };
+
   const getTreatmentCountByCategory = async (categoryName: string) => {
     if (!hotelId) return 0;
 
@@ -175,6 +205,7 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     renameCategory,
     updateSortOrder,
     getTreatmentCountByCategory,
+    updateNameEn,
     isAdding: addCategoryMutation.isPending,
     isRenaming: renameCategoryMutation.isPending,
   };

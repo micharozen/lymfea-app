@@ -121,20 +121,25 @@ serve(async (req) => {
         room_number,
         booking_treatments(
           treatment_id,
-          treatment_menus(name, price)
+          treatment_menus(name, price, duration)
         ),
         hotels(
           name,
           vat,
           hotel_commission,
           therapist_commission,
+          global_therapist_commission,
           currency,
           venue_type
         ),
         therapists(
           first_name,
           last_name,
-          stripe_account_id
+          stripe_account_id,
+          hourly_rate,
+          rate_45,
+          rate_60,
+          rate_90
         )
       `)
       .eq('id', booking_id)
@@ -172,14 +177,51 @@ serve(async (req) => {
     const vatRate = hotel.vat || 20;
     const hotelCommissionRate = hotel.hotel_commission || 10;
     const therapistCommissionRate = hotel.therapist_commission || 70;
+    const isGlobalMode = hotel.global_therapist_commission !== false;
 
     const totalTTC = final_amount;
     const totalHT = totalTTC / (1 + vatRate / 100);
     const tvaAmount = totalTTC - totalHT;
 
-    // Commissions calculées sur le HT
+    // Commission lieu toujours calculée sur le HT
     const hotelCommission = totalHT * (hotelCommissionRate / 100);
-    const therapistShare = totalHT * (therapistCommissionRate / 100);
+
+    let therapistShare: number;
+
+    if (isGlobalMode) {
+      // Mode global : pourcentage identique pour tous les thérapeutes
+      therapistShare = totalHT * (therapistCommissionRate / 100);
+    } else {
+      // Mode individuel : taux par palier de durée
+      const bookingDuration = (booking.booking_treatments || []).reduce(
+        (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0), 0
+      );
+
+      if (bookingDuration > 0 && therapist) {
+        // Taux par palier : 45min, 60min, 90min
+        if (bookingDuration === 45 && therapist.rate_45 && therapist.rate_45 > 0) {
+          therapistShare = therapist.rate_45;
+        } else if (bookingDuration === 60 && therapist.rate_60 && therapist.rate_60 > 0) {
+          therapistShare = therapist.rate_60;
+        } else if (bookingDuration === 90 && therapist.rate_90 && therapist.rate_90 > 0) {
+          therapistShare = therapist.rate_90;
+        } else if (therapist.rate_60 && therapist.rate_60 > 0) {
+          // Hors palier : calcul proportionnel depuis le taux 1h
+          therapistShare = therapist.rate_60 * (bookingDuration / 60);
+        } else if (therapist.hourly_rate && therapist.hourly_rate > 0) {
+          // Fallback legacy : ancien taux horaire
+          therapistShare = therapist.hourly_rate * (bookingDuration / 60);
+        } else {
+          therapistShare = totalHT * (therapistCommissionRate / 100);
+        }
+        // Cap : ne peut pas dépasser totalHT - hotelCommission
+        therapistShare = Math.min(therapistShare, totalHT - hotelCommission);
+      } else {
+        // Fallback si pas de durée ou pas de thérapeute
+        therapistShare = totalHT * (therapistCommissionRate / 100);
+      }
+    }
+
     const lymfeaShare = totalHT - hotelCommission - therapistShare;
 
     const breakdown: CommissionBreakdown = {
@@ -190,7 +232,7 @@ serve(async (req) => {
       hotelCommission: Math.round(hotelCommission * 100) / 100,
       hotelCommissionRate,
       therapistShare: Math.round(therapistShare * 100) / 100,
-      therapistCommissionRate,
+      therapistCommissionRate: isGlobalMode ? therapistCommissionRate : 0,
       lymfeaShare: Math.round(lymfeaShare * 100) / 100,
     };
 

@@ -7,3 +7,6 @@ export { PaymentLinkForm } from "./PaymentLinkForm";
 export type { BookingData } from "./PaymentLinkForm";
 export { default as CreateBookingDialog } from "./CreateBookingDialog";
 export type { CreateBookingDialogProps, BookingFormValues, CartItem } from "./CreateBookingDialog.schema";
+export { AvailabilityOverlay } from "./AvailabilityOverlay";
+export { CalendarSidebarDesktop, CalendarSidebarMobile, buildCalendarEntries } from "./CalendarSidebar";
+export type { CalendarEntry } from "./CalendarSidebar";

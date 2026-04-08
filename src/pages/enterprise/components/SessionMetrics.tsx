@@ -19,7 +19,7 @@ export function SessionMetrics({ session }: SessionMetricsProps) {
         {/* Available Slots */}
         <div className="bg-white rounded-lg border border-gray-100 p-4 text-center animate-slide-up-fade" style={{ animationDelay: '0.1s' }}>
           <div className="flex justify-center mb-2">
-            <CalendarCheck className="h-5 w-5 text-gold-400" />
+            <CalendarCheck className="h-5 w-5 text-gold-600" />
           </div>
           <p className="text-2xl sm:text-3xl font-semibold text-gray-900 font-grotesk">
             {session.booked_count}
@@ -33,9 +33,9 @@ export function SessionMetrics({ session }: SessionMetricsProps) {
         {/* Fill Rate */}
         <div className="bg-white rounded-lg border border-gray-100 p-4 text-center animate-slide-up-fade" style={{ animationDelay: '0.2s' }}>
           <div className="flex justify-center mb-2">
-            <TrendingUp className="h-5 w-5 text-gold-400" />
+            <TrendingUp className="h-5 w-5 text-gold-600" />
           </div>
-          <p className="text-2xl sm:text-3xl font-semibold text-gold-500 font-grotesk">
+          <p className="text-2xl sm:text-3xl font-semibold text-gold-600 font-grotesk">
             {fillRate}%
           </p>
           <p className="text-[10px] uppercase tracking-[0.15em] text-gray-400 mt-1 font-medium">
@@ -46,7 +46,7 @@ export function SessionMetrics({ session }: SessionMetricsProps) {
         {/* Unique Clients */}
         <div className="bg-white rounded-lg border border-gray-100 p-4 text-center animate-slide-up-fade" style={{ animationDelay: '0.3s' }}>
           <div className="flex justify-center mb-2">
-            <Users className="h-5 w-5 text-gold-400" />
+            <Users className="h-5 w-5 text-gold-600" />
           </div>
           <p className="text-2xl sm:text-3xl font-semibold text-gray-900 font-grotesk">
             {session.unique_clients}
