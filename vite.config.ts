@@ -6,7 +6,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 import brandConfig from './src/config/brand.json';
 
 // Injects brand values into index.html at build time
-// Replaces {{brand.x.y}} placeholders with values from brand.json
 function brandPlugin(): Plugin {
   return {
     name: 'brand-inject',
@@ -18,7 +17,7 @@ function brandPlugin(): Plugin {
           if (value && typeof value === 'object' && key in value) {
             value = (value as Record<string, unknown>)[key];
           } else {
-            return _match; // Leave placeholder if path not found
+            return _match; 
           }
         }
         return String(value);
@@ -27,7 +26,6 @@ function brandPlugin(): Plugin {
   };
 }
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -36,23 +34,35 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React ecosystem
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          // Data fetching
-          'vendor-query': ['@tanstack/react-query'],
-          // Form handling
-          'vendor-form': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          // Date utilities
-          'vendor-date': ['date-fns', 'date-fns-tz'],
-          // PDF export (only loaded when needed in admin)
-          'pdf-export': ['html2pdf.js'],
-          // Charts (only loaded on admin dashboard)
-          'charts': ['recharts'],
+        // CORRECTION : manualChunks doit être une fonction pour Vite 8 / Rolldown
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Regroupement par thématique comme dans ton ancienne config
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('@tanstack/react-query')) {
+              return 'vendor-query';
+            }
+            if (id.includes('react-hook-form') || id.includes('@hookform/resolvers') || id.includes('zod')) {
+              return 'vendor-form';
+            }
+            if (id.includes('date-fns')) {
+              return 'vendor-date';
+            }
+            if (id.includes('html2pdf.js')) {
+              return 'pdf-export';
+            }
+            if (id.includes('recharts')) {
+              return 'charts';
+            }
+            // Par défaut pour le reste des node_modules
+            return 'vendor-others';
+          }
         },
       },
     },
-    chunkSizeWarningLimit: 500, // Warn if chunks exceed 500KB
+    chunkSizeWarningLimit: 1000, // Augmenté car les chunks vendor sont souvent > 500kb
   },
   plugins: [
     brandPlugin(),
@@ -60,9 +70,9 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: false, // We register the service worker manually
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'service-worker.js', 'manifest.webmanifest'],
-      manifest: false, // Use static manifest from public/
+      manifest: false, 
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,webmanifest}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
@@ -80,7 +90,7 @@ export default defineConfig(({ mode }) => ({
         enabled: true
       }
     })
-  ].filter(Boolean),
+  ].filter((p): p is Plugin => p !== false), // Typage explicite pour éviter l'erreur d'overload
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
