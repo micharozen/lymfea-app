@@ -14,6 +14,7 @@ const TicketSchema = z.object({
   description: z.string().trim().min(1).max(5000),
   category: z.enum(["question", "billing", "booking", "problem", "other"]),
   priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
+  screenshot_urls: z.array(z.string().url()).max(3).optional().default([]),
 });
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -79,6 +80,7 @@ async function sendSlackNotification(ticket: {
   priority: string;
   creator_name: string;
   creator_role: string;
+  screenshot_urls: string[];
 }): Promise<void> {
   const webhookUrl = Deno.env.get("SLACK_WEBHOOK_SUPPORT");
   if (!webhookUrl) {
@@ -96,6 +98,7 @@ async function sendSlackNotification(ticket: {
       : ticket.description;
 
   const slackMessage = {
+    text: `🎫 Nouveau ticket: ${ticket.subject} (${priorityConfig.emoji} ${priorityConfig.label}) — par ${ticket.creator_name}`,
     attachments: [
       {
         color: priorityConfig.color,
@@ -131,6 +134,19 @@ async function sendSlackNotification(ticket: {
               text: `*Description:*\n${truncatedDesc}`,
             },
           },
+          ...(ticket.screenshot_urls.length > 0
+            ? [
+                {
+                  type: "context",
+                  elements: [
+                    {
+                      type: "mrkdwn",
+                      text: `📎 ${ticket.screenshot_urls.length} capture(s) d'écran jointe(s)`,
+                    },
+                  ],
+                },
+              ]
+            : []),
           {
             type: "actions",
             elements: [
@@ -169,6 +185,7 @@ async function createNotionPage(ticket: {
   priority: string;
   creator_name: string;
   creator_role: string;
+  screenshot_urls: string[];
 }): Promise<string | null> {
   const notionApiKey = Deno.env.get("NOTION_API_KEY");
   const notionDbId = Deno.env.get("NOTION_DATABASE_ID");
@@ -199,9 +216,6 @@ async function createNotionPage(ticket: {
       Creator: {
         rich_text: [{ text: { content: `${ticket.creator_name} (${ticket.creator_role})` } }],
       },
-      "Ticket ID": {
-        rich_text: [{ text: { content: ticket.id } }],
-      },
     },
     children: [
       {
@@ -211,6 +225,14 @@ async function createNotionPage(ticket: {
           rich_text: [{ type: "text" as const, text: { content: ticket.description } }],
         },
       },
+      ...ticket.screenshot_urls.map((url) => ({
+        object: "block" as const,
+        type: "image" as const,
+        image: {
+          type: "external" as const,
+          external: { url },
+        },
+      })),
     ],
   };
 
@@ -289,6 +311,7 @@ serve(async (req) => {
         description: validated.description,
         category: validated.category,
         priority: validated.priority,
+        screenshot_urls: validated.screenshot_urls,
         status: "open",
         created_by: user.id,
         creator_name: creatorInfo.name,
@@ -316,6 +339,7 @@ serve(async (req) => {
       priority: ticket.priority,
       creator_name: creatorInfo.name,
       creator_role: creatorInfo.role,
+      screenshot_urls: validated.screenshot_urls,
     };
 
     const results = await Promise.allSettled([
