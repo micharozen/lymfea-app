@@ -83,6 +83,8 @@ const getPaymentStatusBadge = (paymentStatus: string | null | undefined, payment
       return { label: t('dashboard.paymentPaid'), className: 'bg-green-100 text-green-700' };
     case 'charged_to_room':
       return { label: t('dashboard.paymentRoom'), className: 'bg-blue-100 text-blue-700' };
+      case 'card_saved': // 💜 ON AJOUTE NOTRE NOUVEAU STATUT ICI
+      return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
     case 'pending':
       return { label: t('dashboard.paymentPending'), className: 'bg-yellow-100 text-yellow-700' };
     case 'failed':
@@ -499,10 +501,14 @@ const PwaDashboard = () => {
 
       const { data, error } = await supabase.rpc('accept_booking', {
         _booking_id: bookingId,
-        _therapist_id: therapist.id,
-        _therapist_name: `${therapist.first_name} ${therapist.last_name}`,
+        // Correction des noms de paramètres pour correspondre à la DB
+        _hairdresser_id: therapist.id, 
+        _hairdresser_name: `${therapist.first_name} ${therapist.last_name}`,
         _total_price: totalPrice
       });
+
+      if (error) throw error;
+      // ... reste du code identique
 
       if (error) throw error;
 

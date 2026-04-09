@@ -59,38 +59,37 @@ export function useBookingData() {
         (bookingsData || []).map(async (booking) => {
           const { data: treatments } = await supabase
             .from("booking_treatments")
-            .select(
-              `
+            .select(`
               treatment_id,
               treatment_menus (
                 name,
                 duration,
                 price
               )
-            `,
-            )
+            `)
             .eq("booking_id", booking.id);
 
           const treatmentsTotalDuration =
-            treatments?.reduce((sum, t: BookingTreatmentJoin) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
 
           const treatmentsTotalPrice =
-            treatments?.reduce((sum, t: BookingTreatmentJoin) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
 
           const totalDuration = booking.duration && booking.duration > 0
             ? booking.duration
             : treatmentsTotalDuration;
 
-const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
+          const treatmentsList = (treatments as any[] | null)
             ?.map((t): Treatment | null => {
               if (!t.treatment_menus) return null;
               return {
                 ...t.treatment_menus,
                 id: t.treatment_id,
                 treatment_id: t.treatment_id
-              } as Treatment; // <-- On force TypeScript à accepter notre format !
+              } as Treatment;
             })
             .filter((m): m is Treatment => m !== null) || [];
+
           return {
             ...booking,
             totalDuration,
@@ -132,17 +131,28 @@ const treatmentsList = (treatments as BookingTreatmentJoin[] | null)
 
   // Realtime subscription for automatic updates
   useEffect(() => {
-    const channel = supabase
-      .channel('bookings-admin-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bookings' },
-        () => {
-          refetchBookings();
-        }
-      )
-      .subscribe();
+    const channelName = 'bookings-admin-realtime';
 
+    // 1. On nettoie tout ce qui pourrait traîner pour éviter les conflits de callbacks
+    supabase.removeAllChannels();
+
+    // 2. On crée le canal
+    const channel = supabase.channel(channelName);
+
+    // 3. On attache l'écouteur AVANT de souscrire (ordre crucial pour Supabase)
+    channel.on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'bookings' },
+      () => {
+        // Point 10 Review Michael : Suppression du console.log
+        refetchBookings();
+      }
+    );
+
+    // 4. On lance la souscription
+    channel.subscribe();
+
+    // 5. Nettoyage propre au démontage
     return () => {
       supabase.removeChannel(channel);
     };

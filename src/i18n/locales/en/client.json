@@ -132,21 +132,27 @@
     "addToRoomDesc": "Charge will be added to your room bill",
     "payNow": "Pay Now",
     "payNowDesc": "Credit card, Apple Pay, Google Pay",
-    "processing": "Processing...",
+    "processing": "Processing payment...",
     "secure": "Secure payment",
     "confirmBook": "Confirm & Book",
     "quoteRequired": "Quote required",
     "quoteRequiredDesc": "Your cart contains items requiring a quote. A consultant will contact you to confirm the final price.",
     "onQuote": "On quote",
     "plusQuote": "+ quote",
-    "requestQuote": "Request a quote"
+    "requestQuote": "Request a quote",
+    "saveCard": "Card Guarantee",
+    "saveCardDesc": "Your card will not be charged now. Payment will be collected on site.",
+    "saveCardButton": "Save my card",
+    "pleaseWait": "Please wait..."
   },
   "confirmation": {
-    "title": "Booking Complete",
+    "title": "Booking Confirmed",
     "message": "You will receive a confirmation email with all the details of your booking",
     "backHome": "Back to Home",
     "quotePendingTitle": "Quote Request Sent",
-    "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details."
+    "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details.",
+    "subtitle": "Thank you for your trust.",
+    "yourService": "Your service"
   },
   "paymentConfirmation": {
     "label": "Payment Confirmation",
@@ -248,5 +254,8 @@
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",
     "blockedSlot": "This slot overlaps with an unavailable time range (e.g. lunch break).",
     "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time."
+  },
+  "badges": {
+    "card_saved": "Card saved"
   }
 }

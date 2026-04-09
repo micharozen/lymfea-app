@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -10,13 +12,14 @@ import {
   Loader2, ArrowLeft, User, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool
+  PenTool, ChevronRight
 } from "lucide-react";
 
 import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
+import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -24,8 +27,10 @@ export default function BookingDetail() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [signingLoading, setSigningLoading] = useState(false);
 
-  const { bookings, getHotelInfo } = useBookingData();
+  const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
   const isLoading = !bookings; 
   
   const booking = bookings?.find((b) => b.id === id);
@@ -43,6 +48,36 @@ export default function BookingDetail() {
   const displayPrice = booking.total_price && booking.total_price > 0 
     ? booking.total_price 
     : booking.treatmentsTotalPrice;
+
+  // Fonction pour enregistrer la signature depuis l'admin
+  const handleSignatureConfirm = async (signatureData: string) => {
+    setSigningLoading(true);
+    try {
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          client_signature: signatureData,
+          signed_at: new Date().toISOString(),
+          // On peut aussi passer le statut à 'completed' si l'admin veut clôturer la resa
+          status: booking.status === 'confirmed' ? 'completed' : booking.status 
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+      
+      toast.success("Signature ajoutée avec succès au dossier !");
+      setIsSignatureOpen(false);
+      
+      // LA LIGNE MAGIQUE : Force le rechargement invisible des données instantanément 🪄
+      refetch();
+      
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Erreur lors de l'enregistrement de la signature");
+    } finally {
+      setSigningLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
@@ -71,7 +106,7 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* BOUTON SIGNATURE 100% SÉCURISÉ (Via Token) */}
+          {/* BOUTON SIGNATURE */}
           {isSigned ? (
             <Button 
               variant="outline" 
@@ -86,7 +121,7 @@ export default function BookingDetail() {
               variant="outline" 
               size="sm" 
               className="text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
-              onClick={() => window.open(`/client/signature/${booking.signature_token}`, '_blank')}
+              onClick={() => setIsSignatureOpen(true)}
             >
               <PenTool className="h-4 w-4 mr-2" /> Signature
             </Button>
@@ -134,11 +169,23 @@ export default function BookingDetail() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+          
+          {/* COLONNE GAUCHE (Client + Soins) */}
           <div className="md:col-span-2 space-y-6">
-            <section className="bg-white rounded-xl border p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
-                <User className="h-4 w-4" /> Client
-              </h3>
+            
+            {/* SECTION CLIENT (Cliquable) */}
+            <section 
+              onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
+              className={`bg-white rounded-xl border p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2">
+                  <User className="h-4 w-4" /> Client
+                </h3>
+                {(booking as any).customer_id && (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                )}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Nom</p>
@@ -151,11 +198,17 @@ export default function BookingDetail() {
               </div>
             </section>
 
+            {/* SECTION SOINS & PRATICIEN */}
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
                 <HandHeart className="h-4 w-4" /> Soins & Praticien
               </h3>
-              <div className="mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between">
+              
+              {/* ENCART THERAPEUTE (Cliquable) */}
+              <div 
+                onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
+                className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
+              >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                     {booking.therapist_name?.charAt(0) || "?"}
@@ -165,7 +218,12 @@ export default function BookingDetail() {
                     <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
                   </div>
                 </div>
+                {booking.therapist_id && (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                )}
               </div>
+              
+              {/* LISTE DES SOINS */}
               <div className="space-y-3">
                 {booking.treatments?.map((t, i) => (
                   <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -177,6 +235,7 @@ export default function BookingDetail() {
             </section>
           </div>
 
+          {/* COLONNE DROITE (Organisation + Prix) */}
           <div className="space-y-6">
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Organisation</h3>
@@ -219,6 +278,24 @@ export default function BookingDetail() {
         open={isPaymentLinkOpen} 
         onOpenChange={setIsPaymentLinkOpen} 
         booking={booking} 
+      />
+
+      {/* Modale de Signature commune avec la PWA */}
+      <InvoiceSignatureDialog
+        open={isSignatureOpen}
+        onOpenChange={setIsSignatureOpen}
+        onConfirm={handleSignatureConfirm}
+        signatureToken={booking.signature_token}
+        loading={signingLoading}
+        treatments={(booking.treatments || []).map(t => ({
+          name: t.name || "",
+          duration: t.duration || 0,
+          price: t.price || 0
+        }))}
+        vatRate={20} // Valeur par défaut
+        totalPrice={displayPrice}
+        isAlreadyPaid={isPaid}
+        currency={currency}
       />
     </div>
   );

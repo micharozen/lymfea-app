@@ -145,13 +145,15 @@ BEGIN
   INSERT INTO bookings (
     hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone,
     booking_date, booking_time, status, room_id, therapist_id, total_price, duration, 
-    room_number, customer_id, payment_method, payment_status, stripe_invoice_url, language
+    room_number, customer_id, payment_method, payment_status, language
   ) VALUES (
     _hotel_id::uuid, _hotel_name, _client_first_name, _client_last_name, _client_email, _phone,
     _booking_date, _booking_time, _status, _room_id, _therapist_id, _total_price, _duration, 
     COALESCE(_room_number, 'TBD'),
     CASE WHEN _customer_id IS NOT NULL THEN _customer_id::uuid ELSE NULL END,
-    _payment_method, _payment_status, _stripe_session_id, _language
+    _payment_method, 
+    CASE WHEN _payment_status = 'card_saved' THEN 'pending' ELSE _payment_status END, 
+    _language
   ) RETURNING id INTO _booking_id;
 
   RETURN _booking_id;
