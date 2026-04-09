@@ -143,22 +143,17 @@ export function useBookingData() {
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'bookings' },
-      (payload) => {
-        console.log('✅ Changement détecté (Admin) :', payload);
+      () => {
+        // Point 10 Review Michael : Suppression du console.log
         refetchBookings();
       }
     );
 
     // 4. On lance la souscription
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('📡 Connecté aux changements en temps réel');
-      }
-    });
+    channel.subscribe();
 
     // 5. Nettoyage propre au démontage
     return () => {
-      console.log('🔌 Nettoyage du canal realtime');
       supabase.removeChannel(channel);
     };
   }, [refetchBookings]);

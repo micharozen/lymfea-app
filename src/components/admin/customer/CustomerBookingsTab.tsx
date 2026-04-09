@@ -22,7 +22,8 @@ interface CustomerBookingsTabProps {
   customerId: string;
 }
 
-const formatPaymentText = (status: string | null) => {
+// 🛠️ MODIFICATION : On ajoute 't' pour gérer la traduction de card_saved
+const formatPaymentText = (status: string | null, t: any) => {
   switch (status) {
     case 'charged_to_room':
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 shadow-none font-medium">Facturé chambre</Badge>;
@@ -33,7 +34,8 @@ const formatPaymentText = (status: string | null) => {
     case 'failed':
       return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 shadow-none font-medium">Échec</Badge>;
     case 'card_saved':
-      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">Carte enregistrée</Badge>;
+      // Utilisation de la traduction ici
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 shadow-none font-medium">{t("badges.card_saved", "Carte enregistrée")}</Badge>;
     case 'pending':
     default:
       return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 shadow-none font-medium">En attente</Badge>;
@@ -74,7 +76,7 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
           therapists:therapists!bookings_hairdresser_id_fkey(id, first_name, last_name),
           booking_treatments(treatment_menus(name))
         `)
-        .or(searchCondition) // <-- La magie opère ici !
+        .or(searchCondition) // <-- Ta magie opère bien ici !
         .order("booking_date", { ascending: false });
       
       if (error) throw error;
@@ -104,7 +106,7 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
             </TableRow>
           </TableHeader>
           {isLoading ? (
-            <TableSkeleton rows={5} columns={8} />
+            <TableSkeleton rows={5} columns={8} /> // 8 colonnes, comme dans ton code initial
           ) : bookings.length === 0 ? (
             <TableEmptyState colSpan={8} icon={Calendar} message={t("customers.bookingHistory.noBookings")} />
           ) : (
@@ -140,8 +142,9 @@ export function CustomerBookingsTab({ customerId }: CustomerBookingsTabProps) {
                       <StatusBadge status={booking.status} type="booking" />
                     </TableCell>
 
+                    {/* 🛠️ MODIFICATION : On passe 't' au formateur */}
                     <TableCell className="px-3">
-                      {formatPaymentText(booking.payment_status)}
+                      {formatPaymentText(booking.payment_status, t)}
                     </TableCell>
 
                     <TableCell className="px-3">

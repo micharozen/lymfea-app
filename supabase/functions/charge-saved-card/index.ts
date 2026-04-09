@@ -1,81 +1,79 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { stripe } from "../_shared/stripe-client.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const { bookingId, finalAmount } = await req.json();
-    console.log(`[CHARGE-CARD] Débit de ${finalAmount}€ pour la résa ${bookingId}`);
 
-    if (!bookingId || !finalAmount) throw new Error("bookingId ou finalAmount manquant");
+    // POINT 4 : Utilisation de maybeSingle() au lieu de single() pour éviter le crash 406
+    const { data: paymentInfo, error: fetchError } = await supabaseAdmin
+      .from("booking_payment_infos")
+      .select("*, customers(stripe_customer_id)")
+      .eq("booking_id", bookingId)
+      .maybeSingle();
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
-    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-
-    // 1. Récupérer l'ID de la carte dans NOTRE base
-    const { data: paymentInfo } = await supabase
-      .from('booking_payment_infos')
-      .select('stripe_payment_method_id')
-      .eq('booking_id', bookingId)
-      .single();
-
-    if (!paymentInfo || !paymentInfo.stripe_payment_method_id) {
-      throw new Error("Aucune carte enregistrée trouvée pour cette réservation.");
+    if (fetchError) throw fetchError;
+    if (!paymentInfo) {
+      throw new Error("Informations de paiement introuvables pour cette réservation.");
     }
 
-    // 2. Récupérer la devise
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('hotel_currency')
-      .eq('id', bookingId)
-      .single();
-
-    // 3. LA MAGIE : On demande directement à Stripe le propriétaire de la carte !
-    const paymentMethod = await stripe.paymentMethods.retrieve(paymentInfo.stripe_payment_method_id);
-    const stripeCustomerId = paymentMethod.customer;
-
-    if (!stripeCustomerId || typeof stripeCustomerId !== 'string') {
-        throw new Error("Impossible de retrouver le client Stripe (Customer) associé à cette carte.");
+    // POINT 3 : Validation du montant côté serveur (Sécurité Bloquante)
+    // On vérifie que le front n'essaie pas de débiter plus que le devis initial/mis à jour
+    if (finalAmount > paymentInfo.estimated_price) {
+      throw new Error(`Alerte sécurité : le montant demandé (${finalAmount}€) dépasse le devis autorisé (${paymentInfo.estimated_price}€).`);
     }
 
-    // 4. Débiter la carte avec le bon Customer
-    console.log(`[CHARGE-CARD] Appel à Stripe... Customer trouvé : ${stripeCustomerId}`);
+    const stripeCustomerId = paymentInfo.customers?.stripe_customer_id;
+    if (!stripeCustomerId || !paymentInfo.stripe_payment_method_id) {
+      throw new Error("Moyen de paiement ou client Stripe manquant.");
+    }
+
+    // Création du PaymentIntent en "off_session" (le client n'est pas devant l'écran)
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(finalAmount * 100), // Stripe veut des centimes
-      currency: (booking?.hotel_currency || 'eur').toLowerCase(),
-      customer: stripeCustomerId, 
+      amount: Math.round(finalAmount * 100), // Stripe attend des centimes
+      currency: "eur",
+      customer: stripeCustomerId,
       payment_method: paymentInfo.stripe_payment_method_id,
-      off_session: true, // Le client n'est pas devant l'écran
-      confirm: true,     // On confirme immédiatement
-      description: `Paiement du soin - Réservation ${bookingId}`,
+      off_session: true,
+      confirm: true,
+      metadata: { booking_id: bookingId },
     });
 
-    if (paymentIntent.status !== 'succeeded') {
-      throw new Error(`Le paiement a été refusé (Statut: ${paymentIntent.status})`);
-    }
+    // Mise à jour du statut dans la table isolée de paiement
+    await supabaseAdmin
+      .from("booking_payment_infos")
+      .update({
+        payment_status: "charged",
+        payment_at: new Date().toISOString(),
+        stripe_payment_intent_id: paymentIntent.id
+      })
+      .eq("booking_id", bookingId);
 
-    // 5. Mettre à jour la base de données
-    console.log("[CHARGE-CARD] Paiement réussi !");
-    await supabase.from('bookings').update({ payment_status: 'paid' }).eq('id', bookingId);
-    await supabase.from('booking_payment_infos').update({ payment_status: 'paid' }).eq('booking_id', bookingId);
+    // POINT 8 : On passe le booking principal à 'paid' uniquement quand le débit a vraiment eu lieu
+    await supabaseAdmin
+      .from("bookings")
+      .update({ payment_status: "paid" })
+      .eq("id", bookingId);
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ success: true, paymentIntent }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
 
   } catch (error: any) {
-    console.error("[CHARGE-CARD] Erreur fatale :", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500, 
+    // Si la carte est refusée (ex: pas de fonds), Stripe renvoie une erreur ici
+    console.error("Erreur charge-saved-card:", error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 400,
     });
   }
 });

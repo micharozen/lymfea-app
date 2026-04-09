@@ -122,7 +122,7 @@
     "payNow": "Payer maintenant",
     "payAtHotel": "Payer à l'hôtel"
   },
-  "payment": {
+ "payment": {
     "title": "Paiement",
     "headline": "Finalisez votre réservation",
     "stepLabel": "ÉTAPE 3 SUR 3",
@@ -139,14 +139,20 @@
     "quoteRequiredDesc": "Votre panier contient des prestations sur devis. Un conseiller vous contactera pour confirmer le prix final.",
     "onQuote": "Sur devis",
     "plusQuote": "+ devis",
-    "requestQuote": "Envoyer la demande"
+    "requestQuote": "Envoyer la demande",
+    "saveCard": "Empreinte bancaire",
+    "saveCardDesc": "Votre carte ne sera pas débitée maintenant. Le paiement se fera sur place.",
+    "saveCardButton": "Enregistrer ma carte",
+    "pleaseWait": "Veuillez patienter..."
   },
   "confirmation": {
     "title": "Réservation confirmée",
     "message": "Vous recevrez un email de confirmation avec tous les détails de votre réservation",
     "backHome": "Retour à l'accueil",
     "quotePendingTitle": "Demande de devis envoyée",
-    "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails."
+    "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails.",
+    "subtitle": "Merci de votre confiance.",
+    "yourService": "Votre prestation"
   },
   "paymentConfirmation": {
     "label": "Confirmation de paiement",
@@ -248,5 +254,9 @@
     "slotTaken": "Ce créneau vient d'être réservé par un autre client. Veuillez choisir un autre horaire.",
     "blockedSlot": "Ce créneau chevauche une plage horaire indisponible (ex: pause déjeuner).",
     "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire."
+  },
+
+  "badges": {
+    "card_saved": "Carte enregistrée"
   }
 }

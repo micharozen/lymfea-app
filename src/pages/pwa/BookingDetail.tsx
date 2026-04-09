@@ -55,6 +55,7 @@ interface Booking {
   client_email?: string | null;
   hotel_vat?: number;
   payment_status?: string | null;
+  effective_payment_status?: string | null;
   payment_method?: string | null;
   therapist_commission?: number;
   global_therapist_commission?: boolean;
@@ -127,7 +128,12 @@ const PwaBookingDetail = () => {
 
   const fetchBookingDetail = async () => {
     try {
-      const { data: bookingData, error: bookingError } = await supabase.from("bookings").select("*").eq("id", id).single();
+      const { data: bookingData, error: bookingError } = await supabase
+        .from("bookings")
+        .select("*, booking_payment_infos(payment_status)")
+        .eq("id", id)
+        .single();
+        
       if (bookingError) throw bookingError;
 
       const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
@@ -137,6 +143,14 @@ const PwaBookingDetail = () => {
         const { data: tData } = await supabase.from("therapists").select("hourly_rate, rate_45, rate_60, rate_90").eq("id", bookingData.therapist_id).single();
         rates = { hr: tData?.hourly_rate, r45: tData?.rate_45, r60: tData?.rate_60, r90: tData?.rate_90 };
       }
+
+      const infosStatus = Array.isArray(bookingData.booking_payment_infos) 
+        ? bookingData.booking_payment_infos[0]?.payment_status 
+        : (bookingData.booking_payment_infos as any)?.payment_status;
+        
+      const effectivePaymentStatus = bookingData.payment_status === 'paid' 
+        ? 'paid' 
+        : (infosStatus || bookingData.payment_status);
 
       setBooking({
         ...bookingData,
@@ -150,7 +164,8 @@ const PwaBookingDetail = () => {
         therapist_rate_45: rates.r45,
         therapist_rate_60: rates.r60,
         therapist_rate_90: rates.r90,
-        hotel_currency: hotelData?.currency || 'EUR'
+        hotel_currency: hotelData?.currency || 'EUR',
+        effective_payment_status: effectivePaymentStatus
       });
 
       const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*)").eq("booking_id", id);
@@ -211,83 +226,43 @@ const PwaBookingDetail = () => {
   };
 
   const handleAcceptBooking = async () => {
-    console.log('--- 🚀 DÉBUT handleAcceptBooking ---');
-    console.log('1. Etat initial booking ID:', booking?.id, '| Status:', booking?.status);
-    
-    if (!booking || updating || isAcceptingRef.current) {
-      console.log('❌ Annulé: booking manquant ou clic déjà en cours d\'exécution');
-      return;
-    }
-    
+    if (!booking || updating || isAcceptingRef.current) return;
     isAcceptingRef.current = true;
     setUpdating(true);
     
     try {
-      console.log('2. Récupération de l\'utilisateur...');
       const { data: { user } } = await supabase.auth.getUser();
-      console.log('User ID trouvé:', user?.id);
-      
-      console.log('3. Récupération profil thérapeute...');
-      const { data: tData, error: tError } = await supabase
-        .from("therapists")
-        .select("id, first_name, last_name")
-        .eq("user_id", user?.id)
-        .single();
+      const { data: tData, error: tError } = await supabase.from("therapists").select("id, first_name, last_name").eq("user_id", user?.id).single();
         
-      if (tError || !tData) {
-        console.error('❌ Erreur Thérapeute:', tError);
-        throw new Error("Profil thérapeute non trouvé");
-      }
-      console.log('✅ Thérapeute trouvé:', tData.id, tData.first_name);
+      if (tError || !tData) throw new Error("Profil thérapeute non trouvé");
 
       const treatmentsPrice = treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0);
       const finalPrice = Math.max(booking.total_price || 0, treatmentsPrice);
-      console.log(`4. Prix final calculé: ${finalPrice}€ (Base: ${booking.total_price}€, Soins ajoutés: ${treatmentsPrice}€)`);
 
-      console.log('5. Tentative de mise à jour directe dans supabase...');
       const { data: updateData, error: updateError } = await supabase
         .from('bookings')
-        .update({
-          therapist_id: tData.id,
-          status: 'confirmed',
-          total_price: finalPrice
-        })
+        .update({ therapist_id: tData.id, status: 'confirmed', total_price: finalPrice })
         .eq('id', booking.id)
         .select();
-        
-      console.log('6. Résultat de la requête Update Direct:', { retourData: updateData, erreur: updateError });
 
-      // Si l'update direct échoue ou renvoie 0 ligne, on tente l'ancien RPC de ta branche
       if (updateError || !updateData || updateData.length === 0) {
-         console.warn('⚠️ Update direct a échoué (ou 0 ligne modifiée). Tentative de secours avec RPC...');
-         const { data: rpcData, error: rpcError } = await supabase.rpc('accept_booking', {
+         const { error: rpcError } = await supabase.rpc('accept_booking', {
            _booking_id: booking.id,
            _hairdresser_id: tData.id,
            _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
            _total_price: finalPrice
          });
-         console.log('7. Résultat de la tentative RPC:', { retourRPC: rpcData, erreurRPC: rpcError });
-         
-         if (rpcError) {
-             throw new Error(`Échec total de l'update ET du RPC. Erreur RPC: ${rpcError.message}`);
-         }
-      } else {
-         console.log('✅ Mise à jour directe réussie !');
+         if (rpcError) throw new Error(`Erreur RPC: ${rpcError.message}`);
       }
 
-      console.log('8. Lancement de la notification Edge Function (non-bloquant)...');
-      invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } })
-        .catch(err => console.log('Log Notif (ignoré pour la suite):', err));
+      invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
       
       toast.success(t('bookingDetail.accepted'));
-      console.log('9. Redirection vers /pwa/dashboard avec forceRefresh = true');
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
       
     } catch (error: any) {
-      console.error("❌ Erreur FATALE dans handleAcceptBooking:", error);
       toast.error(error.message || t('common:errors.generic'));
     } finally {
-      console.log('--- 🏁 FIN handleAcceptBooking ---');
       isAcceptingRef.current = false;
       setUpdating(false);
     }
@@ -365,7 +340,7 @@ const PwaBookingDetail = () => {
           <img src={booking.hotel_image_url || ""} className="w-16 h-16 object-cover rounded-xl mb-2 bg-muted" />
           <h2 className="font-semibold text-sm">{booking.hotel_name}</h2>
           <p className="text-xs text-muted-foreground flex items-center gap-1"><Navigation className="w-3 h-3"/> {booking.hotel_address}</p>
-          {booking.payment_status && <Badge className={`mt-2 ${getPaymentStatusBadge(booking.payment_status)?.className}`}>{getPaymentStatusBadge(booking.payment_status)?.label}</Badge>}
+          {booking.effective_payment_status && <Badge className={`mt-2 ${getPaymentStatusBadge(booking.effective_payment_status)?.className}`}>{getPaymentStatusBadge(booking.effective_payment_status)?.label}</Badge>}
         </div>
 
         <div className="space-y-3 border-t pt-3">
@@ -399,19 +374,19 @@ const PwaBookingDetail = () => {
         ) : (
           <div className="flex gap-2">
             <button onClick={() => setShowContactDrawer(true)} className="w-12 h-12 rounded-full border flex items-center justify-center"><MoreVertical/></button>
-            {booking.payment_status === 'card_saved' && !booking.client_signature ? (
+            {booking.effective_payment_status === 'card_saved' && !booking.client_signature ? (
               <button 
                 onClick={() => handleChargeSavedCard(totalPrice)} 
                 disabled={updating} 
                 className="flex-1 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
               >
                 {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>} 
-                Finaliser ({formatPrice(totalPrice, booking.hotel_currency)})
+                Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
               </button>
-            ) : booking.payment_status !== 'paid' && !booking.client_signature ? (
-              <button onClick={() => setShowPaymentSelection(true)} className="flex-1 bg-primary text-white rounded-full font-bold">Finaliser</button>
+            ) : booking.effective_payment_status !== 'paid' && !booking.client_signature ? (
+              <button onClick={() => setShowPaymentSelection(true)} className="flex-1 bg-primary text-white rounded-full font-bold">Finaliser la prestation</button>
             ) : !booking.client_signature && (
-              <button onClick={() => setShowSignatureDialog(true)} className="flex-1 bg-green-600 text-white rounded-full font-bold flex items-center justify-center gap-2"><Pen className="w-4 h-4"/> Signature</button>
+              <button onClick={() => setShowSignatureDialog(true)} className="flex-1 bg-green-600 text-white rounded-full font-bold flex items-center justify-center gap-2"><Pen className="w-4 h-4"/> Signature client</button>
             )}
           </div>
         )}
@@ -427,7 +402,7 @@ const PwaBookingDetail = () => {
       </Drawer>
 
       <AddTreatmentDialog open={showAddTreatmentDialog} onOpenChange={setShowAddTreatmentDialog} bookingId={booking.id} hotelId={booking.hotel_id} onTreatmentsAdded={fetchBookingDetail} />
-     <InvoiceSignatureDialog 
+      <InvoiceSignatureDialog 
         open={showSignatureDialog} 
         onOpenChange={setShowSignatureDialog} 
         onConfirm={handleSignatureConfirm} 
@@ -436,9 +411,9 @@ const PwaBookingDetail = () => {
         treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} 
         vatRate={booking.hotel_vat || 20} 
         totalPrice={totalPrice} 
-        isAlreadyPaid={booking.payment_status === 'paid' || booking.payment_status === 'card_saved'} 
+        isAlreadyPaid={booking.effective_payment_status === 'paid' || booking.effective_payment_status === 'card_saved'} 
       />
-      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} onSignatureRequired={() => { setPendingRoomPayment(true); setShowSignatureDialog(true); }} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} />
+      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} onSignatureRequired={() => { setPendingRoomPayment(true); setShowSignatureDialog(true); }} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

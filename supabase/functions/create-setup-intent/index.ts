@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { stripe } from "../_shared/stripe-client.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
 
 const corsHeaders = {
@@ -14,17 +14,16 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[CREATE-SETUP-INTENT] Starting SetupIntent creation");
-
     const { 
       bookingData, 
       clientData, 
       treatmentIds, 
       treatments: treatmentsPayload, 
       hotelId,
-      language,         // <--- AJOUTE ÇA ICI
-      therapistGender   // <--- AJOUTE ÇA ICI
+      language,
+      therapistGender
     } = await req.json();
+
     // 1. Validation de base des champs requis
     if (!bookingData || !clientData || !hotelId) {
       throw new Error("Missing required data");
@@ -41,22 +40,12 @@ serve(async (req) => {
       throw new Error("At least one treatment is required");
     }
 
-    // Initialisation Supabase & Stripe
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
-      apiVersion: "2025-08-27.basil",
-    });
-
     // =========================================================================
     // 🚧 ÉTAPE A: VALIDATION SERVER-SIDE (Prix, Horaires, Slots)
     // =========================================================================
     
     // Récupération des traitements depuis la DB pour éviter la fraude sur les prix
-    const { data: treatments, error: treatmentsError } = await supabase
+    const { data: treatments, error: treatmentsError } = await supabaseAdmin
       .from('treatment_menus')
       .select('id, name, price, hotel_id, status, duration')
       .in('id', effectiveTreatmentIds);
@@ -83,7 +72,7 @@ serve(async (req) => {
     }
 
     // Récupérer les infos de l'hôtel (Horaires, devises, etc.)
-    const { data: hotel, error: hotelError } = await supabase
+    const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
       .select('currency, name, offert, opening_time, closing_time')
       .eq('id', hotelId)
@@ -108,7 +97,7 @@ serve(async (req) => {
     }
 
     // Validation des slots bloqués (ex: Pause déjeuner de l'hôtel)
-    if (await isInBlockedSlot(supabase, hotelId, bookingData.date, bookingData.time, totalDuration)) {
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return new Response(JSON.stringify({ error: 'BLOCKED_SLOT' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
     }
 
@@ -133,7 +122,7 @@ serve(async (req) => {
     }
 
     // 3. On sauvegarde ce stripe_customer_id dans NOTRE base de données (basé sur le téléphone qui est UNIQUE)
-    const { error: upsertError } = await supabase
+    const { error: upsertError } = await supabaseAdmin
       .from('customers')
       .upsert({
         phone: clientData.phone, // Clé de conflit
@@ -145,29 +134,21 @@ serve(async (req) => {
 
     if (upsertError) {
       console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
-      // On ne throw pas d'erreur bloquante ici, le but principal reste d'enregistrer la carte.
     }
-
 
     // =========================================================================
     // 💳 ÉTAPE C: CRÉATION DE LA SESSION CHECKOUT (Mode Setup)
     // =========================================================================
     
-    // IMPORTANT: On ne fait PAS d'appel à `reserve_trunk_atomically` ici.
-    // L'enregistrement en base se fera APRES que le client ait mis sa carte.
-
     const origin = req.headers.get("origin") || "http://localhost:5173";
 
-    // On crée une session Checkout, mais au lieu du mode 'payment', on utilise 'setup'
     // On crée une session Checkout en mode 'setup'
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      
-      // Note: On utilise {CHECKOUT_SESSION_ID} sans le "session_id=" car le front le gère déjà
-success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,      cancel_url: `${origin}/client/${hotelId}/payment`,
-      // 🚨 ON MET TOUT ICI (Metadata de niveau 1)
+      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,      
+      cancel_url: `${origin}/client/${hotelId}/payment`,
       metadata: {
         hotelId: hotelId,
         bookingDate: bookingData.date,
@@ -184,9 +165,6 @@ success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOU
       }
     });
 
-    console.log("[CREATE-SETUP-INTENT] Checkout Session created:", session.id);
-
-    // On renvoie l'URL de redirection au front-end
     return new Response(
       JSON.stringify({ 
         url: session.url,
