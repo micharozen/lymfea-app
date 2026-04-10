@@ -170,10 +170,13 @@ serve(async (req: Request) => {
     // Calcul de l'expiration
     const now = new Date();
     const expiresAt = calculateExpirationDate(new Date(booking.booking_date), now);
-    const dateLocale = language === 'fr' ? fr : enUS;
+    
+    // On définit le format de l'heure demandé 
+    const timeFormatted = format(expiresAt, "HH:mm");
+
     const expiresAtText = language === 'fr' 
-      ? format(expiresAt, "d MMMM 'à' HH:mm", { locale: fr })
-      : format(expiresAt, "MMMM do 'at' h:mm a", { locale: enUS });
+      ? `${format(expiresAt, "d MMMM", { locale: fr })} à ${timeFormatted}`
+      : `${format(expiresAt, "MMMM do", { locale: enUS })} at ${timeFormatted}`;
 
     console.log("[SEND-PAYMENT-LINK] Creating Stripe Payment Link");
 
