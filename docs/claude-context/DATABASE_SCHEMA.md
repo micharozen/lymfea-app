@@ -258,17 +258,7 @@ clients:
 - `requires_room` (bool) — ce soin nécessite-t-il une cabine dédiée ?
 - `body_area` ou `treatment_type` (text) — corps, visage, bien-être, etc.
 
-**`treatment_packages`** — Packages multi-soins (demi-journée spa, journée complète, etc.)
-
-```
-treatment_packages:
-  id, hotel_id, name, description
-  total_duration, total_price, currency
-  status, sort_order
-
-package_treatments:
-  package_id, treatment_id, sort_order
-```
+**Note :** Les packages multi-soins (demi-journée spa, journée complète, etc.) sont gérés via `treatment_bundles` + `treatment_bundle_items`. Les anciennes tables `treatment_packages` / `package_treatments` ont été supprimées (migration `20260410`).
 
 ### 5. Tables inchangées
 

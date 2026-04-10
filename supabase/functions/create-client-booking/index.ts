@@ -49,6 +49,11 @@ const treatmentSchema = z.object({
   variantId: z.string().uuid('Invalid variant ID format').optional(),
 });
 
+const bundleUsageSchema = z.object({
+  customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
+  treatmentId: z.string().uuid('Invalid treatment ID format'),
+});
+
 const requestSchema = z.object({
   hotelId: z.string().min(1, 'Hotel ID is required'),
   clientData: clientDataSchema,
@@ -57,6 +62,7 @@ const requestSchema = z.object({
   paymentMethod: z.enum(['room', 'card', 'cash', 'offert']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
   therapistGender: z.enum(['female', 'male']).optional(),
+  bundleUsage: bundleUsageSchema.optional(),
 });
 
 // Sanitize string to prevent injection
@@ -118,7 +124,8 @@ try {
       treatments,
       paymentMethod,
       totalPrice,
-      therapistGender
+      therapistGender,
+      bundleUsage
     } = validationResult.data;
 
     console.log('Creating booking for hotel:', hotelId);
@@ -169,7 +176,7 @@ try {
     const treatmentIds = treatments.map(t => t.treatmentId);
     const { data: validTreatments, error: treatmentValidationError } = await supabase
       .from('treatment_menus')
-      .select('id, price_on_request, duration, lead_time')
+      .select('id, price_on_request, duration, lead_time, is_bundle, bundle_id')
       .in('id', treatmentIds);
 
     if (treatmentValidationError) {
@@ -339,6 +346,65 @@ try {
     }
 
     console.log('Booking treatments created');
+
+    // --- Bundle handling ---
+    let bundleWarning: string | null = null;
+
+    // Scenario 1: Client USES an existing bundle session
+    if (bundleUsage) {
+      try {
+        console.log('Using bundle session:', bundleUsage.customerBundleId, 'for treatment:', bundleUsage.treatmentId);
+        const { data: usageId, error: usageError } = await supabase.rpc('use_bundle_session', {
+          _customer_bundle_id: bundleUsage.customerBundleId,
+          _booking_id: bookingId,
+          _treatment_id: bundleUsage.treatmentId,
+        });
+
+        if (usageError) {
+          console.error('Bundle session usage failed (non-blocking):', usageError.message);
+          bundleWarning = `Bundle session could not be applied: ${usageError.message}. Normal payment flow applies.`;
+        } else {
+          console.log('Bundle session used successfully, usage ID:', usageId);
+          // Mark booking as paid via bundle
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({ payment_method: 'bundle', payment_status: 'paid' })
+            .eq('id', bookingId);
+
+          if (updateError) {
+            console.error('Failed to update booking payment to bundle:', updateError);
+            bundleWarning = 'Bundle session applied but payment status update failed.';
+          }
+        }
+      } catch (bundleError) {
+        console.error('Unexpected error during bundle session usage:', bundleError);
+        bundleWarning = 'Bundle session could not be applied due to an unexpected error. Normal payment flow applies.';
+      }
+    }
+
+    // Scenario 2: Client BUYS a bundle (is_bundle treatment in cart)
+    const bundleTreatments = validTreatments?.filter(t => t.is_bundle && t.bundle_id) || [];
+    if (bundleTreatments.length > 0 && customerId) {
+      for (const bt of bundleTreatments) {
+        try {
+          console.log('Creating customer bundle for bundle_id:', bt.bundle_id, 'customer:', customerId);
+          const { data: customerBundleId, error: createBundleError } = await supabase.rpc('create_customer_bundle', {
+            _customer_id: customerId,
+            _bundle_id: bt.bundle_id,
+            _hotel_id: hotelId,
+            _booking_id: bookingId,
+          });
+
+          if (createBundleError) {
+            console.error('Failed to create customer bundle (non-blocking):', createBundleError.message);
+          } else {
+            console.log('Customer bundle created:', customerBundleId);
+          }
+        } catch (createError) {
+          console.error('Unexpected error creating customer bundle:', createError);
+        }
+      }
+    }
 
     // Auto-validation logic: if hotel has auto_validate_bookings enabled and booking is pending (not quote_pending)
     let wasAutoValidated = false;
@@ -574,6 +640,7 @@ try {
         success: true,
         bookingId: bookingId,
         bookingNumber: booking.booking_id,
+        ...(bundleWarning ? { bundleWarning } : {}),
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

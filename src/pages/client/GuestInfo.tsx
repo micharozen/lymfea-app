@@ -13,6 +13,8 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { useBasket } from './context/CartContext';
+import { useBundleDetection } from './hooks/useBundleDetection';
+import { BundleDetectionBanner } from '@/components/client/BundleDetectionBanner';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 import { CartDrawer } from '@/components/client/CartDrawer';
 import { CheckoutPanel } from '@/components/client/CheckoutPanel';
@@ -38,7 +40,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ProgressBar } from '@/components/client/ProgressBar';
 
-const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean) => z.object({
+const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLookup: boolean, isExternalGuest: boolean) => z.object({
   firstName: z.string().min(1, t('info.errors.firstNameRequired')),
   lastName: z.string().min(1, t('info.errors.lastNameRequired')),
   email: z.string()
@@ -48,7 +50,7 @@ const createClientInfoSchema = (t: TFunction, isCoworking: boolean, pmsGuestLook
     .min(1, t('info.errors.phoneRequired'))
     .min(6, t('info.errors.phoneInvalid')),
   countryCode: z.string(),
-  roomNumber: isCoworking ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
+  roomNumber: (isCoworking || isExternalGuest) ? z.string().optional() : (pmsGuestLookup ? z.string().optional() : z.string().min(1, t('info.errors.roomRequired'))),
   note: z.string().optional(),
 });
 
@@ -110,8 +112,8 @@ export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo, bookingDateTime } = useClientFlow();
-  const { itemCount } = useBasket();
+  const { canProceedToStep, setClientInfo, bookingDateTime, setSelectedBundle, isBundleOnlyPurchase } = useClientFlow();
+  const { items, itemCount } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -119,6 +121,9 @@ export default function GuestInfo() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
+  const [phoneForBundleCheck, setPhoneForBundleCheck] = useState("");
+  const [bundleDismissed, setBundleDismissed] = useState(false);
+  const [isExternalGuest, setIsExternalGuest] = useState(false);
 
   // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
   const { data: hotel } = useQuery({
@@ -132,6 +137,14 @@ export default function GuestInfo() {
     enabled: !!hotelId,
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+  });
+
+  // Bundle detection — triggered when phone is filled (onBlur)
+  const treatmentIds = useMemo(() => items.map(i => i.id), [items]);
+  const { activeBundles } = useBundleDetection({
+    phone: phoneForBundleCheck,
+    hotelId: hotelId || '',
+    treatmentIds,
   });
 
   const isOffert = !!hotel?.offert;
@@ -160,7 +173,7 @@ export default function GuestInfo() {
 
   const isCoworking = venueType === 'coworking' || venueType === 'enterprise';
   const pmsGuestLookupEnabled = !!hotel?.pms_guest_lookup_enabled;
-  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled), [t, isCoworking, pmsGuestLookupEnabled]);
+  const schema = useMemo(() => createClientInfoSchema(t, isCoworking, pmsGuestLookupEnabled, isExternalGuest), [t, isCoworking, pmsGuestLookupEnabled, isExternalGuest]);
 
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
@@ -226,7 +239,7 @@ export default function GuestInfo() {
   }, [shouldRedirectToSchedule, t]);
 
   if (shouldRedirectToSchedule) {
-    return <Navigate to={`/client/${hotelId}/schedule`} replace />;
+    return <Navigate to={`/client/${hotelId}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`} replace />;
   }
 
   const onSubmit = async (data: ClientInfoFormData) => {
@@ -267,7 +280,7 @@ export default function GuestInfo() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/client/${hotelId}/schedule`)}
+              onClick={() => navigate(-1)}
               className="text-gray-900 hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -288,7 +301,7 @@ export default function GuestInfo() {
             </Button>
           )}
         </div>
-        <ProgressBar currentStep="guest-info" />
+        <ProgressBar currentStep="guest-info" isBundleOnly={isBundleOnlyPurchase} />
       </div>
 
       {/* Main content — split layout on desktop */}
@@ -301,7 +314,7 @@ export default function GuestInfo() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
               {/* Page headline */}
-              <div className="animate-fade-in">
+              <div>
                 <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
                   {t('info.stepLabel')}
                 </h3>
@@ -311,40 +324,56 @@ export default function GuestInfo() {
               </div>
 
               {/* Form fields */}
-              <div className="space-y-5 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <div className="space-y-5">
                 {/* Room number FIRST when PMS guest lookup is enabled */}
                 {!isCoworking && pmsGuestLookupEnabled && (
-                  <div>
-                    <FormField
-                      control={form.control}
-                      name="roomNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                {...field}
-                                onBlur={(e) => {
-                                  field.onBlur();
-                                  handleRoomNumberBlur(e.target.value);
-                                }}
-                                placeholder="102"
-                                className={inputStyles}
-                              />
-                              {isLookingUpGuest && (
-                                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                              )}
-                              {guestData?.found && !isLookingUpGuest && (
-                                <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                              )}
-                            </div>
-                          </FormControl>
-                          <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
-                          <FormMessage className="text-red-400 text-xs" />
-                        </FormItem>
-                      )}
-                    />
+                  <div className="space-y-3">
+                    {!isExternalGuest && (
+                      <FormField
+                        control={form.control}
+                        name="roomNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className={labelStyles}>{locationNumberLabel} <span className="normal-case tracking-normal font-normal text-gray-400">({t('guestLookup.optional')})</span></FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  {...field}
+                                  onBlur={(e) => {
+                                    field.onBlur();
+                                    handleRoomNumberBlur(e.target.value);
+                                  }}
+                                  placeholder="102"
+                                  className={inputStyles}
+                                />
+                                {isLookingUpGuest && (
+                                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
+                                )}
+                                {guestData?.found && !isLookingUpGuest && (
+                                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                                )}
+                              </div>
+                            </FormControl>
+                            <p className="text-xs text-gray-400 mt-1">{t('guestLookup.hint')}</p>
+                            <FormMessage className="text-red-400 text-xs" />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isExternalGuest}
+                        onChange={(e) => {
+                          setIsExternalGuest(e.target.checked);
+                          if (e.target.checked) {
+                            form.setValue('roomNumber', '');
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                      />
+                      <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
+                    </label>
                   </div>
                 )}
 
@@ -476,6 +505,11 @@ export default function GuestInfo() {
                             id="phone"
                             value={field.value}
                             onChange={(e) => field.onChange(e.target.value)}
+                            onBlur={() => {
+                              const fullPhone = `${form.getValues('countryCode')}${field.value}`;
+                              setPhoneForBundleCheck(fullPhone);
+                              setBundleDismissed(false);
+                            }}
                             placeholder="612345678"
                             className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
                           />
@@ -486,37 +520,67 @@ export default function GuestInfo() {
                   )}
                 />
 
+                {/* Bundle detection banner */}
+                {activeBundles.length > 0 && !bundleDismissed && (
+                  <BundleDetectionBanner
+                    bundles={activeBundles}
+                    onSelectBundle={(bundle) => {
+                      setSelectedBundle(bundle);
+                      setBundleDismissed(true);
+                    }}
+                    onDismiss={() => setBundleDismissed(true)}
+                  />
+                )}
+
                 {/* Room number - classic position when PMS lookup is NOT enabled */}
                 {!isCoworking && !pmsGuestLookupEnabled && (
-                  <FormField
-                    control={form.control}
-                    name="roomNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <Input
-                              {...field}
-                              onBlur={(e) => {
-                                field.onBlur();
-                                handleRoomNumberBlur(e.target.value);
-                              }}
-                              placeholder="102"
-                              className={inputStyles}
-                            />
-                            {isLookingUpGuest && (
-                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                            )}
-                            {guestData?.found && !isLookingUpGuest && (
-                              <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormMessage className="text-red-400 text-xs" />
-                      </FormItem>
+                  <div className="space-y-3">
+                    {!isExternalGuest && (
+                      <FormField
+                        control={form.control}
+                        name="roomNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className={labelStyles}>{locationNumberLabel}</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  {...field}
+                                  onBlur={(e) => {
+                                    field.onBlur();
+                                    handleRoomNumberBlur(e.target.value);
+                                  }}
+                                  placeholder="102"
+                                  className={inputStyles}
+                                />
+                                {isLookingUpGuest && (
+                                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
+                                )}
+                                {guestData?.found && !isLookingUpGuest && (
+                                  <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                                )}
+                              </div>
+                            </FormControl>
+                            <FormMessage className="text-red-400 text-xs" />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isExternalGuest}
+                        onChange={(e) => {
+                          setIsExternalGuest(e.target.checked);
+                          if (e.target.checked) {
+                            form.setValue('roomNumber', '');
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500"
+                      />
+                      <span className="text-sm text-gray-500">{t('info.notHotelGuest')}</span>
+                    </label>
+                  </div>
                 )}
 
                 {/* Note */}

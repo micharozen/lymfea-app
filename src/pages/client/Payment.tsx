@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -20,8 +20,17 @@ import { fr } from 'date-fns/locale';
 export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
-  const { items, total, fixedTotal, hasPriceOnRequest, clearBasket } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, setPendingCheckoutSession, clearFlow, canProceedToStep } = useClientFlow();
+  const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase } = useClientFlow();
+
+  console.log('[Payment] items:', items);
+  console.log('[Payment] isBundleOnly:', isBundleOnly);
+  console.log('[Payment] isBundleOnlyPurchase:', isBundleOnlyPurchase);
+  console.log('[Payment] selectedBundle:', selectedBundle);
+  console.log('[Payment] bookingDateTime:', bookingDateTime);
+  console.log('[Payment] clientInfo:', clientInfo);
+  console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
+  console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
@@ -69,8 +78,71 @@ export default function Payment() {
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
 
+  // Bundle: split items into covered (free) vs uncovered (charged normally)
+  const eligibleSet = new Set(selectedBundle?.eligibleTreatmentIds ?? []);
+  const bundleCoveredItems = selectedBundle
+    ? items.filter(item => eligibleSet.has(item.id))
+    : [];
+  const bundleUncoveredItems = selectedBundle
+    ? items.filter(item => !eligibleSet.has(item.id))
+    : [];
+  const uncoveredTotal = bundleUncoveredItems.reduce(
+    (sum, item) => sum + item.price * item.quantity, 0
+  );
+
   const handlePayment = async () => {
-    if (!bookingDateTime || !clientInfo) {
+    if (!clientInfo) {
+      toast.error(t('common:errors.generic'));
+      navigate(`/client/${hotelId}/cart`);
+      return;
+    }
+
+    // Bundle-only purchase: no booking, direct payment via Stripe Checkout
+    if (isBundleOnlyPurchase) {
+      if (!isBundleOnly) return;
+      setIsProcessing(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+            },
+            bundleItems: items.map(item => ({
+              treatmentId: item.id,
+              bundleId: item.bundleId,
+              quantity: item.quantity,
+            })),
+            totalPrice: total,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          const url = new URL(data.url);
+          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
+          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+            throw new Error('Invalid redirect URL');
+          }
+          setPendingCheckoutSession(data.sessionId);
+          window.location.href = data.url;
+        }
+      } catch (error: unknown) {
+        console.error('Bundle payment error:', error);
+        toast.error(error instanceof Error ? error.message : t('common:errors.generic'));
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    if (!bookingDateTime) {
       toast.error(t('common:errors.generic'));
       navigate(`/client/${hotelId}/cart`);
       return;
@@ -79,7 +151,48 @@ export default function Payment() {
     setIsProcessing(true);
 
     try {
-      if (isOffert) {
+      if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
+        // All items covered by bundle — create booking with bundle payment
+        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+            },
+            bookingData: {
+              date: bookingDateTime.date,
+              time: bookingDateTime.time,
+            },
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              note: item.note,
+            })),
+            paymentMethod: 'bundle',
+            bundleUsage: {
+              customerBundleId: selectedBundle.customerBundleId,
+              treatmentId: bundleCoveredItems[0].id,
+            },
+            totalPrice: 0,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          },
+        });
+
+        if (error) throw error;
+
+        clearBasket();
+        clearFlow();
+        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        return;
+      } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
@@ -202,45 +315,97 @@ export default function Payment() {
           </Button>
           <h1 className="text-lg font-light text-gray-900">Paiement</h1>
         </div>
-        <ProgressBar currentStep="payment" />
+        <ProgressBar currentStep="payment" isBundleOnly={isBundleOnlyPurchase} />
       </div>
 
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
         
         {/* Titre élégant */}
         <div className="animate-fade-in text-center space-y-1.5 mt-4">
-          <h3 className="text-xl font-serif text-gray-900">Finaliser votre réservation</h3>
-          <p className="text-sm text-gray-500">Dernière étape avant votre moment de détente</p>
+          <h3 className="text-xl font-serif text-gray-900">
+            {isBundleOnlyPurchase
+              ? t('payment.bundleTitle', 'Finaliser votre achat')
+              : 'Finaliser votre réservation'}
+          </h3>
+          <p className="text-sm text-gray-500">
+            {isBundleOnlyPurchase
+              ? t('payment.bundleSubtitle', 'Votre cure sera activée immédiatement après le paiement')
+              : 'Dernière étape avant votre moment de détente'}
+          </p>
         </div>
+
+        {/* Bundle active banner */}
+        {selectedBundle && (
+          <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 animate-fade-in flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Repeat className="w-4 h-4 text-amber-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-900">
+                {t('bundle.bundleName', { name: selectedBundle.bundleName })}
+              </p>
+              <p className="text-xs text-amber-700">
+                {t('bundle.remaining', { count: selectedBundle.remainingSessions })}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedBundle(null)}
+              className="text-amber-400 hover:text-amber-600 transition-colors p-1 flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Nouveau Récapitulatif Design Luxe */}
         <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <div className="space-y-3">
-            {items.map(item => (
-              <div key={item.id} className="flex justify-between items-center text-sm">
-                <span className="text-gray-500">
-                  {item.name} {item.quantity > 1 ? `x${item.quantity}` : ''}
-                </span>
-                <span className="font-medium text-gray-900 text-right">
-                  {item.isPriceOnRequest ? t('payment.onQuote') : formatPrice(item.price * item.quantity, item.currency || 'EUR')}
-                </span>
-              </div>
-            ))}
+            {items.map(item => {
+              const isCovered = selectedBundle && eligibleSet.has(item.id);
+              return (
+                <div key={item.id} className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">
+                    {item.name} {item.quantity > 1 ? `x${item.quantity}` : ''}
+                  </span>
+                  <span className="font-medium text-right">
+                    {isCovered ? (
+                      <span className="flex items-center gap-2">
+                        <span className="line-through text-gray-400 text-xs">
+                          {formatPrice(item.price * item.quantity, item.currency || 'EUR')}
+                        </span>
+                        <span className="text-emerald-600">
+                          {formatPrice(0, item.currency || 'EUR')}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-gray-900">
+                        {item.isPriceOnRequest ? t('payment.onQuote') : formatPrice(item.price * item.quantity, item.currency || 'EUR')}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
             
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500">Date</span>
-              <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
-              </span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500">Heure</span>
-              <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-gray-400" />
-                {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
-              </span>
-            </div>
+            {!isBundleOnlyPurchase && (
+              <>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Date</span>
+                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">Heure</span>
+                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-gray-400" />
+                    {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="h-px w-full bg-gray-100" />
@@ -248,28 +413,44 @@ export default function Payment() {
           <div className="flex justify-between items-end">
             <div className="flex flex-col">
               <span className="font-medium text-gray-900">Total à régler</span>
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider">Sur place à la fin du soin</span>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                {selectedBundle ? t('bundle.bundleName', { name: selectedBundle.bundleName }) : 'Sur place à la fin du soin'}
+              </span>
             </div>
             <span className="text-xl font-serif font-semibold text-gray-900">
-              {isOffert ? formatPrice(0, items[0]?.currency || 'EUR') : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')}
-              {hasPriceOnRequest && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
+              {selectedBundle
+                ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
+                : isOffert
+                  ? formatPrice(0, items[0]?.currency || 'EUR')
+                  : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
+              }
+              {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
             </span>
           </div>
         </div>
 
         {/* Message de réassurance (Bouclier) */}
-        {!isOffert && !hasPriceOnRequest && selectedMethod === 'card' && (
+        {!isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && selectedMethod === 'card' && (
           <div className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-4 rounded-xl animate-fade-in" style={{ animationDelay: '0.2s' }}>
             <ShieldCheck className="w-5 h-5 flex-shrink-0 text-gray-900 mt-0.5" />
             <p className="text-xs text-gray-500 leading-relaxed">
-              Pour garantir votre rendez-vous, une empreinte bancaire sécurisée vous sera demandée. 
-              <strong className="text-gray-900 font-medium"> Aucun montant ne sera débité aujourd'hui.</strong>
+              {isBundleOnlyPurchase ? (
+                <>
+                  {t('payment.bundleSecure', 'Paiement sécurisé par Stripe.')}
+                  <strong className="text-gray-900 font-medium"> {t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}</strong>
+                </>
+              ) : (
+                <>
+                  Pour garantir votre rendez-vous, une empreinte bancaire sécurisée vous sera demandée.
+                  <strong className="text-gray-900 font-medium"> Aucun montant ne sera débité aujourd'hui.</strong>
+                </>
+              )}
             </p>
           </div>
         )}
 
-        {/* Sélection du mode de garantie */}
-        {!isOffert && !hasPriceOnRequest && (
+        {/* Sélection du mode de garantie — hidden for bundle-only (card only) */}
+        {!isBundleOnlyPurchase && !isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && (
           <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
             
             {/* Carte */}
@@ -301,7 +482,7 @@ export default function Payment() {
             </button>
 
             {/* Chambre */}
-            {supportsRoomPayment && (
+            {supportsRoomPayment && !isBundleOnlyPurchase && (
               <button
                 type="button"
                 onClick={() => setSelectedMethod('room')}
@@ -340,17 +521,31 @@ export default function Payment() {
           disabled={isProcessing || isOffertProcessing}
           className={cn(
             "w-full h-14 rounded-xl font-medium text-base transition-all duration-300 shadow-md active:scale-[0.98]",
-            isOffert
-              ? "bg-emerald-600 text-white hover:bg-emerald-500"
-              : hasPriceOnRequest
-                ? "bg-amber-500 text-black hover:bg-amber-400"
-                : "bg-gray-900 text-white hover:bg-gray-800"
+            isBundleOnlyPurchase
+              ? "bg-amber-600 text-white hover:bg-amber-500"
+              : selectedBundle && uncoveredTotal === 0
+                ? "bg-amber-600 text-white hover:bg-amber-500"
+                : isOffert
+                  ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                  : hasPriceOnRequest
+                    ? "bg-amber-500 text-black hover:bg-amber-400"
+                    : "bg-gray-900 text-white hover:bg-gray-800"
           )}
         >
           {(isProcessing || isOffertProcessing) ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Traitement en cours...
+            </>
+          ) : isBundleOnlyPurchase ? (
+            <>
+              <Package className="mr-2 h-5 w-5" />
+              {t('payment.purchaseBundle', 'Acheter la cure')} — {formatPrice(total, items[0]?.currency || 'EUR')}
+            </>
+          ) : selectedBundle && uncoveredTotal === 0 ? (
+            <>
+              <Repeat className="mr-2 h-5 w-5" />
+              Confirmer (séance cure)
             </>
           ) : isOffert ? (
             t('offert.confirmFreeBooking')

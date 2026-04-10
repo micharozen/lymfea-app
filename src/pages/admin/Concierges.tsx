@@ -275,7 +275,7 @@ export default function Concierges() {
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
             <div className="overflow-x-auto h-full">
-            <Table className="text-xs w-full table-fixed min-w-[600px]">
+            <Table className="text-sm w-full table-fixed min-w-[600px]">
               <TableHeader>
                 <TableRow className="bg-muted/20 h-8">
                   <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort}>

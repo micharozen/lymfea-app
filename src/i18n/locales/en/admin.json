@@ -477,6 +477,43 @@
     "showAll": "All",
     "hideAll": "None"
   },
+  "cures": {
+    "title": "Treatment Packages",
+    "bundleSession": "Package session",
+    "remainingCount": "{{remaining}}/{{total}} sessions remaining",
+    "templates": "Package Templates",
+    "sold": "Sold Packages",
+    "createTemplate": "Create Template",
+    "sellCure": "Sell a Package",
+    "templateName": "Template Name",
+    "totalSessions": "Total Sessions",
+    "validityDays": "Validity (days)",
+    "price": "Price",
+    "eligibleTreatments": "Eligible Treatments",
+    "purchaseDate": "Purchase Date",
+    "expiresAt": "Expiry Date",
+    "remainingSessions": "Remaining Sessions",
+    "usedSessions": "Used Sessions",
+    "paymentReference": "Payment Reference",
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "sell": {
+      "title": "Sell a Package",
+      "selectTemplate": "Select a template",
+      "searchClient": "Search client",
+      "newClient": "New client",
+      "confirm": "Confirm sale",
+      "success": "Package sold successfully"
+    },
+    "delete": {
+      "title": "Delete this template?",
+      "description": "This action is irreversible. The package template will be permanently deleted."
+    }
+  },
   "support": {
     "title": "Support",
     "description": "Manage your support tickets",

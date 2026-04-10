@@ -393,7 +393,7 @@ export default function ScheduleAlerts() {
             )}
           >
             <div className="overflow-x-auto h-full">
-              <Table className="text-xs w-full min-w-[800px]">
+              <Table className="text-sm w-full min-w-[800px]">
                 <TableHeader>
                   <TableRow className="bg-muted/20 h-8">
                     <SortableTableHead

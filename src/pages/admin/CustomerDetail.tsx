@@ -14,6 +14,7 @@ import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { CustomerGeneralTab } from "@/components/admin/customer/CustomerGeneralTab";
 import { CustomerNotesTab } from "@/components/admin/customer/CustomerNotesTab";
 import { CustomerBookingsTab } from "@/components/admin/customer/CustomerBookingsTab";
+import { CustomerCuresSection } from "@/components/admin/customer/CustomerCuresSection";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -307,6 +308,12 @@ export default function CustomerDetail() {
 
                 <TabsContent value="bookings" className="mt-0">
                   <CustomerBookingsTab customerId={effectiveCustomerId!} />
+                  <div className="mt-6">
+                    <CustomerCuresSection
+                      customerId={effectiveCustomerId!}
+                      customerName={customerName}
+                    />
+                  </div>
                 </TabsContent>
               </>
             )}

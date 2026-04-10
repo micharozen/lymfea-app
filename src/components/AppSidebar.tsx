@@ -64,6 +64,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
+  { title: "Cures", url: "/admin/cures", icon: Package },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
@@ -220,7 +221,7 @@ export function AppSidebar() {
             }`}
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
-            <span className="text-[13px]">{item.title}</span>
+            <span className="text-sm">{item.title}</span>
             {item.badge && redFlagCount > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                 {redFlagCount > 99 ? '99+' : redFlagCount}
@@ -269,7 +270,7 @@ export function AppSidebar() {
             <div className="mx-3 border-t border-sidebar-border" />
             <SidebarGroup className="py-1">
               <CollapsibleTrigger className="flex items-center gap-2 px-3 py-2 w-full text-[11px] font-medium tracking-wide uppercase text-sidebar-foreground/40 hover:text-sidebar-foreground/60 transition-colors group-data-[collapsible=icon]:hidden">
-                <ChevronRight className={`h-3 w-3 transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} />
+                <ChevronRight className={`h-3 w-3 will-change-transform transition-transform duration-200 ${moreOpen ? "rotate-90" : ""}`} />
                 Plus
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -357,7 +358,7 @@ export function AppSidebar() {
               onClick={toggleSidebar}
               className="p-1.5 rounded-md text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-foreground/70 transition-colors"
             >
-              <ChevronsLeft className={`h-3.5 w-3.5 transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} />
+              <ChevronsLeft className={`h-3.5 w-3.5 will-change-transform transition-transform duration-200 ${isCollapsed ? "rotate-180" : ""}`} />
             </button>
           </div>
         </div>

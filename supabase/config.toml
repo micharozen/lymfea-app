@@ -33,6 +33,12 @@ verify_jwt = false
 [functions.verify-otp]
 verify_jwt = false
 
+[functions.create-bundle-payment]
+verify_jwt = false
+
+[functions.purchase-bundle]
+verify_jwt = false
+
 [functions.check-availability]
 verify_jwt = false
 
@@ -140,6 +146,7 @@ verify_jwt = false
 
 [functions.charge-saved-card]
 verify_jwt = false
+
 [functions.create-support-ticket]
 verify_jwt = false
 
