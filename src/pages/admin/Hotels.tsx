@@ -402,7 +402,7 @@ export default function Hotels() {
             ) : (
               /* Desktop: Table View */
               <div className="overflow-x-auto h-full">
-                <Table className="text-xs w-full table-fixed min-w-[800px]">
+                <Table className="text-sm w-full table-fixed min-w-[800px]">
                   <colgroup>
                     <col className="w-[18%]" />
                     <col className="w-[10%]" />

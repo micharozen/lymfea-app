@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2 } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +114,12 @@ const PwaBookingDetail = () => {
   const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   
+  const [bundleInfo, setBundleInfo] = useState<{
+    bundleName: string;
+    remainingSessions: number;
+    totalSessions: number;
+  } | null>(null);
+
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
 
@@ -170,6 +176,26 @@ const PwaBookingDetail = () => {
 
       const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*)").eq("booking_id", id);
       if (trData) setTreatments(trData as any);
+
+      // Fetch bundle info if booking has a bundle_usage_id
+      const bundleUsageId = (bookingData as any).bundle_usage_id;
+      if (bundleUsageId) {
+        const { data: usageData } = await supabase
+          .from("bundle_session_usages")
+          .select("customer_bundle_id, customer_treatment_bundles(total_sessions, used_sessions, treatment_bundles(name))")
+          .eq("id", bundleUsageId)
+          .single();
+
+        if (usageData) {
+          const customerBundle = (usageData as any).customer_treatment_bundles;
+          const bundleName = customerBundle?.treatment_bundles?.name || "";
+          const total = customerBundle?.total_sessions || 0;
+          const used = customerBundle?.used_sessions || 0;
+          setBundleInfo({ bundleName, remainingSessions: total - used, totalSessions: total });
+        }
+      } else {
+        setBundleInfo(null);
+      }
 
     } catch (error) {
       console.error(error);
@@ -340,7 +366,20 @@ const PwaBookingDetail = () => {
           <img src={booking.hotel_image_url || ""} className="w-16 h-16 object-cover rounded-xl mb-2 bg-muted" />
           <h2 className="font-semibold text-sm">{booking.hotel_name}</h2>
           <p className="text-xs text-muted-foreground flex items-center gap-1"><Navigation className="w-3 h-3"/> {booking.hotel_address}</p>
-          {booking.effective_payment_status && <Badge className={`mt-2 ${getPaymentStatusBadge(booking.effective_payment_status)?.className}`}>{getPaymentStatusBadge(booking.effective_payment_status)?.label}</Badge>}
+          <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
+            {booking.effective_payment_status && <Badge className={getPaymentStatusBadge(booking.effective_payment_status)?.className}>{getPaymentStatusBadge(booking.effective_payment_status)?.label}</Badge>}
+            {bundleInfo && (
+              <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                <Package className="w-3 h-3 mr-1" />
+                {t('bundleSession')}
+              </Badge>
+            )}
+          </div>
+          {bundleInfo && (
+            <div className="mt-1 text-[10px] text-amber-700">
+              {bundleInfo.bundleName} — {t('bundleRemaining', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })}
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 border-t pt-3">

@@ -233,7 +233,7 @@ export default function TreatmentMenus() {
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 md:mb-6 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
             Menus de soins
           </h1>
           {isAdmin && (
@@ -351,7 +351,7 @@ export default function TreatmentMenus() {
             ) : (
               /* Desktop: Table View */
               <div className="overflow-x-auto h-full">
-                <Table className="text-xs w-full table-fixed min-w-[700px]">
+                <Table className="text-sm w-full table-fixed min-w-[700px]">
                   <TableHeader>
                     <TableRow className="bg-muted/20 h-8">
                       <SortableTableHead column="name" sortDirection={getSortDirection("name")} onSort={toggleSort} className="w-[180px]">

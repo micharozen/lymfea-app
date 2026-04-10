@@ -435,6 +435,9 @@
     "sunday": "Dimanche",
     "templateSaved": "Modèle enregistré"
   },
+  "bundleSession": "Séance cure",
+  "bundleUsed": "Payé via cure",
+  "bundleRemaining": "{{remaining}}/{{total}} séances restantes",
   "support": {
     "title": "Support",
     "detailsTitle": "Décrivez votre demande",

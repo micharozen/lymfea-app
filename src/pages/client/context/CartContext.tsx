@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 export interface BasketItem {
   id: string;           // treatment_id
@@ -13,6 +15,9 @@ export interface BasketItem {
   image?: string;
   category: string;
   isPriceOnRequest?: boolean; // New field to track variable price items
+  isAddon?: boolean;    // True if treatment belongs to an add-on category
+  isBundle?: boolean;   // True if this is a cure/bundle purchase
+  bundleId?: string;    // FK to treatment_bundles template
 }
 
 /** Composite key for cart items — allows same treatment with different variants as separate items */
@@ -29,16 +34,19 @@ interface BasketContextType {
   itemCount: number;
   fixedTotal: number; // Sum of fixed price items only
   hasPriceOnRequest: boolean; // True if any item requires a quote
+  hasBaseItem: boolean; // True if cart contains at least one non-addon item
+  isBundleOnly: boolean; // True if cart contains only bundle/cure items
 }
 
 const BasketContext = createContext<BasketContextType | undefined>(undefined);
 
-export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: string }> = ({ 
-  children, 
-  hotelId 
+export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: string }> = ({
+  children,
+  hotelId
 }) => {
+  const { t } = useTranslation('client');
   const storageKey = `basket_${hotelId}`;
-  
+
   const [items, setItems] = useState<BasketItem[]>(() => {
     const stored = sessionStorage.getItem(storageKey);
     return stored ? JSON.parse(stored) : [];
@@ -50,6 +58,18 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
 
   const addItem = (item: Omit<BasketItem, 'quantity' | 'note'>) => {
     setItems(prev => {
+      // Enforce mutual exclusion: bundles and regular treatments cannot be mixed
+      const hasBundle = prev.some(i => i.isBundle);
+      const hasRegular = prev.some(i => !i.isBundle);
+      if (item.isBundle && hasRegular) {
+        toast.info(t('cart.bundleMixWarning', 'Les cures doivent être achetées séparément'));
+        return [{ ...item, quantity: 1 }];
+      }
+      if (!item.isBundle && hasBundle) {
+        toast.info(t('cart.bundleMixWarning', 'Les cures doivent être achetées séparément'));
+        return [{ ...item, quantity: 1 }];
+      }
+
       const itemKey = getCartKey(item.id, item.variantId);
       const existing = prev.find(i => getCartKey(i.id, i.variantId) === itemKey);
       if (existing) {
@@ -63,7 +83,15 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
 
   const removeItem = (id: string, variantId?: string) => {
     const key = getCartKey(id, variantId);
-    setItems(prev => prev.filter(i => getCartKey(i.id, i.variantId) !== key));
+    setItems(prev => {
+      const remaining = prev.filter(i => getCartKey(i.id, i.variantId) !== key);
+      // If no base (non-addon) items remain, auto-remove all add-ons
+      const hasBase = remaining.some(i => !i.isAddon);
+      if (!hasBase) {
+        return remaining.filter(i => !i.isAddon);
+      }
+      return remaining;
+    });
   };
 
   const updateQuantity = (id: string, quantity: number, variantId?: string) => {
@@ -102,21 +130,33 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
   const hasPriceOnRequest = useMemo(() => {
     return items.some(item => item.isPriceOnRequest);
   }, [items]);
-  
+
+  // True if cart has at least one non-addon treatment
+  const hasBaseItem = useMemo(() => {
+    return items.some(item => !item.isAddon);
+  }, [items]);
+
+  // True if cart contains only bundle/cure items
+  const isBundleOnly = useMemo(() => {
+    return items.length > 0 && items.every(item => item.isBundle);
+  }, [items]);
+
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <BasketContext.Provider value={{ 
-      items, 
-      addItem, 
-      removeItem, 
+    <BasketContext.Provider value={{
+      items,
+      addItem,
+      removeItem,
       updateQuantity,
       updateNote,
-      clearBasket, 
+      clearBasket,
       total,
       fixedTotal,
       hasPriceOnRequest,
-      itemCount 
+      hasBaseItem,
+      isBundleOnly,
+      itemCount
     }}>
       {children}
     </BasketContext.Provider>

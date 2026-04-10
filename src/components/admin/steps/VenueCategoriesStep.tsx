@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Tag, Pencil, Check, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
     addCategory,
     renameCategory,
     updateNameEn,
+    toggleAddon,
     isAdding,
     isRenaming,
     getTreatmentCountByCategory,
@@ -280,6 +282,13 @@ export function VenueCategoriesStep({ hotelId }: VenueCategoriesStepProps) {
                             {category.name_en || "Add English name"}
                           </button>
                         )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <label className="text-xs text-muted-foreground">Add-on</label>
+                        <Switch
+                          checked={category.is_addon}
+                          onCheckedChange={(checked) => toggleAddon(category.id, checked)}
+                        />
                       </div>
                       <Button
                         type="button"

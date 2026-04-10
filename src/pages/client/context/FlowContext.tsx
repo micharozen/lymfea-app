@@ -19,11 +19,20 @@ export interface ClientInfo {
   pmsGuestCheckOut?: string;
 }
 
+export interface SelectedBundle {
+  customerBundleId: string;
+  bundleName: string;
+  remainingSessions: number;
+  eligibleTreatmentIds: string[];
+}
+
 interface ClientFlowState {
   bookingDateTime: BookingDateTime | null;
   clientInfo: ClientInfo | null;
   pendingCheckoutSession: string | null;
   therapistGenderPreference: TherapistGender;
+  selectedBundle: SelectedBundle | null;
+  isBundleOnlyPurchase: boolean;
 }
 
 interface ClientFlowContextType extends ClientFlowState {
@@ -31,6 +40,8 @@ interface ClientFlowContextType extends ClientFlowState {
   setClientInfo: (data: ClientInfo) => void;
   setPendingCheckoutSession: (sessionId: string) => void;
   setTherapistGenderPreference: (gender: TherapistGender) => void;
+  setSelectedBundle: (bundle: SelectedBundle | null) => void;
+  setIsBundleOnlyPurchase: (value: boolean) => void;
   clearFlow: () => void;
   canProceedToStep: (step: "info" | "payment" | "confirmation") => boolean;
 }
@@ -42,6 +53,8 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const [clientInfo, setClientInfoState] = useState<ClientInfo | null>(null);
   const [pendingCheckoutSession, setPendingCheckoutSessionState] = useState<string | null>(null);
   const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(null);
+  const [selectedBundle, setSelectedBundleState] = useState<SelectedBundle | null>(null);
+  const [isBundleOnlyPurchase, setIsBundleOnlyPurchaseState] = useState(false);
 
   const setBookingDateTime = useCallback((data: BookingDateTime) => {
     setBookingDateTimeState(data);
@@ -59,27 +72,38 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setTherapistGenderPreferenceState(gender);
   }, []);
 
+  const setSelectedBundle = useCallback((bundle: SelectedBundle | null) => {
+    setSelectedBundleState(bundle);
+  }, []);
+
+  const setIsBundleOnlyPurchase = useCallback((value: boolean) => {
+    setIsBundleOnlyPurchaseState(value);
+  }, []);
+
   const clearFlow = useCallback(() => {
     setBookingDateTimeState(null);
     setClientInfoState(null);
     setPendingCheckoutSessionState(null);
     setTherapistGenderPreferenceState(null);
+    setSelectedBundleState(null);
+    setIsBundleOnlyPurchaseState(false);
   }, []);
 
   const canProceedToStep = useCallback(
     (step: "info" | "payment" | "confirmation") => {
+      const hasSchedule = isBundleOnlyPurchase || bookingDateTime !== null;
       switch (step) {
         case "info":
-          return bookingDateTime !== null;
+          return hasSchedule;
         case "payment":
-          return bookingDateTime !== null && clientInfo !== null;
+          return hasSchedule && clientInfo !== null;
         case "confirmation":
-          return bookingDateTime !== null && clientInfo !== null;
+          return hasSchedule && clientInfo !== null;
         default:
           return false;
       }
     },
-    [bookingDateTime, clientInfo]
+    [bookingDateTime, clientInfo, isBundleOnlyPurchase]
   );
 
   const value = useMemo(
@@ -88,10 +112,14 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       clientInfo,
       pendingCheckoutSession,
       therapistGenderPreference,
+      selectedBundle,
+      isBundleOnlyPurchase,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
       setTherapistGenderPreference,
+      setSelectedBundle,
+      setIsBundleOnlyPurchase,
       clearFlow,
       canProceedToStep,
     }),
@@ -100,10 +128,14 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       clientInfo,
       pendingCheckoutSession,
       therapistGenderPreference,
+      selectedBundle,
+      isBundleOnlyPurchase,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
       setTherapistGenderPreference,
+      setSelectedBundle,
+      setIsBundleOnlyPurchase,
       clearFlow,
       canProceedToStep,
     ]

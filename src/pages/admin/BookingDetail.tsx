@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,7 @@ import {
   Loader2, ArrowLeft, User, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool, ChevronRight
+  PenTool, ChevronRight, Package
 } from "lucide-react";
 
 import { formatPrice } from "@/lib/formatPrice";
@@ -25,15 +26,45 @@ export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const { t } = useTranslation('admin');
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
+  const [bundleInfo, setBundleInfo] = useState<{
+    bundleName: string;
+    remainingSessions: number;
+    totalSessions: number;
+  } | null>(null);
 
   const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
   const isLoading = !bookings; 
   
   const booking = bookings?.find((b) => b.id === id);
+
+  // Fetch bundle info when booking has a bundle_usage_id
+  useEffect(() => {
+    const bundleUsageId = (booking as any)?.bundle_usage_id;
+    if (!bundleUsageId) {
+      setBundleInfo(null);
+      return;
+    }
+    supabase
+      .from("bundle_session_usages")
+      .select("customer_bundle_id, customer_treatment_bundles(total_sessions, used_sessions, treatment_bundles(name))")
+      .eq("id", bundleUsageId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const customerBundle = (data as any).customer_treatment_bundles;
+          const bundleName = customerBundle?.treatment_bundles?.name || "";
+          const total = customerBundle?.total_sessions || 0;
+          const used = customerBundle?.used_sessions || 0;
+          setBundleInfo({ bundleName, remainingSessions: total - used, totalSessions: total });
+        }
+      });
+  }, [booking?.id]);
 
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
@@ -101,6 +132,12 @@ export default function BookingDetail() {
             <div className="flex items-center gap-2 mt-1">
               <StatusBadge status={booking.status} type="booking" />
               <StatusBadge status={booking.payment_status || "pending"} type="payment" />
+              {bundleInfo && (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
+                  <Package className="w-3 h-3 mr-1" />
+                  {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
+                </Badge>
+              )}
             </div>
           </div>
         </div>

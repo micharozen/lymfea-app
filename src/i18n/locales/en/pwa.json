@@ -435,6 +435,9 @@
     "sunday": "Sunday",
     "templateSaved": "Template saved"
   },
+  "bundleSession": "Package session",
+  "bundleUsed": "Paid via package",
+  "bundleRemaining": "{{remaining}}/{{total}} sessions remaining",
   "support": {
     "title": "Support",
     "detailsTitle": "Describe your request",
