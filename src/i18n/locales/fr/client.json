@@ -142,7 +142,7 @@
     "requestQuote": "Envoyer la demande",
     "saveCard": "Empreinte bancaire",
     "saveCardDesc": "Votre carte ne sera pas débitée maintenant. Le paiement se fera sur place.",
-    "saveCardButton": "Enregistrer ma carte",
+    "saveCardButton": "Confirmer",
     "pleaseWait": "Veuillez patienter..."
   },
   "confirmation": {
