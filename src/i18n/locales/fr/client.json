@@ -145,11 +145,7 @@
     "requestQuote": "Envoyer la demande",
     "saveCard": "Empreinte bancaire",
     "saveCardDesc": "Votre carte ne sera pas débitée maintenant. Le paiement se fera sur place.",
-<<<<<<< HEAD
     "saveCardButton": "Confirmer",
-    "pleaseWait": "Veuillez patienter..."
-=======
-    "saveCardButton": "Enregistrer ma carte",
     "pleaseWait": "Veuillez patienter...",
     "bundleTitle": "Finaliser votre achat",
     "bundleSubtitle": "Votre cure sera activée immédiatement après le paiement",
@@ -161,7 +157,6 @@
     "bundleStep2": "Votre cure est activée immédiatement après le paiement",
     "bundleStep3": "Réservez vos séances en ligne sans repayer",
     "confirmBundleSession": "Confirmer (séance cure)"
->>>>>>> 032a52bf707edac9f1cc847497f50f1f42077ba5
   },
   "confirmation": {
     "title": "Réservation confirmée",
