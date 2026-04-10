@@ -8,6 +8,7 @@ export interface TreatmentCategory {
   name_en: string | null;
   hotel_id: string;
   sort_order: number | null;
+  is_addon: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -136,6 +137,30 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     },
   });
 
+  const toggleAddonMutation = useMutation({
+    mutationFn: async ({
+      categoryId,
+      isAddon,
+    }: {
+      categoryId: string;
+      isAddon: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("treatment_categories")
+        .update({ is_addon: isAddon })
+        .eq("id", categoryId);
+
+      if (error) throw error;
+      return { success: true };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["treatment-categories", hotelId] });
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour");
+    },
+  });
+
   const updateSortOrderMutation = useMutation({
     mutationFn: async ({
       categoryId,
@@ -184,6 +209,10 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     return updateNameEnMutation.mutateAsync({ categoryId, nameEn });
   };
 
+  const toggleAddon = async (categoryId: string, isAddon: boolean) => {
+    return toggleAddonMutation.mutateAsync({ categoryId, isAddon });
+  };
+
   const getTreatmentCountByCategory = async (categoryName: string) => {
     if (!hotelId) return 0;
 
@@ -206,6 +235,7 @@ export function useTreatmentCategories(hotelId: string | null | undefined) {
     updateSortOrder,
     getTreatmentCountByCategory,
     updateNameEn,
+    toggleAddon,
     isAdding: addCategoryMutation.isPending,
     isRenaming: renameCategoryMutation.isPending,
   };

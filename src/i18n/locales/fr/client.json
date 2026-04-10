@@ -31,7 +31,8 @@
     "popular": "Populaire",
     "added": "Ajouté",
     "viewBasket": "Voir le panier",
-    "bookTreatment": "Réserver le soin",
+    "bookTreatment": "Réserver",
+    "purchaseBundle": "Acheter cette cure",
     "item": "soin",
     "items": "soins",
     "duration": "{{duration}} min",
@@ -41,6 +42,7 @@
     "forMen": "Hommes",
     "fromPrice": "À partir de",
     "noTreatments": "Aucun soin disponible",
+    "addonDisabledTooltip": "Ajoutez d'abord un soin pour débloquer les add-ons",
     "inRoomDisclaimer": "Prestation réalisée dans l'intimité de votre chambre.",
     "categories": {
       "hair": "Coiffure",
@@ -98,6 +100,7 @@
     "email": "Email",
     "phone": "Téléphone",
     "roomNumber": "Numéro de chambre",
+    "notHotelGuest": "Je ne suis pas client de l'hôtel",
     "note": "Note (optionnel)",
     "notePlaceholder": "Demandes spéciales ou informations...",
     "continue": "CONTINUER",
@@ -143,7 +146,17 @@
     "saveCard": "Empreinte bancaire",
     "saveCardDesc": "Votre carte ne sera pas débitée maintenant. Le paiement se fera sur place.",
     "saveCardButton": "Enregistrer ma carte",
-    "pleaseWait": "Veuillez patienter..."
+    "pleaseWait": "Veuillez patienter...",
+    "bundleTitle": "Finaliser votre achat",
+    "bundleSubtitle": "Votre cure sera activée immédiatement après le paiement",
+    "purchaseBundle": "Acheter la cure",
+    "bundleSecure": "Paiement sécurisé par Stripe.",
+    "bundleActivation": "Votre cure sera activée immédiatement.",
+    "bundleHowItWorks": "Comment ça fonctionne ?",
+    "bundleStep1": "Vous bénéficiez de {{count}} séances incluses dans votre cure",
+    "bundleStep2": "Votre cure est activée immédiatement après le paiement",
+    "bundleStep3": "Réservez vos séances en ligne sans repayer",
+    "confirmBundleSession": "Confirmer (séance cure)"
   },
   "confirmation": {
     "title": "Réservation confirmée",
@@ -256,6 +269,28 @@
     "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire."
   },
 
+  "bundle": {
+    "detected": "Vous avez une cure active",
+    "remaining": "{{count}} séance restante",
+    "remaining_plural": "{{count}} séances restantes",
+    "useBundleSession": "Utiliser une séance",
+    "skipBundle": "Payer normalement",
+    "sessionUsed": "Séance de cure utilisée",
+    "bundleName": "Cure : {{name}}",
+    "expires": "Expire le {{date}}",
+    "rebuy": "Racheter cette cure",
+    "noCreditsLeft": "Aucune séance restante",
+    "category": "Forfaits / Cures",
+    "purchased": "Cure achetée !",
+    "purchasedMessage": "Votre cure est maintenant active. Vous pouvez réserver vos séances quand vous le souhaitez.",
+    "sessions": "{{count}} séance",
+    "sessions_plural": "{{count}} séances",
+    "validUntil": "Jusqu'au {{date}}",
+    "bookFirstSession": "Réserver une séance"
+  },
+  "cart": {
+    "bundleMixWarning": "Les cures doivent être achetées séparément"
+  },
   "badges": {
     "card_saved": "Carte enregistrée"
   }

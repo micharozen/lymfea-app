@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText } from "lucide-react";
+import { Clock, FileText, Package } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -110,7 +110,12 @@ export function BookingListView({
                 onClick={() => onBookingClick(booking)}
               >
                 <TableCell className="font-medium text-primary h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">#{booking.booking_id}</span>
+                  <span className="truncate leading-none flex items-center gap-1">
+                    #{booking.booking_id}
+                    {(booking as any).bundle_usage_id && (
+                      <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
+                    )}
+                  </span>
                 </TableCell>
                 <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
                   <span className="truncate block leading-none">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>

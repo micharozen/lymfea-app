@@ -31,7 +31,8 @@
     "popular": "Popular",
     "added": "Added",
     "viewBasket": "View Basket",
-    "bookTreatment": "Book treatment",
+    "bookTreatment": "Book",
+    "purchaseBundle": "Purchase this package",
     "item": "item",
     "items": "items",
     "duration": "{{duration}} min",
@@ -41,6 +42,7 @@
     "forMen": "Men",
     "fromPrice": "From",
     "noTreatments": "No treatments available",
+    "addonDisabledTooltip": "Add a treatment first to unlock add-ons",
     "inRoomDisclaimer": "Service performed in the privacy of your room.",
     "categories": {
       "hair": "Hair",
@@ -98,6 +100,7 @@
     "email": "Email",
     "phone": "Phone",
     "roomNumber": "Room Number",
+    "notHotelGuest": "I'm not a hotel guest",
     "note": "Note (optional)",
     "notePlaceholder": "Any special requests or information...",
     "continue": "CONTINUE",
@@ -143,7 +146,17 @@
     "saveCard": "Card Guarantee",
     "saveCardDesc": "Your card will not be charged now. Payment will be collected on site.",
     "saveCardButton": "Save my card",
-    "pleaseWait": "Please wait..."
+    "pleaseWait": "Please wait...",
+    "bundleTitle": "Complete your purchase",
+    "bundleSubtitle": "Your package will be activated immediately after payment",
+    "purchaseBundle": "Purchase package",
+    "bundleSecure": "Secure payment via Stripe.",
+    "bundleActivation": "Your package will be activated immediately.",
+    "bundleHowItWorks": "How does it work?",
+    "bundleStep1": "You get {{count}} sessions included in your package",
+    "bundleStep2": "Your package is activated immediately after payment",
+    "bundleStep3": "Book your sessions online without paying again",
+    "confirmBundleSession": "Confirm (package session)"
   },
   "confirmation": {
     "title": "Booking Confirmed",
@@ -254,6 +267,28 @@
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",
     "blockedSlot": "This slot overlaps with an unavailable time range (e.g. lunch break).",
     "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time."
+  },
+  "bundle": {
+    "detected": "You have an active treatment package",
+    "remaining": "{{count}} session remaining",
+    "remaining_plural": "{{count}} sessions remaining",
+    "useBundleSession": "Use a session",
+    "skipBundle": "Pay normally",
+    "sessionUsed": "Package session used",
+    "bundleName": "Package: {{name}}",
+    "expires": "Expires on {{date}}",
+    "rebuy": "Buy this package again",
+    "noCreditsLeft": "No sessions remaining",
+    "category": "Packages",
+    "purchased": "Package purchased!",
+    "purchasedMessage": "Your package is now active. You can book your sessions whenever you like.",
+    "sessions": "{{count}} session",
+    "sessions_plural": "{{count}} sessions",
+    "validUntil": "Until {{date}}",
+    "bookFirstSession": "Book a session"
+  },
+  "cart": {
+    "bundleMixWarning": "Packages must be purchased separately"
   },
   "badges": {
     "card_saved": "Card saved"

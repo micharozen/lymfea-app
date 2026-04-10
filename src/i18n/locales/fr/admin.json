@@ -477,6 +477,43 @@
     "showAll": "Tout",
     "hideAll": "Rien"
   },
+  "cures": {
+    "title": "Cures",
+    "bundleSession": "Séance cure",
+    "remainingCount": "{{remaining}}/{{total}} séances restantes",
+    "templates": "Modèles de cure",
+    "sold": "Cures vendues",
+    "createTemplate": "Créer un modèle",
+    "sellCure": "Vendre une cure",
+    "templateName": "Nom du modèle",
+    "totalSessions": "Nombre de séances",
+    "validityDays": "Durée de validité (jours)",
+    "price": "Prix",
+    "eligibleTreatments": "Soins éligibles",
+    "purchaseDate": "Date d'achat",
+    "expiresAt": "Date d'expiration",
+    "remainingSessions": "Séances restantes",
+    "usedSessions": "Séances utilisées",
+    "paymentReference": "Référence de paiement",
+    "status": {
+      "active": "Active",
+      "completed": "Terminée",
+      "expired": "Expirée",
+      "cancelled": "Annulée"
+    },
+    "sell": {
+      "title": "Vendre une cure",
+      "selectTemplate": "Sélectionner un modèle",
+      "searchClient": "Rechercher un client",
+      "newClient": "Nouveau client",
+      "confirm": "Confirmer la vente",
+      "success": "Cure vendue avec succès"
+    },
+    "delete": {
+      "title": "Supprimer ce modèle ?",
+      "description": "Cette action est irréversible. Le modèle de cure sera définitivement supprimé."
+    }
+  },
   "support": {
     "title": "Support",
     "description": "Gérez vos tickets de support",

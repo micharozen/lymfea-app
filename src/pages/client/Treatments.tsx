@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, Gift, Building } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, Gift, Building, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
@@ -12,6 +12,7 @@ import { CartDrawer } from '@/components/client/CartDrawer';
 import { BestsellerSection } from '@/components/client/BestsellerSection';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { VariantSelector, type TreatmentVariant } from '@/components/client/VariantSelector';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -19,6 +20,7 @@ import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { SchedulePanel } from '@/components/client/SchedulePanel';
+import { useClientFlow } from './context/FlowContext';
 
 interface TreatmentVariantData {
   id: string;
@@ -44,6 +46,9 @@ interface Treatment {
   price_on_request: boolean | null;
   currency: string | null;
   is_bestseller?: boolean;
+  is_addon?: boolean;
+  is_bundle?: boolean;
+  bundle_id?: string | null;
   variants?: TreatmentVariantData[];
 }
 
@@ -51,7 +56,8 @@ export default function Treatments() {
   // Extract hotelId from URL directly (useParams doesn't work in nested Routes)
   const hotelId = window.location.pathname.split('/')[2];
   const navigate = useNavigate();
-  const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount } = useBasket();
+  const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount, hasBaseItem, isBundleOnly } = useBasket();
+  const { setIsBundleOnlyPurchase } = useClientFlow();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
   const isDesktop = useIsDesktop();
@@ -122,7 +128,7 @@ export default function Treatments() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('treatment_categories')
-        .select('id, name, name_en, sort_order')
+        .select('id, name, name_en, sort_order, is_addon')
         .eq('hotel_id', hotelId)
         .order('sort_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true });
@@ -133,6 +139,17 @@ export default function Treatments() {
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
+
+  // Build set of add-on category names for conditional rendering
+  const addonCategoryNames = useMemo(() => {
+    const addonSet = new Set<string>();
+    for (const cat of treatmentCategories) {
+      if ((cat as any).is_addon) {
+        addonSet.add(cat.name);
+      }
+    }
+    return addonSet;
+  }, [treatmentCategories]);
 
   // Build category sections from admin-defined categories
   const categorySections = useMemo(() => {
@@ -145,13 +162,13 @@ export default function Treatments() {
 
     // When admin has defined categories, use them in sort_order
     if (treatmentCategories.length > 0) {
-      const sections: { id: string; name: string; displayName: string; treatments: Treatment[] }[] = [];
+      const sections: { id: string; name: string; displayName: string; isAddon: boolean; treatments: Treatment[] }[] = [];
       const matchedNames = new Set<string>();
 
       for (const cat of treatmentCategories) {
         const treatments = grouped.get(cat.name);
         if (treatments && treatments.length > 0) {
-          sections.push({ id: cat.id, name: cat.name, displayName: localize(cat.name, (cat as any).name_en), treatments });
+          sections.push({ id: cat.id, name: cat.name, displayName: localize(cat.name, (cat as any).name_en), isAddon: !!(cat as any).is_addon, treatments });
           matchedNames.add(cat.name);
         }
       }
@@ -164,7 +181,7 @@ export default function Treatments() {
         }
       }
       if (unmatched.length > 0) {
-        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), displayName: t('menu.otherCategory', 'Other'), treatments: unmatched });
+        sections.push({ id: 'other', name: t('menu.otherCategory', 'Autres'), displayName: t('menu.otherCategory', 'Other'), isAddon: false, treatments: unmatched });
       }
 
       return sections;
@@ -176,6 +193,7 @@ export default function Treatments() {
       id: name,
       name,
       displayName: name,
+      isAddon: false,
       treatments: grouped.get(name) || [],
     }));
   }, [allTreatments, treatmentCategories, t, localize]);
@@ -255,6 +273,9 @@ export default function Treatments() {
       image: treatment.image || undefined,
       category: treatment.category,
       isPriceOnRequest: resolvedVariant?.price_on_request ?? treatment.price_on_request ?? false,
+      isAddon: addonCategoryNames.has(treatment.category),
+      isBundle: treatment.is_bundle ?? false,
+      bundleId: treatment.bundle_id ?? undefined,
     });
 
     if (navigator.vibrate) {
@@ -356,7 +377,7 @@ export default function Treatments() {
           <span className="text-base sm:text-lg font-medium text-emerald-600">
             {formatPrice(0, treatment.currency || 'EUR', { decimals: 0 })}
           </span>
-          {treatment.duration && (
+          {treatment.duration > 0 && (
             <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
           )}
         </div>
@@ -374,7 +395,7 @@ export default function Treatments() {
         <span className="text-base sm:text-lg font-light text-gray-700">
           {formatPrice(treatment.price, treatment.currency || 'EUR', { decimals: 0 })}
         </span>
-        {treatment.duration && (
+        {treatment.duration > 0 && (
           <span className="text-gray-400 text-xs font-light tracking-wider uppercase">{treatment.duration} min</span>
         )}
       </div>
@@ -585,13 +606,35 @@ export default function Treatments() {
         </div>
       </div>
 
-      {/* Reassurance Banner — commented out: not always accurate (spa rooms vs in-room) */}
-      {/* <div className="px-4 py-3 bg-gray-50 flex items-center justify-center gap-2 border-b border-gray-100">
-          <Sparkles className="w-3 h-3 text-gold-600" />
-          <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-medium text-center">
-            {venueTerms.disclaimer}
-          </p>
-      </div> */}
+      {/* Venue Contact Info */}
+      {(hotel?.address || hotel?.contact_phone) && (
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-center space-y-0.5">
+          {hotel?.address && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 justify-center"
+            >
+              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+              <p className="text-xs text-gray-500 underline decoration-gray-300">
+                {[hotel.address, hotel.postal_code, hotel.city].filter(Boolean).join(', ')}
+              </p>
+            </a>
+          )}
+          {hotel?.contact_phone && (
+            <div className="flex items-center gap-1.5 justify-center">
+              <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+              <a
+                href={`tel:${hotel.contact_phone.replace(/\s/g, '')}`}
+                className="text-xs text-gray-500 underline decoration-gray-300"
+              >
+                {hotel.contact_phone}
+              </a>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Company Offered Banner */}
       {isCompanyOffered && (
@@ -648,43 +691,75 @@ export default function Treatments() {
             />
           )}
 
+          {/* Bundle / Cure Section */}
           {/* Category Sections */}
-          {categorySections.map((section) => (
-            <div
-              key={section.id}
-              ref={el => { categoryRefs.current[section.id] = el; }}
-              className="border-b border-gray-200"
-            >
-              <button
-                type="button"
-                onClick={() => handleCategoryToggle(section.id)}
-                className="w-full flex items-center justify-between px-5 py-5 transition-all"
-              >
-                <div className="flex flex-col items-start gap-1">
-                  <span className="font-serif text-xl text-gray-900 tracking-wide">
-                    {section.displayName}
-                  </span>
-                  <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">
-                    {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
-                  </span>
-                </div>
-                <ChevronDown
-                  className={cn(
-                    "w-5 h-5 text-gold-600 transition-transform duration-200",
-                    expandedCategory === section.id && "rotate-180"
-                  )}
-                />
-              </button>
+          {categorySections.map((section) => {
+            const isAddonLocked = section.isAddon && !hasBaseItem;
 
-              {expandedCategory === section.id && (
-                <div className="animate-fade-in">
-                  <div className="divide-y divide-gray-100 lg:grid lg:grid-cols-2 lg:divide-y-0 lg:gap-px lg:bg-gray-100">
-                    {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
+            return (
+              <div
+                key={section.id}
+                ref={el => { categoryRefs.current[section.id] = el; }}
+                className="border-b border-gray-200"
+              >
+                {isAddonLocked ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full flex items-center justify-between px-5 py-5 transition-all opacity-40 cursor-not-allowed"
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="font-serif text-xl text-gray-400 tracking-wide">
+                              {section.displayName}
+                            </span>
+                            <span className="text-gray-300 text-[11px] uppercase tracking-[0.15em]">
+                              {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+                            </span>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-300" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{t('menu.addonDisabledTooltip')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleCategoryToggle(section.id)}
+                    className="w-full flex items-center justify-between px-5 py-5 transition-all"
+                  >
+                    <div className="flex flex-col items-start gap-1">
+                      <span className="font-serif text-xl text-gray-900 tracking-wide">
+                        {section.displayName}
+                      </span>
+                      <span className="text-gray-400 text-[11px] uppercase tracking-[0.15em]">
+                        {section.treatments.length} {section.treatments.length === 1 ? t('menu.item') : t('menu.items')}
+                      </span>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "w-5 h-5 text-gold-600 transition-transform duration-200",
+                        expandedCategory === section.id && "rotate-180"
+                      )}
+                    />
+                  </button>
+                )}
+
+                {expandedCategory === section.id && !isAddonLocked && (
+                  <div className="animate-fade-in">
+                    <div className="divide-y divide-gray-100 lg:grid lg:grid-cols-2 lg:divide-y-0 lg:gap-px lg:bg-gray-100">
+                      {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+              </div>
+            );
+          })}
          </div>{/* end read-only wrapper */}
         </div>
 
@@ -720,14 +795,31 @@ export default function Treatments() {
       </div>
 
       {/* Fixed Bottom Button — desktop: open schedule panel / mobile: navigate to /schedule */}
+      {/* For bundle-only carts, skip schedule and go directly to guest info */}
       {itemCount > 0 && !isScheduleOpen && (
         <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
           <Button
-            onClick={() => isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${hotelId}/schedule`)}
+            onClick={() => {
+              if (isBundleOnly) {
+                setIsBundleOnlyPurchase(true);
+                navigate(`/client/${hotelId}/guest-info`);
+              } else {
+                isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${hotelId}/schedule`);
+              }
+            }}
             className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-200 font-medium tracking-wide shadow-lg transition-all duration-300"
           >
-            <HandHeart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+            {isBundleOnly ? (
+              <>
+                <Package className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                {t('menu.purchaseBundle', 'Acheter cette cure')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+              </>
+            ) : (
+              <>
+                <HandHeart className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                {t('menu.bookTreatment')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+              </>
+            )}
           </Button>
         </div>
       )}

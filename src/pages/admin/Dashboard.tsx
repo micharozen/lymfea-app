@@ -251,7 +251,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8 flex items-center gap-2">
+          <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8 flex items-center gap-2">
             Accueil
           </h1>
           <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -295,7 +295,7 @@ export default function Dashboard() {
       {salesData.length > 0 ? (
         <Card className="mb-6 border border-border bg-card shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl font-bold text-foreground">Ventes totales</CardTitle>
+            <CardTitle className="text-xl font-semibold text-foreground">Ventes totales</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={200}>
@@ -343,7 +343,7 @@ export default function Dashboard() {
 
       <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-bold text-foreground">Vue d&apos;ensemble</CardTitle>
+          <CardTitle className="text-lg font-medium text-foreground">Vue d&apos;ensemble</CardTitle>
         </CardHeader>
         <CardContent className="px-0">
           {hotelData.length > 0 ? (
@@ -369,7 +369,7 @@ export default function Dashboard() {
                           <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-sm shrink-0">
                             🏨
                           </div>
-                          <span className="font-semibold text-base text-foreground">{hotel.name}</span>
+                          <span className="font-medium text-base text-foreground">{hotel.name}</span>
                         </div>
                       </TableCell>
                       <TableCell className="py-4 px-6 whitespace-nowrap text-right font-medium tabular-nums">{hotel.totalSales}</TableCell>

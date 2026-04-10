@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import OneSignal from 'react-onesignal';
-import { brand } from '@/config/brand';
+
 
 const PENDING_URL_KEY = 'onesignal_pending_url';
 
@@ -102,11 +102,11 @@ export const useOneSignal = () => {
 
       // Check if we're on a supported domain for OneSignal
       const allowedDomains = [
-        brand.appDomain,
+        'lymfea.fr',
         'localhost',
       ];
       const currentHost = window.location.hostname;
-      const isAllowedDomain = allowedDomains.some(domain => currentHost.includes(domain));
+      const isAllowedDomain = allowedDomains.some(domain => currentHost.endsWith(domain));
       
       if (!isAllowedDomain) {
         console.log('[OneSignal] Skipping initialization - domain not configured:', currentHost);

@@ -48,6 +48,8 @@ const Settings = lazy(() => import("./pages/admin/Settings"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
 const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
+const Cures = lazy(() => import("./pages/admin/Cures"));
+const CureTemplateDetail = lazy(() => import("./pages/admin/CureTemplateDetail"));
 
 // Auth Pages
 const Login = lazy(() => import("./pages/auth/Login"));
@@ -432,6 +434,9 @@ const App = () => {
                               <Route path="/customers" element={<Customers />} />
                               <Route path="/customers/new" element={<CustomerDetail />} />
                               <Route path="/customers/:id" element={<CustomerDetail />} />
+                              <Route path="/cures" element={<Cures />} />
+                              <Route path="/cures/templates/new" element={<CureTemplateDetail />} />
+                              <Route path="/cures/templates/:id" element={<CureTemplateDetail />} />
                               <Route path="/products" element={<Products />} />
                               <Route path="/orders" element={<Orders />} />
                               <Route path="/finance" element={<Finance />} />
