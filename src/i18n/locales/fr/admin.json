@@ -249,7 +249,13 @@
     "clientPreview": {
       "copyUrl": "Copier le lien",
       "urlCopied": "Lien copié !",
-      "openInNewTab": "Ouvrir dans un nouvel onglet"
+      "openInNewTab": "Ouvrir dans un nouvel onglet",
+      "treatmentLink": "Lien vers un soin",
+      "selectTreatment": "Sélectionner un soin",
+      "noTreatments": "Aucun soin associé à ce lieu",
+      "treatmentLinkCopied": "Lien du soin copié !",
+      "venueLink": "Lien du lieu",
+      "searchTreatment": "Rechercher un soin..."
     },
     "save": "Enregistrer",
     "saving": "Enregistrement...",

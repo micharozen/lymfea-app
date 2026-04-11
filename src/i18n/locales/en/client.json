@@ -292,5 +292,15 @@
   },
   "badges": {
     "card_saved": "Card saved"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Book this treatment",
+    "seeAllTreatments": "See all treatments",
+    "treatmentNotFound": "Treatment not available",
+    "treatmentNotFoundDescription": "The requested treatment does not exist or is no longer available.",
+    "duration": "Duration",
+    "price": "Price",
+    "selectDuration": "Choose a duration",
+    "fromPrice": "From"
   }
 }

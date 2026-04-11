@@ -293,5 +293,15 @@
   },
   "badges": {
     "card_saved": "Carte enregistrée"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Réserver ce soin",
+    "seeAllTreatments": "Voir tous les soins",
+    "treatmentNotFound": "Ce soin n'est pas disponible",
+    "treatmentNotFoundDescription": "Le soin demandé n'existe pas ou n'est plus disponible.",
+    "duration": "Durée",
+    "price": "Tarif",
+    "selectDuration": "Choisir une durée",
+    "fromPrice": "À partir de"
   }
 }

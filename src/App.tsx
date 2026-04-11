@@ -104,6 +104,7 @@ const GuestInfo = lazy(() => import("./pages/client/GuestInfo"));
 const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
+const ClientTreatmentLanding = lazy(() => import("./pages/client/TreatmentLanding"));
 
 // Enterprise Dashboard
 const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
@@ -227,6 +228,7 @@ const App = () => {
                     <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                       <Routes>
                         <Route index element={<Welcome />} />
+                        <Route path="/treatment/:treatmentId" element={<ClientTreatmentLanding />} />
                         <Route path="/treatments" element={<ClientTreatments />} />
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/guest-info" element={<GuestInfo />} />
