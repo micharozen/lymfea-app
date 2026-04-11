@@ -17,6 +17,14 @@ interface DayAvailability {
   is_manually_edited: boolean;
 }
 
+interface Absence {
+  id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  note: string | null;
+}
+
 interface MonthCalendarProps {
   currentMonth: Date;
   onPrevMonth: () => void;
@@ -26,6 +34,7 @@ interface MonthCalendarProps {
   compact?: boolean;
   showLegend?: boolean;
   showTooltips?: boolean;
+  absences?: Absence[];
 }
 
 export function MonthCalendar({
@@ -37,6 +46,7 @@ export function MonthCalendar({
   compact = false,
   showLegend,
   showTooltips = false,
+  absences = [],
 }: MonthCalendarProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language === "fr" ? fr : enUS;
@@ -50,6 +60,21 @@ export function MonthCalendar({
     availability.forEach((day) => map.set(day.date, day));
     return map;
   }, [availability]);
+
+  // Build a set of dates covered by absences
+  const absenceDates = useMemo(() => {
+    const dates = new Set<string>();
+    absences.forEach((absence) => {
+      const start = new Date(absence.start_date + "T00:00:00");
+      const end = new Date(absence.end_date + "T00:00:00");
+      const current = new Date(start);
+      while (current <= end) {
+        dates.add(format(current, "yyyy-MM-dd"));
+        current.setDate(current.getDate() + 1);
+      }
+    });
+    return dates;
+  }, [absences]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -85,7 +110,8 @@ export function MonthCalendar({
     const isAvailable = dayData?.is_available === true && (dayData?.shifts?.length ?? 0) > 0;
     const isManual = dayData?.is_manually_edited === true;
     const isUnavailable = dayData?.is_available === false;
-    const hasNoData = !dayData;
+    const isAbsence = absenceDates.has(dateStr);
+    const hasNoData = !dayData && !isAbsence;
 
     const button = (
       <button
@@ -110,9 +136,10 @@ export function MonthCalendar({
           <div
             className={cn(
               "absolute bottom-0.5 w-1.5 h-1.5 rounded-full",
-              isAvailable && !isManual && "bg-emerald-500",
-              isAvailable && isManual && "bg-amber-500",
-              isUnavailable && "bg-muted-foreground/40"
+              isAbsence && "bg-red-400",
+              !isAbsence && isAvailable && !isManual && "bg-emerald-500",
+              !isAbsence && isAvailable && isManual && "bg-amber-500",
+              !isAbsence && isUnavailable && "bg-muted-foreground/40"
             )}
           />
         )}
@@ -179,7 +206,7 @@ export function MonthCalendar({
 
       {/* Legend */}
       {legendVisible && (
-        <div className="flex items-center gap-4 mt-3 justify-center">
+        <div className="flex items-center gap-4 mt-3 justify-center flex-wrap">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-emerald-500" />
             <span className="text-xs text-muted-foreground">{isFr ? "Dispo" : "Available"}</span>
@@ -192,6 +219,12 @@ export function MonthCalendar({
             <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
             <span className="text-xs text-muted-foreground">{isFr ? "Indispo" : "Unavailable"}</span>
           </div>
+          {absences.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-red-400" />
+              <span className="text-xs text-muted-foreground">{isFr ? "Bloqué" : "Blocked"}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

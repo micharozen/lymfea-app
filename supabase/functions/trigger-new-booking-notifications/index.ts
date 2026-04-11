@@ -98,6 +98,29 @@ serve(async (req) => {
       console.log(`Notifying all ${eligibleTherapists.length} eligible therapists`);
     }
 
+    // Filter out therapists who are blocked/unavailable on the booking date
+    if (booking.booking_date && eligibleTherapists.length > 0) {
+      const therapistIds = eligibleTherapists
+        .map(th => (th.therapists as any)?.id)
+        .filter(Boolean);
+
+      const { data: unavailable } = await supabaseClient
+        .from("therapist_availability")
+        .select("therapist_id")
+        .eq("date", booking.booking_date)
+        .eq("is_available", false)
+        .in("therapist_id", therapistIds);
+
+      if (unavailable && unavailable.length > 0) {
+        const unavailableSet = new Set(unavailable.map(u => u.therapist_id));
+        console.log(`Filtering out ${unavailableSet.size} unavailable/blocked therapists for date ${booking.booking_date}`);
+        eligibleTherapists = eligibleTherapists.filter(th => {
+          const t = th.therapists as any;
+          return !unavailableSet.has(t?.id);
+        });
+      }
+    }
+
     // Build notification body with proposed slots if available
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR');
     let notificationBody: string;
