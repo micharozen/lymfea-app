@@ -302,6 +302,7 @@
     "duration": "Durée",
     "price": "Tarif",
     "selectDuration": "Choisir une durée",
-    "fromPrice": "À partir de"
+    "fromPrice": "À partir de",
+    "minutes": "minutes"
   }
 }

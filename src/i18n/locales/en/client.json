@@ -301,6 +301,7 @@
     "duration": "Duration",
     "price": "Price",
     "selectDuration": "Choose a duration",
-    "fromPrice": "From"
+    "fromPrice": "From",
+    "minutes": "minutes"
   }
 }

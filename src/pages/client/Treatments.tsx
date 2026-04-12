@@ -198,21 +198,21 @@ export default function Treatments() {
     }));
   }, [allTreatments, treatmentCategories, t, localize]);
 
-  // Expanded category section state
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Collapsed category section state — sections are open by default
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+
+  const isCategoryExpanded = (sectionId: string) => !collapsedCategories.has(sectionId);
 
   const handleCategoryToggle = (sectionId: string) => {
-    const isClosing = expandedCategory === sectionId;
-    setExpandedCategory(isClosing ? null : sectionId);
-    if (!isClosing) {
-      requestAnimationFrame(() => {
-        categoryRefs.current[sectionId]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      });
-    }
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
   };
 
   // venue_type is now included in the RPC response (get_public_hotel_by_id)
@@ -699,7 +699,6 @@ export default function Treatments() {
             return (
               <div
                 key={section.id}
-                ref={el => { categoryRefs.current[section.id] = el; }}
                 className="border-b border-gray-200"
               >
                 {isAddonLocked ? (
@@ -744,15 +743,15 @@ export default function Treatments() {
                     <ChevronDown
                       className={cn(
                         "w-5 h-5 text-gold-600 transition-transform duration-200",
-                        expandedCategory === section.id && "rotate-180"
+                        isCategoryExpanded(section.id) && "rotate-180"
                       )}
                     />
                   </button>
                 )}
 
-                {expandedCategory === section.id && !isAddonLocked && (
+                {isCategoryExpanded(section.id) && !isAddonLocked && (
                   <div className="animate-fade-in">
-                    <div className="divide-y divide-gray-100 lg:grid lg:grid-cols-2 lg:divide-y-0 lg:gap-px lg:bg-gray-100">
+                    <div className="divide-y divide-gray-100">
                       {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
                     </div>
                   </div>

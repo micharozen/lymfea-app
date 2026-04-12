@@ -4,12 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, ShoppingBag, Sparkles, HandHeart } from 'lucide-react';
+import { ArrowLeft, Clock, ShoppingBag, Sparkles, HandHeart, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
-import { VariantSelector, type TreatmentVariant } from '@/components/client/VariantSelector';
+import { VariantListSelector } from '@/components/client/VariantListSelector';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { formatPrice } from '@/lib/formatPrice';
 import { cn } from '@/lib/utils';
@@ -200,63 +200,91 @@ export default function TreatmentLanding() {
   const effectivePriceOnRequest = selectedVariant?.price_on_request ?? treatment.price_on_request;
   const currency = treatment.currency || 'EUR';
 
+  const maxVariantPrice = hasMultipleVariants && treatment.variants
+    ? Math.max(...treatment.variants.filter(v => !v.price_on_request).map(v => v.price ?? 0))
+    : null;
+  const showFromPrice = maxVariantPrice != null
+    && !effectivePriceOnRequest
+    && (effectivePrice ?? 0) < maxVariantPrice;
+
   return (
     <div className="min-h-screen bg-white flex flex-col text-gray-900">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="relative h-14 overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-between px-4 pt-safe">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(`/client/${hotelId}`)}
-              className="text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+          <div className="absolute inset-0 flex items-center px-4 pt-safe">
+            <div className="flex-1 flex justify-start">
+              <Button
+                variant="ghost"
+                onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                className="h-9 px-2 gap-1.5 text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="text-xs font-medium">
+                  {t('treatmentDetail.seeAllTreatments')}
+                </span>
+              </Button>
+            </div>
 
-            <h1 className="font-serif text-sm text-gold-600 tracking-wide text-center flex-1 px-2 leading-tight truncate">
+            <h1 className="absolute left-1/2 -translate-x-1/2 font-serif text-sm text-gold-600 tracking-wide leading-tight truncate max-w-[40%] text-center pointer-events-none">
               {localize(hotel?.name, hotel?.name_en)}
             </h1>
 
-            {itemCount > 0 ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(`/client/${hotelId}/treatments`)}
-                className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                  {itemCount}
-                </span>
-              </Button>
-            ) : (
-              <div className="w-10" />
-            )}
+            <div className="flex-1 flex justify-end">
+              {itemCount > 0 ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                  className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
+                >
+                  <ShoppingBag className="h-5 w-5" />
+                  <span className="absolute -top-1 -right-1 bg-gold-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                </Button>
+              ) : (
+                <div className="w-10" />
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1">
-        {/* Hero image */}
-        {treatment.image ? (
-          <div className="aspect-[4/3] max-h-[360px] overflow-hidden">
-            <img
-              src={treatment.image}
-              alt={localize(treatment.name, treatment.name_en)}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ) : (
-          <div className="aspect-[4/3] max-h-[280px] bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-            <Sparkles className="w-16 h-16 text-gray-200" />
-          </div>
-        )}
+      {/* Venue Contact Info */}
+      {(hotel?.address || hotel?.contact_phone) && (
+        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-center space-y-0.5">
+          {hotel?.address && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 justify-center"
+            >
+              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+              <p className="text-xs text-gray-500 underline decoration-gray-300">
+                {[hotel.address, hotel.postal_code, hotel.city].filter(Boolean).join(', ')}
+              </p>
+            </a>
+          )}
+          {hotel?.contact_phone && (
+            <div className="flex items-center gap-1.5 justify-center">
+              <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+              <a
+                href={`tel:${hotel.contact_phone.replace(/\s/g, '')}`}
+                className="text-xs text-gray-500 underline decoration-gray-300"
+              >
+                {hotel.contact_phone}
+              </a>
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* Content */}
+      <div className="flex-1 w-full">
         {/* Treatment info */}
-        <div className="px-6 pt-6 pb-4">
+        <div className="max-w-md mx-auto px-6 pt-8 pb-4 flex flex-col items-center text-center">
           {/* Category badge */}
           <span className="text-[10px] uppercase tracking-[0.2em] text-gold-600 font-semibold">
             {treatment.category}
@@ -275,9 +303,9 @@ export default function TreatmentLanding() {
           )}
 
           {/* Price & Duration */}
-          <div className="flex items-center gap-4 mb-5">
+          <div className="flex items-start justify-center gap-6 mb-6">
             {!isCompanyOffered && (
-              <div>
+              <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-0.5">
                   {t('treatmentDetail.price')}
                 </span>
@@ -296,6 +324,11 @@ export default function TreatmentLanding() {
                   </div>
                 ) : (
                   <span className="text-lg font-medium text-gray-900">
+                    {showFromPrice && (
+                      <span className="text-xs font-normal text-gray-400 mr-1">
+                        {t('treatmentDetail.fromPrice')}
+                      </span>
+                    )}
                     {formatPrice(effectivePrice, currency, { decimals: 0 })}
                   </span>
                 )}
@@ -303,7 +336,7 @@ export default function TreatmentLanding() {
             )}
 
             {effectiveDuration && (
-              <div>
+              <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-0.5">
                   {t('treatmentDetail.duration')}
                 </span>
@@ -319,11 +352,11 @@ export default function TreatmentLanding() {
 
           {/* Variant selector */}
           {hasMultipleVariants && treatment.variants && (
-            <div className="mb-5">
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-2">
+            <div className="mb-5 w-full">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wider mb-3 text-center">
                 {t('treatmentDetail.selectDuration')}
               </p>
-              <VariantSelector
+              <VariantListSelector
                 variants={treatment.variants}
                 selectedVariantId={selectedVariant?.id || null}
                 onSelect={(variant) => setSelectedVariant(variant as TreatmentVariantData)}
@@ -351,13 +384,6 @@ export default function TreatmentLanding() {
           <HandHeart className="mr-2 h-5 w-5" />
           {added ? t('menu.added') : t('treatmentDetail.bookThisTreatment')}
         </Button>
-
-        <button
-          onClick={() => navigate(`/client/${hotelId}/treatments`)}
-          className="w-full text-center text-sm text-gray-400 mt-3 hover:text-gold-600 transition-colors"
-        >
-          {t('treatmentDetail.seeAllTreatments')}
-        </button>
       </div>
 
       {/* On Request Drawer */}
