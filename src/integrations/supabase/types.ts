@@ -35,6 +35,180 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_profiles: {
+        Row: {
+          id: string
+          owner_type: string
+          owner_id: string
+          company_name: string | null
+          legal_form: string | null
+          siret: string | null
+          siren: string | null
+          tva_number: string | null
+          vat_exempt: boolean
+          billing_address: string | null
+          billing_postal_code: string | null
+          billing_city: string | null
+          billing_country: string | null
+          contact_email: string | null
+          contact_phone: string | null
+          iban: string | null
+          bic: string | null
+          bank_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_type: string
+          owner_id: string
+          company_name?: string | null
+          legal_form?: string | null
+          siret?: string | null
+          siren?: string | null
+          tva_number?: string | null
+          vat_exempt?: boolean
+          billing_address?: string | null
+          billing_postal_code?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          iban?: string | null
+          bic?: string | null
+          bank_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_type?: string
+          owner_id?: string
+          company_name?: string | null
+          legal_form?: string | null
+          siret?: string | null
+          siren?: string | null
+          tva_number?: string | null
+          vat_exempt?: boolean
+          billing_address?: string | null
+          billing_postal_code?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
+          iban?: string | null
+          bic?: string | null
+          bank_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          id: string
+          invoice_kind: string
+          issuer_type: string
+          issuer_id: string | null
+          client_type: string
+          client_id: string | null
+          therapist_id: string | null
+          hotel_id: string | null
+          invoice_number: string
+          period_start: string
+          period_end: string
+          issue_date: string
+          due_date: string
+          amount_ht: number
+          vat_rate: number
+          vat_amount: number
+          amount_ttc: number
+          currency: string
+          bookings_count: number
+          html_snapshot: string | null
+          issuer_snapshot: Json | null
+          client_snapshot: Json | null
+          metadata: Json | null
+          status: string
+          generated_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          invoice_kind: string
+          issuer_type: string
+          issuer_id?: string | null
+          client_type: string
+          client_id?: string | null
+          therapist_id?: string | null
+          hotel_id?: string | null
+          invoice_number: string
+          period_start: string
+          period_end: string
+          issue_date?: string
+          due_date: string
+          amount_ht: number
+          vat_rate?: number
+          vat_amount: number
+          amount_ttc: number
+          currency?: string
+          bookings_count?: number
+          html_snapshot?: string | null
+          issuer_snapshot?: Json | null
+          client_snapshot?: Json | null
+          metadata?: Json | null
+          status?: string
+          generated_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          invoice_kind?: string
+          issuer_type?: string
+          issuer_id?: string | null
+          client_type?: string
+          client_id?: string | null
+          therapist_id?: string | null
+          hotel_id?: string | null
+          invoice_number?: string
+          period_start?: string
+          period_end?: string
+          issue_date?: string
+          due_date?: string
+          amount_ht?: number
+          vat_rate?: number
+          vat_amount?: number
+          amount_ttc?: number
+          currency?: string
+          bookings_count?: number
+          html_snapshot?: string | null
+          issuer_snapshot?: Json | null
+          client_snapshot?: Json | null
+          metadata?: Json | null
+          status?: string
+          generated_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       admins: {
         Row: {
           country_code: string
@@ -2354,6 +2528,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      next_invoice_number: {
+        Args: Record<string, never>
+        Returns: string
+      }
       accept_booking: {
         Args: {
           _booking_id: string

@@ -16,6 +16,7 @@ import { TherapistGeneralTab } from "@/components/admin/therapist/TherapistGener
 import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistAssignmentsTab";
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
 import { TherapistActivityTab } from "@/components/admin/therapist/TherapistActivityTab";
+import { TherapistBillingTab } from "@/components/admin/therapist/TherapistBillingTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -396,6 +397,13 @@ export default function TherapistDetail() {
               >
                 {t("admin:therapists.activity", "Activité")}
               </TabsTrigger>
+              <TabsTrigger
+                value="billing"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:therapists.billing", "Facturation")}
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -411,6 +419,7 @@ export default function TherapistDetail() {
                     fileInputRef={fileInputRef}
                     handleImageUpload={handleImageUpload}
                     triggerFileSelect={triggerFileSelect}
+                    therapistId={effectiveTherapistId}
                   />
                 </TabsContent>
               </form>
@@ -442,6 +451,10 @@ export default function TherapistDetail() {
 
                 <TabsContent value="activity" className="mt-0">
                   <TherapistActivityTab therapistId={effectiveTherapistId!} />
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-0">
+                  <TherapistBillingTab therapistId={effectiveTherapistId!} />
                 </TabsContent>
               </>
             )}
