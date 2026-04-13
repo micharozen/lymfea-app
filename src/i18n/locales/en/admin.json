@@ -267,7 +267,13 @@
     "clientPreview": {
       "copyUrl": "Copy link",
       "urlCopied": "Link copied!",
-      "openInNewTab": "Open in new tab"
+      "openInNewTab": "Open in new tab",
+      "treatmentLink": "Treatment link",
+      "selectTreatment": "Select a treatment",
+      "noTreatments": "No treatments linked to this venue",
+      "treatmentLinkCopied": "Treatment link copied!",
+      "venueLink": "Venue link",
+      "searchTreatment": "Search a treatment..."
     },
     "save": "Save",
     "saving": "Saving...",

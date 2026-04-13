@@ -12,6 +12,7 @@ import { CartDrawer } from '@/components/client/CartDrawer';
 import { BestsellerSection } from '@/components/client/BestsellerSection';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { VariantSelector, type TreatmentVariant } from '@/components/client/VariantSelector';
+import { TreatmentVariantDrawer } from '@/components/client/TreatmentVariantDrawer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
@@ -20,6 +21,8 @@ import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { SchedulePanel } from '@/components/client/SchedulePanel';
+import { TreatmentsBreadcrumb } from '@/components/client/TreatmentsBreadcrumb';
+import { TreatmentsSummaryPanel } from '@/components/client/TreatmentsSummaryPanel';
 import { useClientFlow } from './context/FlowContext';
 
 interface TreatmentVariantData {
@@ -79,6 +82,11 @@ export default function Treatments() {
   const [closingTreatmentId, setClosingTreatmentId] = useState<string | null>(null);
   // Selected variant per treatment
   const [selectedVariants, setSelectedVariants] = useState<Record<string, TreatmentVariantData>>({});
+
+  // Variant drawer state — opened when user clicks + on a multi-variant treatment
+  const [variantDrawerTreatment, setVariantDrawerTreatment] = useState<Treatment | null>(null);
+  const openVariantDrawer = (treatment: Treatment) => setVariantDrawerTreatment(treatment);
+  const closeVariantDrawer = () => setVariantDrawerTreatment(null);
 
   const getItemQuantity = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -198,21 +206,21 @@ export default function Treatments() {
     }));
   }, [allTreatments, treatmentCategories, t, localize]);
 
-  // Expanded category section state
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
-  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Collapsed category section state — sections are open by default
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+
+  const isCategoryExpanded = (sectionId: string) => !collapsedCategories.has(sectionId);
 
   const handleCategoryToggle = (sectionId: string) => {
-    const isClosing = expandedCategory === sectionId;
-    setExpandedCategory(isClosing ? null : sectionId);
-    if (!isClosing) {
-      requestAnimationFrame(() => {
-        categoryRefs.current[sectionId]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      });
-    }
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
   };
 
   // venue_type is now included in the RPC response (get_public_hotel_by_id)
@@ -437,11 +445,7 @@ export default function Treatments() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasMultipleVariants(treatment)) {
-                  setSelectedVariants(prev => {
-                    const { [treatment.id]: _, ...rest } = prev;
-                    return rest;
-                  });
-                  setExpandedTreatmentId(treatment.id);
+                  openVariantDrawer(treatment);
                 } else {
                   handleAddToBasket(treatment);
                 }
@@ -456,27 +460,20 @@ export default function Treatments() {
 
     return (
       <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t('menu.select')}
         onClick={(e) => {
           e.stopPropagation();
           if (hasMultipleVariants(treatment)) {
-            // For multi-variant, expand and reset selection for a fresh pick
-            setSelectedVariants(prev => {
-              const { [treatment.id]: _, ...rest } = prev;
-              return rest;
-            });
-            setExpandedTreatmentId(treatment.id);
+            openVariantDrawer(treatment);
           } else {
             handleAddToBasket(treatment);
           }
         }}
-        className={cn(
-          "transition-all duration-300 border-none",
-          hasMultipleVariants(treatment)
-            ? "px-2 h-7 text-[11px] sm:text-xs lg:text-sm tracking-wide bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk"
-            : "px-3 h-8 sm:px-4 sm:h-8 text-xs lg:text-sm bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk tracking-normal"
-        )}
+        className="h-11 w-11 rounded-full bg-gold-600 text-white hover:bg-gold-700 ring-1 ring-gold-700/20 shadow-md transition-all duration-200"
       >
-        {t('menu.select')}
+        <Plus className="h-5 w-5" strokeWidth={2.5} />
       </Button>
     );
   };
@@ -484,26 +481,22 @@ export default function Treatments() {
   /** Render a single treatment card */
   const renderTreatmentCard = (treatment: Treatment, i: number) => {
     const isExpanded = expandedTreatmentId === treatment.id;
+    const isSelected = getTreatmentTotalQuantity(treatment.id) > 0;
 
     return (
       <div
         key={treatment.id}
         className={cn(
-          "p-4 transition-colors group cursor-pointer animate-slide-up-fade bg-white",
-          isExpanded ? "lg:bg-gray-50/80 bg-gray-50" : "active:bg-black/5"
+          "p-4 transition-all group cursor-pointer bg-white rounded-xl",
+          isSelected
+            ? "border-2 border-gold-500 shadow-md ring-1 ring-gold-300/40"
+            : "border border-gray-200 hover:border-gold-300 hover:shadow-sm",
+          isExpanded && !isSelected && "lg:bg-gray-50/80 bg-gray-50 border-gold-300",
+          !isExpanded && "active:bg-black/5"
         )}
-        style={{ animationDelay: `${i * 0.05}s` }}
         onClick={() => {
           if (hasMultipleVariants(treatment)) {
-            if (expandedTreatmentId === treatment.id) {
-              setExpandedTreatmentId(null);
-            } else {
-              setSelectedVariants(prev => {
-                const { [treatment.id]: _, ...rest } = prev;
-                return rest;
-              });
-              setExpandedTreatmentId(treatment.id);
-            }
+            openVariantDrawer(treatment);
           } else {
             handleAddToBasket(treatment);
           }
@@ -569,8 +562,8 @@ export default function Treatments() {
     <div
       className="min-h-screen bg-white flex flex-col text-gray-900"
     >
-      {/* Header Sticky */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
+      {/* Header Sticky — mobile only */}
+      <div className="lg:hidden sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-gray-200">
         <div className="relative h-16 sm:h-18 md:h-20 overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-between px-4 pt-safe">
             <Button
@@ -606,9 +599,9 @@ export default function Treatments() {
         </div>
       </div>
 
-      {/* Venue Contact Info */}
+      {/* Venue Contact Info — mobile only (desktop shows it inside the right summary panel) */}
       {(hotel?.address || hotel?.contact_phone) && (
-        <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-center space-y-0.5">
+        <div className="lg:hidden px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-center space-y-0.5">
           {hotel?.address && (
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
@@ -667,14 +660,25 @@ export default function Treatments() {
       )}
 
       {/* Main content — split layout on desktop */}
-      <div className="flex-1 flex lg:flex-row overflow-hidden">
+      <div className="flex-1 flex lg:flex-row overflow-hidden lg:px-8 lg:gap-8 lg:max-w-7xl lg:mx-auto lg:w-full lg:py-6">
         {/* Left panel — treatments list */}
         <div className={cn(
-          "flex-1 overflow-y-auto",
-          // Bottom padding for the fixed "Book" button
-          !isDesktop && itemCount > 0 ? 'pb-20' : '',
-          isDesktop && itemCount > 0 && !isScheduleOpen ? 'pb-20' : ''
+          "flex-1 overflow-y-auto lg:overflow-visible",
+          // Bottom padding for the fixed "Book" button (mobile only)
+          !isDesktop && itemCount > 0 ? 'pb-20' : ''
         )}>
+         {/* Desktop breadcrumb + title */}
+         <div className="hidden lg:block mb-6">
+           <TreatmentsBreadcrumb currentStep="treatments" className="mb-4" />
+           <h1 className="font-serif text-3xl text-gray-900 tracking-tight">
+             {t('breadcrumb.treatments')}
+           </h1>
+           {hotel && (
+             <p className="font-serif text-lg text-gray-500 mt-1">
+               {localize(hotel.name, hotel.name_en)}
+             </p>
+           )}
+         </div>
          <div className={cn(
            // Read-only when schedule panel is open on desktop
            isDesktop && isScheduleOpen && "pointer-events-none opacity-50 select-none transition-opacity duration-300"
@@ -699,7 +703,6 @@ export default function Treatments() {
             return (
               <div
                 key={section.id}
-                ref={el => { categoryRefs.current[section.id] = el; }}
                 className="border-b border-gray-200"
               >
                 {isAddonLocked ? (
@@ -744,15 +747,15 @@ export default function Treatments() {
                     <ChevronDown
                       className={cn(
                         "w-5 h-5 text-gold-600 transition-transform duration-200",
-                        expandedCategory === section.id && "rotate-180"
+                        isCategoryExpanded(section.id) && "rotate-180"
                       )}
                     />
                   </button>
                 )}
 
-                {expandedCategory === section.id && !isAddonLocked && (
-                  <div className="animate-fade-in">
-                    <div className="divide-y divide-gray-100 lg:grid lg:grid-cols-2 lg:divide-y-0 lg:gap-px lg:bg-gray-100">
+                {isCategoryExpanded(section.id) && !isAddonLocked && (
+                  <div className="px-4 pb-4">
+                    <div className="flex flex-col gap-3">
                       {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
                     </div>
                   </div>
@@ -763,41 +766,53 @@ export default function Treatments() {
          </div>{/* end read-only wrapper */}
         </div>
 
-        {/* Right panel — schedule (desktop only, explicit open via button) */}
+        {/* Right panel — desktop only: summary panel OR schedule panel */}
         {isDesktop && (
-          <div
-            className={cn(
-              "shrink-0 border-l border-gray-200 bg-gray-50/50 transition-all duration-300 ease-in-out",
-              isScheduleOpen
-                ? "w-[480px] opacity-100 overflow-y-auto"
-                : "w-0 opacity-0 overflow-hidden border-l-0"
+          <div className="shrink-0 lg:sticky lg:top-6 lg:self-start">
+            {isScheduleOpen ? (
+              <div className="w-[480px] border border-gray-200 rounded-2xl bg-gray-50/50 overflow-hidden max-h-[calc(100vh-3rem)] overflow-y-auto">
+                {/* Back button — return to treatment selection */}
+                <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsScheduleOpen(false)}
+                    className="text-gray-600 hover:text-gray-900 hover:bg-gray-200/50 font-grotesk"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    {t('menu.editTreatments', 'Modifier les soins')}
+                  </Button>
+                </div>
+                <SchedulePanel
+                  hotelId={hotelId}
+                  onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
+                  embedded
+                />
+              </div>
+            ) : (
+              <TreatmentsSummaryPanel
+                hotel={hotel}
+                displayName={localize(hotel?.name, hotel?.name_en) || ''}
+                isOffert={isOffert}
+                isCompanyOffered={isCompanyOffered}
+                onContinue={() => {
+                  if (isBundleOnly) {
+                    setIsBundleOnlyPurchase(true);
+                    navigate(`/client/${hotelId}/guest-info`);
+                  } else {
+                    setIsScheduleOpen(true);
+                  }
+                }}
+              />
             )}
-          >
-            {/* Back button — return to treatment selection */}
-            <div className="sticky top-0 z-10 bg-gray-50/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsScheduleOpen(false)}
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-200/50 font-grotesk"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                {t('menu.editTreatments', 'Modifier les soins')}
-              </Button>
-            </div>
-            <SchedulePanel
-              hotelId={hotelId}
-              onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
-              embedded
-            />
           </div>
         )}
       </div>
 
-      {/* Fixed Bottom Button — desktop: open schedule panel / mobile: navigate to /schedule */}
+      {/* Fixed Bottom Button — mobile only (desktop uses the right summary panel CTA) */}
       {/* For bundle-only carts, skip schedule and go directly to guest info */}
       {itemCount > 0 && !isScheduleOpen && (
-        <div className="fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
+        <div className="lg:hidden fixed bottom-4 left-0 right-0 px-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
           <Button
             onClick={() => {
               if (isBundleOnly) {
@@ -834,6 +849,20 @@ export default function Treatments() {
         treatment={selectedOnRequestTreatment}
         hotelId={hotelId || ''}
         hotelName={hotel?.name}
+      />
+
+      {/* Variant selection drawer (multi-variant treatments) */}
+      <TreatmentVariantDrawer
+        open={variantDrawerTreatment !== null}
+        onOpenChange={(open) => { if (!open) closeVariantDrawer(); }}
+        treatment={variantDrawerTreatment}
+        isOffert={isOffert}
+        isCompanyOffered={isCompanyOffered}
+        onConfirm={(variant) => {
+          if (variantDrawerTreatment) {
+            handleAddToBasket(variantDrawerTreatment, variant);
+          }
+        }}
       />
     </div>
   );
