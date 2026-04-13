@@ -12,7 +12,9 @@
 CREATE TABLE IF NOT EXISTS billing_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_type TEXT NOT NULL CHECK (owner_type IN ('therapist', 'hotel')),
-  owner_id UUID NOT NULL,
+  -- TEXT (not UUID) because it may reference therapists.id (UUID) or hotels.id (TEXT);
+  -- UUIDs cast cleanly to TEXT so this works for both.
+  owner_id TEXT NOT NULL,
 
   -- Legal identity
   company_name TEXT,
@@ -108,15 +110,15 @@ CREATE TABLE IF NOT EXISTS invoices (
 
   invoice_kind TEXT NOT NULL CHECK (invoice_kind IN ('therapist_commission', 'hotel_commission')),
 
-  -- Polymorphic issuer / client
+  -- Polymorphic issuer / client — TEXT to hold either a therapist UUID or a hotel text id
   issuer_type TEXT NOT NULL CHECK (issuer_type IN ('therapist', 'hotel', 'lymfea')),
-  issuer_id UUID,
+  issuer_id TEXT,
   client_type TEXT NOT NULL CHECK (client_type IN ('therapist', 'hotel', 'lymfea')),
-  client_id UUID,
+  client_id TEXT,
 
   -- Business attachments (both set for therapist commission)
   therapist_id UUID REFERENCES therapists(id) ON DELETE SET NULL,
-  hotel_id UUID REFERENCES hotels(id) ON DELETE SET NULL,
+  hotel_id TEXT REFERENCES hotels(id) ON DELETE SET NULL,
 
   -- Numbering & dates
   invoice_number TEXT NOT NULL UNIQUE,
