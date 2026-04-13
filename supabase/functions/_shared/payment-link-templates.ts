@@ -11,6 +11,7 @@ import {
 export interface PaymentLinkTemplateData {
   clientName: string;
   hotelName: string;
+  hotelImageUrl?: string;
   roomNumber?: string;
   bookingDate: string;
   bookingTime: string;
@@ -25,10 +26,13 @@ export interface PaymentLinkTemplateData {
 }
 
 export const getPaymentLinkEmailSubject = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
+  // Pad le numéro pour qu'il ait au moins 4 chiffres (ex: 1 devient 0001)
+  const formattedNumber = String(data.bookingNumber).padStart(4, '0');
+
   if (language === 'fr') {
-    return `Lien de paiement - Réservation #${data.bookingNumber} - ${data.hotelName}`;
+    return `Lien de paiement - Réservation #${formattedNumber} - ${data.hotelName}`;
   }
-  return `Payment Link - Booking #${data.bookingNumber} - ${data.hotelName}`;
+  return `Payment Link - Booking #${formattedNumber} - ${data.hotelName}`;
 };
 
 /**
@@ -41,9 +45,9 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
   const labels = {
     title: isFr ? 'Confirmez votre expérience' : 'Confirm your experience',
     greeting: isFr ? `Chère ${data.clientName}` : `Dear ${data.clientName}`,
-    welcome: isFr 
+    welcome: customWelcome ? customWelcome : (isFr 
       ? `Nous avons hâte de vous accueillir chez ${data.hotelName}. Afin de garantir votre réservation, nous vous invitons à finaliser votre paiement.`
-      : `We look forward to welcoming you at ${data.hotelName}. To guarantee your booking, please finalize your payment.`,
+      : `We look forward to welcoming you at ${data.hotelName}. To guarantee your booking, please finalize your payment.`),
     detailsTitle: isFr ? 'VOTRE RÉSERVATION' : 'YOUR BOOKING',
     cta: isFr ? `CONFIRMER ET PAYER — ${data.totalPrice}${currency}` : `CONFIRM & PAY — ${data.totalPrice}${currency}`,
     validity: isFr ? `Ce lien est valide jusqu'au ${data.expiresAtText}` : `This link is valid until ${data.expiresAtText}`,
@@ -75,6 +79,9 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
         <tr>
           <td align="center" style="padding: 40px 0;">
             <img src="${EMAIL_LOGO_URL}" alt="Lymfea" width="140" style="display: block; margin-bottom: 40px;">
+            ${data.hotelImageUrl ? `
+            <img src="${data.hotelImageUrl}" alt="${data.hotelName}" style="display: block; width: 100%; max-width: 600px; height: auto; margin-bottom: 40px; border-radius: 4px;">
+            ` : ''}
             
             <table width="600" border="0" cellspacing="0" cellpadding="0" style="width: 600px; max-width: 600px;">
               <tr>
@@ -84,7 +91,7 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
                   
                   <div style="${styles.card}">
                     <p style="font-size: 11px; letter-spacing: 2px; color: #C5B197; margin-bottom: 20px;">${labels.detailsTitle}</p>
-                    <p style="font-size: 18px; margin-bottom: 10px;"><strong>${data.bookingDate} à ${data.bookingTime}</strong></p>
+                    <p style="font-size: 18px; margin-bottom: 10px;"><strong>${data.bookingDate} ${isFr ? 'à' : 'at'} ${data.bookingTime}</strong></p>
                     <p style="font-size: 14px; margin-bottom: 25px; color: #666;">${data.hotelName}</p>
                     
                     <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top: 1px solid #C5B197; padding-top: 20px;">
@@ -136,6 +143,7 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
  */
 export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
   const currency = data.currency || '€';
+  
 
   if (language === 'fr') {
     return getBaseEmailTemplate(`

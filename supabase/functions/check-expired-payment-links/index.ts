@@ -39,7 +39,7 @@ serve(async (req: Request) => {
         )
       `)
       .lt('payment_link_expires_at', new Date().toISOString())
-      .is('bookings.payment_status', 'pending')
+      .eq('bookings.payment_status', 'pending')
       .neq('bookings.status', 'cancelled');
 
     if (fetchError) throw fetchError;
@@ -81,8 +81,8 @@ serve(async (req: Request) => {
         try {
           const lang = (booking.payment_link_language || 'fr') as 'fr' | 'en';
           await resend.emails.send({
-            from: brand.emails.from.default,
-            to: booking.client_email,
+            from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
+            to: 'romainthierryom@gmail.com',
             subject: lang === 'fr' ? "Réservation annulée - Délai dépassé" : "Booking cancelled - Deadline expired",
             html: getPaymentCancellationEmailHtml(lang, {
               clientName: `${booking.client_first_name} ${booking.client_last_name}`,

@@ -28,6 +28,30 @@ interface SendPaymentLinkRequest {
   clientEmail?: string;
   clientPhone?: string;
 }
+function generateICS(bookingDate: string, bookingTime: string, hotelName: string, durationMinutes: number): string {
+  // Calcul de la fin du soin
+  const start = new Date(`${bookingDate}T${bookingTime}`);
+  const end = new Date(start.getTime() + durationMinutes * 60000);
+
+  // Formatage requis pour ICS (YYYYMMDDTHHMMSSZ)
+  const formatDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+  // Construction du contenu du fichier
+  const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Lymfea//Booking//EN
+BEGIN:VEVENT
+DTSTART:${formatDate(start)}
+DTEND:${formatDate(end)}
+SUMMARY:Soin Lymfea - ${hotelName}
+LOCATION:${hotelName}
+DESCRIPTION:Votre moment de bien-être chez ${hotelName}.
+END:VEVENT
+END:VCALENDAR`;
+
+  // Les fichiers ICS requièrent un retour à la ligne spécifique (\r\n)
+  return icsContent.replace(/\n/g, '\r\n');
+}
 
 // Fonction utilitaire pour le calcul de l'expiration selon les règles du ticket
 function calculateExpirationDate(bookingDate: Date, now: Date): Date {
@@ -103,18 +127,31 @@ serve(async (req: Request) => {
     let hotelCurrency = 'eur';
     let contactEmail = brand.emails.from.default;
     let contactPhone = "";
-
-    if (booking.hotel_id) {
-      const { data: hotel } = await supabase
+    let hotelImageUrl = "";
+  if (booking.hotel_id) {
+      const cleanHotelId = booking.hotel_id.trim();
+      
+      const { data: hotel, error: hotelError } = await supabase
         .from('hotels')
-        .select('currency, email, phone')
-        .eq('id', booking.hotel_id)
-        .single();
-      if (hotel?.currency) {
-        hotelCurrency = hotel.currency.toLowerCase();
+        .select('currency, cover_image, image') // 👈 On a enlevé email et phone d'ici
+        .eq('id', cleanHotelId)
+        .maybeSingle(); 
+
+      if (hotelError) {
+        console.error("[DEBUG HOTEL] Erreur Supabase :", hotelError.message);
       }
-      if (hotel?.email) contactEmail = hotel.email;
-      if (hotel?.phone) contactPhone = hotel.phone;
+      
+      if (hotel) {
+        console.log("[DEBUG HOTEL] Hôtel trouvé ! Image :", hotel.cover_image || hotel.image);
+        if (hotel.currency) {
+          hotelCurrency = hotel.currency.toLowerCase();
+        }
+        
+        // On récupère l'image dynamique
+        hotelImageUrl = hotel.cover_image || hotel.image || "";
+      } else {
+        console.warn("[DEBUG HOTEL] Aucun hôtel trouvé.");
+      }
     }
 
     if (booking.payment_status === 'paid') {
@@ -219,13 +256,16 @@ serve(async (req: Request) => {
     const formattedDate = language === 'fr'
       ? bookingDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
       : bookingDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      
+
 
     const templateData: PaymentLinkTemplateData = {
       clientName: `${booking.client_first_name} ${booking.client_last_name}`,
       hotelName: booking.hotel_name || 'Hotel',
+      hotelImageUrl: hotelImageUrl,
       roomNumber: booking.room_number || undefined,
       bookingDate: formattedDate,
-      bookingTime: booking.booking_time,
+      bookingTime: booking.booking_time ? booking.booking_time.substring(0, 5) : '',
       bookingNumber: booking.booking_id,
       treatments: treatments,
       totalPrice: totalPrice,
@@ -243,18 +283,32 @@ serve(async (req: Request) => {
         const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
         
         // Sélection du template : Luxe pour client externe, Standard pour client hôtel
-        const isExternal = !booking.room_number||
-        booking.room_number.trim().toUpperCase() === 'TDB' || 
-        booking.room_number.trim().toUpperCase() === 'TBD';
+        const isExternal = !booking.room_number || 
+                           booking.room_number.trim().toUpperCase() === 'TDB' || 
+                           booking.room_number.trim().toUpperCase() === 'TBD';
+                           
         const html = isExternal 
           ? getExternalClientPaymentEmailHtml(language, templateData)
           : getPaymentLinkEmailHtml(language, templateData);
 
+        // 1. Calcul de la durée totale des soins
+        const totalDuration = treatments.reduce((sum: number, t: any) => sum + (t.duration || 60), 0);
+        
+        // 2. Génération du fichier ICS
+        const icsContent = generateICS(booking.booking_date, booking.booking_time, booking.hotel_name, totalDuration);
+
+        // 3. Envoi de l'e-mail avec la pièce jointe
         const emailResult = await resend.emails.send({
           from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-  to: email,
+          to: email,
           subject: getPaymentLinkEmailSubject(language, templateData),
           html: html,
+          attachments: [
+            {
+              filename: 'reservation-lymfea.ics',
+              content: icsContent
+            }
+          ]
         });
 
         console.log("[SEND-PAYMENT-LINK] Email sent:", emailResult);
@@ -312,14 +366,17 @@ serve(async (req: Request) => {
       .eq('id', bookingId);
 
     // Mise à jour de booking_payment_infos avec les nouvelles colonnes
+    // Mise à jour ou Création (Upsert) de booking_payment_infos
     const { error: paymentInfosError } = await supabase
       .from('booking_payment_infos')
-      .update({
+      .upsert({
+        booking_id: bookingId, // Indispensable pour la création
         payment_link_stripe_id: paymentLink.id,
         payment_link_expires_at: expiresAt.toISOString(),
         payment_reminder_count: 0
-      })
-      .eq('booking_id', bookingId);
+      }, { 
+        onConflict: 'booking_id' // Dit à Supabase de vérifier les doublons sur cette colonne
+      });
 
     if (updateError || paymentInfosError) {
       console.error("[SEND-PAYMENT-LINK] DB Update error:", updateError || paymentInfosError);
