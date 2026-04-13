@@ -27,6 +27,9 @@
     "add": "Ajouter",
     "select": "Sélectionner",
     "selectDuration": "Sélectionnez une durée",
+    "selectAnOption": "Sélectionnez une option",
+    "readMore": "Lire la suite",
+    "readLess": "Voir moins",
     "addAnother": "Ajouter un autre soin",
     "popular": "Populaire",
     "added": "Ajouté",
@@ -293,5 +296,16 @@
   },
   "badges": {
     "card_saved": "Carte enregistrée"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Réserver ce soin",
+    "seeAllTreatments": "Voir tous les soins",
+    "treatmentNotFound": "Ce soin n'est pas disponible",
+    "treatmentNotFoundDescription": "Le soin demandé n'existe pas ou n'est plus disponible.",
+    "duration": "Durée",
+    "price": "Tarif",
+    "selectDuration": "Choisir une durée",
+    "fromPrice": "À partir de",
+    "minutes": "minutes"
   }
 }

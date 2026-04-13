@@ -27,6 +27,9 @@
     "add": "Add",
     "select": "Select",
     "selectDuration": "Select a duration",
+    "selectAnOption": "Select an option",
+    "readMore": "Read more",
+    "readLess": "Show less",
     "addAnother": "Add another treatment",
     "popular": "Popular",
     "added": "Added",
@@ -292,5 +295,16 @@
   },
   "badges": {
     "card_saved": "Card saved"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Book this treatment",
+    "seeAllTreatments": "See all treatments",
+    "treatmentNotFound": "Treatment not available",
+    "treatmentNotFoundDescription": "The requested treatment does not exist or is no longer available.",
+    "duration": "Duration",
+    "price": "Price",
+    "selectDuration": "Choose a duration",
+    "fromPrice": "From",
+    "minutes": "minutes"
   }
 }
