@@ -123,7 +123,7 @@ serve(async (req: Request) => {
         
         await resend.emails.send({
           from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-          to: 'romainthierryom@gmail.com',
+          to: b.client_email,
           subject: lang === 'fr' ? "Rappel : Votre réservation Lymfea" : "Reminder: Your Lymfea Booking",
           html: getPaymentReminderEmailHtml(lang, templateData),
         });

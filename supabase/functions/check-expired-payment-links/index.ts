@@ -82,7 +82,7 @@ serve(async (req: Request) => {
           const lang = (booking.payment_link_language || 'fr') as 'fr' | 'en';
           await resend.emails.send({
             from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-            to: 'romainthierryom@gmail.com',
+            to: booking.client_email,
             subject: lang === 'fr' ? "Réservation annulée - Délai dépassé" : "Booking cancelled - Deadline expired",
             html: getPaymentCancellationEmailHtml(lang, {
               clientName: `${booking.client_first_name} ${booking.client_last_name}`,

@@ -28,7 +28,7 @@ export function SendPaymentLinkDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <PaymentLinkForm
           booking={booking}
           onSuccess={handleSuccess}
