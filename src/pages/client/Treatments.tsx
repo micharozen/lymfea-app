@@ -12,6 +12,7 @@ import { CartDrawer } from '@/components/client/CartDrawer';
 import { BestsellerSection } from '@/components/client/BestsellerSection';
 import { TreatmentsSkeleton } from '@/components/client/skeletons/TreatmentsSkeleton';
 import { VariantSelector, type TreatmentVariant } from '@/components/client/VariantSelector';
+import { TreatmentVariantDrawer } from '@/components/client/TreatmentVariantDrawer';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
@@ -79,6 +80,11 @@ export default function Treatments() {
   const [closingTreatmentId, setClosingTreatmentId] = useState<string | null>(null);
   // Selected variant per treatment
   const [selectedVariants, setSelectedVariants] = useState<Record<string, TreatmentVariantData>>({});
+
+  // Variant drawer state — opened when user clicks + on a multi-variant treatment
+  const [variantDrawerTreatment, setVariantDrawerTreatment] = useState<Treatment | null>(null);
+  const openVariantDrawer = (treatment: Treatment) => setVariantDrawerTreatment(treatment);
+  const closeVariantDrawer = () => setVariantDrawerTreatment(null);
 
   const getItemQuantity = (id: string) => {
     const item = items.find(i => i.id === id);
@@ -437,11 +443,7 @@ export default function Treatments() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasMultipleVariants(treatment)) {
-                  setSelectedVariants(prev => {
-                    const { [treatment.id]: _, ...rest } = prev;
-                    return rest;
-                  });
-                  setExpandedTreatmentId(treatment.id);
+                  openVariantDrawer(treatment);
                 } else {
                   handleAddToBasket(treatment);
                 }
@@ -456,27 +458,20 @@ export default function Treatments() {
 
     return (
       <Button
+        variant="ghost"
+        size="icon"
+        aria-label={t('menu.select')}
         onClick={(e) => {
           e.stopPropagation();
           if (hasMultipleVariants(treatment)) {
-            // For multi-variant, expand and reset selection for a fresh pick
-            setSelectedVariants(prev => {
-              const { [treatment.id]: _, ...rest } = prev;
-              return rest;
-            });
-            setExpandedTreatmentId(treatment.id);
+            openVariantDrawer(treatment);
           } else {
             handleAddToBasket(treatment);
           }
         }}
-        className={cn(
-          "transition-all duration-300 border-none",
-          hasMultipleVariants(treatment)
-            ? "px-2 h-7 text-[11px] sm:text-xs lg:text-sm tracking-wide bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk"
-            : "px-3 h-8 sm:px-4 sm:h-8 text-xs lg:text-sm bg-gold-400 text-black hover:bg-gold-200 font-medium font-grotesk tracking-normal"
-        )}
+        className="h-11 w-11 rounded-full bg-gold-400 text-white hover:bg-gold-500 shadow-sm transition-all duration-200"
       >
-        {t('menu.select')}
+        <Plus className="h-5 w-5" strokeWidth={2.5} />
       </Button>
     );
   };
@@ -489,21 +484,12 @@ export default function Treatments() {
       <div
         key={treatment.id}
         className={cn(
-          "p-4 transition-colors group cursor-pointer animate-slide-up-fade bg-white",
+          "p-4 transition-colors group cursor-pointer bg-white",
           isExpanded ? "lg:bg-gray-50/80 bg-gray-50" : "active:bg-black/5"
         )}
-        style={{ animationDelay: `${i * 0.05}s` }}
         onClick={() => {
           if (hasMultipleVariants(treatment)) {
-            if (expandedTreatmentId === treatment.id) {
-              setExpandedTreatmentId(null);
-            } else {
-              setSelectedVariants(prev => {
-                const { [treatment.id]: _, ...rest } = prev;
-                return rest;
-              });
-              setExpandedTreatmentId(treatment.id);
-            }
+            openVariantDrawer(treatment);
           } else {
             handleAddToBasket(treatment);
           }
@@ -750,7 +736,7 @@ export default function Treatments() {
                 )}
 
                 {isCategoryExpanded(section.id) && !isAddonLocked && (
-                  <div className="animate-fade-in">
+                  <div>
                     <div className="divide-y divide-gray-100">
                       {section.treatments.map((treatment, i) => renderTreatmentCard(treatment, i))}
                     </div>
@@ -833,6 +819,20 @@ export default function Treatments() {
         treatment={selectedOnRequestTreatment}
         hotelId={hotelId || ''}
         hotelName={hotel?.name}
+      />
+
+      {/* Variant selection drawer (multi-variant treatments) */}
+      <TreatmentVariantDrawer
+        open={variantDrawerTreatment !== null}
+        onOpenChange={(open) => { if (!open) closeVariantDrawer(); }}
+        treatment={variantDrawerTreatment}
+        isOffert={isOffert}
+        isCompanyOffered={isCompanyOffered}
+        onConfirm={(variant) => {
+          if (variantDrawerTreatment) {
+            handleAddToBasket(variantDrawerTreatment, variant);
+          }
+        }}
       />
     </div>
   );
