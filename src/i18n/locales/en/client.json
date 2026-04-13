@@ -71,11 +71,18 @@
   "basket": {
     "title": "Your Basket",
     "empty": "Your basket is empty",
+    "emptyShort": "No treatment selected",
     "browse": "Browse Menu",
     "subtotal": "Subtotal",
     "continue": "Continue",
+    "free": "free",
     "addNote": "Add a note",
     "notePlaceholder": "Special instructions..."
+  },
+  "breadcrumb": {
+    "treatments": "Treatments",
+    "time": "Time",
+    "validate": "Confirm"
   },
   "datetime": {
     "title": "Select Date & Time",

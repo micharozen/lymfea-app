@@ -71,11 +71,18 @@
   "basket": {
     "title": "Votre Panier",
     "empty": "Votre panier est vide",
+    "emptyShort": "Aucune prestation sélectionnée",
     "browse": "Parcourir le menu",
     "subtotal": "Sous-total",
-    "continue": "Continuer",
+    "continue": "Continuez",
+    "free": "gratuit",
     "addNote": "Ajouter une note",
     "notePlaceholder": "Instructions spéciales..."
+  },
+  "breadcrumb": {
+    "treatments": "Prestations",
+    "time": "Heure",
+    "validate": "Valider"
   },
   "datetime": {
     "title": "Choisir Date & Heure",
