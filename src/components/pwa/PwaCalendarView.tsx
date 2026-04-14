@@ -29,20 +29,46 @@ const HOUR_HEIGHT = 48;
 const START_HOUR = 7;
 const END_HOUR = 23;
 
+const WEEK_STORAGE_KEY = "pwa-calendar-3day-week";
+const INDEX_STORAGE_KEY = "pwa-calendar-3day-index";
+
 export function PwaCalendarView({ bookings, onBookingClick, onSlotClick }: PwaCalendarViewProps) {
-  const [currentWeekStart, setCurrentWeekStart] = useState(
-    startOfWeek(new Date(), { weekStartsOn: 1 }) // Monday start
-  );
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const stored = typeof window !== "undefined" ? sessionStorage.getItem(WEEK_STORAGE_KEY) : null;
+    if (stored) {
+      const d = new Date(stored);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return startOfWeek(new Date(), { weekStartsOn: 1 });
+  });
   const [startDayIndex, setStartDayIndex] = useState(() => {
-    // Start with today visible if possible
+    const stored = typeof window !== "undefined" ? sessionStorage.getItem(INDEX_STORAGE_KEY) : null;
+    if (stored !== null) {
+      const n = parseInt(stored, 10);
+      if (!isNaN(n) && n >= 0 && n <= 4) return n;
+    }
     const today = new Date();
     const dayOfWeek = today.getDay();
-    // Convert to Monday-based index (Mon=0, Sun=6)
     const mondayBasedIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    // Ensure 3 days are visible (max startDayIndex is 4)
     return Math.min(mondayBasedIndex, 4);
   });
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(WEEK_STORAGE_KEY, currentWeekStart.toISOString());
+    } catch {
+      // storage disabled — ignore
+    }
+  }, [currentWeekStart]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(INDEX_STORAGE_KEY, String(startDayIndex));
+    } catch {
+      // storage disabled — ignore
+    }
+  }, [startDayIndex]);
 
   // Update current time every minute
   useEffect(() => {

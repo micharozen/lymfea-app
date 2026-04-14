@@ -17,6 +17,7 @@ import { TherapistAssignmentsTab } from "@/components/admin/therapist/TherapistA
 import { TherapistScheduleSection } from "@/components/admin/schedule/TherapistScheduleSection";
 import { TherapistActivityTab } from "@/components/admin/therapist/TherapistActivityTab";
 import { TherapistBillingTab } from "@/components/admin/therapist/TherapistBillingTab";
+import { TherapistBookingsTab } from "@/components/admin/therapist/TherapistBookingsTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -27,9 +28,18 @@ const createFormSchema = (t: TFunction) =>
     phone: z.string().min(1, t("admin:therapists.phoneRequired", "Le téléphone est requis")),
     status: z.string().default("En attente"),
     gender: z.enum(["female", "male", ""]).optional().default(""),
-    rate_45: z.string().optional(),
-    rate_60: z.string().optional(),
-    rate_90: z.string().optional(),
+    rate_45: z
+      .string()
+      .min(1, t("admin:therapists.rateRequired", "Tarif requis"))
+      .refine((v) => parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
+    rate_60: z
+      .string()
+      .min(1, t("admin:therapists.rateRequired", "Tarif requis"))
+      .refine((v) => parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
+    rate_90: z
+      .string()
+      .min(1, t("admin:therapists.rateRequired", "Tarif requis"))
+      .refine((v) => parseFloat(v) > 0, t("admin:therapists.rateMustBePositive", "Le tarif doit être > 0")),
   });
 
 export type TherapistFormValues = z.infer<ReturnType<typeof createFormSchema>>;
@@ -165,9 +175,9 @@ export default function TherapistDetail() {
         minimum_guarantee:
           Object.keys(minimumGuarantee).length > 0 ? minimumGuarantee : null,
         minimum_guarantee_active: minimumGuaranteeActive,
-        rate_45: values.rate_45 ? parseFloat(values.rate_45) : null,
-        rate_60: values.rate_60 ? parseFloat(values.rate_60) : null,
-        rate_90: values.rate_90 ? parseFloat(values.rate_90) : null,
+        rate_45: parseFloat(values.rate_45),
+        rate_60: parseFloat(values.rate_60),
+        rate_90: parseFloat(values.rate_90),
       };
 
       if (isNewMode && !savedTherapistId) {
@@ -398,6 +408,13 @@ export default function TherapistDetail() {
                 {t("admin:therapists.activity", "Activité")}
               </TabsTrigger>
               <TabsTrigger
+                value="bookings"
+                disabled={!canAccessTabs}
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                {t("admin:therapists.bookings", "Réservations")}
+              </TabsTrigger>
+              <TabsTrigger
                 value="billing"
                 disabled={!canAccessTabs}
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
@@ -451,6 +468,10 @@ export default function TherapistDetail() {
 
                 <TabsContent value="activity" className="mt-0">
                   <TherapistActivityTab therapistId={effectiveTherapistId!} />
+                </TabsContent>
+
+                <TabsContent value="bookings" className="mt-0">
+                  <TherapistBookingsTab therapistId={effectiveTherapistId!} />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">

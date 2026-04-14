@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { ChevronDown, ChevronRight, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatPrice as formatPriceUtil } from "@/lib/formatPrice";
-import PwaHeader from "@/components/pwa/Header";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,21 +32,19 @@ interface EarningsData {
   stripeOnboardingCompleted: boolean;
 }
 
-const PwaWallet = () => {
+const WalletTabContent = () => {
   const { t } = useTranslation('pwa');
   const [searchParams] = useSearchParams();
   const [period, setPeriod] = useState("this_month");
   const [connectingStripe, setConnectingStripe] = useState(false);
   const queryClient = useQueryClient();
 
-  // Check URL params for Stripe callback
   const successParam = searchParams.get("success");
   const refreshParam = searchParams.get("refresh");
 
   useEffect(() => {
     if (successParam === "true") {
       toast.success(t('wallet.stripeConnected', 'Stripe account connected successfully!'));
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["wallet-earnings"] });
     } else if (refreshParam === "true") {
       toast.error(t('wallet.onboardingIncomplete', 'Stripe setup incomplete. Please try again.'));
@@ -64,7 +60,6 @@ const PwaWallet = () => {
 
       if (error) {
         console.error('Error fetching earnings:', error);
-        // Return empty data instead of showing error toast (handles "no profile" case gracefully)
         return {
           total: 0,
           payouts: [],
@@ -89,7 +84,6 @@ const PwaWallet = () => {
   const [stripeUrl, setStripeUrl] = useState<string | null>(null);
   const [loadingStripeUrl, setLoadingStripeUrl] = useState(false);
 
-  // Pre-fetch Stripe dashboard URL when earnings are loaded
   useEffect(() => {
     const fetchStripeUrl = async () => {
       if (earnings?.stripeAccountId && earnings?.stripeOnboardingCompleted) {
@@ -112,14 +106,11 @@ const PwaWallet = () => {
   }, [earnings?.stripeAccountId, earnings?.stripeOnboardingCompleted]);
 
   const openStripe = async (e: React.MouseEvent) => {
-    // If we have a pre-fetched URL, let the <a> tag handle it naturally
     if (stripeUrl) {
-      return; // Let the anchor tag open the link
+      return;
     }
-    
-    // Otherwise prevent default and fetch the URL
     e.preventDefault();
-    
+
     if (earnings?.stripeAccountId) {
       setLoadingStripeUrl(true);
       try {
@@ -135,7 +126,6 @@ const PwaWallet = () => {
 
         if (data?.url) {
           setStripeUrl(data.url);
-          // Create a temporary anchor and click it to open in new window
           const a = document.createElement('a');
           a.href = data.url;
           a.target = '_blank';
@@ -158,35 +148,21 @@ const PwaWallet = () => {
   const handleSetupStripe = async () => {
     setConnectingStripe(true);
     try {
-      // Step 1: Create connected account
       const { data: accountData, error: accountError } = await invokeEdgeFunction<unknown, { stripeAccountId?: string }>('create-connect-account');
 
-      if (accountError) {
-        console.error('Error creating Stripe account:', accountError);
+      if (accountError || !accountData?.stripeAccountId) {
         toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
         return;
       }
 
-      if (!accountData?.stripeAccountId) {
-        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
-        return;
-      }
-
-      // Step 2: Generate onboarding link
       const { data: linkData, error: linkError } = await invokeEdgeFunction<unknown, { url?: string }>('generate-onboarding-link');
 
-      if (linkError) {
-        console.error('Error generating onboarding link:', linkError);
+      if (linkError || !linkData?.url) {
         toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
         return;
       }
 
-      if (linkData?.url) {
-        // Redirect to Stripe onboarding
-        window.location.href = linkData.url;
-      } else {
-        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
-      }
+      window.location.href = linkData.url;
     } catch (error) {
       console.error('Error:', error);
       toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
@@ -200,17 +176,12 @@ const PwaWallet = () => {
     try {
       const { data, error } = await invokeEdgeFunction<unknown, { url?: string }>('generate-onboarding-link');
 
-      if (error) {
-        console.error('Error generating onboarding link:', error);
+      if (error || !data?.url) {
         toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
         return;
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
-      }
+      window.location.href = data.url;
     } catch (error) {
       console.error('Error:', error);
       toast.error(t('wallet.errorConnecting', 'Error connecting to Stripe'));
@@ -240,26 +211,18 @@ const PwaWallet = () => {
     return `${parts} €`;
   };
 
-  // Show skeleton while loading
   if (isLoading) {
     return (
-      <div className="flex flex-1 flex-col bg-muted/30">
-        <PwaHeader title="Wallet" />
-        <div className="flex-1 flex items-center justify-center px-6">
-          <div className="max-w-sm w-full bg-background rounded-2xl p-8">
-            {/* Icon skeleton */}
-            <div className="flex justify-center mb-4">
-              <Skeleton className="w-14 h-14 rounded-full" />
-            </div>
-            {/* Title skeleton */}
-            <Skeleton className="h-5 w-3/4 mx-auto mb-3" />
-            {/* Description skeleton */}
-            <Skeleton className="h-4 w-full mx-auto mb-2" />
-            <Skeleton className="h-4 w-5/6 mx-auto mb-5" />
-            {/* Button skeleton */}
-            <div className="flex justify-center">
-              <Skeleton className="h-10 w-40 rounded-full" />
-            </div>
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
+        <div className="max-w-sm w-full bg-background rounded-2xl p-8">
+          <div className="flex justify-center mb-4">
+            <Skeleton className="w-14 h-14 rounded-full" />
+          </div>
+          <Skeleton className="h-5 w-3/4 mx-auto mb-3" />
+          <Skeleton className="h-4 w-full mx-auto mb-2" />
+          <Skeleton className="h-4 w-5/6 mx-auto mb-5" />
+          <div className="flex justify-center">
+            <Skeleton className="h-10 w-40 rounded-full" />
           </div>
         </div>
       </div>
@@ -271,14 +234,10 @@ const PwaWallet = () => {
   const isOnboardingComplete = currentEarnings.stripeOnboardingCompleted;
 
   return (
-    <div className="flex flex-1 flex-col bg-muted/30">
-      <PwaHeader title="Wallet" />
-
-      {/* Content with completed Stripe onboarding */}
+    <div className="flex flex-col">
       {hasStripeAccount && isOnboardingComplete && (
-        <div className="flex-1 min-h-0">
+        <div>
           <div className="px-6 pt-4">
-            {/* Status Badge */}
             <div className="flex items-center justify-center gap-2 mb-3">
               <CheckCircle className="w-4 h-4 text-green-500" />
               <span className="text-xs text-green-600 font-medium">
@@ -286,7 +245,6 @@ const PwaWallet = () => {
               </span>
             </div>
 
-            {/* Period Selector */}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex items-center justify-center gap-1 mx-auto text-xs text-muted-foreground mb-3">
                 {getPeriodLabel()}
@@ -304,15 +262,13 @@ const PwaWallet = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            
-            {/* Total Earnings */}
+
             <div className="text-center mb-4">
               <p className="text-4xl font-bold text-foreground tracking-tight">
                 {formatTotal(currentEarnings.total)}
               </p>
             </div>
 
-            {/* Open Stripe Button - Use <a> tag to force external browser on iOS PWA */}
             <div className="w-full flex justify-center items-center">
               <a
                 href={stripeUrl || '#'}
@@ -334,7 +290,6 @@ const PwaWallet = () => {
             </div>
           </div>
 
-          {/* Payouts Card */}
           <div className="mx-4 mt-4 bg-background rounded-2xl mb-4">
             <div className="px-5 pt-4 pb-2">
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -372,8 +327,8 @@ const PwaWallet = () => {
                       <p className="text-xs text-muted-foreground">
                         Ref {payout.booking_id} •{" "}
                         <span className={payout.status === "completed" ? "text-foreground" : ""}>
-                          {payout.status === "completed" 
-                            ? t('wallet.completed', 'Completed') 
+                          {payout.status === "completed"
+                            ? t('wallet.completed', 'Completed')
                             : t('wallet.pending', 'Pending')}
                         </span>
                       </p>
@@ -395,9 +350,8 @@ const PwaWallet = () => {
         </div>
       )}
 
-      {/* Stripe account exists but onboarding incomplete */}
       {hasStripeAccount && !isOnboardingComplete && (
-        <div className="flex-1 flex items-center justify-center px-6">
+        <div className="flex items-center justify-center px-6 py-10">
           <div className="max-w-sm bg-background rounded-2xl p-8 text-center">
             <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-7 h-7 text-amber-600" />
@@ -429,9 +383,8 @@ const PwaWallet = () => {
         </div>
       )}
 
-      {/* Empty State - No Stripe Account */}
       {!hasStripeAccount && (
-        <div className="flex-1 flex items-center justify-center px-6">
+        <div className="flex items-center justify-center px-6 py-10">
           <div className="max-w-sm bg-background rounded-2xl p-8 text-center">
             <div className="w-14 h-14 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <div className="w-7 h-7 bg-primary rounded-full flex items-center justify-center">
@@ -468,4 +421,4 @@ const PwaWallet = () => {
   );
 };
 
-export default PwaWallet;
+export default WalletTabContent;

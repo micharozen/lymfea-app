@@ -21,6 +21,19 @@ import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialo
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
+import {
+  computeTherapistEarnings,
+  hasCompleteRates,
+  type TherapistRates,
+} from "@/lib/therapistEarnings";
+
+const PAYMENT_LABELS: Record<string, string> = {
+  pending: "Paiement en attente",
+  paid: "Payé",
+  failed: "Paiement échoué",
+  refunded: "Remboursé",
+  charged_to_room: "Facturé chambre",
+};
 
 export default function BookingDetail() {
   const { id } = useParams();
@@ -37,6 +50,7 @@ export default function BookingDetail() {
     remainingSessions: number;
     totalSessions: number;
   } | null>(null);
+  const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
 
   const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
   const isLoading = !bookings; 
@@ -66,6 +80,23 @@ export default function BookingDetail() {
       });
   }, [booking?.id]);
 
+  // Fetch therapist rates for earnings estimation
+  useEffect(() => {
+    const therapistId = booking?.therapist_id;
+    if (!therapistId) {
+      setTherapistRates(null);
+      return;
+    }
+    supabase
+      .from("therapists")
+      .select("rate_45, rate_60, rate_90")
+      .eq("id", therapistId)
+      .single()
+      .then(({ data }) => {
+        setTherapistRates(data ?? null);
+      });
+  }, [booking?.therapist_id]);
+
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
 
@@ -76,9 +107,15 @@ export default function BookingDetail() {
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
   
-  const displayPrice = booking.total_price && booking.total_price > 0 
-    ? booking.total_price 
+  const displayPrice = booking.total_price && booking.total_price > 0
+    ? booking.total_price
     : booking.treatmentsTotalPrice;
+
+  const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
+  const therapistEarnings = computeTherapistEarnings(therapistRates, totalDuration);
+  const ratesComplete = hasCompleteRates(therapistRates);
+  const showEarnings = !!booking.therapist_id && therapistRates !== null;
+  const paymentLabel = PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending;
 
   // Fonction pour enregistrer la signature depuis l'admin
   const handleSignatureConfirm = async (signatureData: string) => {
@@ -112,37 +149,38 @@ export default function BookingDetail() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 pb-20">
-      <header className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-10 bg-white border-b px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="flex-shrink-0">
             <ArrowLeft className="h-4 w-4 mr-1" />
             <span className="hidden sm:inline">Retour</span>
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-gray-900">Réservation #{booking.booking_id}</h1>
-              {booking.room_number ? (
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  Client Hôtel — Ch. {booking.room_number}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-gray-500">Client Extérieur</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <StatusBadge status={booking.status} type="booking" />
-              <StatusBadge status={booking.payment_status || "pending"} type="payment" />
-              {bundleInfo && (
-                <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
-                  <Package className="w-3 h-3 mr-1" />
-                  {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
-                </Badge>
-              )}
-            </div>
-          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
+          <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
+          {booking.room_number ? (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              Client Hôtel — Ch. {booking.room_number}
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-gray-500">Client Extérieur</Badge>
+          )}
+          <StatusBadge status={booking.status} type="booking" />
+          <StatusBadge
+            status={booking.payment_status || "pending"}
+            type="payment"
+            customLabel={paymentLabel}
+          />
+          {bundleInfo && (
+            <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
+              <Package className="w-3 h-3 mr-1" />
+              {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* BOUTON SIGNATURE */}
           {isSigned ? (
             <Button 
@@ -295,6 +333,16 @@ export default function BookingDetail() {
             <section className="bg-gray-900 text-white rounded-xl p-6 shadow-lg">
               <p className="text-xs opacity-70 uppercase mb-1">Montant Total</p>
               <p className="text-3xl font-bold">{formatPrice(displayPrice, currency)}</p>
+              {showEarnings && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs opacity-70 uppercase mb-1">Gain thérapeute</p>
+                  {ratesComplete && therapistEarnings != null ? (
+                    <p className="text-xl font-semibold">{formatPrice(therapistEarnings, currency)}</p>
+                  ) : (
+                    <p className="text-xs text-amber-300">Tarifs thérapeute incomplets — gain non calculable</p>
+                  )}
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-white/10 text-xs opacity-70">
                 Méthode : {booking.payment_method || "À définir"}
               </div>

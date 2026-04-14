@@ -1,4 +1,3 @@
-import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -67,12 +66,17 @@ export function InvoicePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[95vw] w-[95vw] sm:max-w-[900px] h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>{computedTitle}</DialogTitle>
+          <DialogTitle className="font-normal text-base">{computedTitle}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto border rounded-lg bg-white">
-          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(invoiceHTML) }} />
+        <div className="flex-1 overflow-hidden border rounded-lg bg-white">
+          <iframe
+            title={computedTitle}
+            srcDoc={invoiceHTML}
+            sandbox="allow-same-origin"
+            className="w-full h-full border-0"
+          />
         </div>
         <DialogFooter className="gap-2">
           <Button

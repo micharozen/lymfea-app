@@ -14,6 +14,7 @@ import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import { computeTherapistEarnings } from "@/lib/therapistEarnings";
 import {
   Drawer,
   DrawerClose,
@@ -145,7 +146,7 @@ const PwaBookingDetail = () => {
       const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
       
       let rates = { hr: null, r45: null, r60: null, r90: null };
-      if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
+      if (bookingData.therapist_id) {
         const { data: tData } = await supabase.from("therapists").select("hourly_rate, rate_45, rate_60, rate_90").eq("id", bookingData.therapist_id).single();
         rates = { hr: tData?.hourly_rate, r45: tData?.rate_45, r60: tData?.rate_60, r90: tData?.rate_90 };
       }
@@ -354,13 +355,31 @@ const PwaBookingDetail = () => {
   const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
   const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
-  const estimatedEarnings = booking.global_therapist_commission !== false 
-    ? Math.round(totalHT * ((booking.therapist_commission || 70) / 100) * 100) / 100
-    : Math.min(booking.therapist_rate_60 || 0, totalHT);
+  const estimatedEarnings = computeTherapistEarnings(
+    {
+      rate_45: booking.therapist_rate_45 ?? null,
+      rate_60: booking.therapist_rate_60 ?? null,
+      rate_90: booking.therapist_rate_90 ?? null,
+    },
+    totalDuration,
+  ) ?? 0;
 
   return (
     <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
-      <PwaHeader title={t('bookingDetail.myBooking')} showBack onBack={() => navigate('/pwa/dashboard')} />
+      <PwaHeader
+        title={t('bookingDetail.myBooking')}
+        showBack
+        onBack={() => {
+          const from = (location.state as { from?: string } | null)?.from;
+          if (from) {
+            navigate(from);
+          } else if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate('/pwa/dashboard');
+          }
+        }}
+      />
       <div className="flex-1 overflow-y-auto pb-48 px-4 pt-3">
         <div className="flex flex-col items-center mb-4">
           <img src={booking.hotel_image_url || ""} className="w-16 h-16 object-cover rounded-xl mb-2 bg-muted" />
@@ -382,11 +401,59 @@ const PwaBookingDetail = () => {
           )}
         </div>
 
-        <div className="space-y-3 border-t pt-3">
-          <div className="flex justify-between text-xs"><span>Date</span><span className="font-medium">{format(new Date(booking.booking_date), "d MMM yyyy")}</span></div>
-          <div className="flex justify-between text-xs"><span>Heure</span><span className="font-medium">{booking.booking_time.substring(0, 5)}</span></div>
-          <div className="flex justify-between text-xs"><span>Prix</span><span className="font-medium">{formatPrice(totalPrice, booking.hotel_currency)}</span></div>
-          <div className="flex justify-between text-xs text-success"><span>Vos revenus</span><span className="font-bold">{formatPrice(estimatedEarnings, booking.hotel_currency)}</span></div>
+        <div className="border-t pt-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.date')}</div>
+                <div className="text-sm font-semibold truncate">{format(new Date(booking.booking_date), "d MMM yyyy")}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.time')}</div>
+                <div className="text-sm font-semibold truncate">{booking.booking_time.substring(0, 5)}</div>
+              </div>
+            </div>
+            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Timer className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.duration')}</div>
+                <div className="text-sm font-semibold truncate">{totalDuration} min</div>
+              </div>
+            </div>
+            <div className="rounded-xl border bg-card p-3 flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Euro className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
+                <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900/40 dark:bg-emerald-900/10 p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                <Wallet className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+              </div>
+              <span className="text-xs font-medium text-emerald-900 dark:text-emerald-100">
+                {t('bookingDetail.yourEarnings')}
+              </span>
+            </div>
+            <span className="text-base font-bold text-emerald-700 dark:text-emerald-400">
+              {formatPrice(estimatedEarnings, booking.hotel_currency)}
+            </span>
+          </div>
         </div>
 
         <div className="mt-6">

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand } from "../_shared/brand.ts";
+import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +55,6 @@ interface Therapist {
 interface Hotel {
   id: string;
   name: string;
-  therapist_commission: number | null;
   vat: number | null;
   address: string | null;
   city: string | null;
@@ -198,25 +198,33 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   .party-name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
   .party-lines { color: #555; font-size: 12px; line-height: 1.6; }
 
-  table.items { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 24px; table-layout: fixed; }
+  table.items col.col-desc { width: auto; }
+  table.items col.col-qty { width: 60px; }
+  table.items col.col-unit { width: 100px; }
+  table.items col.col-vat { width: 70px; }
+  table.items col.col-ht { width: 100px; }
+  table.items col.col-ttc { width: 110px; }
   table.items thead th {
     font-size: 10px;
     font-weight: 600;
     color: #888;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 10px 8px;
+    padding: 10px 6px;
     border-bottom: 1px solid #e5e5e5;
     text-align: right;
+    white-space: nowrap;
   }
   table.items thead th:first-child { text-align: left; }
   table.items tbody td {
-    padding: 14px 8px;
+    padding: 14px 6px;
     border-bottom: 1px solid #f2f2f2;
     text-align: right;
     font-size: 13px;
+    white-space: nowrap;
   }
-  table.items tbody td:first-child { text-align: left; }
+  table.items tbody td:first-child { text-align: left; white-space: normal; word-break: break-word; }
 
   .summary { display: flex; gap: 40px; margin-top: 24px; }
   .tva-details { flex: 1; }
@@ -324,6 +332,14 @@ const generateInvoiceHTML = (data: GeneratedInvoiceData): string => {
   </div>
 
   <table class="items">
+    <colgroup>
+      <col class="col-desc">
+      <col class="col-qty">
+      <col class="col-unit">
+      <col class="col-vat">
+      <col class="col-ht">
+      <col class="col-ttc">
+    </colgroup>
     <thead>
       <tr>
         <th>Produits</th>
@@ -424,7 +440,7 @@ const generateForTherapistHotel = async (
   // Load bookings for this therapist at this hotel in the period
   const { data: bookings, error: bookingsError } = await supabaseAdmin
     .from("bookings")
-    .select("id, total_price, status, payment_status, booking_date")
+    .select("id, total_price, duration, status, payment_status, booking_date, booking_treatments(treatment_menus(duration))")
     .eq("therapist_id", therapist.id)
     .eq("hotel_id", hotel.id)
     .gte("booking_date", startStr)
@@ -449,17 +465,38 @@ const generateForTherapistHotel = async (
   const payoutMap = new Map<string, number>();
   (payouts ?? []).forEach((p) => payoutMap.set(p.booking_id, Number(p.amount)));
 
-  // Compute commission per booking
-  const commissionPct = Number(hotel.therapist_commission ?? 0);
+  // Load therapist rates for fallback computation when no payout exists
+  const { data: therapistRow } = await supabaseAdmin
+    .from("therapists")
+    .select("rate_45, rate_60, rate_90")
+    .eq("id", therapist.id)
+    .maybeSingle();
+
+  const rates = therapistRow
+    ? {
+        rate_45: therapistRow.rate_45 ?? null,
+        rate_60: therapistRow.rate_60 ?? null,
+        rate_90: therapistRow.rate_90 ?? null,
+      }
+    : null;
+
+  // Compute earnings per booking using duration-based rates
   let amountHt = 0;
   for (const b of eligibleBookings) {
     const fromPayout = payoutMap.get(b.id);
     if (fromPayout !== undefined) {
       amountHt += fromPayout;
-    } else {
-      const total = Number(b.total_price ?? 0);
-      amountHt += (total * commissionPct) / 100;
+      continue;
     }
+    const treatmentsDuration = ((b as any).booking_treatments || []).reduce(
+      (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+      0,
+    );
+    const dur = (b as any).duration && (b as any).duration > 0
+      ? (b as any).duration
+      : treatmentsDuration;
+    const earned = computeTherapistEarnings(rates, dur) ?? 0;
+    amountHt += earned;
   }
   amountHt = Math.round(amountHt * 100) / 100;
 
@@ -589,7 +626,7 @@ serve(async (req: Request) => {
       // Fetch therapist's venues
       let venuesQuery = supabaseAdmin
         .from("therapist_venues")
-        .select("hotel_id, hotels(id, name, therapist_commission, vat, address, city)")
+        .select("hotel_id, hotels(id, name, vat, address, city)")
         .eq("therapist_id", therapist.id);
       if (hotel_id) venuesQuery = venuesQuery.eq("hotel_id", hotel_id);
       const { data: venues, error: venuesError } = await venuesQuery;

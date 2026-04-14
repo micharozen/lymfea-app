@@ -7,6 +7,7 @@ import {
   formatDateForWhatsApp,
 } from '../_shared/whatsapp-meta.ts';
 import { brand } from "../_shared/brand.ts";
+import { computeTherapistEarnings } from "../_shared/therapistEarnings.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -251,9 +252,17 @@ serve(async (req) => {
         // Fetch hotel info for commissions and email
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('name, currency, therapist_commission, hotel_commission')
+          .select('name, currency, hotel_commission, vat')
           .eq('id', booking.hotel_id)
           .maybeSingle();
+
+        const { data: therapistRow } = booking.therapist_id
+          ? await supabase
+              .from('therapists')
+              .select('rate_45, rate_60, rate_90')
+              .eq('id', booking.therapist_id)
+              .maybeSingle()
+          : { data: null };
 
         // Get treatment details for email
         const { data: bookingTreatments } = await supabase
@@ -271,15 +280,30 @@ serve(async (req) => {
 
         // Create ledger entries so Finance shows all transactions
         try {
-          const therapistCommissionPercent = hotel?.therapist_commission ?? 70;
           const hotelCommissionPercent = hotel?.hotel_commission ?? 10;
-          const oomCommissionPercent = Math.max(0, 100 - therapistCommissionPercent - hotelCommissionPercent);
           const totalPrice = booking.total_price || 0;
+          const vatRate = hotel?.vat || 20;
+          const totalHT = totalPrice / (1 + vatRate / 100);
 
-          const oomAmount = (totalPrice * oomCommissionPercent) / 100;
-          const hotelAmount = (totalPrice * hotelCommissionPercent) / 100;
+          const bookingDuration = (bookingTreatments || []).reduce(
+            (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+            0,
+          );
+          const therapistEarned = computeTherapistEarnings(
+            therapistRow
+              ? {
+                  rate_45: therapistRow.rate_45 ?? null,
+                  rate_60: therapistRow.rate_60 ?? null,
+                  rate_90: therapistRow.rate_90 ?? null,
+                }
+              : null,
+            bookingDuration,
+          ) ?? 0;
 
-          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), OOM ${oomCommissionPercent}% (${oomAmount}€)`);
+          const hotelAmount = (totalHT * hotelCommissionPercent) / 100;
+          const oomAmount = Math.max(0, totalHT - hotelAmount - therapistEarned);
+
+          console.log(`[STRIPE-WEBHOOK] Commission breakdown: Hotel ${hotelCommissionPercent}% (${hotelAmount}€), Therapist ${therapistEarned}€, OOM ${oomAmount}€`);
 
           const { error: oomLedgerError } = await supabase
             .from('hotel_ledger')
@@ -288,7 +312,7 @@ serve(async (req) => {
               booking_id: booking.id,
               amount: oomAmount,
               status: 'pending',
-              description: `Commission ${brand.name} (${oomCommissionPercent}%) - Réservation #${booking.booking_id}`,
+              description: `Commission ${brand.name} - Réservation #${booking.booking_id}`,
             });
 
           if (oomLedgerError) {
@@ -384,8 +408,9 @@ serve(async (req) => {
           .from('bookings')
           .select(`
             *,
-            therapist:therapists(id, stripe_account_id),
-            hotel:hotels(therapist_commission)
+            therapist:therapists(id, stripe_account_id, rate_45, rate_60, rate_90),
+            hotel:hotels(vat),
+            booking_treatments(treatment_menus(duration))
           `)
           .eq('id', bookingId)
           .single();
@@ -408,10 +433,27 @@ serve(async (req) => {
           continue;
         }
 
-        // Calculate therapist share
-        const therapistCommission = booking.hotel?.therapist_commission || 70;
-        const therapistAmount = Math.round((booking.total_price * therapistCommission) / 100);
-        const oomCommission = booking.total_price - therapistAmount;
+        // Calculate therapist share via shared util
+        const bookingDur = (booking.booking_treatments || []).reduce(
+          (sum: number, bt: any) => sum + (bt.treatment_menus?.duration || 0),
+          0,
+        );
+        const earnedAmount = computeTherapistEarnings(
+          booking.therapist
+            ? {
+                rate_45: booking.therapist.rate_45 ?? null,
+                rate_60: booking.therapist.rate_60 ?? null,
+                rate_90: booking.therapist.rate_90 ?? null,
+              }
+            : null,
+          bookingDur,
+        );
+        if (earnedAmount == null) {
+          console.error(`[STRIPE-WEBHOOK] Cannot compute therapist earnings for booking ${booking.booking_id}`);
+          continue;
+        }
+        const therapistAmount = Math.round(earnedAmount);
+        const oomCommission = (booking.total_price || 0) - therapistAmount;
 
         try {
           // Transfer to therapist via Stripe Connect

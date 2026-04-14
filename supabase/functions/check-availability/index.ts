@@ -369,10 +369,23 @@ serve(async (req) => {
         isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30)
       );
 
-      // ROOM CAPACITY CHECK: Count bookings blocking this slot
-      const activeBookingsCount = bookingsBlockingSlot.length;
-      if (activeBookingsCount >= totalRooms) {
-        // All treatment rooms are occupied at this time
+      // ROOM CAPACITY CHECK: Only count bookings that have a therapist assigned.
+      // Count DISTINCT occupied rooms for bookings with a room_id.
+      // Bookings without an assigned room_id each consume one room slot (pessimistic).
+      const capacityBookings = bookingsBlockingSlot.filter(
+        (b: any) => b.therapist_id !== null
+      );
+      const occupiedRoomIds = new Set<string>();
+      let bookingsWithoutRoom = 0;
+      for (const b of capacityBookings) {
+        if (b.room_id) {
+          occupiedRoomIds.add(b.room_id);
+        } else {
+          bookingsWithoutRoom++;
+        }
+      }
+      const freeRooms = totalRooms - occupiedRoomIds.size - bookingsWithoutRoom;
+      if (freeRooms <= 0) {
         return false;
       }
 

@@ -285,7 +285,7 @@ export function SchedulePanel({
 
       {/* Page headline */}
       {!embedded && (
-        <div className="animate-fade-in">
+        <div>
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
@@ -305,7 +305,7 @@ export function SchedulePanel({
       )}
 
       {/* Therapist Gender Preference */}
-      <div className={embedded ? "" : "animate-fade-in"} style={embedded ? undefined : { animationDelay: '0.1s' }}>
+      <div>
         <TherapistGenderSelector
           value={therapistGenderPreference}
           onChange={setTherapistGenderPreference}
@@ -313,7 +313,7 @@ export function SchedulePanel({
       </div>
 
       {/* Date Selection */}
-      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('checkout.dateTime').split('&')[0].trim()}
@@ -421,7 +421,7 @@ export function SchedulePanel({
       </div>
 
       {/* Time Selection */}
-      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.3s' }}>
+      <div className="space-y-4">
         <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
           {t('checkout.dateTime').split('&')[1]?.trim() || 'Time'}
         </h4>

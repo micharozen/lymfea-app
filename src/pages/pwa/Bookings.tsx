@@ -2,13 +2,23 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { Calendar, Clock, List } from "lucide-react";
+import { Calendar, Clock, List, CalendarClock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
+import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
+import type { TherapistRates } from "@/lib/therapistEarnings";
 import PwaHeader from "@/components/pwa/Header";
+
+interface BookingTreatment {
+  treatment_menus: {
+    name: string;
+    price: number;
+    duration: number;
+  } | null;
+}
 
 interface Booking {
   id: string;
@@ -22,56 +32,102 @@ interface Booking {
   status: string;
   phone: string;
   duration?: number;
+  total_price?: number | null;
+  booking_treatments?: BookingTreatment[];
 }
+
+type BookingsView = "day" | "calendar" | "list";
+
+const VIEW_STORAGE_KEY = "pwa-bookings-view";
+const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
 
 const PwaBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [view, setView] = useState<"list" | "calendar">("calendar");
+  const [view, setView] = useState<BookingsView>(() => {
+    const stored = typeof window !== "undefined" ? sessionStorage.getItem(VIEW_STORAGE_KEY) : null;
+    if (stored === "day" || stored === "calendar" || stored === "list") return stored;
+    return "day";
+  });
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const stored = typeof window !== "undefined" ? sessionStorage.getItem(SELECTED_DATE_STORAGE_KEY) : null;
+    if (stored) {
+      const d = new Date(stored);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch {
+      // ignore
+    }
+  }, [view]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(SELECTED_DATE_STORAGE_KEY, selectedDate.toISOString());
+    } catch {
+      // ignore
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchBookings();
   }, []);
 
   useEffect(() => {
-    filterBookings();
+    if (statusFilter === "all") {
+      setFilteredBookings(bookings);
+    } else {
+      setFilteredBookings(bookings.filter((b) => b.status === statusFilter));
+    }
   }, [bookings, statusFilter]);
 
   const fetchBookings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         navigate("/pwa/login");
         return;
       }
 
-      // Get therapist ID
       const { data: therapist } = await supabase
         .from("therapists")
-        .select("id")
+        .select("id, rate_45, rate_60, rate_90")
         .eq("user_id", user.id)
         .single();
+
+      if (therapist) {
+        setTherapistRates({
+          rate_45: therapist.rate_45,
+          rate_60: therapist.rate_60,
+          rate_90: therapist.rate_90,
+        });
+      }
 
       if (!therapist) {
         toast.error("Profil introuvable");
         return;
       }
 
-      // Fetch bookings
       const { data, error } = await supabase
         .from("bookings")
-        .select("*")
+        .select("*, booking_treatments(treatment_menus(name, price, duration))")
         .eq("therapist_id", therapist.id)
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
 
       if (error) throw error;
-      
-      setBookings(data || []);
+
+      setBookings((data as Booking[]) || []);
     } catch (error) {
       console.error("Error fetching bookings:", error);
       toast.error("Erreur lors du chargement des réservations");
@@ -80,13 +136,21 @@ const PwaBookings = () => {
     }
   };
 
-  const filterBookings = () => {
-    if (statusFilter === "all") {
-      setFilteredBookings(bookings);
-    } else {
-      setFilteredBookings(bookings.filter(b => b.status === statusFilter));
-    }
-  };
+  const dayViewBookings: DayViewBooking[] = filteredBookings.map((b) => ({
+    id: b.id,
+    booking_id: b.booking_id,
+    booking_date: b.booking_date,
+    booking_time: b.booking_time,
+    client_first_name: b.client_first_name,
+    client_last_name: b.client_last_name,
+    hotel_name: b.hotel_name,
+    room_number: b.room_number,
+    status: b.status,
+    phone: b.phone,
+    duration: b.duration,
+    total_price: b.total_price,
+    booking_treatments: b.booking_treatments,
+  }));
 
   if (loading) {
     return (
@@ -103,24 +167,31 @@ const PwaBookings = () => {
         rightSlot={
           <div className="flex gap-0.5 bg-muted rounded-lg p-0.5">
             <button
-              onClick={() => setView("list")}
-              className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setView("day")}
+              className={`p-1.5 rounded-md transition-colors ${view === "day" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Day view"
             >
-              <List className="h-4 w-4" />
+              <CalendarClock className="h-4 w-4" />
             </button>
             <button
               onClick={() => setView("calendar")}
               className={`p-1.5 rounded-md transition-colors ${view === "calendar" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="3-day view"
             >
               <Calendar className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="List view"
+            >
+              <List className="h-4 w-4" />
             </button>
           </div>
         }
       />
 
-      {/* Content */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {/* Filters */}
         <div className="p-4 pb-2">
           <Tabs value={statusFilter} onValueChange={setStatusFilter}>
             <TabsList className="grid w-full grid-cols-3">
@@ -131,8 +202,26 @@ const PwaBookings = () => {
           </Tabs>
         </div>
 
-        {/* View Content */}
-        {view === "list" ? (
+        {view === "day" ? (
+          <div className="flex-1 min-h-0">
+            <PwaDayView
+              bookings={dayViewBookings}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
+              onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
+              therapistRates={therapistRates}
+            />
+          </div>
+        ) : view === "calendar" ? (
+          <div className="flex-1 min-h-0">
+            <PwaCalendarView
+              bookings={filteredBookings}
+              onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
+              onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
+            />
+          </div>
+        ) : (
           <div className="flex-1 overflow-auto px-4 pb-4 space-y-3">
             {filteredBookings.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
@@ -195,14 +284,6 @@ const PwaBookings = () => {
                 </Card>
               ))
             )}
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0">
-            <PwaCalendarView
-              bookings={filteredBookings}
-              onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
-              onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
-            />
           </div>
         )}
       </div>

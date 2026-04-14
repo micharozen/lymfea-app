@@ -64,7 +64,7 @@ CREATE POLICY "Admins can manage billing_profiles" ON billing_profiles
 CREATE POLICY "Therapists can view own billing_profile" ON billing_profiles
   FOR SELECT USING (
     owner_type = 'therapist'
-    AND owner_id = (SELECT id FROM therapists WHERE user_id = auth.uid())
+    AND owner_id = (SELECT id::text FROM therapists WHERE user_id = auth.uid())
   );
 
 -- RLS: Block anonymous access

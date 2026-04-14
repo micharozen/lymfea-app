@@ -29,6 +29,7 @@ import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab"
 import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
+import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
@@ -649,6 +650,9 @@ export default function VenueDetail() {
               <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Aperçu client
               </TabsTrigger>
+              <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Facturation
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -720,6 +724,10 @@ export default function VenueDetail() {
 
                 <TabsContent value="client-preview" className="mt-0">
                   <VenueClientPreviewTab hotelId={effectiveHotelId!} />
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-0">
+                  <VenueBillingTab hotelId={effectiveHotelId!} />
                 </TabsContent>
               </>
             )}

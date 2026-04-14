@@ -20,6 +20,14 @@ interface DayAvailability {
   is_manually_edited: boolean;
 }
 
+interface Absence {
+  id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  note: string | null;
+}
+
 interface TherapistScheduleSectionProps {
   therapistId: string;
 }
@@ -44,6 +52,7 @@ export function TherapistScheduleSection({ therapistId }: TherapistScheduleSecti
 
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [availability, setAvailability] = useState<DayAvailability[]>([]);
+  const [absences, setAbsences] = useState<Absence[]>([]);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [savingDay, setSavingDay] = useState(false);
@@ -52,17 +61,26 @@ export function TherapistScheduleSection({ therapistId }: TherapistScheduleSecti
     const monthStart = format(startOfMonth(currentMonth), "yyyy-MM-dd");
     const monthEnd = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-    const { data } = await supabase
-      .from("therapist_availability")
-      .select("date, is_available, shifts, is_manually_edited")
-      .eq("therapist_id", therapistId)
-      .gte("date", monthStart)
-      .lte("date", monthEnd);
+    const [availabilityResult, absencesResult] = await Promise.all([
+      supabase
+        .from("therapist_availability")
+        .select("date, is_available, shifts, is_manually_edited")
+        .eq("therapist_id", therapistId)
+        .gte("date", monthStart)
+        .lte("date", monthEnd),
+      supabase
+        .from("therapist_absences")
+        .select("id, start_date, end_date, reason, note")
+        .eq("therapist_id", therapistId)
+        .lte("start_date", monthEnd)
+        .gte("end_date", monthStart),
+    ]);
 
-    setAvailability((data || []).map((d) => ({
+    setAvailability((availabilityResult.data || []).map((d) => ({
       ...d,
       shifts: (d.shifts as Shift[]) || [],
     })));
+    setAbsences(absencesResult.data ?? []);
   }, [therapistId, currentMonth]);
 
   useEffect(() => {
@@ -136,6 +154,7 @@ export function TherapistScheduleSection({ therapistId }: TherapistScheduleSecti
         onPrevMonth={() => setCurrentMonth(subMonths(currentMonth, 1))}
         onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
         availability={availability}
+        absences={absences}
         onDayPress={handleDayPress}
         compact
         showLegend
