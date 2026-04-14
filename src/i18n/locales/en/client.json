@@ -27,6 +27,9 @@
     "add": "Add",
     "select": "Select",
     "selectDuration": "Select a duration",
+    "selectAnOption": "Select an option",
+    "readMore": "Read more",
+    "readLess": "Show less",
     "addAnother": "Add another treatment",
     "popular": "Popular",
     "added": "Added",
@@ -68,11 +71,18 @@
   "basket": {
     "title": "Your Basket",
     "empty": "Your basket is empty",
+    "emptyShort": "No treatment selected",
     "browse": "Browse Menu",
     "subtotal": "Subtotal",
     "continue": "Continue",
+    "free": "free",
     "addNote": "Add a note",
     "notePlaceholder": "Special instructions..."
+  },
+  "breadcrumb": {
+    "treatments": "Treatments",
+    "time": "Time",
+    "validate": "Confirm"
   },
   "datetime": {
     "title": "Select Date & Time",
@@ -145,7 +155,7 @@
     "requestQuote": "Request a quote",
     "saveCard": "Card Guarantee",
     "saveCardDesc": "Your card will not be charged now. Payment will be collected on site.",
-    "saveCardButton": "Save my card",
+    "saveCardButton": "Book",
     "pleaseWait": "Please wait...",
     "bundleTitle": "Complete your purchase",
     "bundleSubtitle": "Your package will be activated immediately after payment",
@@ -292,5 +302,16 @@
   },
   "badges": {
     "card_saved": "Card saved"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Book this treatment",
+    "seeAllTreatments": "See all treatments",
+    "treatmentNotFound": "Treatment not available",
+    "treatmentNotFoundDescription": "The requested treatment does not exist or is no longer available.",
+    "duration": "Duration",
+    "price": "Price",
+    "selectDuration": "Choose a duration",
+    "fromPrice": "From",
+    "minutes": "minutes"
   }
 }

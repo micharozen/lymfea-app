@@ -28,6 +28,7 @@ const PwaLayout = lazy(() => import("./components/pwa/Layout"));
 // Admin Pages
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Bookings = lazy(() => import("./pages/admin/Bookings"));
+const BookingsList = lazy(() => import("./pages/admin/BookingsList"));
 const Therapists = lazy(() => import("./pages/admin/Therapists"));
 const AdminHotels = lazy(() => import("./pages/admin/Hotels"));
 const VenueDetail = lazy(() => import("./pages/admin/VenueDetail"));
@@ -78,7 +79,7 @@ const PwaOnboarding = lazy(() => import("./pages/pwa/Onboarding"));
 const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
 const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
-const PwaWallet = lazy(() => import("./pages/pwa/Wallet"));
+const PwaStatistics = lazy(() => import("./pages/pwa/Statistics"));
 const PwaStripeCallback = lazy(() => import("./pages/pwa/StripeCallback"));
 const PwaNewBooking = lazy(() => import("./pages/pwa/NewBooking"));
 const PwaSchedule = lazy(() => import("./pages/pwa/Schedule"));
@@ -104,6 +105,7 @@ const GuestInfo = lazy(() => import("./pages/client/GuestInfo"));
 const Payment = lazy(() => import("./pages/client/Payment"));
 const Confirmation = lazy(() => import("./pages/client/Confirmation"));
 const ManageBooking = lazy(() => import("./pages/client/ManageBooking"));
+const ClientTreatmentLanding = lazy(() => import("./pages/client/TreatmentLanding"));
 
 // Enterprise Dashboard
 const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
@@ -227,6 +229,7 @@ const App = () => {
                     <CartProvider hotelId={window.location.pathname.split('/')[2]}>
                       <Routes>
                         <Route index element={<Welcome />} />
+                        <Route path="/treatment/:treatmentId" element={<ClientTreatmentLanding />} />
                         <Route path="/treatments" element={<ClientTreatments />} />
                         <Route path="/schedule" element={<Schedule />} />
                         <Route path="/guest-info" element={<GuestInfo />} />
@@ -316,7 +319,8 @@ const App = () => {
               <Route path="booking/:id" element={<PwaBookingDetail />} />
               <Route path="notifications" element={<PwaNotifications />} />
               <Route path="hotels" element={<PwaHotels />} />
-              <Route path="wallet" element={<PwaWallet />} />
+              <Route path="statistics" element={<PwaStatistics />} />
+              <Route path="wallet" element={<Navigate to="/pwa/statistics?tab=wallet" replace />} />
               <Route path="new-booking" element={<PwaNewBooking />} />
             </Route>
             {/* PWA routes without TabBar (still protected) */}
@@ -416,6 +420,7 @@ const App = () => {
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
                               <Route path="/bookings" element={<Bookings />} />
+                              <Route path="/all-bookings" element={<BookingsList />} />
                               <Route path="/bookings/:id" element={<BookingDetail />} />
                               <Route path="/therapists" element={<Therapists />} />
                               <Route path="/therapists/new" element={<TherapistDetail />} />

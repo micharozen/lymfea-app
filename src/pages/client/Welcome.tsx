@@ -283,7 +283,7 @@ export default function Welcome() {
           {/* Venue Name + Subtitle — centered vertically & horizontally */}
           <div className="text-center">
             <h1
-              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[0.95] text-white uppercase tracking-wide animate-reveal-text"
+              className="font-grotesk font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl leading-[1.1] pt-[0.15em] text-white uppercase tracking-wide animate-reveal-text"
               style={{ animationDelay: '0.5s' }}
             >
               {localize(hotel.name, hotel.name_en)}

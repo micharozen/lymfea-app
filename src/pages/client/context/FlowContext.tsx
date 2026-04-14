@@ -17,6 +17,7 @@ export interface ClientInfo {
   note?: string;
   pmsGuestCheckIn?: string;
   pmsGuestCheckOut?: string;
+  isExternalGuest?: boolean;
 }
 
 export interface SelectedBundle {

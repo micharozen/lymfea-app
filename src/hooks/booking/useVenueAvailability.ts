@@ -45,7 +45,8 @@ interface UseVenueAvailabilityOptions {
   closingHour?: number;
 }
 
-function timeToMinutes(time: string): number {
+function timeToMinutes(time: string | undefined | null): number {
+  if (!time) return 0;
   const parts = time.split(":").map(Number);
   return parts[0] * 60 + (parts[1] || 0);
 }
@@ -216,6 +217,7 @@ export function useVenueAvailability({
             therapistsThisHour++;
           } else {
             const covers = t.shifts.some((shift) => {
+              if (!shift.start || !shift.end) return false;
               const shiftStart = timeToMinutes(shift.start);
               const shiftEnd = timeToMinutes(shift.end);
               return hourStart >= shiftStart && hourStart < shiftEnd;

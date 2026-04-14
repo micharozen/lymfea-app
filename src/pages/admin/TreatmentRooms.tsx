@@ -196,7 +196,7 @@ export default function TreatmentRooms() {
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <h1 className="text-lg font-medium text-foreground flex items-center gap-2">
             Salles de soin
           </h1>
           {isAdmin && (

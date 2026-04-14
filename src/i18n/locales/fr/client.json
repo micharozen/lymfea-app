@@ -27,6 +27,9 @@
     "add": "Ajouter",
     "select": "Sélectionner",
     "selectDuration": "Sélectionnez une durée",
+    "selectAnOption": "Sélectionnez une option",
+    "readMore": "Lire la suite",
+    "readLess": "Voir moins",
     "addAnother": "Ajouter un autre soin",
     "popular": "Populaire",
     "added": "Ajouté",
@@ -68,11 +71,18 @@
   "basket": {
     "title": "Votre Panier",
     "empty": "Votre panier est vide",
+    "emptyShort": "Aucune prestation sélectionnée",
     "browse": "Parcourir le menu",
     "subtotal": "Sous-total",
-    "continue": "Continuer",
+    "continue": "Continuez",
+    "free": "gratuit",
     "addNote": "Ajouter une note",
     "notePlaceholder": "Instructions spéciales..."
+  },
+  "breadcrumb": {
+    "treatments": "Prestations",
+    "time": "Heure",
+    "validate": "Valider"
   },
   "datetime": {
     "title": "Choisir Date & Heure",
@@ -145,7 +155,7 @@
     "requestQuote": "Envoyer la demande",
     "saveCard": "Empreinte bancaire",
     "saveCardDesc": "Votre carte ne sera pas débitée maintenant. Le paiement se fera sur place.",
-    "saveCardButton": "Confirmer",
+    "saveCardButton": "Réserver",
     "pleaseWait": "Veuillez patienter...",
     "bundleTitle": "Finaliser votre achat",
     "bundleSubtitle": "Votre cure sera activée immédiatement après le paiement",
@@ -293,5 +303,16 @@
   },
   "badges": {
     "card_saved": "Carte enregistrée"
+  },
+  "treatmentDetail": {
+    "bookThisTreatment": "Réserver ce soin",
+    "seeAllTreatments": "Voir tous les soins",
+    "treatmentNotFound": "Ce soin n'est pas disponible",
+    "treatmentNotFoundDescription": "Le soin demandé n'existe pas ou n'est plus disponible.",
+    "duration": "Durée",
+    "price": "Tarif",
+    "selectDuration": "Choisir une durée",
+    "fromPrice": "À partir de",
+    "minutes": "minutes"
   }
 }

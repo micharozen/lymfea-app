@@ -112,7 +112,7 @@ export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo, bookingDateTime, setSelectedBundle, isBundleOnlyPurchase } = useClientFlow();
+  const { canProceedToStep, setClientInfo, clientInfo, bookingDateTime, setSelectedBundle, isBundleOnlyPurchase } = useClientFlow();
   const { items, itemCount } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
@@ -123,7 +123,7 @@ export default function GuestInfo() {
   const [countrySearch, setCountrySearch] = useState("");
   const [phoneForBundleCheck, setPhoneForBundleCheck] = useState("");
   const [bundleDismissed, setBundleDismissed] = useState(false);
-  const [isExternalGuest, setIsExternalGuest] = useState(false);
+  const [isExternalGuest, setIsExternalGuest] = useState(clientInfo?.isExternalGuest ?? false);
 
   // Fetch venue type via RPC (bypasses RLS policies for anonymous users)
   const { data: hotel } = useQuery({
@@ -178,13 +178,13 @@ export default function GuestInfo() {
   const form = useForm<ClientInfoFormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      countryCode: '+33',
-      roomNumber: '',
-      note: '',
+      firstName: clientInfo?.firstName ?? '',
+      lastName: clientInfo?.lastName ?? '',
+      email: clientInfo?.email ?? '',
+      phone: clientInfo?.phone ?? '',
+      countryCode: clientInfo?.countryCode ?? '+33',
+      roomNumber: clientInfo?.roomNumber ?? '',
+      note: clientInfo?.note ?? '',
     },
   });
 
@@ -249,6 +249,7 @@ export default function GuestInfo() {
         ...data,
         pmsGuestCheckIn: pmsStayDatesRef.current.checkIn,
         pmsGuestCheckOut: pmsStayDatesRef.current.checkOut,
+        isExternalGuest,
       });
       if (isDesktop) {
         setIsCheckoutOpen(true);
@@ -280,7 +281,7 @@ export default function GuestInfo() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(`/client/${hotelId}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`)}
               className="text-gray-900 hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />

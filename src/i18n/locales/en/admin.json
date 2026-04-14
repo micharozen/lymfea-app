@@ -120,6 +120,24 @@
       "noActivity": "No activity",
       "noActivityDesc": "No schedule changes recorded for this therapist"
     },
+    "bookings": "Bookings",
+    "bookingsTab": {
+      "noBookings": "No bookings",
+      "noBookingsDesc": "This therapist has no associated bookings",
+      "date": "Date",
+      "time": "Time",
+      "client": "Client",
+      "venue": "Venue",
+      "status": "Status",
+      "amount": "Amount",
+      "allStatuses": "All statuses",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "ongoing": "Ongoing",
+      "noshow": "No-show"
+    },
     "identity": "Identity",
     "identityDesc": "Photo, name and contact",
     "firstName": "First Name",
@@ -249,7 +267,13 @@
     "clientPreview": {
       "copyUrl": "Copy link",
       "urlCopied": "Link copied!",
-      "openInNewTab": "Open in new tab"
+      "openInNewTab": "Open in new tab",
+      "treatmentLink": "Treatment link",
+      "selectTreatment": "Select a treatment",
+      "noTreatments": "No treatments linked to this venue",
+      "treatmentLinkCopied": "Treatment link copied!",
+      "venueLink": "Venue link",
+      "searchTreatment": "Search a treatment..."
     },
     "save": "Save",
     "saving": "Saving...",
