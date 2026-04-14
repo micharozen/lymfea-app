@@ -250,7 +250,25 @@
     "notifications": "Notifications",
     "profile": "Profile",
     "wallet": "Wallet",
-    "agenda": "Schedule"
+    "agenda": "Schedule",
+    "stats": "Stats"
+  },
+  "statistics": {
+    "title": "Statistics",
+    "stats": "Stats",
+    "walletTab": "Wallet",
+    "period": "Period",
+    "today": "Today",
+    "thisWeek": "This week",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "totalEarned": "Total earned",
+    "bookingCount": "Bookings",
+    "hoursWorked": "Hours worked",
+    "averagePerBooking": "Avg per booking",
+    "dailyEarnings": "Daily earnings",
+    "completedBookings": "Completed bookings",
+    "noData": "No completed bookings for this period"
   },
   "payment": {
     "received": "Payment received!",

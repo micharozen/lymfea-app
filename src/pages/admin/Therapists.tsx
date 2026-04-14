@@ -322,7 +322,7 @@ export default function Therapists() {
       <div className="flex-shrink-0 px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-lg font-semibold tracking-tight">Thérapeutes</h1>
+            <h1 className="text-lg font-medium tracking-tight">Thérapeutes</h1>
             <p className="text-muted-foreground mt-1">
               Gérez vos thérapeutes et leurs informations
             </p>

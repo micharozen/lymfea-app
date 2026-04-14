@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Home, Wallet, Bell, Plus, Calendar } from "lucide-react";
+import { Home, BarChart3, Bell, Plus, Calendar } from "lucide-react";
 
 interface TabBarProps {
   unreadCount?: number;
@@ -46,15 +46,15 @@ const TabBar = ({ unreadCount = 0 }: TabBarProps) => {
           </button>
 
           <button
-            onClick={() => handleNavigation("/pwa/wallet")}
+            onClick={() => handleNavigation("/pwa/statistics")}
             className="flex flex-col items-center justify-center gap-0.5 flex-1 transition-all"
           >
-            <Wallet
-              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/wallet") ? "text-primary" : "text-muted-foreground"}`}
-              strokeWidth={isActive("/pwa/wallet") ? 2.5 : 1.5}
+            <BarChart3
+              className={`w-[22px] h-[22px] transition-colors ${isActive("/pwa/statistics") ? "text-primary" : "text-muted-foreground"}`}
+              strokeWidth={isActive("/pwa/statistics") ? 2.5 : 1.5}
             />
-            <span className={`text-[10px] transition-colors ${isActive("/pwa/wallet") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
-              {t('tabs.wallet')}
+            <span className={`text-[10px] transition-colors ${isActive("/pwa/statistics") ? "text-primary font-semibold" : "text-muted-foreground font-medium"}`}>
+              {t('tabs.stats')}
             </span>
           </button>
 

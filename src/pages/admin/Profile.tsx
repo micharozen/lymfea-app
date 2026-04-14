@@ -185,7 +185,7 @@ export default function Profile() {
     return (
       <div className="min-h-screen bg-background p-4 md:p-6">
         <div className="max-w-4xl">
-          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
+          <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">Profil</h1>
           <Card className="border border-border bg-card">
             <CardContent className="p-4 md:p-8">
               <p className="text-muted-foreground">Chargement...</p>
@@ -199,7 +199,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-4xl">
-        <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8">Profil</h1>
+        <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8">Profil</h1>
 
         <Card className="border border-border bg-card">
           <CardContent className="p-4 md:p-8">

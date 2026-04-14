@@ -31,6 +31,7 @@ interface BookingFiltersProps {
   hotels: Hotel[] | undefined;
   therapists: Therapist[] | undefined;
   hideHotelFilter?: boolean;
+  hideViewToggle?: boolean;
   showAvailability?: boolean;
   onShowAvailabilityChange?: (show: boolean) => void;
 }
@@ -52,6 +53,7 @@ export function BookingFilters({
   hotels,
   therapists,
   hideHotelFilter = false,
+  hideViewToggle = false,
   showAvailability,
   onShowAvailabilityChange,
 }: BookingFiltersProps) {
@@ -171,34 +173,36 @@ export function BookingFilters({
           </Tooltip>
         )}
 
-        <ButtonGroup>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onViewChange("calendar")}
-                className={`h-8 w-8 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
-              >
-                <CalendarIcon className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Calendrier</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => onViewChange("list")}
-                className={`h-8 w-8 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
-              >
-                <List className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Liste</TooltipContent>
-          </Tooltip>
-        </ButtonGroup>
+        {!hideViewToggle && (
+          <ButtonGroup>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onViewChange("calendar")}
+                  className={`h-8 w-8 ${view === "calendar" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+                >
+                  <CalendarIcon className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Calendrier</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => onViewChange("list")}
+                  className={`h-8 w-8 ${view === "list" ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground" : "text-muted-foreground"}`}
+                >
+                  <List className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Liste</TooltipContent>
+            </Tooltip>
+          </ButtonGroup>
+        )}
       </div>
     </div>
   );
