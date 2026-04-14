@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, CheckCircle2, ChevronRight, Clock, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronRight, Clock, Euro, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -625,6 +625,32 @@ const PwaDashboard = () => {
   const pendingRequests = getPendingRequests();
   const groupedPendingRequests = groupBookingsByDate(pendingRequests);
 
+  const todayStats = (() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const todayBookings = allBookings.filter(
+      (b) =>
+        b.booking_date === todayStr &&
+        b.therapist_id === therapist?.id &&
+        b.status !== "cancelled" &&
+        b.status !== "noshow"
+    );
+    const count = todayBookings.length;
+    const totalMinutes = todayBookings.reduce(
+      (sum, b) => sum + calculateTotalDuration(b),
+      0
+    );
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    const hoursLabel = mins > 0 ? `${hours}h${mins.toString().padStart(2, "0")}` : `${hours}h`;
+    const totalRevenue = todayBookings.reduce(
+      (sum, b) => sum + calculateTotalPrice(b),
+      0
+    );
+    const totalHT = totalRevenue / 1.2;
+    const earnings = Math.round(totalHT * 0.7);
+    return { count, hoursLabel, earnings };
+  })();
+
   return (
     <div className="flex flex-1 flex-col bg-background">
       <PwaHeader
@@ -643,6 +669,41 @@ const PwaDashboard = () => {
           </Avatar>
         }
       />
+
+      {/* Today's KPI banner */}
+      <div className="px-4 pt-3">
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-base font-bold leading-none">{todayStats.count}</div>
+              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {t('dashboard.todayAppointments')}
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-base font-bold leading-none">{todayStats.hoursLabel}</div>
+              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {t('dashboard.todayHours')}
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border bg-card px-3 py-2.5 flex items-center gap-2">
+            <Euro className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0">
+              <div className="text-base font-bold leading-none">
+                {formatPrice(todayStats.earnings, 'EUR', { decimals: 0 })}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                {t('dashboard.todayEarnings')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Pull to refresh indicator */}
       {pullDistance > 0 && (

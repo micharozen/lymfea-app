@@ -9,6 +9,7 @@ import PwaPageLoader from "@/components/pwa/PageLoader";
 import { MonthCalendar } from "@/components/pwa/schedule/MonthCalendar";
 import { DayEditorDrawer } from "@/components/pwa/schedule/DayEditorDrawer";
 import { WeeklyTemplateEditor } from "@/components/pwa/schedule/WeeklyTemplateEditor";
+import { AbsencesList } from "@/components/pwa/schedule/AbsencesList";
 import { cn } from "@/lib/utils";
 
 interface Shift {
@@ -33,7 +34,15 @@ const DEFAULT_PATTERN: DayPattern[] = Array.from({ length: 7 }, () => ({
   shifts: [],
 }));
 
-type Tab = "monthly" | "template";
+interface Absence {
+  id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  note: string | null;
+}
+
+type Tab = "monthly" | "template" | "absences";
 
 export default function PwaSchedule() {
   const { t } = useTranslation("pwa");
@@ -56,6 +65,9 @@ export default function PwaSchedule() {
   const [weeklyPattern, setWeeklyPattern] = useState<DayPattern[]>(DEFAULT_PATTERN);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [applyingTemplate, setApplyingTemplate] = useState(false);
+
+  // Absences state
+  const [absences, setAbsences] = useState<Absence[]>([]);
 
   // Load therapist ID
   useEffect(() => {
@@ -102,6 +114,28 @@ export default function PwaSchedule() {
 
     loadTemplate();
   }, [therapistId]);
+
+  // Load absences
+  const loadAbsences = useCallback(async () => {
+    if (!therapistId) return;
+
+    const { data, error } = await supabase
+      .from("therapist_absences")
+      .select("id, start_date, end_date, reason, note")
+      .eq("therapist_id", therapistId)
+      .order("start_date", { ascending: false });
+
+    if (error) {
+      console.error("Error loading absences:", error);
+      return;
+    }
+
+    setAbsences((data || []) as Absence[]);
+  }, [therapistId]);
+
+  useEffect(() => {
+    loadAbsences();
+  }, [loadAbsences]);
 
   // Load availability for current month
   const loadAvailability = useCallback(async () => {
@@ -271,6 +305,18 @@ export default function PwaSchedule() {
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
           )}
         </button>
+        <button
+          onClick={() => setActiveTab("absences")}
+          className={cn(
+            "flex-1 py-2.5 text-sm font-medium text-center transition-colors relative",
+            activeTab === "absences" ? "text-foreground" : "text-muted-foreground"
+          )}
+        >
+          {t("schedule.absences")}
+          {activeTab === "absences" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+          )}
+        </button>
       </div>
 
       {/* Content */}
@@ -283,6 +329,7 @@ export default function PwaSchedule() {
               onNextMonth={() => setCurrentMonth(addMonths(currentMonth, 1))}
               availability={availability}
               onDayPress={handleDayPress}
+              absences={absences}
             />
 
             {/* Empty state */}
@@ -293,7 +340,7 @@ export default function PwaSchedule() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === "template" ? (
           <WeeklyTemplateEditor
             weeklyPattern={weeklyPattern}
             onChange={handleSaveTemplate}
@@ -301,6 +348,16 @@ export default function PwaSchedule() {
             saving={savingTemplate}
             applying={applyingTemplate}
           />
+        ) : (
+          therapistId && (
+            <AbsencesList
+              therapistId={therapistId}
+              onAbsenceChanged={() => {
+                loadAvailability();
+                loadAbsences();
+              }}
+            />
+          )
         )}
       </div>
 

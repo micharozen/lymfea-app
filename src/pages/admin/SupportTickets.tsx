@@ -73,7 +73,7 @@ export default function SupportTickets() {
       <div className="px-4 md:px-6 pt-4 md:pt-6" ref={headerRef}>
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+            <h1 className="text-lg font-medium tracking-tight flex items-center gap-2">
               <LifeBuoy className="h-5 w-5 text-gold-600" />
               {t("support.title")}
             </h1>

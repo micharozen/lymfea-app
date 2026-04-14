@@ -1,4 +1,3 @@
-Connecting to db 5432
 export type Json =
   | string
   | number
@@ -1444,6 +1443,47 @@ export type Database = {
         }
         Relationships: []
       }
+      therapist_absences: {
+        Row: {
+          id: string
+          therapist_id: string
+          start_date: string
+          end_date: string
+          reason: string
+          note: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          therapist_id: string
+          start_date: string
+          end_date: string
+          reason: string
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          therapist_id?: string
+          start_date?: string
+          end_date?: string
+          reason?: string
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "therapist_absences_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       therapist_availability: {
         Row: {
           created_at: string
@@ -2382,6 +2422,22 @@ export type Database = {
         Returns: number
       }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
+      create_therapist_absence: {
+        Args: {
+          _therapist_id: string
+          _start_date: string
+          _end_date: string
+          _reason: string
+          _note?: string
+        }
+        Returns: string
+      }
+      delete_therapist_absence: {
+        Args: {
+          _absence_id: string
+        }
+        Returns: undefined
+      }
       create_audit_log: {
         Args: {
           _change_type: string
@@ -2798,6 +2854,3 @@ export const Constants = {
     },
   },
 } as const
-
-A new version of Supabase CLI is available: v2.84.2 (currently installed v2.75.0)
-We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli

@@ -8,6 +8,7 @@ import { GlobalSearch } from "@/components/admin/GlobalSearch";
 import {
   LayoutDashboard,
   CalendarDays,
+  ListChecks,
   Building2,
   Users,
   BookOpen,
@@ -61,6 +62,7 @@ interface MenuItem {
 const adminPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
+  { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
@@ -81,6 +83,7 @@ const adminSecondaryItems: MenuItem[] = [
 const conciergePrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
+  { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
   { title: "Transactions", url: "/admin/transactions", icon: Wallet },
 ];

@@ -458,7 +458,7 @@ export default function Settings() {
     <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-4 md:mb-6">
-          <h1 className="text-lg font-semibold text-foreground mb-4 md:mb-8 flex items-center gap-2">
+          <h1 className="text-lg font-medium text-foreground mb-4 md:mb-8 flex items-center gap-2">
             Paramètres & Accès
           </h1>
         </div>

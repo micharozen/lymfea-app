@@ -17,6 +17,19 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
+const PAYMENT_TEXT_LABELS: Record<string, string> = {
+  pending: "En attente",
+  paid: "Payé",
+  failed: "Échec",
+  refunded: "Remboursé",
+  charged_to_room: "Chambre",
+};
+
+function getPaymentTextLabel(status: string | null | undefined): string {
+  if (!status) return "Non défini";
+  return PAYMENT_TEXT_LABELS[status.toLowerCase()] ?? status;
+}
+
 interface BookingListViewProps {
   paginatedBookings: BookingWithTreatments[];
   filteredBookingsCount: number;
@@ -32,6 +45,7 @@ interface BookingListViewProps {
   totalItems: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
+  paymentAsText?: boolean;
 }
 
 export function BookingListView({
@@ -49,6 +63,7 @@ export function BookingListView({
   totalItems,
   itemsPerPage,
   onPageChange,
+  paymentAsText = false,
 }: BookingListViewProps) {
   const handleInvoiceClick = async (
     e: React.MouseEvent,
@@ -131,7 +146,12 @@ export function BookingListView({
                     <StatusBadge
                       status={booking.payment_status || "pending"}
                       type="payment"
-                      className="text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                      className={
+                        paymentAsText
+                          ? "text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                          : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                      }
+                      customLabel={paymentAsText ? getPaymentTextLabel(booking.payment_status) : undefined}
                     />
                   )}
                 </TableCell>
