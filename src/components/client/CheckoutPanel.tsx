@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, AlertTriangle, CreditCard, Building, Gift, Calendar, Repeat, X, Package,
+  Loader2, AlertTriangle, CreditCard, Building, Gift, Calendar, Repeat, X, Package, MapPin, Phone,
 } from 'lucide-react';
 import { useBasket } from '@/pages/client/context/CartContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
@@ -445,6 +445,37 @@ export function CheckoutPanel({
 
       {/* Order Summary */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        {(hotel?.name || hotel?.address || hotel?.contact_phone) && (
+          <div className="pb-3 border-b border-gray-100 space-y-1">
+            {hotel?.name && (
+              <p className="text-sm font-medium text-gray-900">{hotel.name}</p>
+            )}
+            {hotel?.address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5"
+              >
+                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                <p className="text-xs text-gray-500 underline decoration-gray-300">
+                  {[hotel.address, hotel.postal_code, hotel.city].filter(Boolean).join(', ')}
+                </p>
+              </a>
+            )}
+            {hotel?.contact_phone && (
+              <div className="flex items-center gap-1.5">
+                <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                <a
+                  href={`tel:${hotel.contact_phone.replace(/\s/g, '')}`}
+                  className="text-xs text-gray-500 underline decoration-gray-300"
+                >
+                  {hotel.contact_phone}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
         <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
           {t('payment.orderSummary')}
         </h4>
@@ -570,7 +601,7 @@ export function CheckoutPanel({
           </button>
 
           {/* Room Payment */}
-          {supportsRoomPayment && !isBundleOnlyPurchase && (
+          {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && (
             <button
               type="button"
               onClick={() => setSelectedMethod('room')}
