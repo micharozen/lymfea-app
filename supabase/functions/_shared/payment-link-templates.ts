@@ -23,6 +23,8 @@ export interface PaymentLinkTemplateData {
   expiresAtText?: string; // Ajouté pour le redesign
   contactPhone?: string;  // Ajouté pour le redesign
   contactEmail?: string;  // Ajouté pour le redesign
+  urgency?: 'normal' | 'urgent' | 'very_urgent' | 'immediate';
+  
 }
 
 export const getPaymentLinkEmailSubject = (language: 'fr' | 'en', data: PaymentLinkTemplateData): string => {
@@ -110,13 +112,34 @@ export const getExternalClientPaymentEmailHtml = (language: 'fr' | 'en', data: P
 
                   <div style="padding: 40px 0;">
                     <a href="${data.paymentUrl}" style="${styles.button}">${labels.cta}</a>
-                    <p style="font-size: 11px; color: #999; margin-top: 15px;">${labels.validity}</p>
+                  ${(() => {
+                    const urgencyLevel = data.urgency || 'normal';
+                    let urgencyTextFr = "";
+                    let urgencyTextEn = "";
+
+                    if (urgencyLevel === 'immediate') {
+                      urgencyTextFr = "Pour finaliser votre réservation imminente, veuillez régler avant le";
+                      urgencyTextEn = "To finalize your upcoming booking, please complete payment before";
+                    } else if (urgencyLevel === 'very_urgent') {
+                      urgencyTextFr = "Votre rendez-vous approche. Afin de le maintenir, ce lien est valide jusqu'au";
+                      urgencyTextEn = "Your appointment is approaching. To secure it, this link is valid until";
+                    } else if (urgencyLevel === 'urgent') {
+                      urgencyTextFr = "Afin de garantir votre créneau, veuillez confirmer avant le";
+                      urgencyTextEn = "To secure your slot, please confirm before";
+                    }
+
+                    const message = urgencyLevel === 'normal' 
+                      ? (isFr ? `Pour confirmer votre réservation, ce lien sécurisé est disponible jusqu'au ${data.expiresAtText}.` : `To confirm your booking, this secure link is available until ${data.expiresAtText}.`)
+                      : (isFr ? `${urgencyTextFr} ${data.expiresAtText}.` : `${urgencyTextEn} ${data.expiresAtText}.`);
+
+                    return `<p style="font-size: 14px; margin-top: 15px; text-align: center; font-weight: bold; color: #8B0000;">${message}</p>`;
+                  })()}
                   </div>
 
                   <p style="font-size: 13px; color: #666; margin-bottom: 40px;">
                     ${labels.contact}<br/>
-                    <a href="tel:${data.contactPhone}" style="color: #000; text-decoration: none;">${data.contactPhone}</a> | 
-                    <a href="mailto:${data.contactEmail}" style="color: #000; text-decoration: none;">${data.contactEmail}</a>
+                    ${data.contactPhone ? `<a href="tel:${data.contactPhone}" style="color: #000; text-decoration: none;">${data.contactPhone}</a> | ` : ''}
+                    <a href="mailto:${data.contactEmail || 'hello@lymfea.com'}" style="color: #000; text-decoration: none;">${data.contactEmail || 'hello@lymfea.com'}</a>
                   </p>
 
                   <div style="${styles.footerCard}">
@@ -178,9 +201,12 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
 
           ${getTreatmentsList(data.treatments, data.totalPrice, currency)}
 
-          <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center;">
-            Ce lien est valide pendant 24 heures.
-          </p>
+          <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center; font-weight: bold; color: #b91c1c;">
+  ${language === 'fr' 
+    ? `Action requise : Ce lien est valide jusqu'au ${data.expiresAtText}.` 
+    : `Action required: This link is valid until ${data.expiresAtText}.`
+  }
+</p>
         </td>
       </tr>
     `, {
@@ -223,8 +249,8 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
 
         ${getTreatmentsList(data.treatments, data.totalPrice, currency)}
 
-        <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center;">
-          This link is valid for 24 hours.
+        <p style="font-size: 14px; color: #6b7280; margin: 24px 0 0 0; text-align: center; font-weight: bold; color: #b91c1c;">
+          Action required: This link is valid until ${data.expiresAtText}.
         </p>
       </td>
     </tr>
@@ -234,13 +260,13 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
     buttonUrl: data.paymentUrl
   });
 };
-export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string }) => {
+export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string, bookingUrl?: string }) => {
   const isFr = language === 'fr';
   const labels = {
     title: isFr ? 'Réservation Annulée' : 'Booking Cancelled',
-    message: isFr 
-      ? `Bonjour ${data.clientName}, nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du ${data.bookingDate}. Par sécurité, votre réservation a été automatiquement annulée.`
-      : `Hello ${data.clientName}, we did not receive your payment within the required time for your session on ${data.bookingDate}. For security reasons, your booking has been automatically cancelled.`,
+    message: isFr
+      ? `Bonjour ${data.clientName}, nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du ${data.bookingDate}. Afin de ne pas bloquer ce créneau indéfiniment, votre réservation a été automatiquement annulée.`
+      : `Hello ${data.clientName}, we did not receive your payment within the required time for your session on ${data.bookingDate}. To avoid blocking this slot indefinitely, your booking has been automatically cancelled.`,
     cta: isFr ? 'Réserver à nouveau' : 'Book again'
   };
 
@@ -248,22 +274,21 @@ export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { c
     <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px; border: 1px solid #eee;">
       <h1 style="color: #000; font-weight: normal;">${labels.title}</h1>
       <p style="color: #666; line-height: 1.6; margin: 20px 0;">${labels.message}</p>
-      <a href="${brand.website}" style="display: inline-block; padding: 15px 30px; background-color: #000351; color: #fff; text-decoration: none; margin-top: 20px;">${labels.cta}</a>
+      <a href="${data.bookingUrl || brand.website}" style="display: inline-block; padding: 15px 30px; background-color: #000351; color: #fff; text-decoration: none; margin-top: 20px;">${labels.cta}</a>
     </div>
   `;
 };
-export const getPaymentReminderEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData,) => {
+export const getPaymentReminderEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData) => {
   const isFr = language === 'fr';
   
-  // On remplace le message d'accueil par un message de rappel urgent
+  // NOUVEAU TEXTE EXACT DU TICKET :
   const reminderWelcome = isFr 
-    ? `Votre réservation pour votre séance de bien-être n'est pas encore confirmée. Pour garantir la disponibilité de votre créneau, merci de finaliser votre paiement avant le ${data.expiresAtText}.`
-    : `Your wellness booking is not yet confirmed. To guarantee your slot availability, please finalize your payment before ${data.expiresAtText}.`;
+    ? `Votre réservation n'est pas encore confirmée. Confirmez avant le ${data.expiresAtText} pour garantir votre créneau.<br/><br/><strong>Passé ce délai, votre réservation sera automatiquement annulée.</strong>`
+    : `Your booking is not yet confirmed. Please confirm before ${data.expiresAtText} to secure your slot.<br/><br/><strong>After this deadline, your booking will be automatically cancelled.</strong>`;
 
-  // On utilise le même moteur de rendu que l'email initial pour garder le design
   return getExternalClientPaymentEmailHtml(language, {
     ...data,
-    clientName: data.clientName, // On peut passer une chaîne personnalisée ici si besoin
+    urgency: 'urgent' // Pour forcer la couleur rouge
   }, reminderWelcome); 
 };
 // WhatsApp message templates

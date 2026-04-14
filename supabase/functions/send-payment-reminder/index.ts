@@ -38,7 +38,6 @@ serve(async (req: Request) => {
     for (const item of pendingReminders) {
       const b = item.bookings as any;
       const apptDate = new Date(`${b.booking_date}T${b.booking_time}`);
-      
       // Temps restant avant le RDV
       const diffHoursToAppt = (apptDate.getTime() - now.getTime()) / (1000 * 60 * 60);
       
@@ -70,12 +69,8 @@ serve(async (req: Request) => {
         let hotelCurrency = 'eur';
 
         if (b.hotel_id) {
-          const { data: hotel } = await supabase.from('hotels').select('currency, email, phone').eq('id', b.hotel_id).single();
-          if (hotel) {
-            if (hotel.currency) hotelCurrency = hotel.currency.toLowerCase();
-            if (hotel.email) contactEmail = hotel.email;
-            if (hotel.phone) contactPhone = hotel.phone;
-          }
+          const { data: hotel } = await supabase.from('hotels').select('currency').eq('id', b.hotel_id).single();
+          if (hotel?.currency) hotelCurrency = hotel.currency.toLowerCase();
         }
 
         // 2. Récupération des soins
@@ -123,8 +118,10 @@ serve(async (req: Request) => {
         
         await resend.emails.send({
           from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-          to: b.client_email,
-          subject: lang === 'fr' ? "Rappel : Votre réservation Lymfea" : "Reminder: Your Lymfea Booking",
+          to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : b.client_email,
+          subject: lang === 'fr'
+            ? `Rappel : confirmez votre réservation du ${formattedBookingDate}`
+            : `Reminder: confirm your booking on ${formattedBookingDate}`,
           html: getPaymentReminderEmailHtml(lang, templateData),
         });
 

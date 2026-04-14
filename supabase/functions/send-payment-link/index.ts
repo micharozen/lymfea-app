@@ -28,29 +28,36 @@ interface SendPaymentLinkRequest {
   clientEmail?: string;
   clientPhone?: string;
 }
-function generateICS(bookingDate: string, bookingTime: string, hotelName: string, durationMinutes: number): string {
-  // Calcul de la fin du soin
-  const start = new Date(`${bookingDate}T${bookingTime}`);
+function generateICS(bookingDate: string, bookingTime: string, hotelName: string, durationMinutes: number, timezone: string = 'Europe/Paris'): string {
+  // 1. On sépare manuellement pour éviter que le serveur décale l'heure
+  const [year, month, day] = bookingDate.split('-').map(Number);
+  const [hour, minute] = bookingTime.split(':').map(Number);
+  
+  const start = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
   const end = new Date(start.getTime() + durationMinutes * 60000);
 
-  // Formatage requis pour ICS (YYYYMMDDTHHMMSSZ)
-  const formatDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  // 2. Formatage strict
+  const formatDate = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00`;
+  };
 
-  // Construction du contenu du fichier
-  const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Lymfea//Booking//EN
-BEGIN:VEVENT
-DTSTART:${formatDate(start)}
-DTEND:${formatDate(end)}
-SUMMARY:Soin Lymfea - ${hotelName}
-LOCATION:${hotelName}
-DESCRIPTION:Votre moment de bien-être chez ${hotelName}.
-END:VEVENT
-END:VCALENDAR`;
+  // 3. Construction du fichier avec le TZID (Timezone ID)
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Lymfea//Booking//EN',
+    'BEGIN:VEVENT',
+    `DTSTART;TZID=${timezone}:${formatDate(start)}`, // 👈 C'est ÇA qui fixe le bug
+    `DTEND;TZID=${timezone}:${formatDate(end)}`,
+    `SUMMARY:Soin Lymfea - ${hotelName}`,
+    `LOCATION:${hotelName}`,
+    `DESCRIPTION:Votre moment de bien-être chez ${hotelName}.`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n');
 
-  // Les fichiers ICS requièrent un retour à la ligne spécifique (\r\n)
-  return icsContent.replace(/\n/g, '\r\n');
+  return icsContent;
 }
 
 // Fonction utilitaire pour le calcul de l'expiration selon les règles du ticket
@@ -128,29 +135,26 @@ serve(async (req: Request) => {
     let contactEmail = brand.emails.from.default;
     let contactPhone = "";
     let hotelImageUrl = "";
+    let hotelTimezone = "Europe/Paris";
   if (booking.hotel_id) {
       const cleanHotelId = booking.hotel_id.trim();
       
       const { data: hotel, error: hotelError } = await supabase
         .from('hotels')
-        .select('currency, cover_image, image') // 👈 On a enlevé email et phone d'ici
+        .select('currency, cover_image, image, timezone')
         .eq('id', cleanHotelId)
-        .maybeSingle(); 
+        .maybeSingle();
 
       if (hotelError) {
-        console.error("[DEBUG HOTEL] Erreur Supabase :", hotelError.message);
+        console.error("[SEND-PAYMENT-LINK] Hotel fetch error:", hotelError.message);
       }
-      
+
       if (hotel) {
-        console.log("[DEBUG HOTEL] Hôtel trouvé ! Image :", hotel.cover_image || hotel.image);
-        if (hotel.currency) {
-          hotelCurrency = hotel.currency.toLowerCase();
-        }
-        
-        // On récupère l'image dynamique
+        if (hotel.timezone) hotelTimezone = hotel.timezone;
+        if (hotel.currency) hotelCurrency = hotel.currency.toLowerCase();
         hotelImageUrl = hotel.cover_image || hotel.image || "";
       } else {
-        console.warn("[DEBUG HOTEL] Aucun hôtel trouvé.");
+        console.warn("[SEND-PAYMENT-LINK] No hotel found for id:", cleanHotelId);
       }
     }
 
@@ -206,12 +210,21 @@ serve(async (req: Request) => {
 
     // Calcul de l'expiration
     const now = new Date();
-    const expiresAt = calculateExpirationDate(new Date(booking.booking_date), now);
-    
-    // On définit le format de l'heure demandé 
+    const apptDate = new Date(`${booking.booking_date}T${booking.booking_time}`);
+    const expiresAt = calculateExpirationDate(apptDate, now);
+
+    // Calcul du niveau d'urgence selon le délai restant avant le RDV
+    const diffInHours = (apptDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const urgency: 'normal' | 'urgent' | 'very_urgent' | 'immediate' =
+      diffInHours <= 2 ? 'immediate' :
+      diffInHours <= 6 ? 'very_urgent' :
+      diffInHours <= 24 ? 'urgent' :
+      'normal';
+
+    // On définit le format de l'heure demandé
     const timeFormatted = format(expiresAt, "HH:mm");
 
-    const expiresAtText = language === 'fr' 
+    const expiresAtText = language === 'fr'
       ? `${format(expiresAt, "d MMMM", { locale: fr })} à ${timeFormatted}`
       : `${format(expiresAt, "MMMM do", { locale: enUS })} at ${timeFormatted}`;
 
@@ -251,7 +264,9 @@ serve(async (req: Request) => {
     });
 
     console.log("[SEND-PAYMENT-LINK] Payment link created:", paymentLink.url);
-
+    
+    // On récupère l'ID pour pouvoir le désactiver plus tard via le cron
+    const stripePaymentLinkId = paymentLink.id;
     const bookingDate = new Date(booking.booking_date);
     const formattedDate = language === 'fr'
       ? bookingDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -269,11 +284,12 @@ serve(async (req: Request) => {
       bookingNumber: booking.booking_id,
       treatments: treatments,
       totalPrice: totalPrice,
-      paymentUrl: paymentLink.url,
+      paymentUrl: email ? `${paymentLink.url}?prefilled_email=${encodeURIComponent(email)}` : paymentLink.url,
       currency: currencySymbol,
       expiresAtText: expiresAtText,
       contactPhone: contactPhone,
-      contactEmail: contactEmail
+      contactEmail: contactEmail,
+      urgency: urgency,
     };
 
     const results: { email?: boolean; whatsapp?: boolean; errors: string[] } = { errors: [] };
@@ -295,12 +311,12 @@ serve(async (req: Request) => {
         const totalDuration = treatments.reduce((sum: number, t: any) => sum + (t.duration || 60), 0);
         
         // 2. Génération du fichier ICS
-        const icsContent = generateICS(booking.booking_date, booking.booking_time, booking.hotel_name, totalDuration);
+        const icsContent = generateICS(booking.booking_date, booking.booking_time, booking.hotel_name, totalDuration, hotelTimezone);
 
         // 3. Envoi de l'e-mail avec la pièce jointe
         const emailResult = await resend.emails.send({
           from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-          to: email,
+          to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : email,
           subject: getPaymentLinkEmailSubject(language, templateData),
           html: html,
           attachments: [
@@ -367,16 +383,18 @@ serve(async (req: Request) => {
 
     // Mise à jour de booking_payment_infos avec les nouvelles colonnes
     // Mise à jour ou Création (Upsert) de booking_payment_infos
+   // --- NOUVEAU BLOC : SAUVEGARDE DE L'EXPIRATION ---
     const { error: paymentInfosError } = await supabase
       .from('booking_payment_infos')
-      .upsert({
-        booking_id: bookingId, // Indispensable pour la création
-        payment_link_stripe_id: paymentLink.id,
+      .upsert({ 
+        booking_id: bookingId,
+        payment_link_stripe_id: stripePaymentLinkId,
         payment_link_expires_at: expiresAt.toISOString(),
-        payment_reminder_count: 0
-      }, { 
-        onConflict: 'booking_id' // Dit à Supabase de vérifier les doublons sur cette colonne
-      });
+      }, { onConflict: 'booking_id' });
+
+    if (paymentInfosError) {
+      console.error("[SEND-PAYMENT-LINK] Error saving payment infos:", paymentInfosError);
+    }
 
     if (updateError || paymentInfosError) {
       console.error("[SEND-PAYMENT-LINK] DB Update error:", updateError || paymentInfosError);

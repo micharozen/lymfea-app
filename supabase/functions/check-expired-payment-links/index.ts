@@ -35,7 +35,8 @@ serve(async (req: Request) => {
           booking_date,
           payment_link_language,
           payment_status,
-          status
+          status,
+          hotel_id
         )
       `)
       .lt('payment_link_expires_at', new Date().toISOString())
@@ -65,10 +66,7 @@ serve(async (req: Request) => {
       // 3. Mettre à jour le statut du booking en base
       const { error: updateError } = await supabase
         .from('bookings')
-        .update({ 
-          status: 'cancelled', 
-          cancellation_reason: 'payment_link_expired' 
-        })
+        .update({ status: 'cancelled' })
         .eq('id', item.booking_id);
 
       if (updateError) {
@@ -76,17 +74,34 @@ serve(async (req: Request) => {
         continue;
       }
 
+      // Stocker la raison d'annulation dans booking_payment_infos (où la colonne est définie)
+      await supabase
+        .from('booking_payment_infos')
+        .update({ cancellation_reason: 'payment_link_expired' })
+        .eq('booking_id', item.booking_id);
+
       // 4. Envoyer l'email d'annulation
-      if (booking.client_email) {
+      if (booking && booking.client_email) {
         try {
           const lang = (booking.payment_link_language || 'fr') as 'fr' | 'en';
+          const bookingDateObj = new Date(booking.booking_date);
+          const formattedBookingDate = lang === 'fr'
+            ? bookingDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
+            : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+          const siteUrl = Deno.env.get('SITE_URL') || brand.website;
+          const bookingUrl = booking.hotel_id
+            ? `${siteUrl}/client/${booking.hotel_id}/treatments`
+            : brand.website;
           await resend.emails.send({
             from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-            to: booking.client_email,
-            subject: lang === 'fr' ? "Réservation annulée - Délai dépassé" : "Booking cancelled - Deadline expired",
+            to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : booking.client_email,
+            subject: lang === 'fr'
+              ? `Votre réservation du ${formattedBookingDate} a été annulée`
+              : `Your booking on ${formattedBookingDate} has been cancelled`,
             html: getPaymentCancellationEmailHtml(lang, {
               clientName: `${booking.client_first_name} ${booking.client_last_name}`,
-              bookingDate: booking.booking_date
+              bookingDate: formattedBookingDate,
+              bookingUrl,
             }),
           });
           console.log(`[EMAIL] Sent cancellation to ${booking.client_email}`);

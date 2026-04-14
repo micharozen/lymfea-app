@@ -10,26 +10,36 @@ ADD COLUMN cancellation_reason text;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
--- 1. Cron pour annuler les liens expirés (Toutes les 15 minutes)
-SELECT cron.schedule(
-  'check-expired-payment-links-cron',
-  '*/15 * * * *',
-  $$
-  SELECT net.http_post(
-      url:='https://[PROJECT_REF].supabase.co/functions/v1/check-expired-payment-links',
-      headers:='{"Content-Type": "application/json", "Authorization": "Bearer [SERVICE_ROLE_KEY]"}'::jsonb
-  )
-  $$
-);
+-- ==============================================================================
+-- SETUP CRON JOBS — À EXÉCUTER MANUELLEMENT UNE SEULE FOIS EN PRODUCTION
+-- Via Supabase Dashboard → Database → SQL Editor (jamais committer la service_role key)
+--
+-- Remplacer SERVICE_ROLE_KEY par la clé trouvée dans :
+-- Supabase Dashboard → Settings → API → service_role
+-- ==============================================================================
 
--- 2. Cron pour envoyer les relances (Toutes les 30 minutes)
-SELECT cron.schedule(
-  'send-payment-reminder-cron',
-  '*/30 * * * *',
-  $$
-  SELECT net.http_post(
-      url:='https://[PROJECT_REF].supabase.co/functions/v1/send-payment-reminder',
-      headers:='{"Content-Type": "application/json", "Authorization": "Bearer [SERVICE_ROLE_KEY]"}'::jsonb
-  )
-  $$
-);
+-- 1. Cron pour annuler les liens expirés (toutes les 15 minutes)
+--
+-- SELECT cron.schedule(
+--   'check-expired-payment-links-cron',
+--   '*/15 * * * *',
+--   $$
+--   SELECT net.http_post(
+--       url:='https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/check-expired-payment-links',
+--       headers:='{"Content-Type": "application/json", "Authorization": "Bearer SERVICE_ROLE_KEY"}'::jsonb
+--   )
+--   $$
+-- );
+
+-- 2. Cron pour envoyer les relances (toutes les 30 minutes)
+--
+-- SELECT cron.schedule(
+--   'send-payment-reminder-cron',
+--   '*/30 * * * *',
+--   $$
+--   SELECT net.http_post(
+--       url:='https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/send-payment-reminder',
+--       headers:='{"Content-Type": "application/json", "Authorization": "Bearer SERVICE_ROLE_KEY"}'::jsonb
+--   )
+--   $$
+-- );
