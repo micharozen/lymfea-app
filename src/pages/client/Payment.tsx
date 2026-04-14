@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -32,6 +32,12 @@ export default function Payment() {
   console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
   console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
+
+  useEffect(() => {
+    if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
+      setSelectedMethod('card');
+    }
+  }, [selectedMethod, clientInfo?.isExternalGuest]);
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
@@ -360,6 +366,37 @@ export default function Payment() {
 
         {/* Nouveau Récapitulatif Design Luxe */}
         <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          {(hotel?.name || hotel?.address || hotel?.contact_phone) && (
+            <div className="pb-3 border-b border-gray-100 space-y-1">
+              {hotel?.name && (
+                <p className="text-sm font-medium text-gray-900">{hotel.name}</p>
+              )}
+              {hotel?.address && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([hotel.name, hotel.address, hotel.city].filter(Boolean).join(', '))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5"
+                >
+                  <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                  <p className="text-xs text-gray-500 underline decoration-gray-300">
+                    {[hotel.address, hotel.postal_code, hotel.city].filter(Boolean).join(', ')}
+                  </p>
+                </a>
+              )}
+              {hotel?.contact_phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                  <a
+                    href={`tel:${hotel.contact_phone.replace(/\s/g, '')}`}
+                    className="text-xs text-gray-500 underline decoration-gray-300"
+                  >
+                    {hotel.contact_phone}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-3">
             {items.map(item => {
               const isCovered = selectedBundle && eligibleSet.has(item.id);
@@ -482,7 +519,7 @@ export default function Payment() {
             </button>
 
             {/* Chambre */}
-            {supportsRoomPayment && !isBundleOnlyPurchase && (
+            {supportsRoomPayment && !isBundleOnlyPurchase && !clientInfo?.isExternalGuest && (
               <button
                 type="button"
                 onClick={() => setSelectedMethod('room')}
