@@ -59,6 +59,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useFileUpload } from "@/hooks/useFileUpload";
+import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 
@@ -134,6 +135,7 @@ const formSchema = z
     title_en: z.string().optional(),
     description: z.string().optional(),
     cover_image_url: z.string().optional(),
+    category: z.string().min(1, "La catégorie est requise"),
     price_eur: z.coerce.number().min(0, "Le prix doit être positif"),
     total_sessions: z.coerce.number().int().min(1).optional(),
     amount_eur: z.coerce.number().min(1).optional(),
@@ -178,6 +180,7 @@ const defaultFormValues: FormValues = {
   title_en: "",
   description: "",
   cover_image_url: "",
+  category: "",
   price_eur: 0,
   total_sessions: undefined,
   amount_eur: undefined,
@@ -232,6 +235,8 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
     },
   });
 
+  const { categories } = useTreatmentCategories(hotelId);
+
   const { data: treatments } = useQuery<TreatmentForBundle[]>({
     queryKey: treatmentsQueryKey,
     queryFn: async () => {
@@ -271,10 +276,17 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
 
   const handleOpenEdit = async (template: GiftCardTemplate) => {
     setEditingTemplate(template);
-    const { data: items } = await supabase
-      .from("treatment_bundle_items")
-      .select("treatment_id")
-      .eq("bundle_id", template.id);
+    const [itemsResult, menuResult] = await Promise.all([
+      supabase
+        .from("treatment_bundle_items")
+        .select("treatment_id")
+        .eq("bundle_id", template.id),
+      supabase
+        .from("treatment_menus")
+        .select("category")
+        .eq("bundle_id", template.id)
+        .maybeSingle(),
+    ]);
 
     form.reset({
       bundle_type: template.bundle_type,
@@ -282,13 +294,14 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
       title_en: template.title_en || "",
       description: template.description || "",
       cover_image_url: template.cover_image_url || "",
+      category: menuResult.data?.category || "",
       price_eur: Number(template.price ?? 0),
       total_sessions: template.total_sessions ?? undefined,
       amount_eur: template.amount_cents != null ? template.amount_cents / 100 : undefined,
       validity_days: template.validity_days ?? 365,
       status: (template.status === "inactive" ? "inactive" : "active"),
       display_on_client_flow: template.display_on_client_flow,
-      eligible_treatment_ids: items?.map((i) => i.treatment_id) ?? [],
+      eligible_treatment_ids: itemsResult.data?.map((i) => i.treatment_id) ?? [],
     });
     setDialogOpen(true);
   };
@@ -364,6 +377,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
         status: values.status,
         is_bundle: true,
         bundle_id: bundleId,
+        category: values.category,
       };
 
       if (existingMenu.data) {
@@ -780,6 +794,42 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                     <FormControl>
                       <Textarea {...field} rows={3} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("giftCards.form.category", "Catégorie")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t(
+                              "giftCards.form.categoryPlaceholder",
+                              "Choisir une catégorie",
+                            )}
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(categories ?? []).map((cat) => (
+                          <SelectItem key={cat.id} value={cat.name}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {t(
+                        "giftCards.form.categoryHint",
+                        "La carte cadeau sera regroupée dans cette catégorie côté client.",
+                      )}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
