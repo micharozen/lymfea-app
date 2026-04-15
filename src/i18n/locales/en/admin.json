@@ -540,7 +540,7 @@
     "pricing": "Pricing",
     "external": "External",
     "internal": "Internal (hotel guest)",
-    "lymfea": "Lymfea (treatment client)",
+    "lymfea": "Eïa (treatment client)",
     "includedWithTreatment": "Included with treatment",
     "accessDuration": "Complimentary access duration",
     "free": "Free",
@@ -655,5 +655,91 @@
     "screenshotsDesc": "Add up to 3 screenshots (optional)",
     "viewScreenshots": "View screenshots",
     "viewNotion": "View in Notion"
+  },
+  "giftCards": {
+    "title": "Gift cards",
+    "description": "Create gift cards redeemable for treatments or a monetary amount at this venue.",
+    "create": "Create a gift card",
+    "print": "Print",
+    "selfPurchase": "For themselves",
+    "sessionsValue": "{{count}} sessions",
+    "tabs": {
+      "templates": "Templates",
+      "sales": "Sales"
+    },
+    "type": {
+      "amount": "Amount",
+      "treatments": "Treatments"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "completed": "Completed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "displayed": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "columns": {
+      "title": "Title",
+      "type": "Type",
+      "value": "Value",
+      "price": "Sale price",
+      "displayed": "Shown",
+      "status": "Status",
+      "template": "Card",
+      "buyer": "Buyer",
+      "recipient": "Recipient",
+      "code": "Code",
+      "balance": "Balance",
+      "expiresAt": "Expires on"
+    },
+    "empty": {
+      "templates": "No gift card configured",
+      "templatesHint": "Click Create a gift card to get started.",
+      "sales": "No gift card sold yet"
+    },
+    "dialog": {
+      "createTitle": "New gift card",
+      "editTitle": "Edit gift card",
+      "description": "Pick a type and fill the details. The card will appear in the client flow based on your options."
+    },
+    "form": {
+      "type": "Type",
+      "typeLocked": "Type cannot be changed after creation.",
+      "title": "Title",
+      "titleEn": "Title (EN)",
+      "description": "Description",
+      "cover": "Card image",
+      "coverHint": "Visual shown to the client and embedded in the email to the recipient.",
+      "upload": "Upload",
+      "amount": "Card value (€)",
+      "amountHint": "Amount credited at purchase. The client can spend it partially.",
+      "sessions": "Number of sessions",
+      "price": "Sale price (€)",
+      "priceAmountHint": "Equal to the face value by default. Adjustable to offer a discount.",
+      "priceTreatmentsHint": "Amount charged to the buyer.",
+      "validity": "Validity (days)",
+      "eligibleTreatments": "Eligible treatments",
+      "noTreatments": "No active treatment available at this venue.",
+      "displayOnClientFlow": "Show in client flow",
+      "displayHint": "Makes the card visible in the public booking flow.",
+      "status": "Status",
+      "save": "Save",
+      "create": "Create"
+    },
+    "delete": {
+      "title": "Delete this gift card?",
+      "description": "This action is permanent. Past sales are not affected."
+    },
+    "toast": {
+      "created": "Gift card created",
+      "updated": "Gift card updated",
+      "deleted": "Gift card deleted",
+      "saveError": "Failed to save",
+      "deleteError": "Failed to delete"
+    }
   }
 }
