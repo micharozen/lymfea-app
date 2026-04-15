@@ -14,6 +14,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
+import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -41,6 +42,12 @@ export default function Payment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
+
+  // Fetch the bundle template so gift cards can show tailored copy on the payment screen
+  const bundleTemplateId = isBundleOnlyPurchase ? items.find((i) => i.bundleId)?.bundleId ?? null : null;
+  const { data: bundleTemplate } = useBundleTemplate(bundleTemplateId);
+  const bundleType = bundleTemplate?.bundle_type ?? 'cure';
+  const isGiftPurchase = bundleType === 'gift_amount' || bundleType === 'gift_treatments';
 
   const { data: hotel } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -335,7 +342,9 @@ export default function Payment() {
           </h3>
           <p className="text-sm text-gray-500">
             {isBundleOnlyPurchase
-              ? t('payment.bundleSubtitle', 'Votre cure sera activée immédiatement après le paiement')
+              ? isGiftPurchase
+                ? t('payment.giftSubtitle', 'La carte cadeau sera activée immédiatement après le paiement')
+                : t('payment.bundleSubtitle', 'Votre cure sera activée immédiatement après le paiement')
               : 'Dernière étape avant votre moment de détente'}
           </p>
         </div>
@@ -474,7 +483,12 @@ export default function Payment() {
               {isBundleOnlyPurchase ? (
                 <>
                   {t('payment.bundleSecure', 'Paiement sécurisé par Stripe.')}
-                  <strong className="text-gray-900 font-medium"> {t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}</strong>
+                  <strong className="text-gray-900 font-medium">
+                    {' '}
+                    {isGiftPurchase
+                      ? t('payment.giftActivation', 'La carte cadeau sera activée immédiatement.')
+                      : t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}
+                  </strong>
                 </>
               ) : (
                 <>
@@ -577,7 +591,10 @@ export default function Payment() {
           ) : isBundleOnlyPurchase ? (
             <>
               <Package className="mr-2 h-5 w-5" />
-              {t('payment.purchaseBundle', 'Acheter la cure')} — {formatPrice(total, items[0]?.currency || 'EUR')}
+              {isGiftPurchase
+                ? t('payment.purchaseGiftCard', 'Offrir cette carte cadeau')
+                : t('payment.purchaseBundle', 'Acheter la cure')}{' '}
+              — {formatPrice(total, items[0]?.currency || 'EUR')}
             </>
           ) : selectedBundle && uncoveredTotal === 0 ? (
             <>

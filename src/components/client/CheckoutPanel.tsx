@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { format, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 
@@ -68,20 +69,7 @@ export function CheckoutPanel({
 
   // Fetch bundle template details for bundle-only purchases (cures + gift cards)
   const bundleTemplateId = isBundleOnlyPurchase ? items.find(i => i.bundleId)?.bundleId : null;
-  const { data: bundleTemplate } = useQuery({
-    queryKey: ['bundle-template', bundleTemplateId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('treatment_bundles')
-        .select('total_sessions, name, title, bundle_type, amount_cents, currency')
-        .eq('id', bundleTemplateId!)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!bundleTemplateId,
-    staleTime: 10 * 60 * 1000,
-  });
+  const { data: bundleTemplate } = useBundleTemplate(bundleTemplateId);
 
   // Track page view once
   useEffect(() => {
