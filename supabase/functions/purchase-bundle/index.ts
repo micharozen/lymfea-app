@@ -89,29 +89,67 @@ serve(async (req) => {
       throw new Error("Failed to create customer record");
     }
 
+    // --- Fetch bundle templates to determine types ---
+    const bundleIds = bundleItems.map((b: { bundleId: string }) => b.bundleId);
+    const { data: bundleTemplates, error: templatesError } = await supabaseAdmin
+      .from('treatment_bundles')
+      .select('id, bundle_type')
+      .in('id', bundleIds);
+
+    if (templatesError || !bundleTemplates) {
+      throw new Error("Failed to fetch bundle templates");
+    }
+
+    const templateTypeMap = new Map(bundleTemplates.map(t => [t.id, t.bundle_type]));
+
     // --- Create customer bundles ---
     const createdBundles: { id: string; bundleId: string }[] = [];
+    const paymentRef = `stripe:${sessionId}`;
 
     for (const item of bundleItems) {
       const qty = item.quantity || 1;
-      for (let i = 0; i < qty; i++) {
-        const { data: customerBundleId, error: createError } = await supabaseAdmin.rpc('create_customer_bundle', {
-          _customer_id: customerId,
-          _bundle_id: item.bundleId,
-          _hotel_id: hotelId,
-          _booking_id: null,
-        });
+      const bundleType = templateTypeMap.get(item.bundleId) ?? 'cure';
 
-        if (createError) {
-          console.error('[PURCHASE-BUNDLE] Failed to create customer bundle:', createError.message);
-          throw new Error(`Failed to create bundle: ${createError.message}`);
+      for (let i = 0; i < qty; i++) {
+        let customerBundleId: string;
+
+        if (bundleType === 'cure') {
+          const { data, error: createError } = await supabaseAdmin.rpc('create_customer_bundle', {
+            _customer_id: customerId,
+            _bundle_id: item.bundleId,
+            _hotel_id: hotelId,
+            _booking_id: null,
+          });
+
+          if (createError) {
+            console.error('[PURCHASE-BUNDLE] Failed to create customer bundle:', createError.message);
+            throw new Error(`Failed to create bundle: ${createError.message}`);
+          }
+          customerBundleId = data;
+        } else {
+          // gift_treatments or gift_amount → use create_customer_gift_card
+          const { data, error: createError } = await supabaseAdmin.rpc('create_customer_gift_card', {
+            _bundle_id: item.bundleId,
+            _purchaser_customer_id: customerId,
+            _hotel_id: hotelId,
+            _is_gift: false,
+            _payment_reference: paymentRef,
+          });
+
+          if (createError) {
+            console.error('[PURCHASE-BUNDLE] Failed to create gift card:', createError.message);
+            throw new Error(`Failed to create gift card: ${createError.message}`);
+          }
+          customerBundleId = data[0].customer_bundle_id;
         }
 
-        // Tag with stripe session for idempotency
-        await supabaseAdmin
-          .from('customer_treatment_bundles')
-          .update({ payment_reference: `stripe:${sessionId}` })
-          .eq('id', customerBundleId);
+        // Tag with stripe session for idempotency (gift cards already have it via _payment_reference)
+        if (bundleType === 'cure') {
+          await supabaseAdmin
+            .from('customer_treatment_bundles')
+            .update({ payment_reference: paymentRef })
+            .eq('id', customerBundleId);
+        }
 
         createdBundles.push({ id: customerBundleId, bundleId: item.bundleId });
       }
