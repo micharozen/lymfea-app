@@ -166,6 +166,11 @@
     "bundleStep1": "Vous bénéficiez de {{count}} séances incluses dans votre cure",
     "bundleStep2": "Votre cure est activée immédiatement après le paiement",
     "bundleStep3": "Réservez vos séances en ligne sans repayer",
+    "giftAmountStep1": "Vous créditez {{amount}} € au bénéficiaire",
+    "giftTreatmentsStep1": "Vous offrez {{count}} séances au bénéficiaire",
+    "giftStep2": "La carte cadeau est activée immédiatement après le paiement",
+    "giftAmountStep3": "Le bénéficiaire peut utiliser le crédit en plusieurs fois, sur les soins de son choix",
+    "giftTreatmentsStep3": "Le bénéficiaire réserve ses séances en ligne avec son code, sans repayer",
     "confirmBundleSession": "Confirmer (séance cure)"
   },
   "confirmation": {
@@ -314,5 +319,15 @@
     "selectDuration": "Choisir une durée",
     "fromPrice": "À partir de",
     "minutes": "minutes"
+  },
+  "schedule": {
+    "addons": {
+      "title": "Ajouter un soin complémentaire ?",
+      "subtitle": "Ces soins peuvent s'enchaîner directement après votre sélection.",
+      "checking": "Vérification des disponibilités…",
+      "none": "Aucun add-on disponible pour ce créneau.",
+      "skip": "Passer",
+      "confirm": "Ajouter"
+    }
   }
 }

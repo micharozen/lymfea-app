@@ -66,14 +66,14 @@ export function CheckoutPanel({
   const isCompanyOffered = !!hotel?.company_offered;
   const supportsRoomPayment = venueTerms.supportsRoomPayment;
 
-  // Fetch bundle template details (total_sessions) for bundle-only purchases
+  // Fetch bundle template details for bundle-only purchases (cures + gift cards)
   const bundleTemplateId = isBundleOnlyPurchase ? items.find(i => i.bundleId)?.bundleId : null;
   const { data: bundleTemplate } = useQuery({
     queryKey: ['bundle-template', bundleTemplateId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('treatment_bundles')
-        .select('total_sessions, name')
+        .select('total_sessions, name, title, bundle_type, amount_cents, currency')
         .eq('id', bundleTemplateId!)
         .single();
       if (error) throw error;
@@ -421,27 +421,60 @@ export function CheckoutPanel({
         </div>
       )}
 
-      {/* Bundle purchase explanation */}
-      {isBundleOnlyPurchase && (
-        <div className="p-3 bg-amber-50/80 border border-amber-200/60 rounded-lg space-y-2">
-          <div className="flex items-start gap-3">
-            <Package className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
-            <div className="space-y-1">
-              <h4 className="font-medium text-amber-900 text-sm">
-                {t('payment.bundleHowItWorks', 'Comment ça fonctionne ?')}
-              </h4>
-              <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
-                <li>{t('payment.bundleStep1', {
-                  count: bundleTemplate?.total_sessions ?? '–',
-                  defaultValue: 'Vous bénéficiez de {{count}} séances incluses dans votre cure',
-                })}</li>
-                <li>{t('payment.bundleStep2', 'Votre cure est activée immédiatement après le paiement')}</li>
-                <li>{t('payment.bundleStep3', 'Réservez vos séances en ligne sans repayer')}</li>
-              </ul>
+      {/* Bundle / gift card purchase explanation */}
+      {isBundleOnlyPurchase && (() => {
+        const bundleType = bundleTemplate?.bundle_type ?? 'cure';
+        const amountEuros = bundleTemplate?.amount_cents != null
+          ? Math.round(bundleTemplate.amount_cents / 100)
+          : null;
+        const sessionCount = bundleTemplate?.total_sessions ?? 0;
+
+        let step1: string;
+        if (bundleType === 'gift_amount') {
+          step1 = t('payment.giftAmountStep1', {
+            amount: amountEuros ?? '–',
+            defaultValue: 'Vous créditez {{amount}} € au bénéficiaire',
+          });
+        } else if (bundleType === 'gift_treatments') {
+          step1 = t('payment.giftTreatmentsStep1', {
+            count: sessionCount,
+            defaultValue: 'Vous offrez {{count}} séances au bénéficiaire',
+          });
+        } else {
+          step1 = t('payment.bundleStep1', {
+            count: sessionCount,
+            defaultValue: 'Vous bénéficiez de {{count}} séances incluses dans votre cure',
+          });
+        }
+
+        const isGift = bundleType === 'gift_amount' || bundleType === 'gift_treatments';
+        const step2 = isGift
+          ? t('payment.giftStep2', 'La carte cadeau est activée immédiatement après le paiement')
+          : t('payment.bundleStep2', 'Votre cure est activée immédiatement après le paiement');
+        const step3 = bundleType === 'gift_amount'
+          ? t('payment.giftAmountStep3', 'Le bénéficiaire peut utiliser le crédit en plusieurs fois, sur les soins de son choix')
+          : bundleType === 'gift_treatments'
+            ? t('payment.giftTreatmentsStep3', 'Le bénéficiaire réserve ses séances en ligne avec son code, sans repayer')
+            : t('payment.bundleStep3', 'Réservez vos séances en ligne sans repayer');
+
+        return (
+          <div className="p-3 bg-amber-50/80 border border-amber-200/60 rounded-lg space-y-2">
+            <div className="flex items-start gap-3">
+              <Package className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <h4 className="font-medium text-amber-900 text-sm">
+                  {t('payment.bundleHowItWorks', 'Comment ça fonctionne ?')}
+                </h4>
+                <ul className="text-xs text-amber-700 space-y-1 list-disc list-inside">
+                  <li>{step1}</li>
+                  <li>{step2}</li>
+                  <li>{step3}</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Order Summary */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">

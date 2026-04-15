@@ -166,6 +166,11 @@
     "bundleStep1": "You get {{count}} sessions included in your package",
     "bundleStep2": "Your package is activated immediately after payment",
     "bundleStep3": "Book your sessions online without paying again",
+    "giftAmountStep1": "You credit {{amount}} € to the recipient",
+    "giftTreatmentsStep1": "You offer {{count}} sessions to the recipient",
+    "giftStep2": "The gift card is activated immediately after payment",
+    "giftAmountStep3": "The recipient can spend the credit in several visits, on the treatments of their choice",
+    "giftTreatmentsStep3": "The recipient books their sessions online with their code, without paying again",
     "confirmBundleSession": "Confirm (package session)"
   },
   "confirmation": {
@@ -313,5 +318,15 @@
     "selectDuration": "Choose a duration",
     "fromPrice": "From",
     "minutes": "minutes"
+  },
+  "schedule": {
+    "addons": {
+      "title": "Add a complementary treatment?",
+      "subtitle": "These treatments can be added right after your selection.",
+      "checking": "Checking availability…",
+      "none": "No add-on available for this slot.",
+      "skip": "Skip",
+      "confirm": "Add"
+    }
   }
 }
