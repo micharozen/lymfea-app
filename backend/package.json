@@ -5,7 +5,11 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate": "bun run scripts/migrate-functions.ts",
+    "migrate:dry": "bun run scripts/migrate-functions.ts --dry-run",
+    "migrate:one": "bun run scripts/migrate-functions.ts --count 1",
+    "migrate:status": "bun -e \"const s=JSON.parse(require('fs').readFileSync('migration-state.json','utf-8'));const m=s.functions.filter(f=>f.status==='migrated').length;const p=s.functions.filter(f=>f.status==='pending').length;const f=s.functions.filter(f=>f.status==='failed').length;console.log('Migrated:',m,'| Pending:',p,'| Failed:',f,'| Total:',s.functions.length)\""
   },
   "dependencies": {
     "hono": "^4.7.0",

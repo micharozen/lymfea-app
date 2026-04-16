@@ -1,0 +1,140 @@
+name: Nightly Edge Function Migration
+
+on:
+  # Every night at 2:00 AM UTC (3:00 AM Paris time)
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Manual trigger with configurable count
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Number of functions to migrate"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Dry run (no changes)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: bun install --frozen-lockfile
+
+      - name: Check migration state
+        id: check
+        working-directory: backend
+        run: |
+          PENDING=$(cat migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const pending = state.functions.filter(f => f.status === 'pending').length;
+            console.log(pending);
+          ")
+          echo "pending=$PENDING" >> "$GITHUB_OUTPUT"
+          echo "📊 $PENDING functions pending migration"
+
+      - name: Skip if nothing to migrate
+        if: steps.check.outputs.pending == '0'
+        run: echo "✅ All functions migrated — nothing to do"
+
+      - name: Run migration script
+        if: steps.check.outputs.pending != '0'
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          COUNT="${{ github.event.inputs.count || '3' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+
+          ARGS="--count $COUNT"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          bun run scripts/migrate-functions.ts $ARGS
+
+      - name: Create migration branch and PR
+        if: steps.check.outputs.pending != '0' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          BRANCH="auto/migrate-edge-functions-$DATE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are actual changes
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes generated — skipping PR"
+            exit 0
+          fi
+
+          git checkout -b "$BRANCH"
+          git add backend/ src/lib/supabaseEdgeFunctions.ts
+          git commit -m "chore: nightly migration of edge functions to Hono backend ($DATE)
+
+          Automated migration run. Functions are ported but NOT activated.
+          Review the generated code, test it, then uncomment in migratedFunctions map."
+
+          git push -u origin "$BRANCH"
+
+          # Build PR body with migrated function list
+          MIGRATED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const today = new Date().toISOString().split('T')[0];
+            const migrated = state.functions
+              .filter(f => f.migratedAt?.startsWith(today))
+              .map(f => '- \`' + f.name + '\` → \`' + f.target + '\`')
+              .join('\n');
+            console.log(migrated || 'No functions migrated in this run');
+          ")
+
+          REMAINING=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            console.log(state.functions.filter(f => f.status === 'pending').length);
+          ")
+
+          gh pr create \
+            --title "🔄 Nightly migration: Edge Functions → Hono ($DATE)" \
+            --body "$(cat <<EOF
+          ## Auto-generated migration
+
+          Functions ported in this run:
+          $MIGRATED
+
+          **$REMAINING functions remaining.**
+
+          ## What to do
+          1. Review the generated code in \`backend/src/\`
+          2. Test locally with \`cd backend && bun dev\`
+          3. When satisfied, uncomment the corresponding lines in \`src/lib/supabaseEdgeFunctions.ts\` → \`migratedFunctions\` map
+          4. Merge this PR
+
+          > ⚠️ Functions are **ported but NOT activated** until you uncomment them.
+          EOF
+          )" \
+            --base main \
+            --label "migration,automated"
