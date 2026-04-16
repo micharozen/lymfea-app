@@ -162,5 +162,11 @@ verify_jwt = false
 [functions.create-portal-account]
 verify_jwt = false
 
+[functions.check-expired-payment-links]
+verify_jwt = false
+
+[functions.send-payment-reminder]
+verify_jwt = false
+
 [functions.send-payment-link]
 verify_jwt = false
