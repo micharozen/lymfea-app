@@ -1,0 +1,733 @@
+{
+  "$schema": "./migration-state.schema.json",
+  "_comment": "Migration tracker: Supabase Edge Functions → Hono Backend. Updated automatically by the nightly migration script.",
+  "config": {
+    "functionsPerRun": 3,
+    "sourceDir": "../supabase/functions",
+    "targetDir": "./src/routes",
+    "sharedDir": "./src/lib"
+  },
+  "sharedModules": {
+    "_comment": "Shared modules that must be ported before functions that depend on them",
+    "supabase-admin": { "status": "migrated", "target": "src/lib/supabase.ts" },
+    "stripe-client": { "status": "migrated", "target": "src/lib/stripe.ts" },
+    "send-email": { "status": "migrated", "target": "src/lib/email.ts" },
+    "brand": { "status": "pending", "target": "src/lib/brand.ts", "note": "Import brand.json directly" },
+    "email-template": { "status": "pending", "target": "src/lib/email-template.ts" },
+    "therapistEarnings": { "status": "pending", "target": "src/lib/therapist-earnings.ts" },
+    "whatsapp-meta": { "status": "pending", "target": "src/lib/whatsapp.ts" },
+    "pms-client": { "status": "pending", "target": "src/lib/pms/client.ts" },
+    "opera-cloud": { "status": "pending", "target": "src/lib/pms/opera-cloud.ts" },
+    "mews": { "status": "pending", "target": "src/lib/pms/mews.ts" },
+    "blocked-slots": { "status": "pending", "target": "src/lib/blocked-slots.ts" },
+    "payment-link-templates": { "status": "pending", "target": "src/lib/payment-link-templates.ts" }
+  },
+  "functions": [
+    {
+      "name": "check-availability",
+      "status": "migrated",
+      "route": "/availability/check",
+      "target": "src/routes/availability.ts",
+      "priority": 1,
+      "group": "booking",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "stripe-webhook",
+      "status": "pending",
+      "route": "/webhooks/stripe",
+      "target": "src/routes/webhooks.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": false,
+      "deps": ["therapistEarnings", "whatsapp-meta", "brand"]
+    },
+    {
+      "name": "stripe-connect-webhook",
+      "status": "pending",
+      "route": "/webhooks/stripe-connect",
+      "target": "src/routes/webhooks.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "finalize-payment",
+      "status": "pending",
+      "route": "/payments/finalize",
+      "target": "src/routes/payments.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": true,
+      "deps": ["therapistEarnings", "brand"]
+    },
+    {
+      "name": "create-checkout-session",
+      "status": "pending",
+      "route": "/payments/checkout",
+      "target": "src/routes/payments.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "charge-saved-card",
+      "status": "pending",
+      "route": "/payments/charge-card",
+      "target": "src/routes/payments.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "send-payment-link",
+      "status": "pending",
+      "route": "/payments/send-link",
+      "target": "src/routes/payments.ts",
+      "priority": 1,
+      "group": "payments",
+      "auth": true,
+      "deps": ["payment-link-templates", "brand"]
+    },
+    {
+      "name": "send-payment-reminder",
+      "status": "pending",
+      "route": "/payments/send-reminder",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": ["payment-link-templates", "brand"]
+    },
+    {
+      "name": "create-bundle-payment",
+      "status": "pending",
+      "route": "/payments/bundle",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "purchase-bundle",
+      "status": "pending",
+      "route": "/payments/purchase-bundle",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "confirm-setup-intent",
+      "status": "pending",
+      "route": "/payments/confirm-setup",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "create-setup-intent",
+      "status": "pending",
+      "route": "/payments/setup-intent",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "handle-checkout-success",
+      "status": "pending",
+      "route": "/payments/checkout-success",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "mark-tap-to-pay-paid",
+      "status": "pending",
+      "route": "/payments/tap-to-pay",
+      "target": "src/routes/payments.ts",
+      "priority": 2,
+      "group": "payments",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "validate-booking-slot",
+      "status": "pending",
+      "route": "/availability/validate",
+      "target": "src/routes/availability.ts",
+      "priority": 2,
+      "group": "booking",
+      "auth": false,
+      "deps": ["blocked-slots"]
+    },
+    {
+      "name": "create-client-booking",
+      "status": "pending",
+      "route": "/bookings/create",
+      "target": "src/routes/bookings.ts",
+      "priority": 2,
+      "group": "booking",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "handle-booking-cancellation",
+      "status": "pending",
+      "route": "/bookings/cancel",
+      "target": "src/routes/bookings.ts",
+      "priority": 2,
+      "group": "booking",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "propose-alternative",
+      "status": "pending",
+      "route": "/bookings/propose-alternative",
+      "target": "src/routes/bookings.ts",
+      "priority": 2,
+      "group": "booking",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "handle-quote-response",
+      "status": "pending",
+      "route": "/bookings/quote-response",
+      "target": "src/routes/bookings.ts",
+      "priority": 3,
+      "group": "booking",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "send-booking-confirmation",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"],
+      "note": "Internal service, no HTTP endpoint — called directly by other routes"
+    },
+    {
+      "name": "notify-admin-new-booking",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"],
+      "note": "Internal service"
+    },
+    {
+      "name": "notify-booking-confirmed",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "notify-admin-quote-pending",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "notify-concierge-booking",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "notify-concierge-completion",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "notify-concierge-room-payment",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "trigger-new-booking-notifications",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": [],
+      "note": "Orchestrator — calls other notification services"
+    },
+    {
+      "name": "trigger-booking-cancelled-notification",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "send-push-notification",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/push.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "send-quote-email",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "send-rating-email",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "send-treatment-request-email",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/notifications.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["email-template", "brand"]
+    },
+    {
+      "name": "send-booking-whatsapp",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/whatsapp.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["whatsapp-meta"]
+    },
+    {
+      "name": "send-slack-notification",
+      "status": "pending",
+      "route": null,
+      "target": "src/services/slack.ts",
+      "priority": 3,
+      "group": "notifications",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "contact-admin",
+      "status": "pending",
+      "route": "/admin/contact",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": false,
+      "deps": ["email-template"]
+    },
+    {
+      "name": "invite-admin",
+      "status": "pending",
+      "route": "/admin/invite",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "invite-concierge",
+      "status": "pending",
+      "route": "/admin/invite-concierge",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "invite-therapist",
+      "status": "pending",
+      "route": "/admin/invite-therapist",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "resend-invite",
+      "status": "pending",
+      "route": "/admin/resend-invite",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "delete-admin",
+      "status": "pending",
+      "route": "/admin/delete",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "check-admin-exists",
+      "status": "pending",
+      "route": "/admin/check-exists",
+      "target": "src/routes/admin.ts",
+      "priority": 4,
+      "group": "admin",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "ensure-user-role",
+      "status": "pending",
+      "route": "/auth/ensure-role",
+      "target": "src/routes/auth.ts",
+      "priority": 4,
+      "group": "auth",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "send-otp",
+      "status": "pending",
+      "route": "/auth/send-otp",
+      "target": "src/routes/auth.ts",
+      "priority": 4,
+      "group": "auth",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "verify-otp",
+      "status": "pending",
+      "route": "/auth/verify-otp",
+      "target": "src/routes/auth.ts",
+      "priority": 4,
+      "group": "auth",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "create-connect-account",
+      "status": "pending",
+      "route": "/stripe-connect/create",
+      "target": "src/routes/stripe-connect.ts",
+      "priority": 4,
+      "group": "stripe-connect",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "create-stripe-connect-account",
+      "status": "pending",
+      "route": "/stripe-connect/create-account",
+      "target": "src/routes/stripe-connect.ts",
+      "priority": 4,
+      "group": "stripe-connect",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "generate-onboarding-link",
+      "status": "pending",
+      "route": "/stripe-connect/onboarding-link",
+      "target": "src/routes/stripe-connect.ts",
+      "priority": 4,
+      "group": "stripe-connect",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "generate-stripe-login-link",
+      "status": "pending",
+      "route": "/stripe-connect/login-link",
+      "target": "src/routes/stripe-connect.ts",
+      "priority": 4,
+      "group": "stripe-connect",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "get-therapist-earnings",
+      "status": "pending",
+      "route": "/therapists/earnings",
+      "target": "src/routes/therapists.ts",
+      "priority": 4,
+      "group": "therapists",
+      "auth": true,
+      "deps": ["therapistEarnings"]
+    },
+    {
+      "name": "generate-invoice",
+      "status": "pending",
+      "route": "/invoices/generate",
+      "target": "src/routes/invoices.ts",
+      "priority": 5,
+      "group": "invoicing",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "generate-monthly-invoices",
+      "status": "pending",
+      "route": "/invoices/monthly",
+      "target": "src/routes/invoices.ts",
+      "priority": 5,
+      "group": "invoicing",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "generate-therapist-invoices",
+      "status": "pending",
+      "route": "/invoices/therapist",
+      "target": "src/routes/invoices.ts",
+      "priority": 5,
+      "group": "invoicing",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "generate-venue-invoices",
+      "status": "pending",
+      "route": "/invoices/venue",
+      "target": "src/routes/invoices.ts",
+      "priority": 5,
+      "group": "invoicing",
+      "auth": true,
+      "deps": ["brand"]
+    },
+    {
+      "name": "check-expired-slots",
+      "status": "migrated",
+      "route": null,
+      "target": "src/jobs/expired-slots.ts",
+      "priority": 5,
+      "group": "cron",
+      "auth": false,
+      "deps": [],
+      "note": "Cron job, not an HTTP route"
+    },
+    {
+      "name": "check-expired-payment-links",
+      "status": "pending",
+      "route": null,
+      "target": "src/jobs/expired-payment-links.ts",
+      "priority": 5,
+      "group": "cron",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "opera-cloud-guest-lookup",
+      "status": "pending",
+      "route": "/pms/opera-cloud/guest-lookup",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["opera-cloud", "pms-client"]
+    },
+    {
+      "name": "opera-cloud-post-charge",
+      "status": "pending",
+      "route": "/pms/opera-cloud/post-charge",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["opera-cloud", "pms-client"]
+    },
+    {
+      "name": "opera-cloud-test-connection",
+      "status": "pending",
+      "route": "/pms/opera-cloud/test",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["opera-cloud", "pms-client"]
+    },
+    {
+      "name": "pms-fetch-services",
+      "status": "pending",
+      "route": "/pms/services",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["pms-client"]
+    },
+    {
+      "name": "pms-guest-lookup",
+      "status": "pending",
+      "route": "/pms/guest-lookup",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["pms-client"]
+    },
+    {
+      "name": "pms-post-charge",
+      "status": "pending",
+      "route": "/pms/post-charge",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["pms-client"]
+    },
+    {
+      "name": "pms-test-connection",
+      "status": "pending",
+      "route": "/pms/test",
+      "target": "src/routes/pms.ts",
+      "priority": 6,
+      "group": "pms",
+      "auth": true,
+      "deps": ["pms-client"]
+    },
+    {
+      "name": "create-portal-account",
+      "status": "pending",
+      "route": "/portal/create-account",
+      "target": "src/routes/portal.ts",
+      "priority": 6,
+      "group": "portal",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "create-support-ticket",
+      "status": "pending",
+      "route": "/support/create-ticket",
+      "target": "src/routes/support.ts",
+      "priority": 6,
+      "group": "support",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "notion-ticket-webhook",
+      "status": "pending",
+      "route": "/webhooks/notion",
+      "target": "src/routes/webhooks.ts",
+      "priority": 6,
+      "group": "support",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "whatsapp-meta-webhook",
+      "status": "pending",
+      "route": "/webhooks/whatsapp",
+      "target": "src/routes/webhooks.ts",
+      "priority": 6,
+      "group": "notifications",
+      "auth": false,
+      "deps": ["whatsapp-meta"]
+    },
+    {
+      "name": "generate-vapid-keys",
+      "status": "pending",
+      "route": "/push/generate-vapid",
+      "target": "src/routes/push.ts",
+      "priority": 6,
+      "group": "push",
+      "auth": true,
+      "deps": []
+    },
+    {
+      "name": "get-vapid-public-key",
+      "status": "pending",
+      "route": "/push/vapid-key",
+      "target": "src/routes/push.ts",
+      "priority": 6,
+      "group": "push",
+      "auth": false,
+      "deps": []
+    },
+    {
+      "name": "test-onesignal",
+      "status": "skip",
+      "route": null,
+      "target": null,
+      "priority": 99,
+      "group": "test",
+      "auth": false,
+      "deps": [],
+      "note": "Test function, not needed in production"
+    },
+    {
+      "name": "test-push-notifications",
+      "status": "skip",
+      "route": null,
+      "target": null,
+      "priority": 99,
+      "group": "test",
+      "auth": false,
+      "deps": [],
+      "note": "Test function, not needed in production"
+    }
+  ]
+}

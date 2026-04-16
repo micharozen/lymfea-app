@@ -1,0 +1,157 @@
+name: Nightly Edge Function Migration
+
+on:
+  # Every night at 2:00 AM UTC (3:00 AM Paris time)
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Manual trigger with configurable count
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "Number of functions to migrate"
+        required: false
+        default: "3"
+      dry_run:
+        description: "Dry run (no changes)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: bun install --frozen-lockfile
+
+      - name: Run migration script
+        working-directory: backend
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          COUNT="${{ github.event.inputs.count || '3' }}"
+          DRY_RUN="${{ github.event.inputs.dry_run || 'false' }}"
+
+          ARGS="--count $COUNT"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          # The script now handles both:
+          # 1. Migrating new pending functions
+          # 2. Detecting drift on already-migrated functions and re-migrating them
+          bun run scripts/migrate-functions.ts $ARGS
+
+      - name: Create migration branch and PR
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          BRANCH="auto/migrate-edge-functions-$DATE"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are actual changes (new migrations or drift re-syncs)
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes generated — skipping PR"
+            exit 0
+          fi
+
+          git checkout -b "$BRANCH"
+          git add backend/ src/lib/supabaseEdgeFunctions.ts
+
+          # Determine if this is a drift re-sync or new migration
+          OUTDATED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            console.log(state.functions.filter(f => f.status === 'outdated').length);
+          ")
+
+          if [ "$OUTDATED" -gt 0 ]; then
+            COMMIT_MSG="chore: re-sync $OUTDATED outdated edge function(s) ($DATE)"
+          else
+            COMMIT_MSG="chore: nightly migration of edge functions to Hono backend ($DATE)"
+          fi
+
+          git commit -m "$COMMIT_MSG
+
+          Automated migration run. Functions are ported but NOT activated.
+          Review the generated code, test it, then uncomment in migratedFunctions map."
+
+          git push -u origin "$BRANCH"
+
+          # Build PR body
+          MIGRATED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const today = new Date().toISOString().split('T')[0];
+            const migrated = state.functions
+              .filter(f => f.migratedAt?.startsWith(today))
+              .map(f => '- \`' + f.name + '\` → \`' + f.target + '\`')
+              .join('\n');
+            console.log(migrated || 'No functions migrated in this run');
+          ")
+
+          REMAINING=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const pending = state.functions.filter(f => f.status === 'pending').length;
+            const outdated = state.functions.filter(f => f.status === 'outdated').length;
+            console.log(pending + ' pending, ' + outdated + ' outdated');
+          ")
+
+          # Check if this run includes re-synced (outdated) functions
+          RESYNCED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const today = new Date().toISOString().split('T')[0];
+            const resynced = state.functions
+              .filter(f => f.migratedAt?.startsWith(today) && f.sourceHash)
+              .length;
+            console.log(resynced);
+          ")
+
+          if [ "$RESYNCED" -gt 0 ]; then
+            TITLE="🔄 Nightly sync: Edge Functions drift detected ($DATE)"
+          else
+            TITLE="🔄 Nightly migration: Edge Functions → Hono ($DATE)"
+          fi
+
+          gh pr create \
+            --title "$TITLE" \
+            --body "$(cat <<EOF
+          ## Auto-generated migration
+
+          Functions ported/re-synced in this run:
+          $MIGRATED
+
+          **Remaining: $REMAINING.**
+
+          ## What to do
+          1. Review the generated code in \`backend/src/\`
+          2. Test locally with \`cd backend && bun dev\`
+          3. When satisfied, uncomment the corresponding lines in \`src/lib/supabaseEdgeFunctions.ts\` → \`migratedFunctions\` map
+          4. Merge this PR
+
+          > ⚠️ Functions are **ported but NOT activated** until you uncomment them.
+          EOF
+          )" \
+            --base main \
+            --label "migration,automated"
