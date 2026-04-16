@@ -319,6 +319,8 @@
       "overview": "Aperçu",
       "clientPreview": "Aperçu client"
     },
+    "interVenueBuffer": "Temps de trajet inter-lieux",
+    "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "backToList": "Retour aux lieux",
     "edit": "Modifier",
     "cancelEdit": "Annuler",

@@ -997,6 +997,7 @@ export type Database = {
           hotel_commission: number | null
           id: string
           image: string | null
+          inter_venue_buffer_minutes: number | null
           landing_subtitle: string | null
           landing_subtitle_en: string | null
           name: string
@@ -1035,6 +1036,7 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
+          inter_venue_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name: string
@@ -1073,6 +1075,7 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
+          inter_venue_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name?: string

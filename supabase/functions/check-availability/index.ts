@@ -60,7 +60,7 @@ serve(async (req) => {
     // Get hotel opening/closing hours and slot interval
     const { data: hotelData, error: hotelError } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time, slot_interval')
+      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes')
       .eq('id', hotelId)
       .single();
 
@@ -279,6 +279,27 @@ serve(async (req) => {
     console.log(`[DEBUG] active bookings on ${date}: ${JSON.stringify(allHotelBookings)}`);
     _debug.activeBookings = allHotelBookings;
 
+    // Fetch cross-venue bookings for travel buffer enforcement
+    const travelBuffer = hotelData?.inter_venue_buffer_minutes ?? 0;
+    let crossVenueBookings: any[] = [];
+    if (travelBuffer > 0 && scheduledTherapistIds.length > 0) {
+      const { data: crossVenueData, error: crossVenueError } = await supabase
+        .from('bookings')
+        .select('booking_time, therapist_id, duration, hotel_id')
+        .eq('booking_date', date)
+        .in('therapist_id', scheduledTherapistIds)
+        .neq('hotel_id', hotelId)
+        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+      if (crossVenueError) {
+        console.error('Error fetching cross-venue bookings:', crossVenueError);
+      }
+      crossVenueBookings = crossVenueData || [];
+      console.log(`[DEBUG] cross-venue bookings (buffer=${travelBuffer}min): ${crossVenueBookings.length}`);
+      _debug.crossVenueBookings = crossVenueBookings;
+      _debug.travelBuffer = travelBuffer;
+    }
+
     // Helper function to convert time string to minutes
     const timeToMinutes = (time: string): number => {
       const [hours, minutes] = time.split(':').map(Number);
@@ -401,6 +422,18 @@ serve(async (req) => {
       // Count therapists who are: scheduled for this time slot AND not busy with a booking
       const availableTherapistCount = scheduledTherapistIds.filter((id: string) => {
         if (busyTherapists.has(id)) return false;
+
+        // Check cross-venue travel buffer: therapist blocked if they have a booking
+        // at another venue within the travel buffer window
+        if (travelBuffer > 0) {
+          const isCrossVenueBlocked = crossVenueBookings.some((b: any) => {
+            if (b.therapist_id !== id) return false;
+            const bStart = timeToMinutes(b.booking_time);
+            const bEnd = bStart + (b.duration || 30);
+            return slotMinutes >= (bStart - travelBuffer) && slotMinutes < (bEnd + travelBuffer);
+          });
+          if (isCrossVenueBlocked) return false;
+        }
 
         // Check if slot falls within one of the therapist's shifts
         const schedule = scheduleMap.get(id);

@@ -319,6 +319,8 @@
       "overview": "Overview",
       "clientPreview": "Client Preview"
     },
+    "interVenueBuffer": "Inter-venue travel time",
+    "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "backToList": "Back to venues",
     "edit": "Edit",
     "cancelEdit": "Cancel",
