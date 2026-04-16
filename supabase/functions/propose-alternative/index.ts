@@ -112,7 +112,7 @@ serve(async (req) => {
       .from("booking_alternative_proposals")
       .insert({
         booking_id: bookingId,
-        therapist_id: therapistId,
+        hairdresser_id: therapistId,
         original_date: booking.booking_date,
         original_time: booking.booking_time,
         alternative_1_date: alternative1.date,

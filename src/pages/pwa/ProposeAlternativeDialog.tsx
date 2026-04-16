@@ -141,7 +141,7 @@ export const ProposeAlternativeDialog = ({
       const { data, error } = await invokeEdgeFunction<
         {
           bookingId: string;
-          hairdresserId: string;
+          therapistId: string;
           alternative1: { date: string; time: string };
           alternative2: { date: string; time: string };
         },
@@ -149,7 +149,7 @@ export const ProposeAlternativeDialog = ({
       >("propose-alternative", {
         body: {
           bookingId: booking.id,
-          hairdresserId: therapistId,
+          therapistId: therapistId,
           alternative1: {
             date: format(alt1Date, "yyyy-MM-dd"),
             time: alt1Time,
