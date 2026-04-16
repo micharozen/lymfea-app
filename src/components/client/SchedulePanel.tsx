@@ -36,7 +36,13 @@ export function SchedulePanel({
   className,
 }: SchedulePanelProps) {
   const { items } = useBasket();
-  const { setBookingDateTime, therapistGenderPreference, setTherapistGenderPreference } = useClientFlow();
+  const {
+    setBookingDateTime,
+    therapistGenderPreference,
+    setTherapistGenderPreference,
+    setDraftBookingId,
+    setHoldExpiresAt,
+  } = useClientFlow();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
@@ -46,6 +52,7 @@ export function SchedulePanel({
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -225,7 +232,45 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, selectedTime, t]);
+
+  /**
+   * Creates a draft booking (holds the slot for 5 minutes) then navigates forward.
+   * If the slot was taken in the last second, shows an error and resets.
+   */
+  const executeHoldAndContinue = async (date: string, time: string) => {
+    setIsHolding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-draft-booking', {
+        body: {
+          hotelId,
+          bookingData: { date, time },
+          treatments: items.map(item => ({
+            id: item.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+          therapistGender: therapistGenderPreference || null,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.bookingId) throw new Error('No booking ID returned');
+
+      setDraftBookingId(data.bookingId);
+      setHoldExpiresAt(Date.now() + 5 * 60 * 1000);
+      setBookingDateTime({ date, time });
+      onContinue();
+    } catch (err: unknown) {
+      console.error('Hold error:', err);
+      // Reset selected time to force the user to pick another slot
+      setSelectedTime('');
+      setShowSlotTakenBanner(true);
+      toast.error(t('datetime.slotTakenBanner', 'Ce créneau vient d\'être pris. Veuillez en choisir un autre.'));
+    } finally {
+      setIsHolding(false);
+    }
+  };
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
@@ -234,8 +279,7 @@ export function SchedulePanel({
 
     // Auto-continue when embedded — time is the last selection step
     if (embedded && selectedDate && items.length > 0) {
-      setBookingDateTime({ date: selectedDate, time });
-      onContinue();
+      executeHoldAndContinue(selectedDate, time);
     }
   };
 
@@ -255,13 +299,10 @@ export function SchedulePanel({
       return;
     }
 
-    setBookingDateTime({
-      date: selectedDate,
-      time: selectedTime,
-    });
-
-    onContinue();
+    executeHoldAndContinue(selectedDate, selectedTime);
   };
+
+  const isBusy = loadingAvailability || isHolding;
 
   return (
     <div className={cn(
@@ -285,7 +326,7 @@ export function SchedulePanel({
 
       {/* Page headline */}
       {!embedded && (
-        <div>
+        <div className="animate-fade-in">
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
@@ -305,7 +346,7 @@ export function SchedulePanel({
       )}
 
       {/* Therapist Gender Preference */}
-      <div>
+      <div className={embedded ? "" : "animate-fade-in"} style={embedded ? undefined : { animationDelay: '0.1s' }}>
         <TherapistGenderSelector
           value={therapistGenderPreference}
           onChange={setTherapistGenderPreference}
@@ -313,7 +354,7 @@ export function SchedulePanel({
       </div>
 
       {/* Date Selection */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <div className="flex items-center justify-between">
           <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('checkout.dateTime').split('&')[0].trim()}
@@ -421,7 +462,7 @@ export function SchedulePanel({
       </div>
 
       {/* Time Selection */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.3s' }}>
         <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
           {t('checkout.dateTime').split('&')[1]?.trim() || 'Time'}
         </h4>
@@ -456,10 +497,15 @@ export function SchedulePanel({
         <div className="sticky bottom-0 z-10 p-4 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent">
           <Button
             onClick={handleContinue}
-            disabled={!selectedDate || !selectedTime || loadingAvailability}
+            disabled={!selectedDate || !selectedTime || isBusy}
             className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
           >
-            {loadingAvailability ? (
+            {isHolding ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('datetime.securing', 'Sécurisation du créneau…')}
+              </>
+            ) : loadingAvailability ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('common:loading')}
@@ -475,10 +521,15 @@ export function SchedulePanel({
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
             <Button
               onClick={handleContinue}
-              disabled={!selectedDate || !selectedTime || loadingAvailability}
+              disabled={!selectedDate || !selectedTime || isBusy}
               className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
-              {loadingAvailability ? (
+              {isHolding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('datetime.securing', 'Sécurisation du créneau…')}
+                </>
+              ) : loadingAvailability ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('common:loading')}

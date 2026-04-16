@@ -14,14 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      bookingData, 
-      clientData, 
-      treatmentIds, 
-      treatments: treatmentsPayload, 
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
       hotelId,
       language,
-      therapistGender
+      therapistGender,
+      draftBookingId,
     } = await req.json();
 
     // 1. Validation de base des champs requis
@@ -161,7 +162,8 @@ serve(async (req) => {
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
         language: language || 'fr',
-        therapistGender: therapistGender || ''
+        therapistGender: therapistGender || '',
+        draftBookingId: draftBookingId || '',
       }
     });
 

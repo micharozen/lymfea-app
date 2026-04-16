@@ -20,7 +20,6 @@ serve(async (req: Request) => {
 
     console.log("[CRON] Checking for expired payment links...");
 
-    // 1. Trouver les bookings expirés qui ne sont pas encore annulés
     const { data: expiredLinks, error: fetchError } = await supabase
       .from('booking_payment_infos')
       .select(`
@@ -36,7 +35,10 @@ serve(async (req: Request) => {
           payment_link_language,
           payment_status,
           status,
-          hotel_id
+          hotel_id,
+          booking_treatments (
+            treatment_id
+          )
         )
       `)
       .lt('payment_link_expires_at', new Date().toISOString())
@@ -53,17 +55,14 @@ serve(async (req: Request) => {
     for (const item of expiredLinks) {
       const booking = item.bookings as any;
 
-      // 2. Désactiver le lien sur Stripe
       if (item.payment_link_stripe_id) {
         try {
           await stripe.paymentLinks.update(item.payment_link_stripe_id, { active: false });
-          console.log(`[STRIPE] Disabled link ${item.payment_link_stripe_id}`);
         } catch (e) {
           console.error(`[STRIPE] Error disabling link for booking ${item.booking_id}:`, e);
         }
       }
 
-      // 3. Mettre à jour le statut du booking en base
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -74,13 +73,11 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Stocker la raison d'annulation dans booking_payment_infos (où la colonne est définie)
       await supabase
         .from('booking_payment_infos')
         .update({ cancellation_reason: 'payment_link_expired' })
         .eq('booking_id', item.booking_id);
 
-      // 4. Envoyer l'email d'annulation
       if (booking && booking.client_email) {
         try {
           const lang = (booking.payment_link_language || 'fr') as 'fr' | 'en';
@@ -88,10 +85,21 @@ serve(async (req: Request) => {
           const formattedBookingDate = lang === 'fr'
             ? bookingDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+          
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-          const bookingUrl = booking.hotel_id
-            ? `${siteUrl}/client/${booking.hotel_id}/treatments`
-            : brand.website;
+          
+          const treatmentIds = booking.booking_treatments
+            ?.map((bt: any) => bt.treatment_id)
+            .join(',') || '';
+
+          let bookingUrl = brand.website;
+          if (booking.hotel_id) {
+            bookingUrl = `${siteUrl}/client/${booking.hotel_id}/treatments`;
+            if (treatmentIds) {
+              bookingUrl += `?treatments=${treatmentIds}`;
+            }
+          }
+
           await resend.emails.send({
             from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
             to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : booking.client_email,

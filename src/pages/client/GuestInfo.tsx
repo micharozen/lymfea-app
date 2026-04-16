@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
+import { HoldBanner } from '@/components/client/HoldBanner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -274,6 +275,7 @@ export default function GuestInfo() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center justify-between p-4">
