@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone, Banknote } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -14,6 +14,8 @@ import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
+import { useAlmaEligibility } from '@/hooks/useAlmaEligibility';
+import { AlmaPaymentOption } from '@/components/client/AlmaPaymentOption';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -31,7 +33,8 @@ export default function Payment() {
   console.log('[Payment] clientInfo:', clientInfo);
   console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
   console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
-  const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
+  const [selectedMethod, setSelectedMethod] = useState<'room' | 'card' | 'alma'>('card');
+  const [selectedAlmaPlan, setSelectedAlmaPlan] = useState<number | null>(null);
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -41,6 +44,8 @@ export default function Payment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
+  const almaTotal = hasPriceOnRequest ? fixedTotal : total;
+  const { isEligible: almaEligible, plans: almaPlans } = useAlmaEligibility(almaTotal);
 
   const { data: hotel } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -201,6 +206,43 @@ export default function Payment() {
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
+      } else if (selectedMethod === 'alma' && selectedAlmaPlan && !hasPriceOnRequest) {
+        const { data, error } = await supabase.functions.invoke('alma-create-payment', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+            },
+            bookingData: {
+              date: bookingDateTime.date,
+              time: bookingDateTime.time,
+            },
+            treatmentIds: items.map(item => item.id),
+            treatments: items.map(item => ({
+              treatmentId: item.id,
+              variantId: item.variantId,
+            })),
+            installmentsCount: selectedAlmaPlan,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          const url = new URL(data.url);
+          const trustedDomains = ['pay.getalma.eu', 'pay.sandbox.getalma.eu'];
+          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+            throw new Error('Invalid redirect URL');
+          }
+          setPendingCheckoutSession(data.bookingId);
+          window.location.href = data.url;
+        }
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
@@ -546,6 +588,18 @@ export default function Payment() {
                   </div>
                 </div>
               </button>
+            )}
+
+            {/* Alma BNPL */}
+            {almaEligible && (
+              <AlmaPaymentOption
+                plans={almaPlans}
+                selectedPlan={selectedAlmaPlan}
+                onSelectPlan={setSelectedAlmaPlan}
+                isSelected={selectedMethod === 'alma'}
+                onSelect={() => setSelectedMethod('alma')}
+                currency={items[0]?.currency || 'EUR'}
+              />
             )}
           </div>
         )}

@@ -166,7 +166,15 @@
     "bundleStep1": "Vous bénéficiez de {{count}} séances incluses dans votre cure",
     "bundleStep2": "Votre cure est activée immédiatement après le paiement",
     "bundleStep3": "Réservez vos séances en ligne sans repayer",
-    "confirmBundleSession": "Confirmer (séance cure)"
+    "confirmBundleSession": "Confirmer (séance cure)",
+    "alma": {
+      "title": "Payer en plusieurs fois",
+      "noFees": "Sans frais. Paiement sécurisé par Alma.",
+      "installments": "{{count}}x sans frais",
+      "firstPayment": "dont {{amount}} aujourd'hui",
+      "processing": "Redirection vers Alma...",
+      "error": "Erreur lors de la vérification de l'éligibilité Alma."
+    }
   },
   "confirmation": {
     "title": "Réservation confirmée",

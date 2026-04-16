@@ -166,7 +166,15 @@
     "bundleStep1": "You get {{count}} sessions included in your package",
     "bundleStep2": "Your package is activated immediately after payment",
     "bundleStep3": "Book your sessions online without paying again",
-    "confirmBundleSession": "Confirm (package session)"
+    "confirmBundleSession": "Confirm (package session)",
+    "alma": {
+      "title": "Pay in installments",
+      "noFees": "No fees. Secure payment via Alma.",
+      "installments": "{{count}}x interest-free",
+      "firstPayment": "including {{amount}} today",
+      "processing": "Redirecting to Alma...",
+      "error": "Error checking Alma eligibility."
+    }
   },
   "confirmation": {
     "title": "Booking Confirmed",

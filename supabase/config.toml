@@ -138,6 +138,15 @@ verify_jwt = false
 [functions.opera-cloud-post-charge]
 verify_jwt = false
 
+[functions.alma-check-eligibility]
+verify_jwt = false
+
+[functions.alma-create-payment]
+verify_jwt = false
+
+[functions.alma-webhook]
+verify_jwt = false
+
 [functions.create-setup-intent]
 verify_jwt = false
 
