@@ -6,6 +6,12 @@
  * priority and dependency order), converts them from Deno Edge Functions to
  * Hono/Bun routes using the Claude API, and writes the result.
  *
+ * DRIFT DETECTION: After migrating all functions, the script keeps running
+ * nightly. It computes a hash of each Edge Function source and compares it
+ * to the hash stored at migration time. If the source changed, the function
+ * is marked "outdated" and re-migrated automatically. This ensures the
+ * Hono backend stays in sync with Edge Function changes.
+ *
  * IMPORTANT: This does NOT activate the migration. The functions are ported
  * but remain commented out in the frontend router. A human must:
  *   1. Review the generated code
@@ -14,6 +20,7 @@
  *
  * Usage:
  *   ANTHROPIC_API_KEY=sk-... bun run scripts/migrate-functions.ts [--count 3] [--dry-run]
+ *   ANTHROPIC_API_KEY=sk-... bun run scripts/migrate-functions.ts --sync-only
  *
  * Environment:
  *   ANTHROPIC_API_KEY — required
@@ -22,6 +29,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
+import { createHash } from "crypto";
 
 // ─── Config ─────────────────────────────────────────────────────
 
@@ -33,6 +41,7 @@ const BACKEND_SRC = join(ROOT, "src");
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+const syncOnly = args.includes("--sync-only");
 const countFlagIdx = args.indexOf("--count");
 const countOverride = countFlagIdx >= 0 ? parseInt(args[countFlagIdx + 1], 10) : NaN;
 
@@ -46,7 +55,7 @@ interface SharedModule {
 
 interface FunctionEntry {
   name: string;
-  status: "pending" | "migrated" | "skip" | "failed";
+  status: "pending" | "migrated" | "outdated" | "skip" | "failed";
   route: string | null;
   target: string;
   priority: number;
@@ -55,7 +64,14 @@ interface FunctionEntry {
   deps: string[];
   note?: string;
   migratedAt?: string;
+  sourceHash?: string;
   error?: string;
+}
+
+// ─── Hashing ────────────────────────────────────────────────────
+
+function hashSource(content: string): string {
+  return createHash("sha256").update(content).digest("hex").slice(0, 16);
 }
 
 interface MigrationState {
@@ -80,6 +96,31 @@ function saveState(state: MigrationState): void {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2) + "\n");
 }
 
+// ─── Drift Detection ────────────────────────────────────────────
+
+function detectDrift(state: MigrationState): FunctionEntry[] {
+  const drifted: FunctionEntry[] = [];
+
+  for (const fn of state.functions) {
+    if (fn.status !== "migrated" || !fn.sourceHash) continue;
+
+    try {
+      const currentSource = readEdgeFunctionSource(fn.name);
+      const currentHash = hashSource(currentSource);
+
+      if (currentHash !== fn.sourceHash) {
+        console.log(`  🔀 Drift detected: ${fn.name} (hash ${fn.sourceHash} → ${currentHash})`);
+        fn.status = "outdated";
+        drifted.push(fn);
+      }
+    } catch {
+      // Edge function removed — skip
+    }
+  }
+
+  return drifted;
+}
+
 // ─── Pick Next Functions ────────────────────────────────────────
 
 function pickNextFunctions(state: MigrationState, count: number): FunctionEntry[] {
@@ -89,13 +130,18 @@ function pickNextFunctions(state: MigrationState, count: number): FunctionEntry[
       .map(([name]) => name)
   );
 
-  // Filter: pending, all shared deps migrated
-  const candidates = state.functions
+  // Outdated functions get priority (re-sync)
+  const outdated = state.functions
+    .filter((f) => f.status === "outdated")
+    .filter((f) => f.deps.every((dep) => migratedShared.has(dep)));
+
+  // Then pending functions
+  const pending = state.functions
     .filter((f) => f.status === "pending")
     .filter((f) => f.deps.every((dep) => migratedShared.has(dep)))
     .sort((a, b) => a.priority - b.priority);
 
-  return candidates.slice(0, count);
+  return [...outdated, ...pending].slice(0, count);
 }
 
 // ─── Pick Next Shared Modules ───────────────────────────────────
@@ -326,19 +372,43 @@ function writeGeneratedFile(relativePath: string, code: string): void {
 
 async function main() {
   console.log("🔄 Edge Function Migration Script");
-  console.log(`   Mode: ${dryRun ? "DRY RUN" : "LIVE"}`);
+  console.log(`   Mode: ${dryRun ? "DRY RUN" : syncOnly ? "SYNC ONLY" : "LIVE"}`);
   console.log("");
 
   const state = loadState();
   const count = isNaN(countOverride) ? state.config.functionsPerRun : countOverride;
 
+  // ─── Drift Detection (always runs) ────────────────────────────
+  console.log("🔍 Checking for drift on migrated functions...");
+  const drifted = detectDrift(state);
+  if (drifted.length > 0) {
+    console.log(`   ${drifted.length} function(s) changed since last migration`);
+  } else {
+    console.log("   No drift detected");
+  }
+  console.log("");
+
+  // In sync-only mode, just detect drift and save, don't migrate new functions
+  if (syncOnly) {
+    if (!dryRun) saveState(state);
+    if (drifted.length > 0) {
+      console.log("📋 Outdated functions that need re-migration:");
+      for (const fn of drifted) {
+        console.log(`   - ${fn.name} (${fn.target})`);
+      }
+    }
+    console.log("\n✅ Sync check complete.");
+    return;
+  }
+
   // Stats
   const total = state.functions.length;
   const migrated = state.functions.filter((f) => f.status === "migrated").length;
+  const outdated = state.functions.filter((f) => f.status === "outdated").length;
   const skipped = state.functions.filter((f) => f.status === "skip").length;
   const pending = state.functions.filter((f) => f.status === "pending").length;
 
-  console.log(`📊 Status: ${migrated} migrated, ${pending} pending, ${skipped} skipped, ${total} total`);
+  console.log(`📊 Status: ${migrated} migrated, ${outdated} outdated, ${pending} pending, ${skipped} skipped, ${total} total`);
   console.log(`   Target: migrate ${count} functions this run`);
   console.log("");
 
@@ -432,11 +502,12 @@ async function main() {
       // Write the generated code
       writeGeneratedFile(fn.target, code);
 
-      // Update state
+      // Update state with hash for future drift detection
       fn.status = "migrated";
       fn.migratedAt = new Date().toISOString();
+      fn.sourceHash = hashSource(source);
 
-      console.log(`  ✅ ${fn.name} migrated → ${fn.target}`);
+      console.log(`  ✅ ${fn.name} migrated → ${fn.target} (hash: ${fn.sourceHash})`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`  ❌ Failed to migrate ${fn.name}: ${message}`);
@@ -454,7 +525,8 @@ async function main() {
   // Summary
   const newMigrated = state.functions.filter((f) => f.status === "migrated").length;
   const failed = state.functions.filter((f) => f.status === "failed").length;
-  console.log(`\n📊 Done: ${newMigrated} migrated (+${newMigrated - migrated}), ${failed} failed, ${pending - targets.length} remaining`);
+  const newOutdated = state.functions.filter((f) => f.status === "outdated").length;
+  console.log(`\n📊 Done: ${newMigrated} migrated (+${newMigrated - migrated}), ${newOutdated} outdated, ${failed} failed, ${pending - targets.length} remaining`);
 
   if (!dryRun) {
     console.log("\n⚠️  REMINDER: Functions are ported but NOT activated.");

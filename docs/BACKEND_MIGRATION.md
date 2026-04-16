@@ -57,14 +57,37 @@ Quand du code appelle `invokeEdgeFunction('check-availability', ...)` :
 
 Une GitHub Action tourne à **2h du matin** :
 
-1. Lit `backend/migration-state.json` (source de vérité)
-2. Choisit les 3 prochaines fonctions (par priorité + dépendances)
-3. Envoie le code Deno à **Claude Sonnet** pour conversion en Hono/Bun
-4. Écrit le code généré dans `backend/src/`
+1. **Détecte le drift** : compare un hash SHA-256 du source Deno de chaque fonction déjà migrée avec le hash stocké au moment du port. Si le source a changé → statut `outdated`
+2. **Re-migre les fonctions outdated** en priorité (elles passent avant les pending)
+3. **Migre 3 nouvelles fonctions** (par priorité + dépendances)
+4. Envoie le code Deno à **Claude Sonnet** pour conversion en Hono/Bun
 5. Crée une **PR** avec le code porté
+
+### Le cycle complet
+
+```
+Nuit 1-22 : Migration initiale (3 fonctions/nuit)
+     │
+     ▼
+Nuit 23+ : Toutes les fonctions sont migrées
+     │
+     ▼
+Le script continue de tourner chaque nuit
+     │
+     ▼
+Tu modifies finalize-payment côté Edge Function
+     │
+     ▼
+Nuit suivante : hash différent → statut "outdated"
+     │
+     ▼
+Re-migration automatique → PR avec la nouvelle version
+```
 
 ### Ce qui est automatique
 - La conversion Deno → Hono
+- La détection de drift (Edge Function modifiée après migration)
+- La re-migration des fonctions modifiées
 - La gestion des dépendances entre modules
 - La création de PR
 
@@ -108,6 +131,10 @@ cd backend
 # Développement
 bun install                  # Installer les dépendances
 bun dev                      # Serveur local (port 3000, hot reload)
+
+# Drift / Sync
+bun run migrate:sync         # Vérifie si des Edge Functions ont changé
+bun run migrate:sync:dry     # Idem, sans modifier le state
 
 # Migration
 bun run migrate:status       # Voir l'état (X migrated, Y pending)

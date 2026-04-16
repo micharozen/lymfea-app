@@ -43,24 +43,7 @@ jobs:
         working-directory: backend
         run: bun install --frozen-lockfile
 
-      - name: Check migration state
-        id: check
-        working-directory: backend
-        run: |
-          PENDING=$(cat migration-state.json | bun -e "
-            const state = JSON.parse(await Bun.stdin.text());
-            const pending = state.functions.filter(f => f.status === 'pending').length;
-            console.log(pending);
-          ")
-          echo "pending=$PENDING" >> "$GITHUB_OUTPUT"
-          echo "📊 $PENDING functions pending migration"
-
-      - name: Skip if nothing to migrate
-        if: steps.check.outputs.pending == '0'
-        run: echo "✅ All functions migrated — nothing to do"
-
       - name: Run migration script
-        if: steps.check.outputs.pending != '0'
         working-directory: backend
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -73,10 +56,13 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
+          # The script now handles both:
+          # 1. Migrating new pending functions
+          # 2. Detecting drift on already-migrated functions and re-migrating them
           bun run scripts/migrate-functions.ts $ARGS
 
       - name: Create migration branch and PR
-        if: steps.check.outputs.pending != '0' && github.event.inputs.dry_run != 'true'
+        if: github.event.inputs.dry_run != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -86,7 +72,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if there are actual changes
+          # Check if there are actual changes (new migrations or drift re-syncs)
           if git diff --quiet && git diff --staged --quiet; then
             echo "No changes generated — skipping PR"
             exit 0
@@ -94,14 +80,27 @@ jobs:
 
           git checkout -b "$BRANCH"
           git add backend/ src/lib/supabaseEdgeFunctions.ts
-          git commit -m "chore: nightly migration of edge functions to Hono backend ($DATE)
+
+          # Determine if this is a drift re-sync or new migration
+          OUTDATED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            console.log(state.functions.filter(f => f.status === 'outdated').length);
+          ")
+
+          if [ "$OUTDATED" -gt 0 ]; then
+            COMMIT_MSG="chore: re-sync $OUTDATED outdated edge function(s) ($DATE)"
+          else
+            COMMIT_MSG="chore: nightly migration of edge functions to Hono backend ($DATE)"
+          fi
+
+          git commit -m "$COMMIT_MSG
 
           Automated migration run. Functions are ported but NOT activated.
           Review the generated code, test it, then uncomment in migratedFunctions map."
 
           git push -u origin "$BRANCH"
 
-          # Build PR body with migrated function list
+          # Build PR body
           MIGRATED=$(cat backend/migration-state.json | bun -e "
             const state = JSON.parse(await Bun.stdin.text());
             const today = new Date().toISOString().split('T')[0];
@@ -114,18 +113,36 @@ jobs:
 
           REMAINING=$(cat backend/migration-state.json | bun -e "
             const state = JSON.parse(await Bun.stdin.text());
-            console.log(state.functions.filter(f => f.status === 'pending').length);
+            const pending = state.functions.filter(f => f.status === 'pending').length;
+            const outdated = state.functions.filter(f => f.status === 'outdated').length;
+            console.log(pending + ' pending, ' + outdated + ' outdated');
           ")
 
+          # Check if this run includes re-synced (outdated) functions
+          RESYNCED=$(cat backend/migration-state.json | bun -e "
+            const state = JSON.parse(await Bun.stdin.text());
+            const today = new Date().toISOString().split('T')[0];
+            const resynced = state.functions
+              .filter(f => f.migratedAt?.startsWith(today) && f.sourceHash)
+              .length;
+            console.log(resynced);
+          ")
+
+          if [ "$RESYNCED" -gt 0 ]; then
+            TITLE="🔄 Nightly sync: Edge Functions drift detected ($DATE)"
+          else
+            TITLE="🔄 Nightly migration: Edge Functions → Hono ($DATE)"
+          fi
+
           gh pr create \
-            --title "🔄 Nightly migration: Edge Functions → Hono ($DATE)" \
+            --title "$TITLE" \
             --body "$(cat <<EOF
           ## Auto-generated migration
 
-          Functions ported in this run:
+          Functions ported/re-synced in this run:
           $MIGRATED
 
-          **$REMAINING functions remaining.**
+          **Remaining: $REMAINING.**
 
           ## What to do
           1. Review the generated code in \`backend/src/\`
