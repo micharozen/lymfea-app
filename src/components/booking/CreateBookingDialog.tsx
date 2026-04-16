@@ -58,6 +58,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      clientNote: "",
     },
   });
 
@@ -264,6 +265,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       phone: values.phone,
       countryCode: values.countryCode,
       roomNumber: values.roomNumber,
+      clientNote: values.clientNote,
       date: values.date ? format(values.date, "yyyy-MM-dd") : "",
       time: values.time,
       therapistId: values.therapistId,
@@ -311,6 +313,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      clientNote: "",
     });
     setCart([]);
     setCustomPrice("");

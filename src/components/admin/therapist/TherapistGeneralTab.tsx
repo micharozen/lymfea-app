@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhoneNumberField, CountryOption } from "@/components/PhoneNumberField";
 import { User, Loader2, Wallet } from "lucide-react";
 import type { TherapistFormValues } from "@/pages/admin/TherapistDetail";
+import { BillingProfileForm } from "@/components/admin/billing/BillingProfileForm";
 
 const countries: CountryOption[] = [
   { code: "+33", label: "France", flag: "🇫🇷" },
@@ -43,6 +44,7 @@ interface TherapistGeneralTabProps {
   fileInputRef: React.RefObject<HTMLInputElement>;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerFileSelect: () => void;
+  therapistId: string | null;
 }
 
 export function TherapistGeneralTab({
@@ -53,6 +55,7 @@ export function TherapistGeneralTab({
   fileInputRef,
   handleImageUpload,
   triggerFileSelect,
+  therapistId,
 }: TherapistGeneralTabProps) {
   const { t } = useTranslation("common");
 
@@ -313,6 +316,15 @@ export function TherapistGeneralTab({
           </p>
         </CardContent>
       </Card>
+
+      {/* Billing information — stored in billing_profiles table, persisted independently */}
+      {therapistId && (
+        <BillingProfileForm
+          ownerType="therapist"
+          ownerId={therapistId}
+          disabled={disabled}
+        />
+      )}
     </div>
   );
 }

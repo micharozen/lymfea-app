@@ -1,6 +1,6 @@
-# Lymfea - Database Schema
+# Eïa - Database Schema
 
-> **Note legacy** : Ce schéma provient du fork OOM (coiffure). Les noms de tables/colonnes utilisent encore la terminologie OOM (hairdresser, trunk, etc.). Voir la section "Adaptation Lymfea" en bas pour le mapping complet.
+> **Note legacy** : Ce schéma provient du fork OOM (coiffure). Les noms de tables/colonnes utilisent encore la terminologie OOM (hairdresser, trunk, etc.). Voir la section "Adaptation Eïa" en bas pour le mapping complet.
 
 ## Tables Principales
 
@@ -11,7 +11,7 @@
 
 **`user_roles`**
 - `id`, `user_id`, `role` (enum: admin|moderator|user|concierge|hairdresser)
-- Note : `hairdresser` = thérapeute dans le contexte Lymfea
+- Note : `hairdresser` = thérapeute dans le contexte Eïa
 
 **`admins`**
 - `id`, `user_id`, `email`, `first_name`, `last_name`, `phone`, `country_code`, `profile_image`, `status`
@@ -19,7 +19,7 @@
 **`concierges`**
 - `id`, `user_id`, `email`, `first_name`, `last_name`, `phone`, `country_code`, `hotel_id` (nullable), `profile_image`, `status`, `must_change_password`
 
-**`hairdressers`** ➜ _Lymfea : thérapeutes_
+**`hairdressers`** ➜ _Eïa : thérapeutes_
 - `id`, `user_id`, `email`, `first_name`, `last_name`, `phone`, `country_code`, `profile_image`
 - `skills[]` — spécialisations (massage, soin visage, etc.)
 - `status` (default: 'pending'), `password_set`
@@ -28,7 +28,7 @@
 
 ### Venues
 
-**`hotels`** ➜ _Lymfea : lieux (hôtels avec spa / spas indépendants)_
+**`hotels`** ➜ _Eïa : lieux (hôtels avec spa / spas indépendants)_
 - `id`, `name`, `image`, `cover_image`, `address`, `city`, `country`, `country_code`, `postal_code`
 - `timezone`, `opening_time`, `closing_time`
 - `venue_type` (text CHECK: hotel|coworking|enterprise|null) — **à migrer vers hotel|spa**
@@ -103,7 +103,7 @@ Statuts : `pending` → `confirmed` → `ongoing` → `completed` | `cancelled` 
 
 ### Equipment ➜ Salles de soin
 
-**`trunks`** ➜ _Lymfea : salles de soin / cabines_
+**`trunks`** ➜ _Eïa : salles de soin / cabines_
 - `id`, `trunk_id` ➜ _numéro de salle_, `trunk_model` ➜ _type de salle_, `name`
 - `hotel_id`, `hotel_name` (dénormalisé), `hairdresser_name` (dénormalisé)
 - `next_booking`, `image`, `status`
@@ -192,7 +192,7 @@ bookings (n) ←→ (0-1) trunks [salle assignée]
 
 ---
 
-## Adaptation Lymfea — Changements Data Model à Prévoir
+## Adaptation Eïa — Changements Data Model à Prévoir
 
 ### 1. venue_type
 
@@ -227,7 +227,7 @@ Ces renommages seront faits via des migrations SQL. Ils impactent aussi les RPC,
 
 ### 3. Transformation trunks → salles de soin
 
-La table `trunks` représente actuellement des malles mobiles de coiffure. Pour Lymfea, elle sera transformée en table de **salles de soin / cabines**.
+La table `trunks` représente actuellement des malles mobiles de coiffure. Pour Eïa, elle sera transformée en table de **salles de soin / cabines**.
 
 **Colonnes à adapter :**
 

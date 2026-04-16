@@ -1,4 +1,4 @@
-# Lymfea - Frontend Architecture
+# Eïa - Frontend Architecture
 
 > **Note legacy** : Les noms de routes, composants et fichiers utilisent encore la terminologie OOM (hairdresser, trunk, etc.). Voir `CLAUDE.md` section "Legacy Naming" pour le mapping.
 
@@ -246,7 +246,7 @@ TanStack Query avec :
 
 | Route actuelle | Route cible | Raison |
 |----------------|-------------|--------|
-| `/admin/hairdressers` | `/admin/therapists` | Terminologie Lymfea |
+| `/admin/hairdressers` | `/admin/therapists` | Terminologie Eïa |
 | `/admin/trunks` | `/admin/rooms` | Salles de soin au lieu de malles |
 | `/rate/:token` | Inchangé | URL publique, token-based |
 | `/enterprise/:hotelId` | À évaluer | Enterprise supprimé de venue_type |

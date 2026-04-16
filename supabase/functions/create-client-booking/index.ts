@@ -59,10 +59,14 @@ const requestSchema = z.object({
   clientData: clientDataSchema,
   bookingData: bookingDataSchema,
   treatments: z.array(treatmentSchema).min(1, 'At least one treatment is required').max(20, 'Maximum 20 treatments allowed'),
-  paymentMethod: z.enum(['room', 'card', 'cash', 'offert']).optional().default('room'),
+  paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
   therapistGender: z.enum(['female', 'male']).optional(),
   bundleUsage: bundleUsageSchema.optional(),
+  giftAmountUsage: z.object({
+    customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
+    amountCents: z.number().int().min(1, 'Amount must be positive'),
+  }).optional(),
 });
 
 // Sanitize string to prevent injection
@@ -125,7 +129,8 @@ try {
       paymentMethod,
       totalPrice,
       therapistGender,
-      bundleUsage
+      bundleUsage,
+      giftAmountUsage
     } = validationResult.data;
 
     console.log('Creating booking for hotel:', hotelId);
@@ -250,8 +255,8 @@ try {
     const isOffert = !!hotel.offert || !!hotel.company_offered;
     const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
     const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
-    const effectivePaymentMethod = isOffert ? 'offert' : paymentMethod;
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+    const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending'));
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -379,6 +384,38 @@ try {
       } catch (bundleError) {
         console.error('Unexpected error during bundle session usage:', bundleError);
         bundleWarning = 'Bundle session could not be applied due to an unexpected error. Normal payment flow applies.';
+      }
+    }
+
+    // Scenario 1b: Client USES a gift amount card
+    if (giftAmountUsage) {
+      try {
+        console.log('Using gift amount:', giftAmountUsage.customerBundleId, 'amount:', giftAmountUsage.amountCents);
+        const { data: usageId, error: usageError } = await supabase.rpc('use_gift_amount', {
+          _customer_bundle_id: giftAmountUsage.customerBundleId,
+          _booking_id: bookingId,
+          _amount_cents: giftAmountUsage.amountCents,
+        });
+
+        if (usageError) {
+          console.error('Gift amount usage failed (non-blocking):', usageError.message);
+          bundleWarning = `Gift amount could not be applied: ${usageError.message}. Normal payment flow applies.`;
+        } else {
+          console.log('Gift amount used successfully, usage ID:', usageId);
+          // Mark booking as paid via gift amount
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({ payment_method: 'gift_amount', payment_status: 'paid' })
+            .eq('id', bookingId);
+
+          if (updateError) {
+            console.error('Failed to update booking payment to gift_amount:', updateError);
+            bundleWarning = 'Gift amount applied but payment status update failed.';
+          }
+        }
+      } catch (giftError) {
+        console.error('Unexpected error during gift amount usage:', giftError);
+        bundleWarning = 'Gift amount could not be applied due to an unexpected error. Normal payment flow applies.';
       }
     }
 

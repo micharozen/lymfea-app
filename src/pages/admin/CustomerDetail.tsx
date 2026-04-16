@@ -195,7 +195,7 @@ export default function CustomerDetail() {
               </span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
-            <h1 className="text-lg font-semibold truncate">
+            <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedCustomerId
                 ? t("admin:customers.new", "Nouveau client")
                 : watchedName || customerName || "Client"}

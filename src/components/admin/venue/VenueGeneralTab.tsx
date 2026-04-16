@@ -68,7 +68,7 @@ import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
-// Component to display calculated Lymfea commission
+// Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
   const hotelCommission = useWatch({ control, name: "hotel_commission" });
   const therapistCommission = useWatch({ control, name: "therapist_commission" });

@@ -1,7 +1,10 @@
 project_id = "xfkujlgettlxdgrnqluw"
 
 [functions.get-therapist-earnings]
-verify_jwt = true
+verify_jwt = false
+
+[functions.generate-therapist-invoices]
+verify_jwt = false
 
 [functions.create-stripe-connect-account]
 verify_jwt = true
@@ -151,6 +154,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notion-ticket-webhook]
+verify_jwt = false
+
+[functions.generate-venue-invoices]
+verify_jwt = false
+
+[functions.create-portal-account]
 verify_jwt = false
 
 [functions.check-expired-payment-links]

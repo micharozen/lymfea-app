@@ -14,6 +14,8 @@ import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
+import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
+import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -32,6 +34,7 @@ export default function Payment() {
   console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
   console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
+  const { authBundles } = useClientFlow();
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -41,6 +44,12 @@ export default function Payment() {
   const [isProcessing, setIsProcessing] = useState(false);
   const { t } = useTranslation('client');
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
+
+  // Fetch the bundle template so gift cards can show tailored copy on the payment screen
+  const bundleTemplateId = isBundleOnlyPurchase ? items.find((i) => i.bundleId)?.bundleId ?? null : null;
+  const { data: bundleTemplate } = useBundleTemplate(bundleTemplateId);
+  const bundleType = bundleTemplate?.bundle_type ?? 'cure';
+  const isGiftPurchase = bundleType === 'gift_amount' || bundleType === 'gift_treatments';
 
   const { data: hotel } = useQuery({
     queryKey: ['public-hotel', hotelId],
@@ -85,16 +94,25 @@ export default function Payment() {
   const variableItems = items.filter(item => item.isPriceOnRequest);
 
   // Bundle: split items into covered (free) vs uncovered (charged normally)
+  const isAmountBundle = selectedBundle?.bundleType === 'gift_amount';
   const eligibleSet = new Set(selectedBundle?.eligibleTreatmentIds ?? []);
-  const bundleCoveredItems = selectedBundle
+  const bundleCoveredItems = selectedBundle && !isAmountBundle
     ? items.filter(item => eligibleSet.has(item.id))
     : [];
-  const bundleUncoveredItems = selectedBundle
+  const bundleUncoveredItems = selectedBundle && !isAmountBundle
     ? items.filter(item => !eligibleSet.has(item.id))
     : [];
-  const uncoveredTotal = bundleUncoveredItems.reduce(
-    (sum, item) => sum + item.price * item.quantity, 0
-  );
+  const uncoveredTotal = isAmountBundle
+    ? Math.max(0, Math.round((total * 100 - (selectedBundle?.amountToUseCents ?? 0)) / 100))
+    : bundleUncoveredItems.reduce(
+        (sum, item) => sum + item.price * item.quantity, 0
+      );
+  const giftAmountAppliedEuros = isAmountBundle
+    ? Math.round((selectedBundle?.amountToUseCents ?? 0) / 100)
+    : 0;
+  const giftAmountRemainingAfter = isAmountBundle
+    ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
+    : 0;
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -157,8 +175,97 @@ export default function Payment() {
     setIsProcessing(true);
 
     try {
+      // Gift amount bundle — full or partial coverage
+      if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
+        if (uncoveredTotal === 0) {
+          // Full coverage by gift amount
+          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+            body: {
+              hotelId,
+              clientData: {
+                firstName: clientInfo.firstName,
+                lastName: clientInfo.lastName,
+                phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+                email: clientInfo.email,
+                roomNumber: clientInfo.roomNumber,
+                note: clientInfo.note || '',
+                pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+                pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+              },
+              bookingData: {
+                date: bookingDateTime.date,
+                time: bookingDateTime.time,
+              },
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                note: item.note,
+              })),
+              paymentMethod: 'gift_amount',
+              giftAmountUsage: {
+                customerBundleId: selectedBundle.customerBundleId,
+                amountCents: selectedBundle.amountToUseCents,
+              },
+              totalPrice: 0,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            },
+          });
+
+          if (error) throw error;
+
+          clearBasket();
+          clearFlow();
+          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          return;
+        } else {
+          // Partial coverage — pay remainder via Stripe
+          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+            body: {
+              hotelId,
+              clientData: {
+                firstName: clientInfo.firstName,
+                lastName: clientInfo.lastName,
+                phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+                email: clientInfo.email,
+                roomNumber: clientInfo.roomNumber,
+                note: clientInfo.note || '',
+              },
+              bookingData: {
+                date: bookingDateTime.date,
+                time: bookingDateTime.time,
+              },
+              treatmentIds: items.map(item => item.id),
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+              })),
+              totalPrice: uncoveredTotal,
+              giftAmountUsage: {
+                customerBundleId: selectedBundle.customerBundleId,
+                amountCents: selectedBundle.amountToUseCents,
+              },
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            },
+          });
+
+          if (error) throw error;
+
+          if (data?.url) {
+            const url = new URL(data.url);
+            const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
+            if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+              throw new Error('Invalid redirect URL');
+            }
+            setPendingCheckoutSession(data.sessionId);
+            window.location.href = data.url;
+          }
+          return;
+        }
+      }
+
+      // Session bundle — all items covered
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
-        // All items covered by bundle — create booking with bundle payment
         const { data, error } = await supabase.functions.invoke('create-client-booking', {
           body: {
             hotelId,
@@ -335,28 +442,49 @@ export default function Payment() {
           </h3>
           <p className="text-sm text-gray-500">
             {isBundleOnlyPurchase
-              ? t('payment.bundleSubtitle', 'Votre cure sera activée immédiatement après le paiement')
+              ? isGiftPurchase
+                ? t('payment.giftSubtitle', 'La carte cadeau sera activée immédiatement après le paiement')
+                : t('payment.bundleSubtitle', 'Votre cure sera activée immédiatement après le paiement')
               : 'Dernière étape avant votre moment de détente'}
           </p>
         </div>
+
+        {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}
+        {!selectedBundle && !isBundleOnlyPurchase && !isOffert && authBundles && (
+          <GiftCardSelector
+            sessionBundles={authBundles.session_bundles}
+            amountBundles={authBundles.amount_bundles}
+            bookingTotalCents={Math.round(total * 100)}
+            onSelect={(bundle) => setSelectedBundle(bundle)}
+          />
+        )}
 
         {/* Bundle active banner */}
         {selectedBundle && (
           <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 animate-fade-in flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Repeat className="w-4 h-4 text-amber-700" />
+              {isAmountBundle ? <Gift className="w-4 h-4 text-amber-700" /> : <Repeat className="w-4 h-4 text-amber-700" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-amber-900">
-                {t('bundle.bundleName', { name: selectedBundle.bundleName })}
+                {isAmountBundle
+                  ? t('giftCardLogin.giftCard') + ' — ' + selectedBundle.bundleName
+                  : t('bundle.bundleName', { name: selectedBundle.bundleName })}
               </p>
               <p className="text-xs text-amber-700">
-                {t('bundle.remaining', { count: selectedBundle.remainingSessions })}
+                {isAmountBundle
+                  ? t('giftCardLogin.creditApplied', { amount: giftAmountAppliedEuros })
+                  : t('bundle.remaining', { count: selectedBundle.remainingSessions })}
               </p>
+              {isAmountBundle && giftAmountRemainingAfter > 0 && (
+                <p className="text-[10px] text-amber-600 mt-0.5">
+                  {t('giftCardLogin.creditRemainingAfter', { amount: giftAmountRemainingAfter })}
+                </p>
+              )}
             </div>
             <button
               type="button"
-              onClick={() => setSelectedBundle(null)}
+              onClick={() => { setSelectedBundle(null); }}
               className="text-amber-400 hover:text-amber-600 transition-colors p-1 flex-shrink-0"
             >
               <X className="w-4 h-4" />
@@ -451,18 +579,29 @@ export default function Payment() {
             <div className="flex flex-col">
               <span className="font-medium text-gray-900">Total à régler</span>
               <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-                {selectedBundle ? t('bundle.bundleName', { name: selectedBundle.bundleName }) : 'Sur place à la fin du soin'}
+                {isAmountBundle
+                  ? t('giftCardLogin.giftCard')
+                  : selectedBundle
+                    ? t('bundle.bundleName', { name: selectedBundle.bundleName })
+                    : 'Sur place à la fin du soin'}
               </span>
             </div>
-            <span className="text-xl font-serif font-semibold text-gray-900">
-              {selectedBundle
-                ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
-                : isOffert
-                  ? formatPrice(0, items[0]?.currency || 'EUR')
-                  : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
-              }
-              {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
-            </span>
+            <div className="text-right">
+              {isAmountBundle && giftAmountAppliedEuros > 0 && (
+                <span className="text-sm line-through text-gray-400 mr-2">
+                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                </span>
+              )}
+              <span className="text-xl font-serif font-semibold text-gray-900">
+                {selectedBundle
+                  ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
+                  : isOffert
+                    ? formatPrice(0, items[0]?.currency || 'EUR')
+                    : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
+                }
+                {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -474,7 +613,12 @@ export default function Payment() {
               {isBundleOnlyPurchase ? (
                 <>
                   {t('payment.bundleSecure', 'Paiement sécurisé par Stripe.')}
-                  <strong className="text-gray-900 font-medium"> {t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}</strong>
+                  <strong className="text-gray-900 font-medium">
+                    {' '}
+                    {isGiftPurchase
+                      ? t('payment.giftActivation', 'La carte cadeau sera activée immédiatement.')
+                      : t('payment.bundleActivation', 'Votre cure sera activée immédiatement.')}
+                  </strong>
                 </>
               ) : (
                 <>
@@ -562,7 +706,9 @@ export default function Payment() {
               ? "bg-amber-600 text-white hover:bg-amber-500"
               : selectedBundle && uncoveredTotal === 0
                 ? "bg-amber-600 text-white hover:bg-amber-500"
-                : isOffert
+                : selectedBundle && isAmountBundle
+                  ? "bg-amber-600 text-white hover:bg-amber-500"
+                  : isOffert
                   ? "bg-emerald-600 text-white hover:bg-emerald-500"
                   : hasPriceOnRequest
                     ? "bg-amber-500 text-black hover:bg-amber-400"
@@ -577,7 +723,20 @@ export default function Payment() {
           ) : isBundleOnlyPurchase ? (
             <>
               <Package className="mr-2 h-5 w-5" />
-              {t('payment.purchaseBundle', 'Acheter la cure')} — {formatPrice(total, items[0]?.currency || 'EUR')}
+              {isGiftPurchase
+                ? t('payment.purchaseGiftCard', 'Offrir cette carte cadeau')
+                : t('payment.purchaseBundle', 'Acheter la cure')}{' '}
+              — {formatPrice(total, items[0]?.currency || 'EUR')}
+            </>
+          ) : selectedBundle && isAmountBundle && uncoveredTotal === 0 ? (
+            <>
+              <Gift className="mr-2 h-5 w-5" />
+              {t('giftCardLogin.confirmGiftAmount')}
+            </>
+          ) : selectedBundle && isAmountBundle && uncoveredTotal > 0 ? (
+            <>
+              <CreditCard className="mr-2 h-5 w-5" />
+              {t('giftCardLogin.confirmMixedPayment', { amount: formatPrice(uncoveredTotal, items[0]?.currency || 'EUR') })}
             </>
           ) : selectedBundle && uncoveredTotal === 0 ? (
             <>

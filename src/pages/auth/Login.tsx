@@ -557,7 +557,7 @@ const Auth = () => {
 
           {/* Footer */}
           <p className="mt-12 text-xs text-muted-foreground text-center">
-            &copy; {new Date().getFullYear()} Lymfea SAS. Tous droits reserves.
+            &copy; {new Date().getFullYear()} Eïa SAS. Tous droits reserves.
           </p>
         </div>
       </div>

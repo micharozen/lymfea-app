@@ -1,4 +1,4 @@
-# Lymfea - Business Logic
+# Eïa - Business Logic
 
 > **Note legacy** : Le code utilise encore la terminologie OOM (hairdresser, trunk, etc.). Voir `CLAUDE.md` section "Legacy Naming" pour le mapping complet.
 
@@ -136,7 +136,7 @@ Prix total (TTC) = Σ(prix soins)
 
 Commission thérapeute = Prix total × (hairdresser_commission / 100)
 Commission lieu       = Prix total × (hotel_commission / 100)
-Commission Lymfea     = Prix total - Commission thérapeute - Commission lieu
+Commission Eïa     = Prix total - Commission thérapeute - Commission lieu
 
 TVA = Prix total × (vat / 100)
 ```
@@ -151,7 +151,7 @@ vat: 20%
 
 → Thérapeute reçoit: 70€
 → Lieu reçoit: 10€
-→ Lymfea reçoit: 20€
+→ Eïa reçoit: 20€
 → TVA collectée: 20€
 ```
 
@@ -196,7 +196,7 @@ Configurable via `treatment_menus.lead_time` (en minutes). Empêche les réserva
 
 ## Salles de Soin (ex-Trunks)
 
-Les "trunks" (malles mobiles dans OOM) sont reconvertis en **salles de soin** pour Lymfea :
+Les "trunks" (malles mobiles dans OOM) sont reconvertis en **salles de soin** pour Eïa :
 - Chaque lieu a N salles de soin configurables
 - Les RDV sont assignés à une salle spécifique (`bookings.trunk_id`)
 - La disponibilité des salles est vérifiable en temps réel
@@ -250,7 +250,7 @@ Le thérapeute peut depuis son mobile :
 - Rappel J-1 au client
 - Email post-soin pour feedback
 - Email d'indisponibilité + créneaux alternatifs
-- Notifications internes aux équipes (conciergerie, spa, Lymfea) sur chaque événement
+- Notifications internes aux équipes (conciergerie, spa, Eïa) sur chaque événement
 
 ## Feedback Post-Soin (Roadmap)
 

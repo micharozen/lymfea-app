@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import TimePeriodSelector from '@/components/client/TimePeriodSelector';
 import { ClientSpinner } from '@/components/client/ClientSpinner';
+import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { Calendar } from '@/components/ui/calendar';
@@ -49,6 +50,8 @@ export function SchedulePanel({
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isAddonDrawerOpen, setIsAddonDrawerOpen] = useState(false);
+  const [pendingContinueTime, setPendingContinueTime] = useState<string | null>(null);
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -227,16 +230,17 @@ export function SchedulePanel({
     fetchAvailability();
   }, [selectedDate, hotelId, therapistGenderPreference, t]);
 
+  const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
+
+  const proceedAfterAddons = (time: string) => {
+    setBookingDateTime({ date: selectedDate, time });
+    onContinue();
+  };
+
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
     setShowSlotTakenBanner(false);
     trackAction('select_time_slot', { date: selectedDate, time });
-
-    // Auto-continue when embedded — time is the last selection step
-    if (embedded && selectedDate && items.length > 0) {
-      setBookingDateTime({ date: selectedDate, time });
-      onContinue();
-    }
   };
 
   const handleContinue = () => {
@@ -255,12 +259,13 @@ export function SchedulePanel({
       return;
     }
 
-    setBookingDateTime({
-      date: selectedDate,
-      time: selectedTime,
-    });
+    if (baseItemsHaveAddons) {
+      setPendingContinueTime(selectedTime);
+      setIsAddonDrawerOpen(true);
+      return;
+    }
 
-    onContinue();
+    proceedAfterAddons(selectedTime);
   };
 
   return (
@@ -490,6 +495,22 @@ export function SchedulePanel({
           </div>
         </>
       )}
+
+      <AddonProposalDrawer
+        open={isAddonDrawerOpen}
+        onOpenChange={(open) => {
+          setIsAddonDrawerOpen(open);
+          if (!open) setPendingContinueTime(null);
+        }}
+        hotelId={hotelId}
+        date={selectedDate}
+        time={pendingContinueTime ?? selectedTime}
+        onContinue={() => {
+          if (pendingContinueTime) {
+            proceedAfterAddons(pendingContinueTime);
+          }
+        }}
+      />
     </div>
   );
 }

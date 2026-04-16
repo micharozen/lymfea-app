@@ -1,30 +1,36 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckCircle, Calendar, Clock, MapPin, CreditCard, Loader2, AlertCircle, Repeat, ShoppingBag, Package } from "lucide-react";
+import {
+  CheckCircle, Calendar, Clock, MapPin, CreditCard, Loader2,
+  AlertCircle, Repeat, ShoppingBag, Package, Gift, Copy, Check, Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { fr, enUS } from "date-fns/locale";
+import { toast } from "sonner";
+import { brand, brandLogos } from "@/config/brand";
 
 export default function Confirmation() {
   const navigate = useNavigate();
   const { hotelId, bookingId: paramBookingId } = useParams();
   const [searchParams] = useSearchParams();
+  const { t, i18n } = useTranslation('client');
+  const dateLocale = i18n.language === 'fr' ? fr : enUS;
 
   const sessionId = searchParams.get('session_id');
   const isBundlePurchase = paramBookingId === 'bundle';
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramBookingId || '');
 
-  // États pour gérer le chargement
   const [booking, setBooking] = useState<any>(null);
   const [bundleData, setBundleData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
-  // Bouclier Anti-Double Appel (Strict Mode React)
   const hasConfirmed = useRef(false);
 
-  // Bundle purchase confirmation flow
   useEffect(() => {
     async function confirmBundlePurchase() {
       if (hasConfirmed.current) return;
@@ -60,7 +66,6 @@ export default function Confirmation() {
       try {
         let finalBookingId = paramBookingId;
 
-        // 1. Validation Stripe si on revient de la passerelle de paiement
         if (!isUUID && sessionId) {
           const { data: confirmData, error: confirmError } = await supabase.functions.invoke('confirm-setup-intent', {
             body: { sessionId }
@@ -72,12 +77,10 @@ export default function Confirmation() {
           }
         }
 
-        // Sécurité sur l'ID
         if (!finalBookingId || finalBookingId === 'setup') {
           throw new Error("Identifiant de réservation invalide.");
         }
 
-        // 2. Appel du RPC sécurisé pour récupérer le résumé (Bypass RLS)
         const { data, error: dbError } = await supabase.rpc('get_booking_summary', {
           _booking_id: finalBookingId
         });
@@ -108,22 +111,207 @@ export default function Confirmation() {
     navigate(hotelId ? `/client/${hotelId}` : "/");
   };
 
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCodeCopied(true);
+      toast.success(t('common:copied', 'Copié !'));
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
+  };
+
+  // Determine bundle purchase type from response data
+  const bundleType = bundleData?.[0]?.treatment_bundles?.bundle_type;
+  const isGiftCard = bundleType === 'gift_treatments' || bundleType === 'gift_amount';
+  const isGiftForSomeone = bundleData?.[0]?.is_gift === true;
+  const giftDeliveryMode = bundleData?.[0]?.gift_delivery_mode;
+
   // ---------------------------------------------------------------------------
-  // RENDER : Écrans de chargement et d'erreur
+  // LOADING
   // ---------------------------------------------------------------------------
   if (isLoading) {
+    const loadingText = isBundlePurchase && isGiftCard
+      ? t('bundle.giftLoading')
+      : isBundlePurchase
+        ? t('bundle.purchasedMessage', 'Activation de votre cure...')
+        : t('confirmation.message', 'Finalisation de votre réservation...');
+
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center space-y-4">
         <Loader2 className="w-10 h-10 animate-spin text-gray-400" />
-        <p className="text-sm text-gray-500 font-medium">
-          {isBundlePurchase ? 'Activation de votre cure...' : 'Finalisation de votre réservation...'}
-        </p>
+        <p className="text-sm text-gray-500 font-medium">{loadingText}</p>
       </div>
     );
   }
 
-  // --- Bundle purchase confirmation ---
+  // ---------------------------------------------------------------------------
+  // BUNDLE / GIFT CARD CONFIRMATION
+  // ---------------------------------------------------------------------------
   if (isBundlePurchase && bundleData) {
+    if (isGiftCard) {
+      // --- GIFT CARD (self-purchase or gift for someone) ---
+      let title: string;
+      let subtitle: string;
+
+      if (isGiftForSomeone) {
+        const recipientName = bundleData[0]?.recipient_name || '';
+        if (giftDeliveryMode === 'print') {
+          title = t('bundle.giftSentPrint');
+          subtitle = t('bundle.giftSentPrintMessage');
+        } else {
+          title = t('bundle.giftSentEmail');
+          subtitle = t('bundle.giftSentEmailMessage', { name: recipientName });
+        }
+      } else {
+        title = t('bundle.giftPurchased');
+        subtitle = t('bundle.giftPurchasedSelf');
+      }
+
+      return (
+        <div className="min-h-dvh bg-gradient-to-b from-gray-50 to-white flex flex-col items-center p-4 pb-safe pt-safe">
+          <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-8">
+
+            {/* Title + subtitle above the card */}
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-serif text-gray-900">{title}</h1>
+              <p className="text-gray-500 text-sm">{subtitle}</p>
+            </div>
+
+            {/* 3D Gift card */}
+            {bundleData.map((bundle: any) => {
+              const amountCents = bundle.total_amount_cents ?? bundle.treatment_bundles?.amount_cents;
+              const isAmountType = bundle.treatment_bundles?.bundle_type === 'gift_amount';
+
+              return (
+                <div key={bundle.id} className="space-y-6">
+                  {/* The 3D card */}
+                  <div className="[perspective:800px]">
+                    <div
+                      className="relative rounded-2xl overflow-hidden transition-transform duration-500 ease-out [transform:rotateX(2deg)_rotateY(-1deg)] hover:[transform:rotateX(0deg)_rotateY(0deg)]"
+                      style={{
+                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15), 0 12px 24px -8px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)',
+                      }}
+                    >
+                      {/* Card face */}
+                      <div className="relative bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6 min-h-[220px] flex flex-col justify-between">
+                        {/* Subtle pattern overlay */}
+                        <div className="absolute inset-0 opacity-[0.04]" style={{
+                          backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)',
+                          backgroundSize: '60px 60px',
+                        }} />
+                        {/* Shine effect */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-transparent" />
+
+                        {/* Top row: brand + gift icon */}
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <img src={brandLogos.monogramBlack} alt={brand.name} className="h-5 w-5 brightness-0 invert opacity-60" />
+                            <span className="text-white/60 font-serif text-sm tracking-wide">{brand.name}</span>
+                          </div>
+                          <Gift className="w-5 h-5 text-[#03bfac]/70" strokeWidth={1.5} />
+                        </div>
+
+                        {/* Center: amount */}
+                        <div className="relative text-center py-2">
+                          {isAmountType && amountCents ? (
+                            <p className="text-5xl font-serif font-light text-white tracking-tight">
+                              {Math.round(amountCents / 100)} <span className="text-3xl text-white/60">€</span>
+                            </p>
+                          ) : (
+                            <p className="text-5xl font-serif font-light text-white tracking-tight">
+                              {bundle.total_sessions} <span className="text-2xl text-white/50">
+                                {t('bundle.sessions', { count: bundle.total_sessions }).replace(`${bundle.total_sessions} `, '')}
+                              </span>
+                            </p>
+                          )}
+                          <p className="text-sm text-white/50 mt-1 font-light">
+                            {bundle.treatment_bundles?.name || t('bundle.giftDetails')}
+                          </p>
+                        </div>
+
+                        {/* Bottom row: recipient + validity */}
+                        <div className="relative flex items-end justify-between text-xs text-white/40">
+                          {isGiftForSomeone && bundle.recipient_name ? (
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="w-3 h-3" />
+                              <span className="uppercase tracking-wider">{bundle.recipient_name}</span>
+                            </div>
+                          ) : <div />}
+                          {bundle.expires_at && (
+                            <span className="uppercase tracking-wider">
+                              {format(new Date(bundle.expires_at), 'MM/yyyy')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Card edge / thickness illusion */}
+                      <div className="h-1 bg-gradient-to-r from-gray-700 via-gray-600 to-gray-700" />
+                    </div>
+                  </div>
+
+                  {/* Details below the card */}
+                  <div className="space-y-3 px-2">
+                    {bundle.expires_at && (
+                      <div className="flex items-center gap-2.5 text-sm text-gray-500">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        <span>{t('bundle.validUntil', { date: format(new Date(bundle.expires_at), 'd MMMM yyyy', { locale: dateLocale }) })}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Redemption code — only visible in dev */}
+                  {import.meta.env.DEV && bundle.redemption_code && (
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 mx-2">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                        {t('bundle.giftRedemptionCode')}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 text-2xl font-mono font-bold text-gray-900 tracking-[0.15em] select-all">
+                          {bundle.redemption_code}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-gray-600"
+                          onClick={() => handleCopyCode(bundle.redemption_code)}
+                        >
+                          {codeCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Info banner */}
+                  <div className="flex items-start gap-3 p-3 rounded-xl border bg-[#03bfac]/5 border-[#03bfac]/20 mx-2">
+                    <CheckCircle className="w-4 h-4 text-[#03bfac] mt-0.5 shrink-0" />
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {t('bundle.giftSentEmailMessage', { name: bundle.recipient_name || '' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* CTA */}
+            <Button
+              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              className="w-full h-14 bg-gray-900 text-white hover:bg-gray-800 rounded-xl text-base font-medium shadow-sm transition-all active:scale-[0.98]"
+            >
+              <ShoppingBag className="mr-2 h-5 w-5" />
+              {t('bundle.giftBookTreatment')}
+            </Button>
+
+            {/* Footer */}
+            <div className="flex items-center justify-center gap-2 pt-4 opacity-40">
+              <img src={brandLogos.monogramBlack} alt={brand.name} className="h-4 w-4" />
+              <span className="text-xs text-gray-500 font-serif">{brand.name}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- CURE confirmation (existing design, now with i18n) ---
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -133,16 +321,16 @@ export default function Confirmation() {
               <Package className="w-10 h-10 text-amber-600" strokeWidth={1.5} />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">Cure achetée !</h1>
-              <p className="text-gray-500 text-sm">
-                Votre cure est maintenant active. Vous pouvez réserver vos séances quand vous le souhaitez.
-              </p>
+              <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{t('bundle.purchased')}</h1>
+              <p className="text-gray-500 text-sm">{t('bundle.purchasedMessage')}</p>
             </div>
           </div>
 
           {/* Bundle details */}
           <div className="bg-[#FAFAFA] rounded-xl p-5 border border-gray-100 space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Détails de votre cure</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+              {t('bundle.purchased')}
+            </h3>
             {bundleData.map((bundle: any) => (
               <div key={bundle.id} className="space-y-3">
                 <div className="flex items-start gap-3">
@@ -152,7 +340,7 @@ export default function Confirmation() {
                       {bundle.treatment_bundles?.name || 'Cure'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {bundle.total_sessions} séance{bundle.total_sessions > 1 ? 's' : ''}
+                      {bundle.total_sessions} {t('bundle.sessions', { count: bundle.total_sessions })}
                     </p>
                   </div>
                 </div>
@@ -160,9 +348,8 @@ export default function Confirmation() {
                   <div className="flex items-start gap-3">
                     <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Validité</p>
-                      <p className="text-sm text-gray-500">
-                        Jusqu'au {format(new Date(bundle.expires_at), 'd MMMM yyyy', { locale: fr })}
+                      <p className="text-sm font-medium text-gray-900">
+                        {t('bundle.validUntil', { date: format(new Date(bundle.expires_at), 'd MMMM yyyy', { locale: dateLocale }) })}
                       </p>
                     </div>
                   </div>
@@ -175,28 +362,25 @@ export default function Confirmation() {
           <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
             <CheckCircle className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-900">Réservez votre première séance</p>
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Rendez-vous sur notre page de soins pour planifier votre premier rendez-vous.
-              </p>
+              <p className="text-sm font-medium text-amber-900">{t('bundle.bookFirstSession')}</p>
             </div>
           </div>
 
-          {/* Return button */}
+          {/* Return buttons */}
           <div className="pt-2 space-y-3">
             <Button
               onClick={() => navigate(`/client/${hotelId}/treatments`)}
               className="w-full h-14 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
-              Réserver une séance
+              {t('bundle.bookFirstSession')}
             </Button>
             <Button
               onClick={handleReturnHome}
               variant="outline"
               className="w-full h-12 rounded-xl text-sm"
             >
-              Retourner à l'accueil
+              {t('confirmation.backHome')}
             </Button>
           </div>
         </div>
@@ -204,6 +388,9 @@ export default function Confirmation() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // ERROR
+  // ---------------------------------------------------------------------------
   if (error || (!booking && !bundleData)) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 text-center">
@@ -211,27 +398,23 @@ export default function Confirmation() {
         <h2 className="text-xl font-semibold mb-2">Oups, un problème est survenu</h2>
         <p className="text-gray-500 mb-6">{error || "Réservation introuvable."}</p>
         <Button onClick={handleReturnHome} variant="outline" className="h-12 px-6 rounded-xl">
-          Retourner à l'accueil
+          {t('confirmation.backHome')}
         </Button>
       </div>
     );
   }
 
- // ---------------------------------------------------------------------------
-  // EXTRACTION SÉCURISÉE DES DONNÉES
+  // ---------------------------------------------------------------------------
+  // BOOKING CONFIRMATION (regular booking)
   // ---------------------------------------------------------------------------
   let treatmentNames = "Vos soins";
 
-  // Cas 1 : La donnée est un tableau simple de noms
   if (Array.isArray(booking?.treatments) && booking.treatments.length > 0) {
     treatmentNames = booking.treatments.join(", ");
-  } 
-  // Cas 2 : La donnée est imbriquée
-  else if (Array.isArray(booking?.booking_treatments) && booking.booking_treatments.length > 0) {
+  } else if (Array.isArray(booking?.booking_treatments) && booking.booking_treatments.length > 0) {
     const names = booking.booking_treatments
       .map((bt: any) => bt?.treatment_menus?.name)
       .filter(Boolean);
-    
     if (names.length > 0) {
       treatmentNames = names.join(", ");
     }
@@ -239,39 +422,36 @@ export default function Confirmation() {
 
   const hotelName = booking?.hotels?.name || "Au sein de votre établissement";
 
-  // ---------------------------------------------------------------------------
-  // RENDER : Écran de succès
-  // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        
-        {/* En-tête */}
+
+        {/* Header */}
         <div className="flex flex-col items-center text-center space-y-4">
           <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={1.5} />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">Réservation Confirmée</h1>
-            <p className="text-gray-500 text-sm">
-              Un email de confirmation vous a été envoyé. Nous avons hâte de vous accueillir.
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{t('confirmation.title')}</h1>
+            <p className="text-gray-500 text-sm">{t('confirmation.message')}</p>
           </div>
         </div>
 
-        {/* Détails de la réservation */}
+        {/* Booking details */}
         <div className="bg-[#FAFAFA] rounded-xl p-5 border border-gray-100 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Détails de votre rendez-vous</h3>
-          
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+            {t('confirmation.yourService')}
+          </h3>
+
           <div className="space-y-4">
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Votre prestation</p>
+                <p className="text-sm font-medium text-gray-900">{t('confirmation.yourService')}</p>
                 <p className="text-sm text-gray-500">{treatmentNames}</p>
                 {booking?.booking_date && (
                   <p className="text-sm text-gray-500 mt-0.5">
-                    Le {format(new Date(booking.booking_date), 'd MMMM yyyy', { locale: fr })}
+                    {format(new Date(booking.booking_date), 'd MMMM yyyy', { locale: dateLocale })}
                   </p>
                 )}
               </div>
@@ -305,12 +485,12 @@ export default function Confirmation() {
           <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
             <Repeat className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-900">Séance de cure utilisée</p>
+              <p className="text-sm font-medium text-amber-900">{t('bundle.sessionUsed')}</p>
               {booking?.bundle_remaining_sessions != null && (
                 <p className="text-xs text-amber-700 leading-relaxed">
                   {booking.bundle_remaining_sessions === 0
-                    ? "Toutes les séances ont été utilisées."
-                    : `${booking.bundle_remaining_sessions} séance${booking.bundle_remaining_sessions > 1 ? 's' : ''} restante${booking.bundle_remaining_sessions > 1 ? 's' : ''}`
+                    ? t('bundle.noCreditsLeft')
+                    : t('bundle.remaining', { count: booking.bundle_remaining_sessions })
                   }
                 </p>
               )}
@@ -322,33 +502,41 @@ export default function Confirmation() {
                   className="mt-2 h-8 text-xs border-amber-300 text-amber-800 hover:bg-amber-100"
                 >
                   <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />
-                  Racheter cette cure
+                  {t('bundle.rebuy')}
                 </Button>
               )}
             </div>
           </div>
         )}
 
-        {/* Info Paiement (Bouclier de réassurance) */}
-        {!booking?.bundle_usage_id && (
+        {/* Payment info */}
+        {!booking?.bundle_usage_id && booking?.payment_method === 'gift_amount' ? (
+          <div className="flex items-start gap-3 p-4 bg-[#03bfac]/5 rounded-xl border border-[#03bfac]/20">
+            <Gift className="w-5 h-5 text-[#03bfac] mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.giftCardPaymentTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                {t('confirmation.giftCardPaymentMessage')}
+              </p>
+            </div>
+          </div>
+        ) : !booking?.bundle_usage_id && (
           <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
             <CreditCard className="w-5 h-5 text-gray-900 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-900">Règlement sur place</p>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Votre empreinte bancaire a bien été validée pour garantir le rendez-vous. <strong>Aucun montant n'a été débité aujourd'hui.</strong> Le paiement s'effectuera à la fin de votre soin.
-              </p>
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.onSitePaymentTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed" dangerouslySetInnerHTML={{ __html: t('confirmation.onSitePaymentMessage') }} />
             </div>
           </div>
         )}
 
-        {/* Bouton de retour */}
+        {/* Return button */}
         <div className="pt-2">
-          <Button 
+          <Button
             onClick={handleReturnHome}
             className="w-full h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]"
           >
-            Retourner à l'accueil
+            {t('confirmation.backHome')}
           </Button>
         </div>
 

@@ -41,7 +41,7 @@ export function getClientTypeLabel(clientType: AmenityClientType, locale: string
   const labels: Record<AmenityClientType, { fr: string; en: string }> = {
     external: { fr: "Externe", en: "External" },
     internal: { fr: "Interne (hôtel)", en: "Internal (hotel)" },
-    lymfea: { fr: "Lymfea (soin)", en: "Lymfea (treatment)" },
+    lymfea: { fr: "Eïa (soin)", en: "Eïa (treatment)" },
   };
   return locale === "fr" ? labels[clientType].fr : labels[clientType].en;
 }

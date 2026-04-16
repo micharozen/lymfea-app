@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
-import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
+import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 
 const formSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
@@ -81,9 +81,6 @@ export default function CureTemplateDetail() {
       return data;
     },
   });
-
-  // Fetch categories for the selected venue
-  const { categories } = useTreatmentCategories(watchedHotelId || null);
 
   // Fetch treatments filtered by hotel
   const { data: treatments } = useQuery({
@@ -303,7 +300,7 @@ export default function CureTemplateDetail() {
               <span className="hidden sm:inline">Retour</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
-            <h1 className="text-lg font-semibold truncate">
+            <h1 className="text-lg font-medium truncate">
               {isNewMode ? t("cures.createTemplate") : watchedName || "Modele de cure"}
             </h1>
           </div>
@@ -432,24 +429,15 @@ export default function CureTemplateDetail() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Catégorie d'affichage *</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={!isEditing || !watchedHotelId}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={watchedHotelId ? "Sélectionner une catégorie" : "Sélectionnez d'abord un lieu"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <CategorySelectField
+                        hotelId={watchedHotelId || null}
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={!isEditing || !watchedHotelId}
+                        placeholder={watchedHotelId ? "Sélectionner une catégorie" : "Sélectionnez d'abord un lieu"}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

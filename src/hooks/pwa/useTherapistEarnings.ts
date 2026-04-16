@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
+import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -97,14 +98,13 @@ async function fetchTherapistEarnings(
     };
   }
 
-  const { data: hotelsData } = await supabase
-    .from("hotels")
-    .select("id, therapist_commission")
-    .in("id", hotelIds);
+  const { data: therapistData } = await supabase
+    .from("therapists")
+    .select("rate_45, rate_60, rate_90")
+    .eq("id", therapistId)
+    .single();
 
-  const commissionMap = new Map<string, number>(
-    hotelsData?.map((h) => [h.id, h.therapist_commission ?? 70]) || []
-  );
+  const therapistRates: TherapistRates | null = therapistData ?? null;
 
   const { data: bookingsData } = await supabase
     .from("bookings")
@@ -134,10 +134,10 @@ async function fetchTherapistEarnings(
   }>;
 
   const bookings: CompletedBookingDetail[] = rawBookings.map((b) => {
-    const commission = commissionMap.get(b.hotel_id) ?? 70;
     const total = calculateTotalPrice(b);
-    const therapistShare = Math.round(total * (commission / 100) * 100) / 100;
     const dur = calculateDuration(b);
+    const earned = computeTherapistEarnings(therapistRates, dur);
+    const therapistShare = earned != null ? Math.round(earned * 100) / 100 : 0;
     return {
       ...b,
       therapistShare,

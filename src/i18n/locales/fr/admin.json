@@ -163,7 +163,63 @@
     "rate45Label": "45 min",
     "rate60Label": "1 heure",
     "rate90Label": "1h30",
-    "rateHint": "Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel depuis le taux 1 heure."
+    "rateHint": "Montant fixe versé au thérapeute par soin. Pour les durées hors palier, calcul proportionnel depuis le taux 1 heure.",
+    "billing": "Facturation",
+    "billingTab": {
+      "title": "Factures",
+      "description": "Historique des factures générées, une par lieu et par mois",
+      "generateInvoices": "Générer les factures",
+      "generate": "Générer",
+      "generateDesc": "Une facture sera générée par lieu où le thérapeute a des réservations sur le mois sélectionné.",
+      "month": "Mois",
+      "year": "Année",
+      "noInvoices": "Aucune facture générée",
+      "noInvoicesHint": "Cliquez sur Générer les factures pour créer la facturation mensuelle",
+      "noBookings": "Aucun booking à facturer pour ce mois",
+      "generated": "{{count}} facture(s) générée(s)",
+      "generateError": "Erreur lors de la génération",
+      "columns": {
+        "number": "Numéro",
+        "venue": "Lieu",
+        "period": "Période",
+        "totalHt": "Total HT",
+        "vat": "TVA",
+        "totalTtc": "Total TTC",
+        "status": "Statut"
+      },
+      "status": {
+        "draft": "Brouillon",
+        "issued": "Émise",
+        "paid": "Payée",
+        "cancelled": "Annulée"
+      }
+    },
+    "billingInfo": {
+      "title": "Informations de facturation",
+      "description": "Utilisées pour générer les factures mensuelles automatiquement",
+      "companyName": "Raison sociale",
+      "legalForm": "Forme juridique",
+      "siret": "SIRET",
+      "siretHint": "Laisser vide si auto-entrepreneur sans SIRET",
+      "siren": "SIREN",
+      "vatExempt": "Non assujetti à la TVA",
+      "vatExemptHint": "Article 293 B du CGI (auto-entrepreneurs)",
+      "tvaNumber": "N° TVA intracommunautaire",
+      "address": "Adresse",
+      "addressLine": "Adresse postale",
+      "postalCode": "Code postal",
+      "city": "Ville",
+      "country": "Pays",
+      "contactEmail": "Email de contact",
+      "contactPhone": "Téléphone de contact",
+      "bankDetails": "Coordonnées bancaires",
+      "bankDetailsHint": "Utilisées sur les factures générées automatiquement",
+      "bankName": "Nom de la banque",
+      "iban": "IBAN",
+      "bic": "BIC",
+      "saveSuccess": "Informations de facturation enregistrées",
+      "saveError": "Erreur lors de l'enregistrement"
+    }
   },
   "treatments": {
     "title": "Menus des Soins",
@@ -181,7 +237,9 @@
     "both": "Les deux",
     "specialty": "Spécialité",
     "allSpecialties": "Toutes les spécialités",
-    "noSpecialty": "Aucune spécialité"
+    "noSpecialty": "Aucune spécialité",
+    "categoryHelp": "Catégorie d'affichage dans le parcours de réservation client (regroupement des soins). Ne détermine pas quel thérapeute peut réaliser le soin.",
+    "specialtyHelp": "Spécialité requise. Seuls les thérapeutes ayant cette compétence pourront être assignés à ce soin."
   },
   "boxes": {
     "title": "Boxes",
@@ -484,7 +542,7 @@
     "pricing": "Tarification",
     "external": "Externe",
     "internal": "Interne (hôtel)",
-    "lymfea": "Lymfea (client soin)",
+    "lymfea": "Eïa (client soin)",
     "includedWithTreatment": "Inclus avec soin",
     "accessDuration": "Durée accès offert",
     "free": "Gratuit",
@@ -599,5 +657,165 @@
     "screenshotsDesc": "Ajoutez jusqu'à 3 captures d'écran (optionnel)",
     "viewScreenshots": "Voir les captures d'écran",
     "viewNotion": "Voir dans Notion"
+  },
+  "giftCards": {
+    "title": "Cartes cadeaux",
+    "description": "Créez des cartes cadeaux offrant des soins ou un montant, utilisables sur ce lieu.",
+    "create": "Créer une carte cadeau",
+    "print": "Impression",
+    "selfPurchase": "Pour soi-même",
+    "sessionsValue": "{{count}} séances",
+    "tabs": {
+      "templates": "Modèles",
+      "sales": "Ventes"
+    },
+    "type": {
+      "amount": "Montant",
+      "treatments": "Soins offerts"
+    },
+    "status": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "completed": "Terminée",
+      "expired": "Expirée",
+      "cancelled": "Annulée"
+    },
+    "displayed": {
+      "yes": "Oui",
+      "no": "Non"
+    },
+    "columns": {
+      "title": "Titre",
+      "type": "Type",
+      "value": "Valeur",
+      "price": "Prix de vente",
+      "displayed": "Affichée",
+      "status": "Statut",
+      "template": "Carte",
+      "buyer": "Acheteur",
+      "recipient": "Destinataire",
+      "code": "Code",
+      "balance": "Solde",
+      "expiresAt": "Expire le"
+    },
+    "empty": {
+      "templates": "Aucune carte cadeau configurée",
+      "templatesHint": "Cliquez sur Créer une carte cadeau pour démarrer.",
+      "sales": "Aucune carte cadeau vendue"
+    },
+    "dialog": {
+      "createTitle": "Nouvelle carte cadeau",
+      "editTitle": "Modifier la carte cadeau",
+      "description": "Choisissez le type et les détails. La carte sera visible dans le flux client selon vos options."
+    },
+    "form": {
+      "type": "Type",
+      "typeLocked": "Le type ne peut pas être changé après création.",
+      "title": "Titre",
+      "titleEn": "Titre (EN)",
+      "description": "Description",
+      "category": "Catégorie",
+      "categoryPlaceholder": "Choisir une catégorie",
+      "categoryHint": "La carte cadeau sera regroupée dans cette catégorie côté client.",
+      "cover": "Image de la carte",
+      "coverHint": "Visuel affiché côté client et intégré dans l'email au destinataire.",
+      "upload": "Téléverser",
+      "amount": "Valeur de la carte (€)",
+      "amountHint": "Montant crédité à l'achat. Le client peut l'utiliser partiellement.",
+      "sessions": "Nombre de séances",
+      "price": "Prix de vente (€)",
+      "priceAmountHint": "Égal à la valeur par défaut. Modifiable pour offrir une remise.",
+      "priceTreatmentsHint": "Montant facturé à l'acheteur.",
+      "validity": "Validité (jours)",
+      "eligibleTreatments": "Soins éligibles",
+      "noTreatments": "Aucun soin actif disponible sur ce lieu.",
+      "displayOnClientFlow": "Afficher côté client",
+      "displayHint": "Rend la carte visible dans le flux de réservation public.",
+      "status": "Statut",
+      "save": "Enregistrer",
+      "create": "Créer"
+    },
+    "delete": {
+      "title": "Supprimer cette carte cadeau ?",
+      "description": "Cette action est définitive. Les ventes passées ne seront pas affectées."
+    },
+    "toast": {
+      "created": "Carte cadeau créée",
+      "updated": "Carte cadeau mise à jour",
+      "deleted": "Carte cadeau supprimée",
+      "saveError": "Erreur lors de l'enregistrement",
+      "deleteError": "Erreur lors de la suppression"
+    }
+  },
+  "phoneBooking": {
+    "title": "Réservation téléphone",
+    "fabLabel": "Réservation téléphone",
+    "ui": {
+      "back": "Retour",
+      "next": "Suivant",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "optional": "optionnel"
+    },
+    "steps": {
+      "venue": "Lieu & soin",
+      "slot": "Créneau",
+      "therapist": "Thérapeute",
+      "client": "Client",
+      "confirm": "Confirmation"
+    },
+    "venue": {
+      "label": "Lieu",
+      "placeholder": "Sélectionner un lieu"
+    },
+    "treatment": {
+      "label": "Soins",
+      "empty": "Aucun soin disponible pour ce lieu",
+      "searchPlaceholder": "Rechercher un soin...",
+      "summary": "Total"
+    },
+    "slot": {
+      "date": "Date",
+      "time": "Horaire",
+      "loading": "Chargement des créneaux..."
+    },
+    "therapist": {
+      "label": "Thérapeutes disponibles",
+      "loading": "Recherche des thérapeutes disponibles...",
+      "empty": "Aucun thérapeute disponible pour ce créneau"
+    },
+    "client": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "phone": "Téléphone",
+      "search": "Rechercher un client existant",
+      "searchPlaceholder": "Nom, prénom ou téléphone...",
+      "searching": "Recherche...",
+      "noResults": "Aucun client trouvé",
+      "existingClient": "Client existant — champs préremplis",
+      "email": "Email",
+      "emailHint": "nécessaire pour le lien de paiement",
+      "room": "Numéro de chambre"
+    },
+    "confirm": {
+      "venue": "Lieu",
+      "when": "Créneau",
+      "therapist": "Thérapeute",
+      "treatments": "Soins",
+      "total": "Total",
+      "client": "Client",
+      "createAndSend": "Créer et envoyer le lien"
+    },
+    "done": {
+      "title": "Réservation créée",
+      "sendLink": "Envoyer lien de paiement"
+    },
+    "errors": {
+      "selectVenue": "Sélectionnez un lieu",
+      "selectTreatment": "Sélectionnez au moins un soin",
+      "selectSlot": "Sélectionnez une date et un horaire",
+      "selectTherapist": "Sélectionnez un thérapeute",
+      "fillClient": "Remplissez les informations client"
+    }
   }
 }

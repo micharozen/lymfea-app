@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -744,6 +745,24 @@ export function BookingInfoStep({
             )}
           />
         )}
+
+        <FormField
+          control={form.control}
+          name="clientNote"
+          render={({ field }) => (
+            <FormItem className="space-y-1 md:col-span-2">
+              <FormLabel className="text-xs">Note</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  rows={3}
+                  placeholder="Ajouter une note pour cette réservation…"
+                />
+              </FormControl>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
       </div>
 
       </div>
