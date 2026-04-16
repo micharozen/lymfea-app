@@ -2,9 +2,10 @@ import { UseFormReturn, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
+import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -59,9 +60,6 @@ export function TreatmentGeneralTab({
       return data;
     },
   });
-
-  const { categories, isLoading: categoriesLoading } =
-    useTreatmentCategories(selectedHotelId);
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -219,36 +217,15 @@ export function TreatmentGeneralTab({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Catégorie *</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une catégorie" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {categoriesLoading ? (
-                    <div className="flex items-center justify-center py-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : categories.length === 0 ? (
-                    <div className="px-2 py-2 text-sm text-muted-foreground">
-                      {selectedHotelId
-                        ? "Aucune catégorie. Ajoutez-en dans les paramètres du lieu."
-                        : "Sélectionnez d'abord un lieu"}
-                    </div>
-                  ) : (
-                    categories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
-                        {category.name}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <CategorySelectField
+                  hotelId={selectedHotelId}
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormDescription>{t("admin:treatments.categoryHelp")}</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -280,6 +257,7 @@ export function TreatmentGeneralTab({
                   ))}
                 </SelectContent>
               </Select>
+              <FormDescription>{t("admin:treatments.specialtyHelp")}</FormDescription>
               <FormMessage />
             </FormItem>
           )}

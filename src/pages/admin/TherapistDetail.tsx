@@ -318,7 +318,7 @@ export default function TherapistDetail() {
               </span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
-            <h1 className="text-lg font-semibold truncate">
+            <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedTherapistId
                 ? t("admin:therapists.newTherapist", "Nouveau thérapeute")
                 : watchedName || therapistName || "Thérapeute"}

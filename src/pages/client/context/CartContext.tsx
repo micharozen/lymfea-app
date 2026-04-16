@@ -15,13 +15,14 @@ export interface BasketItem {
   image?: string;
   category: string;
   isPriceOnRequest?: boolean; // New field to track variable price items
-  isAddon?: boolean;    // True if treatment belongs to an add-on category
+  isAddon?: boolean;    // True if treatment is an add-on (category-level or per-treatment)
+  parentCartKey?: string; // Composite key of the parent cart item this add-on is linked to
   isBundle?: boolean;   // True if this is a cure/bundle purchase
   bundleId?: string;    // FK to treatment_bundles template
 }
 
 /** Composite key for cart items — allows same treatment with different variants as separate items */
-const getCartKey = (id: string, variantId?: string) => variantId ? `${id}__${variantId}` : id;
+export const getCartKey = (id: string, variantId?: string) => variantId ? `${id}__${variantId}` : id;
 
 interface BasketContextType {
   items: BasketItem[];
@@ -84,8 +85,11 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
   const removeItem = (id: string, variantId?: string) => {
     const key = getCartKey(id, variantId);
     setItems(prev => {
-      const remaining = prev.filter(i => getCartKey(i.id, i.variantId) !== key);
-      // If no base (non-addon) items remain, auto-remove all add-ons
+      // Drop the item itself, then drop any add-ons whose parentCartKey matches it
+      const remaining = prev
+        .filter(i => getCartKey(i.id, i.variantId) !== key)
+        .filter(i => i.parentCartKey !== key);
+      // If no base (non-addon) items remain at all, clear all remaining add-ons too
       const hasBase = remaining.some(i => !i.isAddon);
       if (!hasBase) {
         return remaining.filter(i => !i.isAddon);

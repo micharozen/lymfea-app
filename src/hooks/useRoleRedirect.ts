@@ -40,7 +40,7 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     const roleList = roles?.map((r) => r.role) || [];
     log("user_roles result", { roleList });
 
-    // Priority: admin > concierge > therapist
+    // Priority: admin > concierge > therapist > user (customer)
     if (roleList.includes("admin")) {
       log("match: admin (user_roles) -> /admin/dashboard");
       return { role: "admin", redirectPath: adminPath };
@@ -49,6 +49,11 @@ export async function getRoleRedirect(userId: string): Promise<RoleRedirectResul
     if (roleList.includes("concierge")) {
       log("match: concierge (user_roles) -> /admin/dashboard");
       return { role: "concierge", redirectPath: adminPath };
+    }
+
+    if (roleList.includes("user")) {
+      log("match: user (customer portal) -> /portal/dashboard");
+      return { role: "user", redirectPath: "/portal/dashboard" };
     }
 
     if (roleList.includes("therapist")) {

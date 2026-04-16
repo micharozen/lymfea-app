@@ -26,7 +26,7 @@ export function DashboardFooter() {
         </div>
       </div>
 
-      {/* Powered by Lymfea */}
+      {/* Powered by Eïa */}
       <div className="bg-gray-900 px-6 py-6 flex items-center justify-center gap-2">
         <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-light">
           {t('enterpriseDashboard.footer.poweredBy')}

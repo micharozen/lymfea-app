@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { Send, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { formatPrice } from "@/lib/formatPrice";
 
 interface BookingPaymentStepProps {
@@ -27,6 +28,7 @@ export function BookingPaymentStep({
   onSendPaymentLink,
   onClose,
 }: BookingPaymentStepProps) {
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-6 py-6">
       <div className="flex flex-col items-center gap-3">
@@ -56,6 +58,16 @@ export function BookingPaymentStep({
             Envoyer lien de paiement
           </Button>
         )}
+        <Button
+          type="button"
+          onClick={() => {
+            onClose();
+            navigate(`/admin/bookings/${createdBooking.id}`);
+          }}
+        >
+          Voir la réservation
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
         <Button
           type="button"
           variant="outline"

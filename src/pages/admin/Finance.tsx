@@ -70,7 +70,7 @@ interface HotelNetting {
 }
 
 interface FinanceSummary {
-  totalReceivables: number; // Positive ledger entries (hotels owe Lymfea)
+  totalReceivables: number; // Positive ledger entries (hotels owe Eïa)
   totalPayouts: number; // Money paid to therapists
   netProfit: number; // Receivables - Payouts
   pendingPayouts: number;

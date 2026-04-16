@@ -1,0 +1,29 @@
+-- Add payment_method to get_booking_summary so the confirmation page
+-- can display the correct payment message (gift card vs setup intent).
+
+CREATE OR REPLACE FUNCTION public.get_booking_summary(_booking_id UUID)
+RETURNS JSON
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT json_build_object(
+    'id', b.id,
+    'booking_date', b.booking_date,
+    'booking_time', b.booking_time,
+    'room_number', b.room_number,
+    'payment_method', b.payment_method,
+    'hotels', (SELECT json_build_object('name', name) FROM hotels WHERE id = b.hotel_id),
+    'treatments', COALESCE(
+      (
+        SELECT json_agg(tm.name)
+        FROM booking_treatments bt
+        JOIN treatment_menus tm ON tm.id = bt.treatment_id
+        WHERE bt.booking_id = b.id
+      ),
+      '[]'::json
+    )
+  )
+  FROM bookings b
+  WHERE b.id = _booking_id;
+$$;

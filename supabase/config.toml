@@ -158,3 +158,9 @@ verify_jwt = false
 
 [functions.generate-venue-invoices]
 verify_jwt = false
+
+[functions.create-portal-account]
+verify_jwt = false
+
+[functions.send-payment-link]
+verify_jwt = false

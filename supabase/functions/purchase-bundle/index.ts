@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { stripe } from "../_shared/stripe-client.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
+import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -52,7 +54,7 @@ serve(async (req) => {
       // Already processed — return existing bundle IDs
       const { data: allBundles } = await supabaseAdmin
         .from('customer_treatment_bundles')
-        .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
+        .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
         .eq('payment_reference', `stripe:${sessionId}`);
 
       return new Response(
@@ -65,6 +67,8 @@ serve(async (req) => {
       );
     }
 
+    console.log('[PURCHASE-BUNDLE] Session metadata:', JSON.stringify(session.metadata));
+
     const {
       hotelId,
       firstName,
@@ -72,6 +76,13 @@ serve(async (req) => {
       clientEmail,
       phone,
       bundleItems: bundleItemsJson,
+      isGift: isGiftMeta,
+      giftDeliveryMode,
+      senderName,
+      senderEmail,
+      recipientName,
+      recipientEmail,
+      giftMessage,
     } = session.metadata!;
 
     const bundleItems = JSON.parse(bundleItemsJson);
@@ -162,20 +173,120 @@ serve(async (req) => {
       .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
       .in('id', bundleDetailIds);
 
-    // --- Send confirmation email (future: dedicated bundle email template) ---
-    try {
-      await supabaseAdmin.functions.invoke('send-booking-confirmation', {
-        body: {
-          type: 'bundle_purchase',
-          email: clientEmail,
-          firstName,
-          lastName,
-          hotelId,
-          bundles: bundleDetails,
-        },
-      });
-    } catch (emailError) {
-      console.error('[PURCHASE-BUNDLE] Email sending failed (non-blocking):', emailError);
+    // --- Send confirmation email only for cure bundles (not gift cards) ---
+    const hasNonGiftBundles = bundleDetails?.some((b: any) => b.treatment_bundles?.bundle_type === 'cure');
+    if (hasNonGiftBundles) {
+      try {
+        await supabaseAdmin.functions.invoke('send-booking-confirmation', {
+          body: {
+            type: 'bundle_purchase',
+            email: clientEmail,
+            firstName,
+            lastName,
+            hotelId,
+            bundles: bundleDetails,
+          },
+        });
+      } catch (emailError) {
+        console.error('[PURCHASE-BUNDLE] Email sending failed (non-blocking):', emailError);
+      }
+    }
+
+    // --- Fetch venue for email templates ---
+    const { data: venue } = await supabaseAdmin
+      .from('hotels')
+      .select('name, image')
+      .eq('id', hotelId)
+      .single();
+    const venueName = venue?.name || '';
+    const logoUrl = venue?.image || EMAIL_LOGO_URL;
+
+    // --- Send gift card email to recipient via Resend template ---
+    const isGift = isGiftMeta === 'true';
+    console.log('[PURCHASE-BUNDLE] Gift email check — isGift:', isGift, 'recipientEmail:', recipientEmail, 'deliveryMode:', giftDeliveryMode);
+    console.log('[PURCHASE-BUNDLE] Condition result:', isGift && recipientEmail && giftDeliveryMode === 'email');
+    if (isGift && recipientEmail && giftDeliveryMode === 'email') {
+      try {
+        // Build template variables from the first gift bundle
+        const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
+        const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
+        const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
+        const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
+        const expiryDate = giftBundle?.expires_at
+          ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '';
+
+        const siteUrl = Deno.env.get('SITE_URL') || brand.website;
+        const activateUrl = `${siteUrl}/portal/redeem`;
+        const redemptionCode = giftBundle?.redemption_code ?? '';
+
+        const result = await sendEmail({
+          to: recipientEmail,
+          subject: `You've received a gift card — ${venueName}`,
+          templateId: '1b1674f1-5145-4bb5-8fce-b8b9f2c405ac',
+          templateVariables: {
+            logo_url: logoUrl,
+            recipient_name: recipientName || '',
+            recipient_email: recipientEmail,
+            venue_name: venueName,
+            bundle_title: bundleName,
+            value_display: valueDisplay,
+            expiry_date: expiryDate,
+            activate_url: activateUrl,
+            sender_name: senderName || firstName || '',
+            gift_message: giftMessage || '',
+            redemption_code: redemptionCode,
+          },
+        });
+
+        if (result.error) {
+          console.error('[PURCHASE-BUNDLE] Resend API error for gift email:', result.error);
+        } else {
+          console.log('[PURCHASE-BUNDLE] Gift recipient email sent to:', recipientEmail, 'id:', result.id);
+        }
+      } catch (giftEmailError) {
+        console.error('[PURCHASE-BUNDLE] Gift recipient email failed (non-blocking):', giftEmailError);
+      }
+    }
+
+    // --- Send cure confirmation email to buyer via Resend template ---
+    const cureBundles = bundleDetails?.filter((b: any) => b.treatment_bundles?.bundle_type === 'cure');
+    if (cureBundles && cureBundles.length > 0) {
+      try {
+        const cureBundle = cureBundles[0];
+        const bundleName = cureBundle.treatment_bundles?.name ?? 'Cure';
+        const totalSessions = cureBundle.total_sessions ?? 0;
+        const valueDisplay = `${totalSessions} session${totalSessions > 1 ? 's' : ''}`;
+        const expiryDate = cureBundle.expires_at
+          ? new Date(cureBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '';
+
+        const siteUrl = Deno.env.get('SITE_URL') || brand.website;
+        const bookingUrl = `${siteUrl}/client/${hotelId}/treatments`;
+
+        const result = await sendEmail({
+          to: clientEmail,
+          subject: `Your treatment package is activated — ${venueName}`,
+          templateId: '378deb7f-307f-40e9-8054-6bf0c29beef9',
+          templateVariables: {
+            logo_url: logoUrl,
+            recipient_name: firstName || '',
+            venue_name: venueName,
+            bundle_title: bundleName,
+            value_display: valueDisplay,
+            expiry_date: expiryDate,
+            booking_url: bookingUrl,
+          },
+        });
+
+        if (result.error) {
+          console.error('[PURCHASE-BUNDLE] Resend API error for cure email:', result.error);
+        }
+
+        console.log('[PURCHASE-BUNDLE] Cure confirmation email sent to:', clientEmail);
+      } catch (cureEmailError) {
+        console.error('[PURCHASE-BUNDLE] Cure email failed (non-blocking):', cureEmailError);
+      }
     }
 
     return new Response(

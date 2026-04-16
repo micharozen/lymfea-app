@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import type { AuthBundles } from "@/components/client/GiftCardLoginModal";
 
 export type TherapistGender = 'female' | 'male' | null;
 
@@ -23,8 +24,22 @@ export interface ClientInfo {
 export interface SelectedBundle {
   customerBundleId: string;
   bundleName: string;
-  remainingSessions: number;
-  eligibleTreatmentIds: string[];
+  bundleType: 'cure' | 'gift_treatments' | 'gift_amount';
+  // Session-based (cure, gift_treatments)
+  remainingSessions?: number;
+  eligibleTreatmentIds?: string[];
+  // Amount-based (gift_amount)
+  remainingAmountCents?: number;
+  amountToUseCents?: number;
+}
+
+export interface GiftInfo {
+  isGift: boolean;
+  deliveryMode: 'email' | 'print';
+  recipientName: string;
+  recipientEmail?: string;
+  senderName: string;
+  giftMessage?: string;
 }
 
 interface ClientFlowState {
@@ -34,6 +49,8 @@ interface ClientFlowState {
   therapistGenderPreference: TherapistGender;
   selectedBundle: SelectedBundle | null;
   isBundleOnlyPurchase: boolean;
+  giftInfo: GiftInfo | null;
+  authBundles: AuthBundles | null;
 }
 
 interface ClientFlowContextType extends ClientFlowState {
@@ -43,6 +60,8 @@ interface ClientFlowContextType extends ClientFlowState {
   setTherapistGenderPreference: (gender: TherapistGender) => void;
   setSelectedBundle: (bundle: SelectedBundle | null) => void;
   setIsBundleOnlyPurchase: (value: boolean) => void;
+  setGiftInfo: (info: GiftInfo | null) => void;
+  setAuthBundles: (bundles: AuthBundles | null) => void;
   clearFlow: () => void;
   canProceedToStep: (step: "info" | "payment" | "confirmation") => boolean;
 }
@@ -56,6 +75,8 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
   const [therapistGenderPreference, setTherapistGenderPreferenceState] = useState<TherapistGender>(null);
   const [selectedBundle, setSelectedBundleState] = useState<SelectedBundle | null>(null);
   const [isBundleOnlyPurchase, setIsBundleOnlyPurchaseState] = useState(false);
+  const [giftInfo, setGiftInfoState] = useState<GiftInfo | null>(null);
+  const [authBundles, setAuthBundlesState] = useState<AuthBundles | null>(null);
 
   const setBookingDateTime = useCallback((data: BookingDateTime) => {
     setBookingDateTimeState(data);
@@ -81,6 +102,14 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setIsBundleOnlyPurchaseState(value);
   }, []);
 
+  const setGiftInfo = useCallback((info: GiftInfo | null) => {
+    setGiftInfoState(info);
+  }, []);
+
+  const setAuthBundles = useCallback((bundles: AuthBundles | null) => {
+    setAuthBundlesState(bundles);
+  }, []);
+
   const clearFlow = useCallback(() => {
     setBookingDateTimeState(null);
     setClientInfoState(null);
@@ -88,6 +117,8 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setTherapistGenderPreferenceState(null);
     setSelectedBundleState(null);
     setIsBundleOnlyPurchaseState(false);
+    setGiftInfoState(null);
+    setAuthBundlesState(null);
   }, []);
 
   const canProceedToStep = useCallback(
@@ -115,12 +146,16 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       therapistGenderPreference,
       selectedBundle,
       isBundleOnlyPurchase,
+      giftInfo,
+      authBundles,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
       setTherapistGenderPreference,
       setSelectedBundle,
       setIsBundleOnlyPurchase,
+      setGiftInfo,
+      setAuthBundles,
       clearFlow,
       canProceedToStep,
     }),
@@ -131,12 +166,16 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       therapistGenderPreference,
       selectedBundle,
       isBundleOnlyPurchase,
+      giftInfo,
+      authBundles,
       setBookingDateTime,
       setClientInfo,
       setPendingCheckoutSession,
       setTherapistGenderPreference,
       setSelectedBundle,
       setIsBundleOnlyPurchase,
+      setGiftInfo,
+      setAuthBundles,
       clearFlow,
       canProceedToStep,
     ]

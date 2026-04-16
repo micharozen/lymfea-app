@@ -271,6 +271,12 @@ export default function BookingDetail() {
                   <p className="text-sm">{booking.phone || "-"} / {booking.client_email || "-"}</p>
                 </div>
               </div>
+              {(booking as any).client_note && (
+                <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{(booking as any).client_note}</p>
+                </div>
+              )}
             </section>
 
             {/* SECTION SOINS & PRATICIEN */}

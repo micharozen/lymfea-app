@@ -1,6 +1,6 @@
-# Lymfea - Supabase Edge Functions
+# Eïa - Supabase Edge Functions
 
-> **Note legacy** : Les noms de fonctions utilisent encore "hairdresser" (OOM). Dans le contexte Lymfea, lire "thérapeute" à chaque occurrence de "hairdresser/coiffeur".
+> **Note legacy** : Les noms de fonctions utilisent encore "hairdresser" (OOM). Dans le contexte Eïa, lire "thérapeute" à chaque occurrence de "hairdresser/coiffeur".
 
 ## Vue d'ensemble
 
@@ -142,7 +142,7 @@ const result = await invokeEdgeFunction('function-name', {
 
 | Nom actuel | Nom cible | Raison |
 |------------|-----------|--------|
-| `invite-hairdresser` | `invite-therapist` | Terminologie Lymfea |
-| `assign-hairdresser` | `assign-therapist` | Terminologie Lymfea |
-| `get-hairdresser-earnings` | `get-therapist-earnings` | Terminologie Lymfea |
+| `invite-hairdresser` | `invite-therapist` | Terminologie Eïa |
+| `assign-hairdresser` | `assign-therapist` | Terminologie Eïa |
+| `get-hairdresser-earnings` | `get-therapist-earnings` | Terminologie Eïa |
 | Toute fonction contenant "hairdresser" | Équivalent "therapist" | Cohérence naming |

@@ -237,7 +237,9 @@
     "both": "Les deux",
     "specialty": "Spécialité",
     "allSpecialties": "Toutes les spécialités",
-    "noSpecialty": "Aucune spécialité"
+    "noSpecialty": "Aucune spécialité",
+    "categoryHelp": "Catégorie d'affichage dans le parcours de réservation client (regroupement des soins). Ne détermine pas quel thérapeute peut réaliser le soin.",
+    "specialtyHelp": "Spécialité requise. Seuls les thérapeutes ayant cette compétence pourront être assignés à ce soin."
   },
   "boxes": {
     "title": "Boxes",
@@ -743,6 +745,77 @@
       "deleted": "Carte cadeau supprimée",
       "saveError": "Erreur lors de l'enregistrement",
       "deleteError": "Erreur lors de la suppression"
+    }
+  },
+  "phoneBooking": {
+    "title": "Réservation téléphone",
+    "fabLabel": "Réservation téléphone",
+    "ui": {
+      "back": "Retour",
+      "next": "Suivant",
+      "cancel": "Annuler",
+      "close": "Fermer",
+      "optional": "optionnel"
+    },
+    "steps": {
+      "venue": "Lieu & soin",
+      "slot": "Créneau",
+      "therapist": "Thérapeute",
+      "client": "Client",
+      "confirm": "Confirmation"
+    },
+    "venue": {
+      "label": "Lieu",
+      "placeholder": "Sélectionner un lieu"
+    },
+    "treatment": {
+      "label": "Soins",
+      "empty": "Aucun soin disponible pour ce lieu",
+      "searchPlaceholder": "Rechercher un soin...",
+      "summary": "Total"
+    },
+    "slot": {
+      "date": "Date",
+      "time": "Horaire",
+      "loading": "Chargement des créneaux..."
+    },
+    "therapist": {
+      "label": "Thérapeutes disponibles",
+      "loading": "Recherche des thérapeutes disponibles...",
+      "empty": "Aucun thérapeute disponible pour ce créneau"
+    },
+    "client": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "phone": "Téléphone",
+      "search": "Rechercher un client existant",
+      "searchPlaceholder": "Nom, prénom ou téléphone...",
+      "searching": "Recherche...",
+      "noResults": "Aucun client trouvé",
+      "existingClient": "Client existant — champs préremplis",
+      "email": "Email",
+      "emailHint": "nécessaire pour le lien de paiement",
+      "room": "Numéro de chambre"
+    },
+    "confirm": {
+      "venue": "Lieu",
+      "when": "Créneau",
+      "therapist": "Thérapeute",
+      "treatments": "Soins",
+      "total": "Total",
+      "client": "Client",
+      "createAndSend": "Créer et envoyer le lien"
+    },
+    "done": {
+      "title": "Réservation créée",
+      "sendLink": "Envoyer lien de paiement"
+    },
+    "errors": {
+      "selectVenue": "Sélectionnez un lieu",
+      "selectTreatment": "Sélectionnez au moins un soin",
+      "selectSlot": "Sélectionnez une date et un horaire",
+      "selectTherapist": "Sélectionnez un thérapeute",
+      "fillClient": "Remplissez les informations client"
     }
   }
 }

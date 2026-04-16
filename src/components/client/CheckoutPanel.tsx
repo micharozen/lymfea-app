@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
+import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -39,7 +40,7 @@ export function CheckoutPanel({
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -91,12 +92,24 @@ export function CheckoutPanel({
   const variableItems = items.filter(item => item.isPriceOnRequest);
 
   // Bundle: split items into covered (free) vs uncovered (charged normally)
+  const isAmountBundle = selectedBundle?.bundleType === 'gift_amount';
   const eligibleSet = new Set(selectedBundle?.eligibleTreatmentIds ?? []);
-  const bundleCoveredItems = selectedBundle
+  const bundleCoveredItems = selectedBundle && !isAmountBundle
     ? items.filter(item => eligibleSet.has(item.id))
     : [];
-  const uncoveredTotal = selectedBundle
-    ? items.filter(item => !eligibleSet.has(item.id)).reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const bundleUncoveredItems = selectedBundle && !isAmountBundle
+    ? items.filter(item => !eligibleSet.has(item.id))
+    : [];
+  const uncoveredTotal = isAmountBundle
+    ? Math.max(0, Math.round((total * 100 - (selectedBundle?.amountToUseCents ?? 0)) / 100))
+    : bundleUncoveredItems.reduce(
+        (sum, item) => sum + item.price * item.quantity, 0
+      );
+  const giftAmountAppliedEuros = isAmountBundle
+    ? Math.round((selectedBundle?.amountToUseCents ?? 0) / 100)
+    : 0;
+  const giftAmountRemainingAfter = isAmountBundle
+    ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
 
   const handlePayment = async () => {
@@ -128,6 +141,16 @@ export function CheckoutPanel({
               quantity: item.quantity,
             })),
             totalPrice: total,
+            ...(giftInfo && {
+              giftData: {
+                isGift: giftInfo.isGift,
+                deliveryMode: giftInfo.deliveryMode,
+                recipientName: giftInfo.recipientName,
+                recipientEmail: giftInfo.recipientEmail,
+                senderName: giftInfo.senderName,
+                giftMessage: giftInfo.giftMessage,
+              },
+            }),
           },
         });
 
@@ -160,7 +183,94 @@ export function CheckoutPanel({
     setIsProcessing(true);
 
     try {
-      // All items covered by bundle — create booking with bundle payment
+      // Gift amount bundle — full or partial coverage
+      if (selectedBundle && isAmountBundle && selectedBundle.amountToUseCents) {
+        if (uncoveredTotal === 0) {
+          const { data, error } = await supabase.functions.invoke('create-client-booking', {
+            body: {
+              hotelId,
+              clientData: {
+                firstName: clientInfo.firstName,
+                lastName: clientInfo.lastName,
+                phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+                email: clientInfo.email,
+                roomNumber: clientInfo.roomNumber,
+                note: clientInfo.note || '',
+                pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+                pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+              },
+              bookingData: {
+                date: bookingDateTime.date,
+                time: bookingDateTime.time,
+              },
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                note: item.note,
+              })),
+              paymentMethod: 'gift_amount',
+              giftAmountUsage: {
+                customerBundleId: selectedBundle.customerBundleId,
+                amountCents: selectedBundle.amountToUseCents,
+              },
+              totalPrice: 0,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            },
+          });
+
+          if (error) throw error;
+
+          clearBasket();
+          clearFlow();
+          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          return;
+        } else {
+          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
+            body: {
+              hotelId,
+              clientData: {
+                firstName: clientInfo.firstName,
+                lastName: clientInfo.lastName,
+                phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+                email: clientInfo.email,
+                roomNumber: clientInfo.roomNumber,
+                note: clientInfo.note || '',
+              },
+              bookingData: {
+                date: bookingDateTime.date,
+                time: bookingDateTime.time,
+              },
+              treatmentIds: items.map(item => item.id),
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+              })),
+              totalPrice: uncoveredTotal,
+              giftAmountUsage: {
+                customerBundleId: selectedBundle.customerBundleId,
+                amountCents: selectedBundle.amountToUseCents,
+              },
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            },
+          });
+
+          if (error) throw error;
+
+          if (data?.url) {
+            const url = new URL(data.url);
+            const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
+            if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+              throw new Error('Invalid redirect URL');
+            }
+            setPendingCheckoutSession(data.sessionId);
+            window.location.href = data.url;
+          }
+          return;
+        }
+      }
+
+      // All items covered by session bundle — create booking with bundle payment
       if (selectedBundle && bundleCoveredItems.length > 0 && uncoveredTotal === 0) {
         const { data, error } = await supabase.functions.invoke('create-client-booking', {
           body: {
@@ -389,15 +499,24 @@ export function CheckoutPanel({
       {selectedBundle && (
         <div className="p-3 bg-amber-50/80 border border-amber-200/60 rounded-lg flex items-start gap-3">
           <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Repeat className="w-4 h-4 text-amber-700" />
+            {isAmountBundle ? <Gift className="w-4 h-4 text-amber-700" /> : <Repeat className="w-4 h-4 text-amber-700" />}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-amber-900">
-              {t('bundle.bundleName', { name: selectedBundle.bundleName })}
+              {isAmountBundle
+                ? t('giftCardLogin.giftCard') + ' — ' + selectedBundle.bundleName
+                : t('bundle.bundleName', { name: selectedBundle.bundleName })}
             </p>
             <p className="text-xs text-amber-700">
-              {t('bundle.remaining', { count: selectedBundle.remainingSessions })}
+              {isAmountBundle
+                ? t('giftCardLogin.creditApplied', { amount: giftAmountAppliedEuros })
+                : t('bundle.remaining', { count: selectedBundle.remainingSessions })}
             </p>
+            {isAmountBundle && giftAmountRemainingAfter > 0 && (
+              <p className="text-[10px] text-amber-600 mt-0.5">
+                {t('giftCardLogin.creditRemainingAfter', { amount: giftAmountRemainingAfter })}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -407,6 +526,16 @@ export function CheckoutPanel({
             <X className="w-4 h-4" />
           </button>
         </div>
+      )}
+
+      {/* Gift card / cure selector (bundles loaded from GuestInfo login) */}
+      {!selectedBundle && !isBundleOnlyPurchase && !isOffert && authBundles && (
+        <GiftCardSelector
+          sessionBundles={authBundles.session_bundles}
+          amountBundles={authBundles.amount_bundles}
+          bookingTotalCents={Math.round(total * 100)}
+          onSelect={(bundle) => setSelectedBundle(bundle)}
+        />
       )}
 
       {/* Bundle / gift card purchase explanation */}
@@ -567,9 +696,25 @@ export function CheckoutPanel({
 
         {/* Total */}
         <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-          <span className="text-gray-500 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 text-sm uppercase tracking-wider">{t('checkout.total')}</span>
+            {selectedBundle && (
+              <span className="text-[10px] text-gray-400 uppercase tracking-wider">
+                {isAmountBundle
+                  ? t('giftCardLogin.giftCard')
+                  : t('bundle.bundleName', { name: selectedBundle.bundleName })}
+              </span>
+            )}
+          </div>
           {selectedBundle ? (
-            <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')}</span>
+            <div className="text-right">
+              {isAmountBundle && giftAmountAppliedEuros > 0 && (
+                <span className="text-sm line-through text-gray-400 mr-2">
+                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                </span>
+              )}
+              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')}</span>
+            </div>
           ) : isOffert ? (
             <span className="inline-flex items-baseline gap-1.5">
               <span className="text-sm text-gray-400 line-through font-light">{formatPrice(total, items[0]?.currency || 'EUR')}</span>

@@ -14,14 +14,15 @@ serve(async (req) => {
   }
 
   try {
-    const { 
-      bookingData, 
-      clientData, 
-      treatmentIds, 
-      treatments: treatmentsPayload, 
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
       hotelId,
       language,
-      therapistGender
+      therapistGender,
+      giftAmountUsage
     } = await req.json();
 
     // 1. Validation de base des champs requis
@@ -64,10 +65,16 @@ serve(async (req) => {
     }
 
     // Calcul serveur des prix et durées
-    const verifiedTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
+    const rawTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
     const totalDuration = treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
 
-    if (verifiedTotalPrice <= 0) {
+    // Apply gift amount deduction if present
+    const giftDeductionEuros = giftAmountUsage?.amountCents
+      ? Math.round(giftAmountUsage.amountCents / 100)
+      : 0;
+    const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
+
+    if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
       throw new Error("Invalid total price calculated");
     }
 
@@ -161,7 +168,11 @@ serve(async (req) => {
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
         language: language || 'fr',
-        therapistGender: therapistGender || ''
+        therapistGender: therapistGender || '',
+        ...(giftAmountUsage ? {
+          giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
+          giftAmountCents: String(giftAmountUsage.amountCents),
+        } : {}),
       }
     });
 

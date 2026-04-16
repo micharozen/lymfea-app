@@ -34,6 +34,7 @@ export interface CreateBookingPayload {
   phone: string;
   countryCode: string;
   roomNumber: string;
+  clientNote?: string;
   date: string;
   time: string;
   therapistId: string;
@@ -123,6 +124,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         client_last_name: d.clientLastName,
         phone: normalizedPhone,
         room_number: d.roomNumber,
+        client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
         booking_date: d.date,
         booking_time: d.time,
         therapist_id: finalTherapistId,

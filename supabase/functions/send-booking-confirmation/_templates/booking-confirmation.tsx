@@ -42,12 +42,12 @@ export const BookingConfirmationEmail = ({
   return (
   <Html>
     <Head />
-    <Preview>Booking Confirmation #{bookingNumber} - Lymfea</Preview>
+    <Preview>Booking Confirmation #{bookingNumber} - Eïa</Preview>
     <Body style={main}>
       <Container style={container}>
         {/* Header with Logo */}
         <Section style={header}>
-          <Text style={logoText}>Lymfea</Text>
+          <Text style={logoText}>Eïa</Text>
           <Text style={logoSubtext}>WORLD</Text>
         </Section>
 
@@ -111,7 +111,7 @@ export const BookingConfirmationEmail = ({
         <Section style={footer}>
           <Hr style={footerDivider} />
           <Text style={footerText}>
-            Lymfea - Luxury in Motion
+            Eïa - Awaken Your Senses
           </Text>
           <Text style={footerSubtext}>
             Questions? Contact us at booking@lymfea.com

@@ -237,7 +237,9 @@
     "both": "Both",
     "specialty": "Specialty",
     "allSpecialties": "All specialties",
-    "noSpecialty": "No specialty"
+    "noSpecialty": "No specialty",
+    "categoryHelp": "Display category in the client booking flow (groups treatments). Does not determine which therapist can perform the treatment.",
+    "specialtyHelp": "Required specialty. Only therapists with this skill can be assigned to this treatment."
   },
   "boxes": {
     "title": "Boxes",
@@ -743,6 +745,77 @@
       "deleted": "Gift card deleted",
       "saveError": "Failed to save",
       "deleteError": "Failed to delete"
+    }
+  },
+  "phoneBooking": {
+    "title": "Phone booking",
+    "fabLabel": "Phone booking",
+    "ui": {
+      "back": "Back",
+      "next": "Next",
+      "cancel": "Cancel",
+      "close": "Close",
+      "optional": "optional"
+    },
+    "steps": {
+      "venue": "Venue & service",
+      "slot": "Slot",
+      "therapist": "Therapist",
+      "client": "Client",
+      "confirm": "Confirmation"
+    },
+    "venue": {
+      "label": "Venue",
+      "placeholder": "Select a venue"
+    },
+    "treatment": {
+      "label": "Services",
+      "empty": "No services available for this venue",
+      "searchPlaceholder": "Search a service...",
+      "summary": "Total"
+    },
+    "slot": {
+      "date": "Date",
+      "time": "Time",
+      "loading": "Loading available slots..."
+    },
+    "therapist": {
+      "label": "Available therapists",
+      "loading": "Looking for available therapists...",
+      "empty": "No therapist available for this slot"
+    },
+    "client": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "search": "Search existing client",
+      "searchPlaceholder": "Name or phone number...",
+      "searching": "Searching...",
+      "noResults": "No client found",
+      "existingClient": "Existing client — fields pre-filled",
+      "email": "Email",
+      "emailHint": "needed for the payment link",
+      "room": "Room number"
+    },
+    "confirm": {
+      "venue": "Venue",
+      "when": "Slot",
+      "therapist": "Therapist",
+      "treatments": "Services",
+      "total": "Total",
+      "client": "Client",
+      "createAndSend": "Create and send link"
+    },
+    "done": {
+      "title": "Booking created",
+      "sendLink": "Send payment link"
+    },
+    "errors": {
+      "selectVenue": "Select a venue",
+      "selectTreatment": "Select at least one service",
+      "selectSlot": "Select a date and time",
+      "selectTherapist": "Select a therapist",
+      "fillClient": "Fill in client information"
     }
   }
 }

@@ -59,7 +59,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
+import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 import { formatPrice } from "@/lib/formatPrice";
 import { cn } from "@/lib/utils";
 
@@ -234,8 +234,6 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
       return (data ?? []) as unknown as CustomerGiftCard[];
     },
   });
-
-  const { categories } = useTreatmentCategories(hotelId);
 
   const { data: treatments } = useQuery<TreatmentForBundle[]>({
     queryKey: treatmentsQueryKey,
@@ -805,25 +803,17 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t("giftCards.form.category", "Catégorie")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={t(
-                              "giftCards.form.categoryPlaceholder",
-                              "Choisir une catégorie",
-                            )}
-                          />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(categories ?? []).map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <CategorySelectField
+                        hotelId={hotelId}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder={t(
+                          "giftCards.form.categoryPlaceholder",
+                          "Choisir une catégorie",
+                        )}
+                      />
+                    </FormControl>
                     <FormDescription>
                       {t(
                         "giftCards.form.categoryHint",

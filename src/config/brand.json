@@ -1,10 +1,10 @@
 {
-  "name": "Lymfea",
+  "name": "Eïa",
   "tagline": {
     "fr": "Éveillez vos sens",
     "en": "Awaken Your Senses"
   },
-  "fullName": "Lymfea – Centre Holistique",
+  "fullName": "Eïa – Centre Holistique",
   "description": {
     "fr": "Centre holistique de soins et massages – Bien plus qu'un lieu de détente, une expérience qui éveille les sens à travers des soins holistiques qui transforment et équilibrent tout l'être",
     "en": "Holistic wellness center – More than a relaxation venue, an experience that awakens the senses through holistic treatments that transform and balance your whole being"
@@ -29,7 +29,7 @@
   },
 
   "legal": {
-    "companyName": "LYMFEA SAS",
+    "companyName": "EÏA SAS",
     "companyType": "SAS (Société par Actions Simplifiée)",
     "companyTypeEn": "SAS (Simplified Joint Stock Company)",
     "capital": "1 258,57 €",
@@ -49,7 +49,7 @@
   },
 
   "locations": [
-    { "name": "Lymfea – Centre Holistique", "address": "71 av. Victor Hugo, 75116 Paris", "main": true },
+    { "name": "Eïa – Centre Holistique", "address": "71 av. Victor Hugo, 75116 Paris", "main": true },
     { "name": "Hôtel Hanna", "address": "17 rue du 4 septembre, 75002 Paris" },
     { "name": "Monsieur George", "address": "17 rue Washington, 75008 Paris" },
     { "name": "Soho House", "address": "45 rue la Bruyère, 75009 Paris" },
@@ -86,19 +86,19 @@
 
   "pwa": {
     "therapist": {
-      "name": "Lymfea – Éveillez vos sens",
-      "shortName": "Lymfea",
+      "name": "Eïa – Éveillez vos sens",
+      "shortName": "Eïa",
       "description": {
         "fr": "Centre holistique de soins et massages – Gérez vos rendez-vous",
         "en": "Holistic wellness center – Manage your appointments"
       }
     },
     "admin": {
-      "name": "Lymfea Admin",
-      "shortName": "Lymfea Admin",
+      "name": "Eïa Admin",
+      "shortName": "Eïa Admin",
       "description": {
-        "fr": "Lymfea Admin – Gestion des réservations et soins",
-        "en": "Lymfea Admin – Booking & treatment management"
+        "fr": "Eïa Admin – Gestion des réservations et soins",
+        "en": "Eïa Admin – Booking & treatment management"
       }
     }
   },

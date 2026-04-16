@@ -460,7 +460,7 @@ serve(async (req) => {
         };
       }
 
-      // Ajouter au Ledger (Hôtel doit à Lymfea)
+      // Ajouter au Ledger (Hôtel doit à Eïa)
       // Formula: ledgerDebt = total - (baseHT * hotelCommissionRate * (1 + vatRate))
       // This ensures hotel keeps its commission TTC, rest goes to OOM
       const hotelCommissionTTC = breakdown.hotelCommission * (1 + vatRate / 100);

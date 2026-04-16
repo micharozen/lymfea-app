@@ -1,7 +1,7 @@
 {
-  "name": "Lymfea Admin",
-  "short_name": "Lymfea Admin",
-  "description": "Lymfea Admin - Gestion des réservations",
+  "name": "Eïa Admin",
+  "short_name": "Eïa Admin",
+  "description": "Eïa Admin - Gestion des réservations",
   "id": "/admin-pwa/v1",
   "theme_color": "#000000",
   "background_color": "#ffffff",
