@@ -16,6 +16,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   phone: z.string().min(1, t('errors.validation.phoneRequired')),
   countryCode: z.string().default("+33"),
   roomNumber: z.string().default(""),
+  clientNote: z.string().default(""),
 }).refine(data => {
   // If slot 2 is partially filled, both date and time are required
   if ((data.slot2Date && !data.slot2Time) || (!data.slot2Date && data.slot2Time)) return false;

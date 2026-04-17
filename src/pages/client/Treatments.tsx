@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, ShoppingBag, HandHeart, Minus, Plus, Sparkles, ChevronDown, Gift, Building, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import OnRequestFormDrawer from '@/components/client/OnRequestFormDrawer';
 import { CartDrawer } from '@/components/client/CartDrawer';
@@ -60,7 +61,15 @@ export default function Treatments() {
   const hotelId = window.location.pathname.split('/')[2];
   const navigate = useNavigate();
   const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount, hasBaseItem, isBundleOnly } = useBasket();
-  const { setIsBundleOnlyPurchase } = useClientFlow();
+
+  // When the cart holds a bundle-only purchase, resolve the template once so the CTA can
+  // switch copy between cure / gift card variants.
+  const cartBundleId = isBundleOnly ? items.find((i) => i.bundleId)?.bundleId ?? null : null;
+  const { data: cartBundleTemplate } = useBundleTemplate(cartBundleId);
+  const isCartGiftCard =
+    cartBundleTemplate?.bundle_type === 'gift_amount' ||
+    cartBundleTemplate?.bundle_type === 'gift_treatments';
+  const { setIsBundleOnlyPurchase, bookingDateTime } = useClientFlow();
   const [bounceKey, setBounceKey] = useState(0);
   const { t } = useTranslation('client');
   const isDesktop = useIsDesktop();
@@ -160,9 +169,12 @@ export default function Treatments() {
   }, [treatmentCategories]);
 
   // Build category sections from admin-defined categories
+  // Per-treatment add-ons (is_addon === true) are hidden from the main list —
+  // they only surface contextually via AddonProposalDrawer after slot selection.
   const categorySections = useMemo(() => {
     const grouped = new Map<string, Treatment[]>();
     for (const treatment of allTreatments) {
+      if (treatment.is_addon) continue;
       const key = treatment.category;
       const existing = grouped.get(key) || [];
       grouped.set(key, [...existing, treatment]);
@@ -245,6 +257,22 @@ export default function Treatments() {
       setIsScheduleOpen(false);
     }
   }, [itemCount, isScheduleOpen]);
+
+  // Auto-open the embedded SchedulePanel on desktop when returning from a later
+  // step (guest-info, payment) — bookingDateTime is set in FlowContext only after
+  // the user has already picked a slot, so its presence at mount means "back nav".
+  const hasRestoredScheduleRef = useRef(false);
+  useEffect(() => {
+    if (
+      isDesktop &&
+      bookingDateTime &&
+      itemCount > 0 &&
+      !hasRestoredScheduleRef.current
+    ) {
+      hasRestoredScheduleRef.current = true;
+      setIsScheduleOpen(true);
+    }
+  }, [isDesktop, bookingDateTime, itemCount]);
 
   // Track page view once
   useEffect(() => {
@@ -869,7 +897,10 @@ export default function Treatments() {
             {isBundleOnly ? (
               <>
                 <Package className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                {t('menu.purchaseBundle', 'Acheter cette cure')} ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
+                {isCartGiftCard
+                  ? t('menu.purchaseGiftCard', 'Offrir cette carte cadeau')
+                  : t('menu.purchaseBundle', 'Acheter cette cure')}{' '}
+                ({itemCount} {itemCount === 1 ? t('menu.item') : t('menu.items')})
               </>
             ) : (
               <>

@@ -1,8 +1,8 @@
-# Lymfea - Project Overview
+# Eïa - Project Overview
 
 ## Description
 
-Lymfea est une plateforme SaaS de gestion de spa. Elle permet la réservation en ligne de soins, la coordination des thérapeutes, la gestion d'agenda multi-lieux, et la facturation automatisée. La plateforme connecte trois acteurs : les lieux (hôtels avec spa, spas indépendants), les thérapeutes, et les clients.
+Eïa est une plateforme SaaS de gestion de spa. Elle permet la réservation en ligne de soins, la coordination des thérapeutes, la gestion d'agenda multi-lieux, et la facturation automatisée. La plateforme connecte trois acteurs : les lieux (hôtels avec spa, spas indépendants), les thérapeutes, et les clients.
 
 ## Stack Technique
 

@@ -20,6 +20,7 @@ serve(async (req: Request) => {
 
     console.log("[CRON] Checking for expired payment links...");
 
+    // 1. Trouver les bookings expirés qui ne sont pas encore annulés
     const { data: expiredLinks, error: fetchError } = await supabase
       .from('booking_payment_infos')
       .select(`
@@ -55,14 +56,17 @@ serve(async (req: Request) => {
     for (const item of expiredLinks) {
       const booking = item.bookings as any;
 
+      // 2. Désactiver le lien sur Stripe
       if (item.payment_link_stripe_id) {
         try {
           await stripe.paymentLinks.update(item.payment_link_stripe_id, { active: false });
+          console.log(`[STRIPE] Disabled link ${item.payment_link_stripe_id}`);
         } catch (e) {
           console.error(`[STRIPE] Error disabling link for booking ${item.booking_id}:`, e);
         }
       }
 
+      // 3. Mettre à jour le statut du booking en base
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -73,11 +77,13 @@ serve(async (req: Request) => {
         continue;
       }
 
+      // Stocker la raison d'annulation dans booking_payment_infos (où la colonne est définie)
       await supabase
         .from('booking_payment_infos')
         .update({ cancellation_reason: 'payment_link_expired' })
         .eq('booking_id', item.booking_id);
 
+      // 4. Envoyer l'email d'annulation
       if (booking && booking.client_email) {
         try {
           const lang = (booking.payment_link_language || 'fr') as 'fr' | 'en';
@@ -85,9 +91,8 @@ serve(async (req: Request) => {
           const formattedBookingDate = lang === 'fr'
             ? bookingDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-          
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-          
+
           const treatmentIds = booking.booking_treatments
             ?.map((bt: any) => bt.treatment_id)
             .join(',') || '';
@@ -99,6 +104,7 @@ serve(async (req: Request) => {
               bookingUrl += `?treatments=${treatmentIds}`;
             }
           }
+
 
           await resend.emails.send({
             from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,

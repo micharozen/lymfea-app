@@ -163,7 +163,63 @@
     "rate45Label": "45 min",
     "rate60Label": "1 hour",
     "rate90Label": "1h30",
-    "rateHint": "Fixed amount paid to the therapist per treatment. For non-standard durations, proportional calculation based on the 1-hour rate."
+    "rateHint": "Fixed amount paid to the therapist per treatment. For non-standard durations, proportional calculation based on the 1-hour rate.",
+    "billing": "Billing",
+    "billingTab": {
+      "title": "Invoices",
+      "description": "History of generated invoices, one per venue per month",
+      "generateInvoices": "Generate invoices",
+      "generate": "Generate",
+      "generateDesc": "One invoice will be generated per venue where the therapist has bookings for the selected month.",
+      "month": "Month",
+      "year": "Year",
+      "noInvoices": "No invoices generated yet",
+      "noInvoicesHint": "Click Generate invoices to create monthly billing",
+      "noBookings": "No bookings to invoice for this month",
+      "generated": "{{count}} invoice(s) generated",
+      "generateError": "Error generating invoices",
+      "columns": {
+        "number": "Number",
+        "venue": "Venue",
+        "period": "Period",
+        "totalHt": "Total (excl. VAT)",
+        "vat": "VAT",
+        "totalTtc": "Total (incl. VAT)",
+        "status": "Status"
+      },
+      "status": {
+        "draft": "Draft",
+        "issued": "Issued",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
+    },
+    "billingInfo": {
+      "title": "Billing information",
+      "description": "Used to automatically generate monthly invoices",
+      "companyName": "Company name",
+      "legalForm": "Legal form",
+      "siret": "SIRET",
+      "siretHint": "Leave empty if freelancer without a SIRET",
+      "siren": "SIREN",
+      "vatExempt": "VAT exempt",
+      "vatExemptHint": "Article 293 B of the French Tax Code (freelancers)",
+      "tvaNumber": "VAT intra-community number",
+      "address": "Address",
+      "addressLine": "Street address",
+      "postalCode": "Postal code",
+      "city": "City",
+      "country": "Country",
+      "contactEmail": "Contact email",
+      "contactPhone": "Contact phone",
+      "bankDetails": "Bank details",
+      "bankDetailsHint": "Used on automatically generated invoices",
+      "bankName": "Bank name",
+      "iban": "IBAN",
+      "bic": "BIC",
+      "saveSuccess": "Billing information saved",
+      "saveError": "Error saving billing information"
+    }
   },
   "treatments": {
     "title": "Treatment Menus",
@@ -181,7 +237,9 @@
     "both": "Both",
     "specialty": "Specialty",
     "allSpecialties": "All specialties",
-    "noSpecialty": "No specialty"
+    "noSpecialty": "No specialty",
+    "categoryHelp": "Display category in the client booking flow (groups treatments). Does not determine which therapist can perform the treatment.",
+    "specialtyHelp": "Required specialty. Only therapists with this skill can be assigned to this treatment."
   },
   "boxes": {
     "title": "Boxes",
@@ -484,7 +542,7 @@
     "pricing": "Pricing",
     "external": "External",
     "internal": "Internal (hotel guest)",
-    "lymfea": "Lymfea (treatment client)",
+    "lymfea": "Eïa (treatment client)",
     "includedWithTreatment": "Included with treatment",
     "accessDuration": "Complimentary access duration",
     "free": "Free",
@@ -599,5 +657,165 @@
     "screenshotsDesc": "Add up to 3 screenshots (optional)",
     "viewScreenshots": "View screenshots",
     "viewNotion": "View in Notion"
+  },
+  "giftCards": {
+    "title": "Gift cards",
+    "description": "Create gift cards redeemable for treatments or a monetary amount at this venue.",
+    "create": "Create a gift card",
+    "print": "Print",
+    "selfPurchase": "For themselves",
+    "sessionsValue": "{{count}} sessions",
+    "tabs": {
+      "templates": "Templates",
+      "sales": "Sales"
+    },
+    "type": {
+      "amount": "Amount",
+      "treatments": "Treatments"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "completed": "Completed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "displayed": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "columns": {
+      "title": "Title",
+      "type": "Type",
+      "value": "Value",
+      "price": "Sale price",
+      "displayed": "Shown",
+      "status": "Status",
+      "template": "Card",
+      "buyer": "Buyer",
+      "recipient": "Recipient",
+      "code": "Code",
+      "balance": "Balance",
+      "expiresAt": "Expires on"
+    },
+    "empty": {
+      "templates": "No gift card configured",
+      "templatesHint": "Click Create a gift card to get started.",
+      "sales": "No gift card sold yet"
+    },
+    "dialog": {
+      "createTitle": "New gift card",
+      "editTitle": "Edit gift card",
+      "description": "Pick a type and fill the details. The card will appear in the client flow based on your options."
+    },
+    "form": {
+      "type": "Type",
+      "typeLocked": "Type cannot be changed after creation.",
+      "title": "Title",
+      "titleEn": "Title (EN)",
+      "description": "Description",
+      "category": "Category",
+      "categoryPlaceholder": "Pick a category",
+      "categoryHint": "The gift card will be grouped under this category on the client flow.",
+      "cover": "Card image",
+      "coverHint": "Visual shown to the client and embedded in the email to the recipient.",
+      "upload": "Upload",
+      "amount": "Card value (€)",
+      "amountHint": "Amount credited at purchase. The client can spend it partially.",
+      "sessions": "Number of sessions",
+      "price": "Sale price (€)",
+      "priceAmountHint": "Equal to the face value by default. Adjustable to offer a discount.",
+      "priceTreatmentsHint": "Amount charged to the buyer.",
+      "validity": "Validity (days)",
+      "eligibleTreatments": "Eligible treatments",
+      "noTreatments": "No active treatment available at this venue.",
+      "displayOnClientFlow": "Show in client flow",
+      "displayHint": "Makes the card visible in the public booking flow.",
+      "status": "Status",
+      "save": "Save",
+      "create": "Create"
+    },
+    "delete": {
+      "title": "Delete this gift card?",
+      "description": "This action is permanent. Past sales are not affected."
+    },
+    "toast": {
+      "created": "Gift card created",
+      "updated": "Gift card updated",
+      "deleted": "Gift card deleted",
+      "saveError": "Failed to save",
+      "deleteError": "Failed to delete"
+    }
+  },
+  "phoneBooking": {
+    "title": "Phone booking",
+    "fabLabel": "Phone booking",
+    "ui": {
+      "back": "Back",
+      "next": "Next",
+      "cancel": "Cancel",
+      "close": "Close",
+      "optional": "optional"
+    },
+    "steps": {
+      "venue": "Venue & service",
+      "slot": "Slot",
+      "therapist": "Therapist",
+      "client": "Client",
+      "confirm": "Confirmation"
+    },
+    "venue": {
+      "label": "Venue",
+      "placeholder": "Select a venue"
+    },
+    "treatment": {
+      "label": "Services",
+      "empty": "No services available for this venue",
+      "searchPlaceholder": "Search a service...",
+      "summary": "Total"
+    },
+    "slot": {
+      "date": "Date",
+      "time": "Time",
+      "loading": "Loading available slots..."
+    },
+    "therapist": {
+      "label": "Available therapists",
+      "loading": "Looking for available therapists...",
+      "empty": "No therapist available for this slot"
+    },
+    "client": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "phone": "Phone",
+      "search": "Search existing client",
+      "searchPlaceholder": "Name or phone number...",
+      "searching": "Searching...",
+      "noResults": "No client found",
+      "existingClient": "Existing client — fields pre-filled",
+      "email": "Email",
+      "emailHint": "needed for the payment link",
+      "room": "Room number"
+    },
+    "confirm": {
+      "venue": "Venue",
+      "when": "Slot",
+      "therapist": "Therapist",
+      "treatments": "Services",
+      "total": "Total",
+      "client": "Client",
+      "createAndSend": "Create and send link"
+    },
+    "done": {
+      "title": "Booking created",
+      "sendLink": "Send payment link"
+    },
+    "errors": {
+      "selectVenue": "Select a venue",
+      "selectTreatment": "Select at least one service",
+      "selectSlot": "Select a date and time",
+      "selectTherapist": "Select a therapist",
+      "fillClient": "Fill in client information"
+    }
   }
 }

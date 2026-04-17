@@ -25,12 +25,12 @@ self.addEventListener('push', (event) => {
   } catch (e) {
     console.error('[SW] Failed to parse notification data:', e);
     notificationData = {
-      title: 'Lymfea',
+      title: 'Eïa',
       body: event.data.text()
     };
   }
 
-  const title = notificationData.title || 'Lymfea';
+  const title = notificationData.title || 'Eïa';
   const options = {
     body: notificationData.body || 'Nouvelle notification',
     icon: '/pwa-192x192.png',

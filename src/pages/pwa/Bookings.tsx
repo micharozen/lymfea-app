@@ -9,6 +9,7 @@ import { fr } from "date-fns/locale";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import PwaCalendarView from "@/components/pwa/PwaCalendarView";
 import PwaDayView, { DayViewBooking } from "@/components/pwa/PwaDayView";
+import type { TherapistRates } from "@/lib/therapistEarnings";
 import PwaHeader from "@/components/pwa/Header";
 
 interface BookingTreatment {
@@ -32,7 +33,6 @@ interface Booking {
   phone: string;
   duration?: number;
   total_price?: number | null;
-  therapist_commission?: number | null;
   booking_treatments?: BookingTreatment[];
 }
 
@@ -43,6 +43,7 @@ const SELECTED_DATE_STORAGE_KEY = "pwa-calendar-date";
 
 const PwaBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -100,9 +101,17 @@ const PwaBookings = () => {
 
       const { data: therapist } = await supabase
         .from("therapists")
-        .select("id")
+        .select("id, rate_45, rate_60, rate_90")
         .eq("user_id", user.id)
         .single();
+
+      if (therapist) {
+        setTherapistRates({
+          rate_45: therapist.rate_45,
+          rate_60: therapist.rate_60,
+          rate_90: therapist.rate_90,
+        });
+      }
 
       if (!therapist) {
         toast.error("Profil introuvable");
@@ -140,7 +149,6 @@ const PwaBookings = () => {
     phone: b.phone,
     duration: b.duration,
     total_price: b.total_price,
-    therapist_commission: b.therapist_commission,
     booking_treatments: b.booking_treatments,
   }));
 
@@ -202,6 +210,7 @@ const PwaBookings = () => {
               onDateChange={setSelectedDate}
               onBookingClick={(booking) => navigate(`/pwa/booking/${booking.id}`)}
               onSlotClick={(date, time) => navigate(`/pwa/new-booking?date=${date}&time=${time}`)}
+              therapistRates={therapistRates}
             />
           </div>
         ) : view === "calendar" ? (

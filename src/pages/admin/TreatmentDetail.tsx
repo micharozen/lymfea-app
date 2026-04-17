@@ -20,6 +20,7 @@ import {
 import { ArrowLeft, Loader2, Save, Pencil } from "lucide-react";
 import { TreatmentGeneralTab } from "@/components/admin/treatment/TreatmentGeneralTab";
 import { TreatmentVariantsTab } from "@/components/admin/treatment/TreatmentVariantsTab";
+import { TreatmentAddonsTab } from "@/components/admin/treatment/TreatmentAddonsTab";
 
 const createFormSchema = (t: TFunction) =>
   z.object({
@@ -34,6 +35,8 @@ const createFormSchema = (t: TFunction) =>
     status: z.string().default("active"),
     sort_order: z.string().default("0"),
     is_bestseller: z.boolean().default(false),
+    is_addon: z.boolean().default(false),
+    addon_ids: z.array(z.string().uuid()).default([]),
     specialty: z.string().optional(),
     variants: z
       .array(
@@ -89,6 +92,8 @@ export default function TreatmentDetail() {
       status: "active",
       sort_order: "0",
       is_bestseller: false,
+      is_addon: false,
+      addon_ids: [],
       specialty: "",
       variants: [
         {
@@ -154,6 +159,16 @@ export default function TreatmentDetail() {
                   },
                 ];
 
+          // Load linked add-ons
+          const { data: existingAddonLinks } = await supabase
+            .from("treatment_addons")
+            .select("addon_treatment_id")
+            .eq("parent_treatment_id", treatmentId);
+
+          const addonIds = (existingAddonLinks ?? []).map(
+            (row) => row.addon_treatment_id
+          );
+
           form.reset({
             name: treatment.name || "",
             name_en: (treatment as any).name_en || "",
@@ -166,6 +181,8 @@ export default function TreatmentDetail() {
             status: treatment.status || "active",
             sort_order: treatment.sort_order?.toString() || "0",
             is_bestseller: treatment.is_bestseller || false,
+            is_addon: treatment.is_addon ?? false,
+            addon_ids: addonIds,
             specialty: treatment.treatment_type || "",
             variants: variantsData,
           });
@@ -233,8 +250,12 @@ export default function TreatmentDetail() {
         sort_order: parseInt(values.sort_order),
         price_on_request: defaultVariant.price_on_request,
         is_bestseller: values.is_bestseller,
+        is_addon: values.is_addon,
         treatment_type: values.specialty || null,
       };
+
+      // An add-on cannot itself have sub-add-ons — clear links if toggled on
+      const addonIdsToPersist = values.is_addon ? [] : values.addon_ids ?? [];
 
       if (isNewMode && !savedTreatmentId) {
         // INSERT
@@ -263,6 +284,18 @@ export default function TreatmentDetail() {
           .insert(variantsToInsert);
 
         if (variantsError) throw variantsError;
+
+        if (addonIdsToPersist.length > 0) {
+          const addonsToInsert = addonIdsToPersist.map((addonId, index) => ({
+            parent_treatment_id: newTreatment.id,
+            addon_treatment_id: addonId,
+            sort_order: index,
+          }));
+          const { error: addonsError } = await supabase
+            .from("treatment_addons")
+            .insert(addonsToInsert);
+          if (addonsError) throw addonsError;
+        }
 
         setSavedTreatmentId(newTreatment.id);
         setTreatmentName(values.name);
@@ -304,6 +337,25 @@ export default function TreatmentDetail() {
 
         if (variantsError) throw variantsError;
 
+        // Sync addon links — delete then re-insert
+        const { error: deleteAddonsError } = await supabase
+          .from("treatment_addons")
+          .delete()
+          .eq("parent_treatment_id", targetId);
+        if (deleteAddonsError) throw deleteAddonsError;
+
+        if (addonIdsToPersist.length > 0) {
+          const addonsToInsert = addonIdsToPersist.map((addonId, index) => ({
+            parent_treatment_id: targetId,
+            addon_treatment_id: addonId,
+            sort_order: index,
+          }));
+          const { error: addonsError } = await supabase
+            .from("treatment_addons")
+            .insert(addonsToInsert);
+          if (addonsError) throw addonsError;
+        }
+
         setTreatmentName(values.name);
         toast.success("Soin mis à jour avec succès");
         setIsEditingState(false);
@@ -344,7 +396,7 @@ export default function TreatmentDetail() {
               <span className="hidden sm:inline">Retour</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
-            <h1 className="text-lg font-semibold truncate">
+            <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedTreatmentId
                 ? "Nouveau soin"
                 : watchedName || treatmentName || "Soin"}
@@ -418,6 +470,12 @@ export default function TreatmentDetail() {
               >
                 Variantes
               </TabsTrigger>
+              <TabsTrigger
+                value="addons"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5"
+              >
+                Add-ons
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -438,6 +496,14 @@ export default function TreatmentDetail() {
 
                 <TabsContent value="variants" className="mt-0">
                   <TreatmentVariantsTab form={form} disabled={!isEditing} />
+                </TabsContent>
+
+                <TabsContent value="addons" className="mt-0">
+                  <TreatmentAddonsTab
+                    form={form}
+                    disabled={!isEditing}
+                    currentTreatmentId={effectiveTreatmentId}
+                  />
                 </TabsContent>
               </form>
             </Form>

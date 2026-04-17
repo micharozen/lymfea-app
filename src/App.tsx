@@ -19,6 +19,7 @@ import { CartProvider } from "./pages/client/context/CartContext";
 import { ClientFlowWrapper } from "./components/ClientFlowWrapper";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ClientErrorFallback } from "./components/client/ClientErrorFallback";
+import { PhoneBookingFab } from "./components/admin/PhoneBookingFab";
 
 // Lazy load all page components for code splitting
 
@@ -110,6 +111,15 @@ const ClientTreatmentLanding = lazy(() => import("./pages/client/TreatmentLandin
 // Enterprise Dashboard
 const EnterpriseDashboard = lazy(() => import("./pages/enterprise/EnterpriseDashboard"));
 
+// Portal
+const RedeemGiftCard = lazy(() => import("./pages/portal/RedeemGiftCard"));
+const PortalLogin = lazy(() => import("./pages/portal/PortalLogin"));
+const PortalLayout = lazy(() => import("./pages/portal/PortalLayout"));
+const PortalDashboard = lazy(() => import("./pages/portal/PortalDashboard"));
+const PortalGiftCards = lazy(() => import("./pages/portal/PortalGiftCards"));
+const PortalBookings = lazy(() => import("./pages/portal/PortalBookings"));
+import CustomerProtectedRoute from "./components/CustomerProtectedRoute";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -122,7 +132,8 @@ const queryClient = new QueryClient({
 
 // Loading fallback component
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
+  <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+    <span className="text-2xl font-serif font-semibold tracking-wide text-primary">Eïa</span>
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
 );
@@ -242,6 +253,43 @@ const App = () => {
                 </Suspense>
               </ErrorBoundary>
             } />
+
+            {/* Customer Portal — Public */}
+            <Route path="/portal/redeem" element={
+              <Suspense fallback={<ClientPageLoader />}>
+                <RedeemGiftCard />
+              </Suspense>
+            } />
+            <Route path="/portal/login" element={
+              <Suspense fallback={<ClientPageLoader />}>
+                <PortalLogin />
+              </Suspense>
+            } />
+
+            {/* Customer Portal — Protected */}
+            <Route element={<CustomerProtectedRoute />}>
+              <Route element={
+                <Suspense fallback={<ClientPageLoader />}>
+                  <PortalLayout />
+                </Suspense>
+              }>
+                <Route path="/portal/dashboard" element={
+                  <Suspense fallback={<ClientPageLoader />}>
+                    <PortalDashboard />
+                  </Suspense>
+                } />
+                <Route path="/portal/gift-cards" element={
+                  <Suspense fallback={<ClientPageLoader />}>
+                    <PortalGiftCards />
+                  </Suspense>
+                } />
+                <Route path="/portal/bookings" element={
+                  <Suspense fallback={<ClientPageLoader />}>
+                    <PortalBookings />
+                  </Suspense>
+                } />
+              </Route>
+            </Route>
 
             {/* Client Booking Management (Public) */}
             <Route path="/booking/manage/:bookingId" element={<ManageBooking />} />
@@ -457,6 +505,7 @@ const App = () => {
                         </main>
                       </div>
                     </div>
+                    <PhoneBookingFab />
                   </SidebarProvider>
                     )}
                 </AdminProtectedRoute>

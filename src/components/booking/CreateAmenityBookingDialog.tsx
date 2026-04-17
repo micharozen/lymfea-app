@@ -275,7 +275,7 @@ export function CreateAmenityBookingDialog({
                       {venueType === "hotel" && (
                         <SelectItem value="internal">Interne (hôtel)</SelectItem>
                       )}
-                      <SelectItem value="lymfea">Lymfea (client soin)</SelectItem>
+                      <SelectItem value="lymfea">Eïa (client soin)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer";
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
+import { computeTherapistEarnings } from "@/lib/therapistEarnings";
 import {
   Drawer,
   DrawerClose,
@@ -145,7 +146,7 @@ const PwaBookingDetail = () => {
       const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
       
       let rates = { hr: null, r45: null, r60: null, r90: null };
-      if (bookingData.therapist_id && hotelData?.global_therapist_commission === false) {
+      if (bookingData.therapist_id) {
         const { data: tData } = await supabase.from("therapists").select("hourly_rate, rate_45, rate_60, rate_90").eq("id", bookingData.therapist_id).single();
         rates = { hr: tData?.hourly_rate, r45: tData?.rate_45, r60: tData?.rate_60, r90: tData?.rate_90 };
       }
@@ -332,6 +333,28 @@ const PwaBookingDetail = () => {
     }
   };
 
+  const handleDeclineBooking = async () => {
+    if (!booking || updating) return;
+    setUpdating(true);
+    try {
+      // Appel de notre nouvelle fonction RPC sécurisée
+      const { error } = await supabase.rpc('decline_booking', {
+        _booking_id: booking.id
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Réservation refusée.");
+      // On retourne au dashboard en forçant le rafraîchissement
+      navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors du refus");
+    } finally {
+      setUpdating(false);
+      setShowDeclineDialog(false);
+    }
+  };
+
   const handleTapToPayConfirm = async () => {
     if (!booking) return;
     setTapToPayLoading(true);
@@ -354,9 +377,14 @@ const PwaBookingDetail = () => {
   const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
   const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
-  const estimatedEarnings = booking.global_therapist_commission !== false 
-    ? Math.round(totalHT * ((booking.therapist_commission || 70) / 100) * 100) / 100
-    : Math.min(booking.therapist_rate_60 || 0, totalHT);
+  const estimatedEarnings = computeTherapistEarnings(
+    {
+      rate_45: booking.therapist_rate_45 ?? null,
+      rate_60: booking.therapist_rate_60 ?? null,
+      rate_90: booking.therapist_rate_90 ?? null,
+    },
+    totalDuration,
+  ) ?? 0;
 
   return (
     <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
@@ -490,6 +518,7 @@ const PwaBookingDetail = () => {
             )}
           </div>
         )}
+        
       </div>
 
       <Drawer open={showContactDrawer} onOpenChange={setShowContactDrawer}>
@@ -517,6 +546,43 @@ const PwaBookingDetail = () => {
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+
+      <Drawer open={showDeclineDialog} onOpenChange={setShowDeclineDialog}>
+        <DrawerContent className="pb-safe">
+          <div className="p-4 space-y-3">
+            <p className="text-sm font-semibold text-center">Que souhaitez-vous faire ?</p>
+            <button
+              onClick={() => { setShowDeclineDialog(false); setShowProposeAlternativeDialog(true); }}
+              className="flex items-center gap-3 p-4 bg-muted/50 rounded-xl w-full font-medium text-sm"
+            >
+              <CalendarDays className="w-5 h-5 text-primary shrink-0" />
+              Proposer un autre créneau
+            </button>
+            <button
+              onClick={() => { setShowDeclineDialog(false); handleDeclineBooking(); }}
+              disabled={updating}
+              className="flex items-center gap-3 p-4 bg-destructive/10 text-destructive rounded-xl w-full font-medium text-sm disabled:opacity-50"
+            >
+              <X className="w-5 h-5 shrink-0" />
+              Refuser sans proposer
+            </button>
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      <ProposeAlternativeDialog
+        open={showProposeAlternativeDialog}
+        onOpenChange={setShowProposeAlternativeDialog}
+        booking={{
+          id: booking.id,
+          booking_date: booking.booking_date,
+          booking_time: booking.booking_time,
+          client_first_name: booking.client_first_name,
+          client_last_name: booking.client_last_name,
+          phone: booking.phone,
+        }}
+        onProposalSent={() => navigate("/pwa/dashboard", { state: { forceRefresh: true } })}
+      />
     </div>
   );
 };

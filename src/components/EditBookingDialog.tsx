@@ -168,6 +168,7 @@ export default function EditBookingDialog({
   const [phone, setPhone] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
   const [roomNumber, setRoomNumber] = useState("");
+  const [clientNote, setClientNote] = useState("");
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [status, setStatus] = useState("En attente");
@@ -211,6 +212,7 @@ export default function EditBookingDialog({
       }
       
       setRoomNumber(booking.room_number || "");
+      setClientNote(booking.client_note || "");
       setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
       setTime(booking.booking_time || "");
       setStatus(booking.status || "En attente");
@@ -516,6 +518,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
           total_price: bookingData.total_price,
           status: newStatus,
           assigned_at: assignedAt,
+          client_note: bookingData.client_note ?? null,
         })
         .eq("id", booking.id);
 
@@ -863,6 +866,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       total_price: totalPrice,
       treatments: cart.flatMap(item => Array(item.quantity).fill(item.treatmentId)),
       status: status,
+      client_note: clientNote.trim() ? clientNote.trim() : null,
     });
   };
 
@@ -1266,6 +1270,13 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                   </div>
                 </div>
               </div>
+
+              {booking?.client_note && (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mb-1 font-medium">Note</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{decodeHtmlEntities(booking.client_note)}</p>
+                </div>
+              )}
             </div>
 
             <div className="px-4 py-3 border-t bg-muted/30 flex flex-row gap-3">
@@ -1518,23 +1529,29 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <Label htmlFor="edit-client-note" className="text-xs">Note</Label>
+                <Textarea
+                  id="edit-client-note"
+                  value={clientNote}
+                  onChange={(e) => setClientNote(e.target.value)}
+                  placeholder="Ajouter une note pour cette réservation…"
+                  rows={3}
+                />
+              </div>
+
               <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setViewMode("view")}>
-                    Annuler
+                {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Annuler la réservation
                   </Button>
-                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
-                    <Button 
-                      type="button" 
-                      variant="destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                      className="gap-2"
-                    >
-                      <X className="h-4 w-4" />
-                      Annuler
-                    </Button>
-                  )}
-                </div>
+                ) : <div />}
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
                   Suivant
                 </Button>

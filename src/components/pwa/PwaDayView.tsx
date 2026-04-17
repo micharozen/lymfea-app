@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, Euro, Check } from "lucide-react";
 import { getBookingStatusConfig } from "@/utils/statusStyles";
 import { formatPrice } from "@/lib/formatPrice";
+import { computeTherapistEarnings, type TherapistRates } from "@/lib/therapistEarnings";
 
 interface BookingTreatment {
   treatment_menus: {
@@ -29,7 +30,6 @@ export interface DayViewBooking {
   duration?: number;
   isUnassigned?: boolean;
   total_price?: number | null;
-  therapist_commission?: number | null;
   booking_treatments?: BookingTreatment[];
 }
 
@@ -40,6 +40,7 @@ interface PwaDayViewProps {
   onBookingClick: (booking: DayViewBooking) => void;
   onSlotClick?: (date: string, time: string) => void;
   onAcceptBooking?: (booking: DayViewBooking) => void;
+  therapistRates?: TherapistRates | null;
 }
 
 const HOUR_HEIGHT = 80;
@@ -53,15 +54,6 @@ function getTreatmentNames(booking: DayViewBooking): string {
     .map((bt) => bt.treatment_menus?.name)
     .filter(Boolean)
     .join(", ");
-}
-
-function calculateTotalPrice(booking: DayViewBooking): number {
-  if (booking.total_price && booking.total_price > 0) return booking.total_price;
-  if (!booking.booking_treatments || booking.booking_treatments.length === 0) return 0;
-  return booking.booking_treatments.reduce(
-    (sum, bt) => sum + (bt.treatment_menus?.price || 0),
-    0
-  );
 }
 
 function calculateDuration(booking: DayViewBooking): number {
@@ -87,6 +79,7 @@ export function PwaDayView({
   onBookingClick,
   onSlotClick,
   onAcceptBooking,
+  therapistRates,
 }: PwaDayViewProps) {
   const { t, i18n } = useTranslation("pwa");
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -174,13 +167,13 @@ export function PwaDayView({
     const hoursLabel = mins > 0 ? `${hours}h${mins.toString().padStart(2, "0")}` : `${hours}h`;
 
     const totalEarnings = dayBookings.reduce((sum, b) => {
-      const total = calculateTotalPrice(b);
-      const commission = b.therapist_commission ?? 70;
-      return sum + total * (commission / 100);
+      const dur = calculateDuration(b);
+      const earned = computeTherapistEarnings(therapistRates ?? null, dur);
+      return sum + (earned ?? 0);
     }, 0);
 
     return { count, hoursLabel, totalEarnings };
-  }, [dayBookings]);
+  }, [dayBookings, therapistRates]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartRef.current = {

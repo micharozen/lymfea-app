@@ -58,7 +58,10 @@
     "acceptError": "Error accepting booking",
     "bookingDeclined": "Booking declined",
     "error": "Error",
-    "slots": "{{count}} slots"
+    "slots": "{{count}} slots",
+    "todayAppointments": "Today's appointments",
+    "todayHours": "Today's hours",
+    "todayEarnings": "Today's earnings"
   },
   "booking": {
     "details": "Booking Details",

@@ -29,6 +29,8 @@ import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab"
 import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
+import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
+import { VenueGiftCardsTab } from "@/components/admin/venue/VenueGiftCardsTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
@@ -551,7 +553,7 @@ export default function VenueDetail() {
               <span className="hidden sm:inline">Retour</span>
             </Button>
             <div className="h-5 w-px bg-border flex-shrink-0" />
-            <h1 className="text-lg font-semibold truncate">
+            <h1 className="text-lg font-medium truncate">
               {isNewMode && !savedHotelId
                 ? "Nouveau lieu"
                 : watchedName || hotelName || "Lieu"}
@@ -649,6 +651,12 @@ export default function VenueDetail() {
               <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Aperçu client
               </TabsTrigger>
+              <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Facturation
+              </TabsTrigger>
+              <TabsTrigger value="gift-cards" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Cartes cadeaux
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -720,6 +728,14 @@ export default function VenueDetail() {
 
                 <TabsContent value="client-preview" className="mt-0">
                   <VenueClientPreviewTab hotelId={effectiveHotelId!} />
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-0">
+                  <VenueBillingTab hotelId={effectiveHotelId!} />
+                </TabsContent>
+
+                <TabsContent value="gift-cards" className="mt-0">
+                  <VenueGiftCardsTab hotelId={effectiveHotelId!} />
                 </TabsContent>
               </>
             )}

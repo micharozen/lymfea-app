@@ -1,7 +1,7 @@
 {
-  "name": "Lymfea",
-  "tagline": "Luxury in Motion",
-  "fullName": "Lymfea - Luxury in Motion",
+  "name": "Eïa",
+  "tagline": "Awaken Your Senses",
+  "fullName": "Eïa - Awaken Your Senses",
   "description": {
     "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
     "en": "Spa management platform - Book your wellness treatments"
@@ -10,7 +10,7 @@
   "appDomain": "app.lymfea.fr",
 
   "legal": {
-    "companyName": "LYMFEA SAS",
+    "companyName": "EÏA SAS",
     "companyType": "SAS (Société par Actions Simplifiée)",
     "companyTypeEn": "SAS (Simplified Joint Stock Company)",
     "capital": "1 258,57 €",
@@ -53,19 +53,19 @@
 
   "pwa": {
     "therapist": {
-      "name": "Lymfea - Luxury in Motion",
-      "shortName": "Lymfea",
+      "name": "Eïa - Awaken Your Senses",
+      "shortName": "Eïa",
       "description": {
         "fr": "Plateforme de gestion de spa - Réservez vos soins bien-être",
         "en": "Spa management platform - Book your wellness treatments"
       }
     },
     "admin": {
-      "name": "Lymfea Admin",
-      "shortName": "Lymfea Admin",
+      "name": "Eïa Admin",
+      "shortName": "Eïa Admin",
       "description": {
-        "fr": "Lymfea Admin - Gestion des réservations",
-        "en": "Lymfea Admin - Booking Management"
+        "fr": "Eïa Admin - Gestion des réservations",
+        "en": "Eïa Admin - Booking Management"
       }
     }
   },

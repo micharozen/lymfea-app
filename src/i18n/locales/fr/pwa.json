@@ -58,7 +58,10 @@
     "acceptError": "Erreur lors de l'acceptation",
     "bookingDeclined": "Réservation refusée",
     "error": "Erreur",
-    "slots": "{{count}} créneaux"
+    "slots": "{{count}} créneaux",
+    "todayAppointments": "RDV aujourd'hui",
+    "todayHours": "Heures aujourd'hui",
+    "todayEarnings": "Gains aujourd'hui"
   },
   "booking": {
     "details": "Détails de la réservation",

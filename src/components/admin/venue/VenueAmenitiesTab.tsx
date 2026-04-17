@@ -491,10 +491,10 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           </div>
         )}
 
-        {/* Lymfea */}
+        {/* Eïa */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Lymfea (client soin)</span>
+            <span className="text-sm">Eïa (client soin)</span>
             <div className="flex items-center gap-2">
               <Label className="text-xs text-muted-foreground">Inclus</Label>
               <Switch

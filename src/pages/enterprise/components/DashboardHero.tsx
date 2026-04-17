@@ -34,7 +34,7 @@ export function DashboardHero({ hotel }: DashboardHeroProps) {
       {/* Hero Content */}
       <div className="relative z-10 w-full max-w-2xl mx-auto pt-12 sm:pt-16 pb-8 sm:pb-10 px-6">
         <div className="animate-fade-in">
-          {/* Logos: Lymfea × Company */}
+          {/* Logos: Eïa × Company */}
           <div className="flex items-center gap-3 sm:gap-4 mb-6">
             <a href={brand.website} target="_blank" rel="noopener noreferrer">
               <img

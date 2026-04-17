@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Lymfea is a SaaS platform for spa management — booking, scheduling, therapist coordination, and billing. Three distinct UIs share one codebase:
+Eïa is a SaaS platform for spa management — booking, scheduling, therapist coordination, and billing. Three distinct UIs share one codebase:
 
 - **Admin Dashboard** (`/admin/*`) — venue management (hotels/spas), bookings calendar, agenda views, analytics, financial reports
 - **Therapist PWA** (`/pwa/*`) — mobile app for therapists (appointments, wallet, Stripe Connect payouts)
@@ -12,11 +12,11 @@ Lymfea is a SaaS platform for spa management — booking, scheduling, therapist 
 
 Venue types: `hotel` (hotel spa), `spa` (independent day spa) — each with adapted terminology via `useVenueTerms` hook.
 
-## Legacy Naming (OOM → Lymfea)
+## Legacy Naming (OOM → Eïa)
 
-This codebase was forked from OOM (a hairdressing platform). Many database tables, columns, and code identifiers still use OOM naming. Here is the mapping to Lymfea concepts:
+This codebase was forked from OOM (a hairdressing platform). Many database tables, columns, and code identifiers still use OOM naming. Here is the mapping to Eïa concepts:
 
-| DB / Code name | Lymfea concept | Notes |
+| DB / Code name | Eïa concept | Notes |
 |---|---|---|
 | `hairdressers` table | **Therapists** (thérapeutes) | Table will be renamed in future migration |
 | `hairdresser_id` (in bookings) | **therapist_id** | FK to therapists |
@@ -31,10 +31,10 @@ This codebase was forked from OOM (a hairdressing platform). Many database table
 | `app_role: 'hairdresser'` | **therapist** role | Supabase enum value |
 | `HairdresserProtectedRoute` | **TherapistProtectedRoute** | Route guard for therapist PWA |
 | `--oom-safe-bottom` CSS var | iOS safe area variable | Legacy naming, to be renamed |
-| `venue_type: 'coworking'` | **Removed** | Not applicable to Lymfea |
-| `venue_type: 'enterprise'` | **Removed** | Not applicable to Lymfea |
+| `venue_type: 'coworking'` | **Removed** | Not applicable to Eïa |
+| `venue_type: 'enterprise'` | **Removed** | Not applicable to Eïa |
 
-**Rule: When writing new code, use Lymfea naming (therapist, treatment room, etc.). When modifying existing code, keep consistency with surrounding code until the full rename migration happens.**
+**Rule: When writing new code, use Eïa naming (therapist, treatment room, etc.). When modifying existing code, keep consistency with surrounding code until the full rename migration happens.**
 
 ## Commands
 
@@ -97,7 +97,7 @@ Current venue types:
 - Styling: Tailwind with custom gold palette, dark mode via class strategy, custom Kormelink serif font
 - iOS safe areas: handled via `--oom-safe-bottom` CSS variable (legacy name) and `pb-safe` utility
 
-## Roadmap — Key Features (Lymfea)
+## Roadmap — Key Features (Eïa)
 
 High-level epics from the product roadmap:
 

@@ -172,7 +172,7 @@ export default function Signature() {
     return (
       <div className="min-h-screen bg-[#F3F4F6] py-20 px-4 flex justify-center items-center font-sans text-gray-900">
         <div className="w-full max-w-lg bg-white shadow-xl border border-gray-200 p-12 sm:p-16 text-center">
-          <h2 className="text-xs tracking-[0.3em] text-gray-400 uppercase mb-6">Spa Hana by Lymfea</h2>
+          <h2 className="text-xs tracking-[0.3em] text-gray-400 uppercase mb-6">Spa Hana by Eïa</h2>
           <h1 className="text-2xl sm:text-3xl font-serif tracking-widest uppercase mb-6 text-[#1a1a1a]">Votre expérience <br/> commence</h1>
           <div className="w-12 h-[1px] bg-black mx-auto mb-8"></div>
           <p className="text-gray-600 uppercase tracking-[0.15em] text-[11px] leading-loose">
@@ -194,7 +194,7 @@ export default function Signature() {
         {/* EN-TÊTE */}
         <div className="text-center mb-16">
           <h1 className="text-3xl sm:text-4xl font-serif tracking-widest uppercase mb-4 text-[#1a1a1a]">
-            Spa Hana <span className="text-gray-400 font-sans text-xl mx-2 font-light">BY</span> Lymfea
+            Spa Hana <span className="text-gray-400 font-sans text-xl mx-2 font-light">BY</span> Eïa
           </h1>
           <h2 className="text-sm tracking-[0.2em] text-gray-500 uppercase">Formulaire de Consentement</h2>
           <div className="w-16 h-[1px] bg-black mx-auto mt-8"></div>
@@ -369,7 +369,7 @@ export default function Signature() {
         <div className="mb-4">
           <h3 className="font-serif text-2xl uppercase tracking-widest mb-6 text-[#1a1a1a]">Consentement Éclairé :</h3>
           <div className="text-[11px] text-gray-600 space-y-4 uppercase tracking-widest leading-relaxed text-justify mb-10">
-            <p>Le client déclare que les données concernant ses informations personnelles, expressément demandées dans le but d'évaluer la compatibilité avec les soins fournis, sont vraies. Le client dégage donc l'Hôtel Hana et Lymfea de toute responsabilité quant à tout problème découlant de l'omission intentionnelle ou non d'informations concernant tout état pathologique, allergique, inflammatoire ou autre, qui peut compromettre l'état de santé de ce dernier. L'Hôtel Hana et Lymfea déclarent respecter les règles de confidentialité du client sur la base de la législation en vigueur et ne pas divulguer à des tiers les données à caractère personnel de ce dernier, que ce soit à des fins lucratives ou commerciales.</p>
+            <p>Le client déclare que les données concernant ses informations personnelles, expressément demandées dans le but d'évaluer la compatibilité avec les soins fournis, sont vraies. Le client dégage donc l'Hôtel Hana et Eïa de toute responsabilité quant à tout problème découlant de l'omission intentionnelle ou non d'informations concernant tout état pathologique, allergique, inflammatoire ou autre, qui peut compromettre l'état de santé de ce dernier. L'Hôtel Hana et Eïa déclarent respecter les règles de confidentialité du client sur la base de la législation en vigueur et ne pas divulguer à des tiers les données à caractère personnel de ce dernier, que ce soit à des fins lucratives ou commerciales.</p>
           </div>
 
           <div className="mt-10">

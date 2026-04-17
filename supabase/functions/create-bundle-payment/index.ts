@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, clientData, bundleItems, totalPrice } = await req.json();
+    const { hotelId, clientData, bundleItems, totalPrice, giftData } = await req.json();
 
     // --- Validation ---
     if (!hotelId || !clientData || !bundleItems || !Array.isArray(bundleItems) || bundleItems.length === 0) {
@@ -126,6 +126,13 @@ serve(async (req) => {
         roomNumber: clientData.roomNumber || '',
         note: clientData.note || '',
         bundleItems: JSON.stringify(bundleItems),
+        isGift: giftData?.isGift ? 'true' : 'false',
+        giftDeliveryMode: giftData?.deliveryMode || '',
+        senderName: giftData?.senderName || '',
+        senderEmail: giftData?.isGift ? (clientData.email || '') : '',
+        recipientName: giftData?.recipientName || '',
+        recipientEmail: giftData?.recipientEmail || '',
+        giftMessage: giftData?.giftMessage || '',
       },
     });
 

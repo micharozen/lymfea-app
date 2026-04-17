@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useClientSession } from '@/hooks/useClientSession';
 import { useClientPrefetch } from '@/hooks/useClientPrefetch';
+import { useAxeptio } from '@/hooks/useAxeptio';
 import { useVenueDefaultLanguage } from '@/hooks/useVenueDefaultLanguage';
 import { PageTransition } from '@/components/client/PageTransition';
 import { ClientFlowProvider } from '@/pages/client/context/FlowContext';
@@ -30,6 +31,9 @@ export const ClientFlowWrapper = ({ children }: ClientFlowWrapperProps) => {
 
   // Prefetch data for the next page in the booking flow
   useClientPrefetch();
+
+  // Cookie consent banner (Axeptio)
+  useAxeptio();
 
   // Set default language based on venue type and country
   const { isLanguageReady } = useVenueDefaultLanguage(hotelId);
