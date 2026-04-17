@@ -67,7 +67,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          BRANCH="auto/migrate-edge-functions-$DATE"
+          RUN_NUMBER="${{ github.run_number }}"
+          BRANCH="auto/migrate-edge-functions-${DATE}-${RUN_NUMBER}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
