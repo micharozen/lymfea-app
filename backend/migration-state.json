@@ -9,18 +9,55 @@
   },
   "sharedModules": {
     "_comment": "Shared modules that must be ported before functions that depend on them",
-    "supabase-admin": { "status": "migrated", "target": "src/lib/supabase.ts" },
-    "stripe-client": { "status": "migrated", "target": "src/lib/stripe.ts" },
-    "send-email": { "status": "migrated", "target": "src/lib/email.ts" },
-    "brand": { "status": "pending", "target": "src/lib/brand.ts", "note": "Import brand.json directly" },
-    "email-template": { "status": "pending", "target": "src/lib/email-template.ts" },
-    "therapistEarnings": { "status": "pending", "target": "src/lib/therapist-earnings.ts" },
-    "whatsapp-meta": { "status": "pending", "target": "src/lib/whatsapp.ts" },
-    "pms-client": { "status": "pending", "target": "src/lib/pms/client.ts" },
-    "opera-cloud": { "status": "pending", "target": "src/lib/pms/opera-cloud.ts" },
-    "mews": { "status": "pending", "target": "src/lib/pms/mews.ts" },
-    "blocked-slots": { "status": "pending", "target": "src/lib/blocked-slots.ts" },
-    "payment-link-templates": { "status": "pending", "target": "src/lib/payment-link-templates.ts" }
+    "supabase-admin": {
+      "status": "migrated",
+      "target": "src/lib/supabase.ts"
+    },
+    "stripe-client": {
+      "status": "migrated",
+      "target": "src/lib/stripe.ts"
+    },
+    "send-email": {
+      "status": "migrated",
+      "target": "src/lib/email.ts"
+    },
+    "brand": {
+      "status": "pending",
+      "target": "src/lib/brand.ts",
+      "note": "Import brand.json directly"
+    },
+    "email-template": {
+      "status": "pending",
+      "target": "src/lib/email-template.ts"
+    },
+    "therapistEarnings": {
+      "status": "pending",
+      "target": "src/lib/therapist-earnings.ts"
+    },
+    "whatsapp-meta": {
+      "status": "pending",
+      "target": "src/lib/whatsapp.ts"
+    },
+    "pms-client": {
+      "status": "pending",
+      "target": "src/lib/pms/client.ts"
+    },
+    "opera-cloud": {
+      "status": "pending",
+      "target": "src/lib/pms/opera-cloud.ts"
+    },
+    "mews": {
+      "status": "pending",
+      "target": "src/lib/pms/mews.ts"
+    },
+    "blocked-slots": {
+      "status": "pending",
+      "target": "src/lib/blocked-slots.ts"
+    },
+    "payment-link-templates": {
+      "status": "pending",
+      "target": "src/lib/payment-link-templates.ts"
+    }
   },
   "functions": [
     {
@@ -41,17 +78,22 @@
       "priority": 1,
       "group": "payments",
       "auth": false,
-      "deps": ["therapistEarnings", "whatsapp-meta", "brand"]
+      "deps": [
+        "therapistEarnings",
+        "whatsapp-meta",
+        "brand"
+      ]
     },
     {
       "name": "stripe-connect-webhook",
-      "status": "pending",
+      "status": "failed",
       "route": "/webhooks/stripe-connect",
       "target": "src/routes/webhooks.ts",
       "priority": 1,
       "group": "payments",
       "auth": false,
-      "deps": []
+      "deps": [],
+      "error": "Claude API error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Ca91LJUoX3ZH223orq87B\"}"
     },
     {
       "name": "finalize-payment",
@@ -61,7 +103,10 @@
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["therapistEarnings", "brand"]
+      "deps": [
+        "therapistEarnings",
+        "brand"
+      ]
     },
     {
       "name": "create-checkout-session",
@@ -71,17 +116,20 @@
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "charge-saved-card",
-      "status": "pending",
+      "status": "failed",
       "route": "/payments/charge-card",
       "target": "src/routes/payments.ts",
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "error": "Claude API error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Ca91LJu75um2JrZ7wWCK5\"}"
     },
     {
       "name": "send-payment-link",
@@ -91,7 +139,10 @@
       "priority": 1,
       "group": "payments",
       "auth": true,
-      "deps": ["payment-link-templates", "brand"]
+      "deps": [
+        "payment-link-templates",
+        "brand"
+      ]
     },
     {
       "name": "send-payment-reminder",
@@ -101,17 +152,21 @@
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": ["payment-link-templates", "brand"]
+      "deps": [
+        "payment-link-templates",
+        "brand"
+      ]
     },
     {
       "name": "create-bundle-payment",
-      "status": "pending",
+      "status": "failed",
       "route": "/payments/bundle",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "error": "Claude API error 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011Ca91LKRrF6arKeFb689UE\"}"
     },
     {
       "name": "purchase-bundle",
@@ -171,7 +226,9 @@
       "priority": 2,
       "group": "booking",
       "auth": false,
-      "deps": ["blocked-slots"]
+      "deps": [
+        "blocked-slots"
+      ]
     },
     {
       "name": "create-client-booking",
@@ -221,7 +278,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"],
+      "deps": [
+        "email-template",
+        "brand"
+      ],
       "note": "Internal service, no HTTP endpoint — called directly by other routes"
     },
     {
@@ -232,7 +292,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"],
+      "deps": [
+        "email-template",
+        "brand"
+      ],
       "note": "Internal service"
     },
     {
@@ -243,7 +306,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-admin-quote-pending",
@@ -253,7 +319,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-booking",
@@ -263,7 +332,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-completion",
@@ -273,7 +345,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "notify-concierge-room-payment",
@@ -283,7 +358,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "trigger-new-booking-notifications",
@@ -324,7 +402,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-rating-email",
@@ -334,7 +415,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-treatment-request-email",
@@ -344,7 +428,10 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["email-template", "brand"]
+      "deps": [
+        "email-template",
+        "brand"
+      ]
     },
     {
       "name": "send-booking-whatsapp",
@@ -354,7 +441,9 @@
       "priority": 3,
       "group": "notifications",
       "auth": false,
-      "deps": ["whatsapp-meta"]
+      "deps": [
+        "whatsapp-meta"
+      ]
     },
     {
       "name": "send-slack-notification",
@@ -374,7 +463,9 @@
       "priority": 4,
       "group": "admin",
       "auth": false,
-      "deps": ["email-template"]
+      "deps": [
+        "email-template"
+      ]
     },
     {
       "name": "invite-admin",
@@ -384,7 +475,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "invite-concierge",
@@ -394,7 +487,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "invite-therapist",
@@ -404,7 +499,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "resend-invite",
@@ -414,7 +511,9 @@
       "priority": 4,
       "group": "admin",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "delete-admin",
@@ -514,7 +613,9 @@
       "priority": 4,
       "group": "therapists",
       "auth": true,
-      "deps": ["therapistEarnings"]
+      "deps": [
+        "therapistEarnings"
+      ]
     },
     {
       "name": "generate-invoice",
@@ -524,7 +625,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-monthly-invoices",
@@ -534,7 +637,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-therapist-invoices",
@@ -544,7 +649,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "generate-venue-invoices",
@@ -554,7 +661,9 @@
       "priority": 5,
       "group": "invoicing",
       "auth": true,
-      "deps": ["brand"]
+      "deps": [
+        "brand"
+      ]
     },
     {
       "name": "check-expired-slots",
@@ -585,7 +694,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "opera-cloud-post-charge",
@@ -595,7 +707,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "opera-cloud-test-connection",
@@ -605,7 +720,10 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["opera-cloud", "pms-client"]
+      "deps": [
+        "opera-cloud",
+        "pms-client"
+      ]
     },
     {
       "name": "pms-fetch-services",
@@ -615,7 +733,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-guest-lookup",
@@ -625,7 +745,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-post-charge",
@@ -635,7 +757,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "pms-test-connection",
@@ -645,7 +769,9 @@
       "priority": 6,
       "group": "pms",
       "auth": true,
-      "deps": ["pms-client"]
+      "deps": [
+        "pms-client"
+      ]
     },
     {
       "name": "create-portal-account",
@@ -685,7 +811,9 @@
       "priority": 6,
       "group": "notifications",
       "auth": false,
-      "deps": ["whatsapp-meta"]
+      "deps": [
+        "whatsapp-meta"
+      ]
     },
     {
       "name": "generate-vapid-keys",
