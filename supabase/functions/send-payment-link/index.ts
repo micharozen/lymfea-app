@@ -183,12 +183,15 @@ serve(async (req: Request) => {
       throw new Error("Failed to fetch treatments");
     }
 
-    // Correction ici : ajout du type any pour bt
     const treatments = bookingTreatments?.map((bt: any) => ({
       name: bt.treatment_menus?.name || 'Service',
       price: bt.treatment_menus?.price || 0,
       duration: bt.treatment_menus?.duration
     })) || [];
+
+    if (treatments.length === 0) {
+      console.warn(`[SEND-PAYMENT-LINK] No booking_treatments found for booking ${bookingId} — booking may be corrupted`);
+    }
 
     // Correction ici : ajout des types sum et t
     const verifiedTotalPrice = treatments.reduce((sum: number, t: any) => sum + t.price, 0);
@@ -243,7 +246,7 @@ serve(async (req: Request) => {
           currency: currency,
           product_data: {
             name: language === 'fr' ? `Prestations bien-être ${brand.name}` : `${brand.name} Wellness Services`,
-            description: treatmentNames,
+            ...(treatmentNames.trim() ? { description: treatmentNames } : {}),
           },
           unit_amount: Math.round(totalPrice * 100),
         },
@@ -258,7 +261,7 @@ serve(async (req: Request) => {
       after_completion: {
         type: 'redirect',
         redirect: {
-          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success`,
+          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
         },
       },
     });

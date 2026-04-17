@@ -17,9 +17,14 @@ export function HoldBanner() {
       return;
     }
 
+    const computeRemaining = () =>
+      Math.max(0, Math.floor((holdExpiresAt - Date.now()) / 1000));
+
+    // Afficher immédiatement sans attendre le premier tick
+    setTimeLeft(computeRemaining());
+
     const interval = setInterval(() => {
-      const now = Date.now();
-      const remaining = Math.max(0, Math.floor((holdExpiresAt - now) / 1000));
+      const remaining = computeRemaining();
       setTimeLeft(remaining);
 
       if (remaining === 0) {

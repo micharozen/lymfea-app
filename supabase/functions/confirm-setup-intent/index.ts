@@ -176,7 +176,32 @@ serve(async (req) => {
       await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
     }
 
-    // 4. Sauvegarde de la carte dans la nouvelle table
+// 4. Attacher les soins à la réservation (nécessaire pour l'envoi du lien de paiement)
+    // On le fait systématiquement, que ce soit un nouveau booking ou un update du draft
+    if (treatmentIds && treatmentIds.length > 0) {
+      // On commence par nettoyer les anciens soins si c'était un draft pour éviter les doublons
+      if (meta.draftBookingId) {
+        await supabaseAdmin
+          .from('booking_treatments')
+          .delete()
+          .eq('booking_id', bookingId);
+      }
+
+      const treatmentInserts = treatmentIds.map((id: string) => ({
+        booking_id: bookingId,
+        treatment_id: id,
+      }));
+
+      const { error: treatmentsError } = await supabaseAdmin
+        .from('booking_treatments')
+        .insert(treatmentInserts);
+
+      if (treatmentsError) {
+        console.error("[CONFIRM-SETUP] Erreur lors de l'ajout des soins :", treatmentsError);
+      }
+    }
+
+    // 5. Sauvegarde de la carte dans la nouvelle table
     const setupIntent = session.setup_intent as Stripe.SetupIntent;
     const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
     const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card : null;

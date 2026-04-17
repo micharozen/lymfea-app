@@ -1,0 +1,26 @@
+{
+  "name": "eia-backend",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "migrate": "bun run scripts/migrate-functions.ts",
+    "migrate:dry": "bun run scripts/migrate-functions.ts --dry-run",
+    "migrate:one": "bun run scripts/migrate-functions.ts --count 1",
+    "migrate:sync": "bun run scripts/migrate-functions.ts --sync-only",
+    "migrate:sync:dry": "bun run scripts/migrate-functions.ts --sync-only --dry-run",
+    "migrate:status": "bun -e \"const s=JSON.parse(require('fs').readFileSync('migration-state.json','utf-8'));const m=s.functions.filter(f=>f.status==='migrated').length;const o=s.functions.filter(f=>f.status==='outdated').length;const p=s.functions.filter(f=>f.status==='pending').length;const f=s.functions.filter(f=>f.status==='failed').length;console.log('Migrated:',m,'| Outdated:',o,'| Pending:',p,'| Failed:',f,'| Total:',s.functions.length)\""
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@supabase/supabase-js": "^2.101.1",
+    "stripe": "^18.5.0",
+    "resend": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.9.3"
+  }
+}

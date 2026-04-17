@@ -51,136 +51,140 @@ function generateBookingConfirmationHtml({
   isQuotePending: boolean;
   venueType?: 'hotel' | 'coworking' | 'enterprise';
 }) {
-  // Get venue-specific terminology
-  const locationLabel = venueType === 'coworking' ? 'Workspace' : venueType === 'enterprise' ? 'Room' : 'Room';
-  const venueLabel = venueType === 'coworking' ? 'Location' : venueType === 'enterprise' ? 'Company' : 'Hotel';
-  // Build treatments list with proper handling for on-quote items
-  const safeCurrency = (currency || 'EUR').toUpperCase();
-  const treatmentsList = treatments.map(t => {
-    const name = t?.name || 'Service';
-    const priceDisplay = t.isPriceOnRequest ? 'Sur devis' : `${t.price ?? 0} ${safeCurrency}`;
-    const bgColor = t.isPriceOnRequest ? '#fef3c7' : '#f3f4f6';
-    const textColor = t.isPriceOnRequest ? '#92400e' : '#374151';
-    return `<span style="display:inline-block;background:${bgColor};color:${textColor};padding:4px 8px;border-radius:4px;margin:2px;font-size:13px;">${name} - ${priceDisplay}</span>`;
-  }).join('');
-  
   const logoUrl = EMAIL_LOGO_URL;
   const brandName = brand.name;
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
-  
-  // Status badge styling
-  const statusBadge = isQuotePending 
-    ? '<span style="display:inline-block;background:#f59e0b;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">⏳ Quote Requested</span>'
-    : '<span style="display:inline-block;background:#22c55e;color:#fff;padding:6px 16px;border-radius:16px;font-size:12px;font-weight:600;">✓ Booking Confirmed</span>';
-  
-  // Message based on status
-  const statusMessage = isQuotePending 
-    ? "We've received your booking request. We'll send you a quote very soon with the final price for your custom services."
-    : "Your booking has been successfully confirmed. A therapist will be assigned to your appointment shortly.";
-
-  // Total display
+  const safeCurrency = (currency || 'EUR').toUpperCase();
   const hasOnQuoteItems = treatments.some(t => t.isPriceOnRequest);
-  const totalDisplay = hasOnQuoteItems 
-    ? `<td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency} <span style="font-size:12px;font-weight:normal;">+ quote</span></td>`
-    : `<td style="padding:12px;color:#fff;font-size:18px;font-weight:bold;text-align:right;">${totalPrice} ${currency}</td>`;
-  
-  return `
-<!DOCTYPE html>
-<html>
+
+  const statusLabel = isQuotePending ? 'QUOTE REQUESTED' : 'BOOKING CONFIRMED';
+  const greeting = isQuotePending
+    ? `We've received your request and will send you a personalised quote very soon.`
+    : `Your wellness experience has been successfully confirmed. We look forward to welcoming you.`;
+
+  const treatmentsRows = treatments.map(t => {
+    const name = t?.name || 'Service';
+    const priceCell = t.isPriceOnRequest
+      ? `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;color:#C5B197;font-style:italic;">On request</td>`
+      : `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;">${t.price ?? 0} ${safeCurrency}</td>`;
+    return `<tr><td align="left" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;">${name}</td>${priceCell}</tr>`;
+  }).join('');
+
+  const totalCell = hasOnQuoteItems
+    ? `<td align="right" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${totalPrice} ${safeCurrency}</strong> <span style="font-size:12px;color:#C5B197;">+ quote</span></td>`
+    : `<td align="right" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${totalPrice} ${safeCurrency}</strong></td>`;
+
+  const roomRow = roomNumber
+    ? `<tr><td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Room</td><td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${roomNumber}</td></tr>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
+<body style="margin:0;padding:0;background-color:#ffffff;color:#000000;-webkit-font-smoothing:antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
     <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
-          <!-- Header -->
+      <td align="center" style="padding:40px 20px;">
+
+        <!-- Logo -->
+        <img src="${logoUrl}" alt="${brandName}" width="140" style="display:block;margin-bottom:40px;">
+
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
+
+          <!-- Status label -->
           <tr>
-            <td style="background:#fff;padding:20px 16px 12px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="${brandName}" style="height:60px;display:block;margin:0 auto 12px;" />
-              ${statusBadge}
+            <td align="center" style="padding-bottom:8px;">
+              <p style="margin:0;font-size:11px;letter-spacing:3px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;">${statusLabel}</p>
             </td>
           </tr>
-          
-          <!-- Content -->
+
+          <!-- Greeting -->
           <tr>
-            <td style="padding:20px;">
-              <p style="margin:0 0 8px;font-size:15px;color:#333;">Hello ${clientName},</p>
-              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">${statusMessage}</p>
-              
-              <!-- Key Info Grid -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">
-                <tr>
-                  <td style="padding:12px;border-right:1px solid #e5e7eb;width:50%;">
-                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Date</p>
-                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${bookingDate}</p>
-                  </td>
-                  <td style="padding:12px;width:50%;">
-                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Time</p>
-                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${bookingTime}</p>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
-                <tr>
-                  <td style="padding:6px 0;color:#6b7280;width:100px;">Booking</td>
-                  <td style="padding:6px 0;font-weight:500;">#${bookingNumber}</td>
-                </tr>
-                <tr>
-                  <td style="padding:6px 0;color:#6b7280;">${venueLabel}</td>
-                  <td style="padding:6px 0;font-weight:500;">${hotelName}${roomNumber ? ` · ${locationLabel} ${roomNumber}` : ''}</td>
-                </tr>
-              </table>
-              
-              <!-- Treatments -->
-              <div style="margin-bottom:12px;">
-                <p style="margin:0 0 6px;font-size:11px;color:#6b7280;text-transform:uppercase;">Services</p>
-                ${treatmentsList}
-              </div>
-              
-              <!-- Total -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#000;border-radius:8px;">
-                <tr>
-                  <td style="padding:12px;color:#fff;font-size:13px;">Total</td>
-                  ${totalDisplay}
-                </tr>
-              </table>
-              
-              <!-- Manage Booking Link -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;">
-                <tr>
-                  <td align="center">
-                    <a href="${manageBookingUrl}" style="display:inline-block;background:#f3f4f6;color:#374151;padding:10px 20px;border-radius:8px;font-size:13px;text-decoration:none;font-weight:500;">
-                      Manage my booking
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="padding-top:8px;">
-                    <p style="margin:0;font-size:11px;color:#9ca3af;">Free cancellation up to 2h before the appointment</p>
-                  </td>
-                </tr>
-              </table>
+            <td align="center" style="padding-bottom:10px;">
+              <h1 style="margin:0;font-weight:normal;font-size:26px;font-family:Georgia,'Times New Roman',serif;">Dear ${clientName},</h1>
             </td>
           </tr>
-          
+          <tr>
+            <td align="center" style="padding-bottom:36px;">
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#555;font-family:Georgia,'Times New Roman',serif;max-width:420px;">${greeting}</p>
+            </td>
+          </tr>
+
+          <!-- Booking details card -->
+          <tr>
+            <td style="background-color:#FEFBF7;border:1px solid #C5B197;padding:28px 32px;border-radius:4px;">
+
+              <p style="margin:0 0 18px;font-size:10px;letter-spacing:2px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;text-transform:uppercase;">Your reservation</p>
+
+              <!-- Date + Time -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="width:50%;padding-right:12px;">
+                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Date</p>
+                    <p style="margin:0;font-size:16px;font-family:Georgia,'Times New Roman',serif;"><strong>${bookingDate}</strong></p>
+                  </td>
+                  <td style="width:50%;border-left:1px solid #C5B197;padding-left:20px;">
+                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Time</p>
+                    <p style="margin:0;font-size:16px;font-family:Georgia,'Times New Roman',serif;"><strong>${bookingTime}</strong></p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Venue + Room + Booking # -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
+                <tr>
+                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Venue</td>
+                  <td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${hotelName}</td>
+                </tr>
+                ${roomRow}
+                <tr>
+                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Booking #</td>
+                  <td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${String(bookingNumber).padStart(4, '0')}</td>
+                </tr>
+              </table>
+
+              <!-- Treatments + Total -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top:1px solid #C5B197;padding-top:16px;">
+                ${treatmentsRows}
+                <tr>
+                  <td align="left" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>TOTAL</strong></td>
+                  ${totalCell}
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td align="center" style="padding:36px 0 12px;">
+              <a href="${manageBookingUrl}" style="background-color:#000351;color:#ffffff;padding:16px 36px;text-decoration:none;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:2px;border-radius:2px;">MANAGE MY BOOKING</a>
+            </td>
+          </tr>
+
+          <!-- Cancellation note -->
+          <tr>
+            <td align="center" style="padding-bottom:40px;">
+              <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">Free cancellation up to 2 hours before the appointment.</p>
+            </td>
+          </tr>
+
           <!-- Footer -->
           <tr>
-            <td style="padding:12px;text-align:center;background:#fafafa;border-top:1px solid #f0f0f0;">
-              <p style="margin:0;font-size:11px;color:#9ca3af;">${brandName} · ${brand.tagline}</p>
+            <td align="center" style="border-top:1px solid #e5e5e5;padding-top:24px;">
+              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brandName.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline.toUpperCase()}</p>
             </td>
           </tr>
+
         </table>
       </td>
     </tr>
   </table>
 </body>
-</html>
-  `;
+</html>`;
 }
 
 serve(async (req) => {
@@ -256,10 +260,12 @@ serve(async (req) => {
 
     const subjectPrefix = isQuotePending ? 'Quote Request' : 'Booking Confirmed';
 
+    const isLocal = Deno.env.get('IS_LOCAL') === 'true';
+
     // Send email to client
     const { data: clientData, error: clientError } = await resend.emails.send({
-      from: brand.emails.from.default,
-      to: [email],
+      from: isLocal ? 'onboarding@resend.dev' : brand.emails.from.default,
+      to: [isLocal ? 'romainthierryom@gmail.com' : email],
       subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });
@@ -273,8 +279,8 @@ serve(async (req) => {
 
     // Send notification email to booking recipient
     const { data: adminData, error: adminError } = await resend.emails.send({
-      from: brand.emails.from.default,
-      to: [brand.emails.bookingRecipient],
+      from: isLocal ? 'onboarding@resend.dev' : brand.emails.from.default,
+      to: [isLocal ? 'romainthierryom@gmail.com' : brand.emails.bookingRecipient],
       subject: `[ADMIN] ${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });

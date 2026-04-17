@@ -293,6 +293,8 @@ try {
 
       if (draftFetchError || !draftBooking) {
         console.warn('Draft booking not found or expired, falling back to atomic reserve');
+        // Supprimer le draft expiré pour éviter qu'il reste en base indéfiniment
+        await supabase.from('bookings').delete().eq('id', draftBookingId).eq('status', 'awaiting_payment');
         // Draft expired — fall through to the atomic reserve below
         const { data: fallbackId, error: fallbackError } = await supabase.rpc('reserve_trunk_atomically', {
           _hotel_id: hotelId,
@@ -574,6 +576,13 @@ try {
       }
     }
 
+    // Fetch the created/updated booking to get booking_id (numéro séquentiel)
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('booking_id')
+      .eq('id', bookingId)
+      .single();
+
     // Get treatment names, prices and price_on_request status for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
@@ -601,7 +610,7 @@ try {
             body: JSON.stringify({
               email: sanitizedClientData.email,
               bookingId: bookingId,
-              bookingNumber: booking.booking_id.toString(),
+              bookingNumber: booking?.booking_id?.toString() ?? '',
               clientName: `${sanitizedClientData.firstName} ${sanitizedClientData.lastName}`,
               hotelName: hotel.name,
               roomNumber: sanitizedClientData.roomNumber,
@@ -736,7 +745,7 @@ try {
       JSON.stringify({
         success: true,
         bookingId: bookingId,
-        bookingNumber: booking.booking_id,
+        bookingNumber: booking?.booking_id ?? null,
         ...(bundleWarning ? { bundleWarning } : {}),
       }),
       {

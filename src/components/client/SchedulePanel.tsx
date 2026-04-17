@@ -5,6 +5,7 @@ import { useBasket } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { format, addDays, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -41,6 +42,7 @@ export function SchedulePanel({
     setBookingDateTime,
     therapistGenderPreference,
     setTherapistGenderPreference,
+    draftBookingId,
     setDraftBookingId,
     setHoldExpiresAt,
   } = useClientFlow();
@@ -49,6 +51,7 @@ export function SchedulePanel({
 
   const [selectedDate, setSelectedDate] = useState(takenDate || '');
   const [selectedTime, setSelectedTime] = useState('');
+  const selectedTimeRef = useRef(selectedTime);
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -223,8 +226,9 @@ export function SchedulePanel({
           setNoTherapists(true);
         }
 
-        if (selectedTime && !slots.includes(selectedTime)) {
+        if (selectedTimeRef.current && !slots.includes(selectedTimeRef.current)) {
           setSelectedTime('');
+          selectedTimeRef.current = '';
         }
       } catch (error) {
         console.error('Error checking availability:', error);
@@ -235,7 +239,7 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, selectedTime, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, t]);
 
   /**
    * Creates a draft booking (holds the slot for 5 minutes) then navigates forward.
@@ -244,6 +248,15 @@ export function SchedulePanel({
   const executeHoldAndContinue = async (date: string, time: string) => {
     setIsHolding(true);
     try {
+      // Supprimer le draft précédent si le client change de créneau
+      if (draftBookingId) {
+        await supabase.from('bookings').delete()
+          .eq('id', draftBookingId)
+          .eq('status', 'awaiting_payment');
+        setDraftBookingId(null);
+        setHoldExpiresAt(null);
+      }
+
       const { data, error } = await supabase.functions.invoke('create-draft-booking', {
         body: {
           hotelId,
@@ -260,9 +273,11 @@ export function SchedulePanel({
       if (error) throw error;
       if (!data?.bookingId) throw new Error('No booking ID returned');
 
-      setDraftBookingId(data.bookingId);
-      setHoldExpiresAt(Date.now() + 5 * 60 * 1000);
-      setBookingDateTime({ date, time });
+      flushSync(() => {
+        setDraftBookingId(data.bookingId);
+        setHoldExpiresAt(Date.now() + 5 * 60 * 1000);
+        setBookingDateTime({ date, time });
+      });
       onContinue();
     } catch (err: unknown) {
       console.error('Hold error:', err);
@@ -277,20 +292,24 @@ export function SchedulePanel({
 
   const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
 
-  const proceedAfterAddons = (time: string) => {
-    setBookingDateTime({ date: selectedDate, time });
-    onContinue();
+ const proceedAfterAddons = (time: string) => {
+    // 1. On ferme le tiroir proprement
+    setIsAddonDrawerOpen(false);
+
+    // 2. On laisse 300ms au tiroir pour faire son animation de fermeture
+    // avant de déclencher le changement de page
+    setTimeout(async () => {
+      await executeHoldAndContinue(selectedDate, time);
+    }, 300);
   };
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
+    selectedTimeRef.current = time;
     setShowSlotTakenBanner(false);
     trackAction('select_time_slot', { date: selectedDate, time });
 
-    // Auto-continue when embedded — time is the last selection step
-    if (embedded && selectedDate && items.length > 0) {
-      executeHoldAndContinue(selectedDate, time);
-    }
+    // Note: le hold ne démarre que sur "Continuer", pas au clic du créneau
   };
 
   const handleContinue = () => {

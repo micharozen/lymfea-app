@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
 import type { AuthBundles } from "@/components/client/GiftCardLoginModal";
+import { supabase } from "@/integrations/supabase/client";
 
 export type TherapistGender = 'female' | 'male' | null;
 
@@ -68,6 +69,7 @@ interface ClientFlowContextType extends ClientFlowState {
   setAuthBundles: (bundles: AuthBundles | null) => void;
   clearFlow: () => void;
   canProceedToStep: (step: "info" | "payment" | "confirmation") => boolean;
+  cancelHold: () => Promise<void>;
 }
 
 const ClientFlowContext = createContext<ClientFlowContextType | undefined>(undefined);
@@ -113,7 +115,24 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setGiftInfoState(null);
     setAuthBundlesState(null);
   }, []);
-
+const cancelHold = useCallback(async () => {
+    if (draftBookingId) {
+      try {
+        // Extra sécurité : on ne supprime que si le statut est toujours 'awaiting_payment'
+        await supabase
+          .from('bookings')
+          .delete()
+          .eq('id', draftBookingId)
+          .eq('status', 'awaiting_payment'); 
+          
+        console.log("[Hold] Brouillon supprimé car abandonné.");
+      } catch (error) {
+        console.error("[Hold] Erreur lors de la suppression du brouillon", error);
+      }
+    }
+    // On vide ensuite la mémoire du navigateur
+    clearFlow();
+  }, [draftBookingId, clearFlow]);
   const canProceedToStep = useCallback(
     (step: "info" | "payment" | "confirmation") => {
       const hasSchedule = isBundleOnlyPurchase || bookingDateTime !== null;
@@ -138,6 +157,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       clearFlow, canProceedToStep,
+      cancelHold,
     }),
     [
       bookingDateTime, clientInfo, pendingCheckoutSession,
@@ -149,6 +169,7 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
       setDraftBookingId, setHoldExpiresAt,
       setGiftInfo, setAuthBundles,
       clearFlow, canProceedToStep,
+      cancelHold,
     ]
   );
 

@@ -67,6 +67,7 @@ serve(async (req) => {
               total_price,
               hotel_id,
               hotel_name,
+              payment_status,
               payment_link_language,
               payment_link_channels
             `)
@@ -77,9 +78,16 @@ serve(async (req) => {
             throw new Error(`Booking not found: ${metadata.booking_id}`);
           }
 
+          // Idempotency guard — do not process twice
+          if (booking.payment_status === 'paid') {
+            console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} already paid, skipping`);
+            return new Response(JSON.stringify({ received: true }), { status: 200 });
+          }
+
           const { error: updateError } = await supabase
             .from('bookings')
             .update({
+              status: 'confirmed',
               payment_status: 'paid',
               stripe_invoice_url: session.id
             })
@@ -87,7 +95,23 @@ serve(async (req) => {
 
           if (updateError) throw updateError;
 
-          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as paid via payment link`);
+          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as confirmed+paid via payment link`);
+
+          // Deactivate the Stripe Payment Link so it cannot be reused
+          try {
+            const { data: paymentInfo } = await supabase
+              .from('booking_payment_infos')
+              .select('payment_link_stripe_id')
+              .eq('booking_id', metadata.booking_id)
+              .maybeSingle();
+
+            if (paymentInfo?.payment_link_stripe_id) {
+              await stripe.paymentLinks.update(paymentInfo.payment_link_stripe_id, { active: false });
+              console.log(`[STRIPE-WEBHOOK] Payment link ${paymentInfo.payment_link_stripe_id} deactivated`);
+            }
+          } catch (deactivateError) {
+            console.error('[STRIPE-WEBHOOK] Failed to deactivate payment link:', deactivateError);
+          }
 
           const wasWhatsAppUsed = booking.payment_link_channels?.includes('whatsapp');
           const clientPhone = booking.phone;

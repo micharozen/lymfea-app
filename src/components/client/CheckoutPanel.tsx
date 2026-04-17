@@ -40,7 +40,7 @@ export function CheckoutPanel({
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -216,6 +216,7 @@ export function CheckoutPanel({
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -302,6 +303,7 @@ export function CheckoutPanel({
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -315,6 +317,12 @@ export function CheckoutPanel({
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Libérer le draft avant de partir vers Stripe (confirm-setup-intent créera un nouveau booking)
+        if (draftBookingId) {
+          await supabase.from('bookings').delete()
+            .eq('id', draftBookingId)
+            .eq('status', 'awaiting_payment');
+        }
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -379,6 +387,7 @@ export function CheckoutPanel({
             paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 

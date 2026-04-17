@@ -114,7 +114,7 @@ export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
+  const { cancelHold,canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
   const { items, itemCount, isBundleOnly } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
@@ -345,7 +345,10 @@ export default function GuestInfo() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+             onClick={async () => {
+    await cancelHold(); // 1. On libère le draft
+    navigate(-1);       // 2. On retourne à la sélection des heures
+  }}
               className="text-gray-900 hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />

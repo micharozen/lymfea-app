@@ -171,3 +171,6 @@ verify_jwt = false
 
 [functions.send-payment-link]
 verify_jwt = false
+
+[functions.verify-payment-link-session]
+verify_jwt = false
