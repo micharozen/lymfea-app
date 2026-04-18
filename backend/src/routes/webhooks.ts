@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import Stripe from "stripe";
 import { stripe } from "../lib/stripe";
 import { supabaseAdmin } from "../lib/supabase";
 
@@ -78,39 +79,77 @@ webhooks.post("/stripe", async (c) => {
   }
 });
 
-/**
- * Stripe Connect Webhook handler.
- * Migrated from: supabase/functions/stripe-connect-webhook/index.ts
- */
-webhooks.post("/stripe-connect", async (c) => {
-  const signature = c.req.header("stripe-signature");
+const logConnectStep = (step: string, details?: Record<string, unknown>) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`[STRIPE-CONNECT-WEBHOOK] ${step}${detailsStr}`);
+};
 
-  if (!signature) {
-    return c.json({ error: "No signature" }, 400);
-  }
+webhooks.post("/stripe-connect", async (c) => {
+  logConnectStep("Webhook received");
 
   const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    return c.json({ error: "Connect webhook secret not configured" }, 500);
-  }
-
   const body = await c.req.text();
+  const signature = c.req.header("stripe-signature");
 
-  let event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      webhookSecret
-    );
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Invalid signature";
-    return c.json({ error: message }, 400);
+  let event: Stripe.Event;
+
+  if (webhookSecret && signature) {
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+      logConnectStep("Webhook signature verified");
+    } catch (err) {
+      logConnectStep("Webhook signature verification failed", { error: err });
+      return c.json({ error: "Webhook signature verification failed" }, 400);
+    }
+  } else {
+    event = JSON.parse(body);
+    logConnectStep("Webhook parsed without signature verification (no secret configured)");
   }
 
-  console.log(`[stripe-connect-webhook] Event: ${event.type}`);
+  logConnectStep("Event received", { type: event.type, id: event.id });
 
-  // TODO: Port logic from supabase/functions/stripe-connect-webhook/index.ts
+  if (event.type === "account.updated") {
+    const account = event.data.object as Stripe.Account;
+    logConnectStep("Account updated event", {
+      accountId: account.id,
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
+    });
+
+    const isOnboardingComplete = account.details_submitted &&
+                                  (account.charges_enabled || account.payouts_enabled);
+
+    if (isOnboardingComplete) {
+      logConnectStep("Onboarding appears complete, updating database");
+
+      const { data: therapist, error: findError } = await supabaseAdmin
+        .from("therapists")
+        .select("id")
+        .eq("stripe_account_id", account.id)
+        .single();
+
+      if (findError || !therapist) {
+        logConnectStep("Therapist not found for Stripe account", { stripeAccountId: account.id });
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from("therapists")
+          .update({ stripe_onboarding_completed: true })
+          .eq("id", therapist.id);
+
+        if (updateError) {
+          logConnectStep("Error updating onboarding status", { error: updateError });
+        } else {
+          logConnectStep("Onboarding status updated to complete", { therapistId: therapist.id });
+        }
+      }
+    }
+  }
+
+  if (event.type.startsWith("v2.")) {
+    logConnectStep("V2 Event received (logging only)", { type: event.type });
+  }
+
   return c.json({ received: true });
 });
 
