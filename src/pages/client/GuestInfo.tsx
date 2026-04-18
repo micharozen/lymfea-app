@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
+import { HoldBanner } from '@/components/client/HoldBanner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -113,7 +114,7 @@ export default function GuestInfo() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
+  const { cancelHold,canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
   const { items, itemCount, isBundleOnly } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
@@ -336,6 +337,7 @@ export default function GuestInfo() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center justify-between p-4">
@@ -343,7 +345,10 @@ export default function GuestInfo() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+             onClick={async () => {
+    await cancelHold(); // 1. On libère le draft
+    navigate(-1);       // 2. On retourne à la sélection des heures
+  }}
               className="text-gray-900 hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />

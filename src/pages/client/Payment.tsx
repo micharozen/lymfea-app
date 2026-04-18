@@ -18,12 +18,13 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { HoldBanner } from '@/components/client/HoldBanner';
 
 export default function Payment() {
   const { hotelId } = useParams<{ hotelId: string }>();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase } = useClientFlow();
+  const { cancelHold, bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId } = useClientFlow();
 
   console.log('[Payment] items:', items);
   console.log('[Payment] isBundleOnly:', isBundleOnly);
@@ -209,6 +210,7 @@ export default function Payment() {
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -296,6 +298,7 @@ export default function Payment() {
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -309,6 +312,12 @@ export default function Payment() {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Libérer le draft avant de partir vers Stripe (confirm-setup-intent créera un nouveau booking)
+        if (draftBookingId) {
+          await supabase.from('bookings').delete()
+            .eq('id', draftBookingId)
+            .eq('status', 'awaiting_payment');
+        }
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -372,6 +381,7 @@ export default function Payment() {
             paymentMethod: 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -414,13 +424,17 @@ export default function Payment() {
 
   return (
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/guest-info`)}
+           onClick={async () => {
+    await cancelHold();
+    navigate(-1);
+  }}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >

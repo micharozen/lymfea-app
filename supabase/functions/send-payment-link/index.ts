@@ -261,7 +261,7 @@ serve(async (req: Request) => {
       after_completion: {
         type: 'redirect',
         redirect: {
-          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success`,
+          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
         },
       },
     });
