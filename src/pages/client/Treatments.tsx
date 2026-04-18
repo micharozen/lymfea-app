@@ -25,6 +25,7 @@ import { SchedulePanel } from '@/components/client/SchedulePanel';
 import { TreatmentsBreadcrumb } from '@/components/client/TreatmentsBreadcrumb';
 import { TreatmentsSummaryPanel } from '@/components/client/TreatmentsSummaryPanel';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 
 interface TreatmentVariantData {
   id: string;
@@ -39,6 +40,7 @@ interface TreatmentVariantData {
 
 interface Treatment {
   id: string;
+  slug: string;
   name: string;
   name_en: string | null;
   description: string | null;
@@ -57,8 +59,7 @@ interface Treatment {
 }
 
 export default function Treatments() {
-  // Extract hotelId from URL directly (useParams doesn't work in nested Routes)
-  const hotelId = window.location.pathname.split('/')[2];
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, addItem, removeItem, updateQuantity: updateBasketQuantity, itemCount, hasBaseItem, isBundleOnly } = useBasket();
 
@@ -300,6 +301,7 @@ export default function Treatments() {
     // Add to basket - including price_on_request items for mixed cart logic
     addItem({
       id: treatment.id,
+      slug: treatment.slug,
       variantId: resolvedVariant?.id,
       variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
       name: localize(treatment.name, treatment.name_en),
@@ -597,7 +599,7 @@ export default function Treatments() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/client/${hotelId}`)}
+              onClick={() => navigate(`/client/${slug}`)}
               className="text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -813,7 +815,7 @@ export default function Treatments() {
                 </div>
                 <SchedulePanel
                   hotelId={hotelId}
-                  onContinue={() => navigate(`/client/${hotelId}/guest-info`)}
+                  onContinue={() => navigate(`/client/${slug}/guest-info`)}
                   embedded
                 />
               </div>
@@ -826,7 +828,7 @@ export default function Treatments() {
                 onContinue={() => {
                   if (isBundleOnly) {
                     setIsBundleOnlyPurchase(true);
-                    navigate(`/client/${hotelId}/guest-info`);
+                    navigate(`/client/${slug}/guest-info`);
                   } else {
                     setIsScheduleOpen(true);
                   }
@@ -845,9 +847,9 @@ export default function Treatments() {
             onClick={() => {
               if (isBundleOnly) {
                 setIsBundleOnlyPurchase(true);
-                navigate(`/client/${hotelId}/guest-info`);
+                navigate(`/client/${slug}/guest-info`);
               } else {
-                isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${hotelId}/schedule`);
+                isDesktop ? setIsScheduleOpen(true) : navigate(`/client/${slug}/schedule`);
               }
             }}
             className="w-full h-12 sm:h-14 md:h-16 text-base bg-gold-400 text-black hover:bg-gold-200 font-medium tracking-wide shadow-lg transition-all duration-300"

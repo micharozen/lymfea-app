@@ -91,7 +91,7 @@ serve(async (req) => {
     // Fetch hotel info for currency and opening hours
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -218,8 +218,8 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: `${req.headers.get("origin")}/client/${hotelId}/confirmation/${bookingId}`,
-      cancel_url: `${req.headers.get("origin")}/client/${hotelId}/payment`,
+      success_url: `${req.headers.get("origin")}/client/${hotel.slug ?? hotelId}/confirmation/${bookingId}`,
+      cancel_url: `${req.headers.get("origin")}/client/${hotel.slug ?? hotelId}/payment`,
       metadata: {
         booking_id: bookingId,
         hotel_id: hotelId,

@@ -195,10 +195,11 @@ serve(async (req) => {
     // --- Fetch venue for email templates ---
     const { data: venue } = await supabaseAdmin
       .from('hotels')
-      .select('name, image')
+      .select('slug, name, image')
       .eq('id', hotelId)
       .single();
     const venueName = venue?.name || '';
+    const venueSlug = venue?.slug || hotelId;
     const logoUrl = venue?.image || EMAIL_LOGO_URL;
 
     // --- Send gift card email to recipient via Resend template ---
@@ -262,7 +263,7 @@ serve(async (req) => {
           : '';
 
         const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-        const bookingUrl = `${siteUrl}/client/${hotelId}/treatments`;
+        const bookingUrl = `${siteUrl}/client/${venueSlug}/treatments`;
 
         const result = await sendEmail({
           to: clientEmail,
