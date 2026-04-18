@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 export interface BasketItem {
   id: string;           // treatment_id
+  slug?: string;        // treatment slug — propagated to ?t= query param when present
   variantId?: string;   // selected variant ID
   variantLabel?: string; // e.g. "60 min"
   name: string;

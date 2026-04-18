@@ -1009,6 +1009,7 @@ export type Database = {
           pms_type: string | null
           postal_code: string | null
           slot_interval: number | null
+          slug: string
           status: string | null
           therapist_commission: number | null
           timezone: string | null
@@ -1047,6 +1048,7 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
+          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1085,6 +1087,7 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
+          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1709,6 +1712,7 @@ export type Database = {
           price_on_request: boolean | null
           requires_room: boolean | null
           service_for: string
+          slug: string
           sort_order: number | null
           status: string
           treatment_type: string | null
@@ -1732,6 +1736,7 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for: string
+          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
@@ -1755,6 +1760,7 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for?: string
+          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
@@ -2230,12 +2236,14 @@ export type Database = {
           total_sessions: number
         }[]
       }
-      get_public_hotel_by_id: {
-        Args: { _hotel_id: string }
+      get_public_hotel: {
+        Args: { _identifier: string }
         Returns: {
+          address: string
           city: string
           closing_time: string
           company_offered: boolean
+          contact_phone: string
           country: string
           cover_image: string
           currency: string
@@ -2251,11 +2259,48 @@ export type Database = {
           offert: boolean
           opening_time: string
           pms_guest_lookup_enabled: boolean
+          postal_code: string
           recurrence_interval: number
           recurring_end_date: string
           recurring_start_date: string
           schedule_type: string
           slot_interval: number
+          slug: string
+          status: string
+          vat: number
+          venue_type: string
+        }[]
+      }
+      get_public_hotel_by_id: {
+        Args: { _hotel_id: string }
+        Returns: {
+          address: string
+          city: string
+          closing_time: string
+          company_offered: boolean
+          contact_phone: string
+          country: string
+          cover_image: string
+          currency: string
+          days_of_week: number[]
+          description: string
+          description_en: string
+          id: string
+          image: string
+          landing_subtitle: string
+          landing_subtitle_en: string
+          name: string
+          name_en: string
+          offert: boolean
+          opening_time: string
+          pms_guest_lookup_enabled: boolean
+          postal_code: string
+          recurrence_interval: number
+          recurring_end_date: string
+          recurring_start_date: string
+          schedule_type: string
+          slot_interval: number
+          slug: string
           status: string
           vat: number
           venue_type: string
@@ -2286,6 +2331,7 @@ export type Database = {
       get_public_treatments: {
         Args: { _hotel_id: string }
         Returns: {
+          bundle_id: string
           category: string
           currency: string
           description: string
@@ -2293,13 +2339,16 @@ export type Database = {
           duration: number
           id: string
           image: string
+          is_addon: boolean
           is_bestseller: boolean
+          is_bundle: boolean
           lead_time: number
           name: string
           name_en: string
           price: number
           price_on_request: boolean
           service_for: string
+          slug: string
           sort_order: number
           variants: Json
         }[]

@@ -233,22 +233,22 @@ const App = () => {
             <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
 
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId/*" element={
+            {/* :slug accepts either a human-readable slug or a legacy UUID;
+                ClientFlowWrapper redirects UUIDs to the canonical slug. */}
+            <Route path="/client/:slug/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
                 <Suspense fallback={<ClientPageLoader />}>
                   <ClientFlowWrapper>
-                    <CartProvider hotelId={window.location.pathname.split('/')[2]}>
-                      <Routes>
-                        <Route index element={<Welcome />} />
-                        <Route path="/treatment/:treatmentId" element={<ClientTreatmentLanding />} />
-                        <Route path="/treatments" element={<ClientTreatments />} />
-                        <Route path="/schedule" element={<Schedule />} />
-                        <Route path="/guest-info" element={<GuestInfo />} />
-                        <Route path="/payment" element={<Payment />} />
-                        <Route path="/checkout" element={<Checkout />} />
-                        <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
-                      </Routes>
-                    </CartProvider>
+                    <Routes>
+                      <Route index element={<Welcome />} />
+                      <Route path="/treatment/:treatmentSlug" element={<ClientTreatmentLanding />} />
+                      <Route path="/treatments" element={<ClientTreatments />} />
+                      <Route path="/schedule" element={<Schedule />} />
+                      <Route path="/guest-info" element={<GuestInfo />} />
+                      <Route path="/payment" element={<Payment />} />
+                      <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                    </Routes>
                   </ClientFlowWrapper>
                 </Suspense>
               </ErrorBoundary>

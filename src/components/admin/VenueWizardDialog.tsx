@@ -42,6 +42,16 @@ export interface BlockedSlot {
 // Form schema for step 1
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
+  slug: z
+    .string()
+    .min(2, "Au moins 2 caractères")
+    .max(60, "60 caractères max")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Lettres minuscules, chiffres et tirets uniquement"
+    )
+    .optional()
+    .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
@@ -144,6 +154,7 @@ export function VenueWizardDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      slug: "",
       venue_type: "hotel",
       address: "",
       postal_code: "",
@@ -226,6 +237,7 @@ export function VenueWizardDialog({
       if (hotel) {
         form.reset({
           name: hotel.name || "",
+          slug: (hotel as any).slug || "",
           venue_type: hotel.venue_type || "hotel",
           address: hotel.address || "",
           postal_code: hotel.postal_code || "",
@@ -383,6 +395,7 @@ export function VenueWizardDialog({
         .from("hotels")
         .insert({
           name: values.name,
+          ...(values.slug ? { slug: values.slug } : {}),
           venue_type: values.venue_type,
           address: values.address,
           postal_code: values.postal_code || null,
@@ -471,6 +484,7 @@ export function VenueWizardDialog({
           .from("hotels")
           .insert({
             name: values.name,
+            ...(values.slug ? { slug: values.slug } : {}),
             venue_type: values.venue_type,
             address: values.address,
             postal_code: values.postal_code || null,
@@ -520,6 +534,7 @@ export function VenueWizardDialog({
           .from("hotels")
           .update({
             name: values.name,
+            ...(values.slug ? { slug: values.slug } : {}),
             venue_type: values.venue_type,
             address: values.address,
             postal_code: values.postal_code || null,
