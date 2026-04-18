@@ -3,6 +3,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useTranslation } from "react-i18next";
+import { useUser } from "@/contexts/UserContext";
+import { LYMFEA_DEFAULT_ORGANIZATION_ID } from "@/lib/organizations";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -101,6 +103,12 @@ export function VenueWizardDialog({
 }: VenueWizardDialogProps) {
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
+
+  const resolvedOrganizationId =
+    !isSuperAdmin && organizationId
+      ? organizationId
+      : activeOrganizationId ?? LYMFEA_DEFAULT_ORGANIZATION_ID;
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [savedHotelId, setSavedHotelId] = useState<string | null>(null);
@@ -404,6 +412,7 @@ export function VenueWizardDialog({
           offert: values.offert,
           company_offered: values.company_offered,
           landing_subtitle: values.landing_subtitle || null,
+          organization_id: resolvedOrganizationId,
         })
         .select('id')
         .single();
@@ -491,6 +500,7 @@ export function VenueWizardDialog({
             offert: values.offert,
           company_offered: values.company_offered,
             landing_subtitle: values.landing_subtitle || null,
+            organization_id: resolvedOrganizationId,
           })
           .select('id')
           .single();
