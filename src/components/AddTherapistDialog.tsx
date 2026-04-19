@@ -243,7 +243,7 @@ export default function AddTherapistDialog({
       email: "",
       country_code: "+33",
       phone: "",
-      status: "En attente",
+      status: "pending",
     });
     setSelectedHotels([]);
     setSelectedSkills([]);

@@ -77,6 +77,7 @@ const PwaHotels = lazy(() => import("./pages/pwa/Hotels"));
 const PwaSplash = lazy(() => import("./pages/pwa/Splash"));
 const PwaWelcome = lazy(() => import("./pages/pwa/Welcome"));
 const PwaOnboarding = lazy(() => import("./pages/pwa/Onboarding"));
+const PwaResetPassword = lazy(() => import("./pages/pwa/ResetPassword"));
 const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
 const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
@@ -335,6 +336,7 @@ const App = () => {
             <Route path="/pwa/welcome" element={<PwaWelcome />} />
             <Route path="/pwa/install" element={<PwaInstall />} />
             <Route path="/pwa/login" element={<PwaLogin />} />
+            <Route path="/pwa/reset-password" element={<PwaResetPassword />} />
             <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
             <Route
               path="/pwa/onboarding"
