@@ -173,33 +173,39 @@
     },
     {
       "name": "purchase-bundle",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/purchase-bundle",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-19T03:13:41.836Z",
+      "sourceHash": "451719b1b00ef16a"
     },
     {
       "name": "confirm-setup-intent",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/confirm-setup",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-19T03:14:11.003Z",
+      "sourceHash": "79ee549d83e6c3da"
     },
     {
       "name": "create-setup-intent",
-      "status": "pending",
+      "status": "migrated",
       "route": "/payments/setup-intent",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "migratedAt": "2026-04-19T03:15:25.680Z",
+      "sourceHash": "49391696423399c0"
     },
     {
       "name": "handle-checkout-success",
