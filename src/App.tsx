@@ -47,6 +47,8 @@ const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const Settings = lazy(() => import("./pages/admin/Settings"));
+const Organizations = lazy(() => import("./pages/admin/Organizations"));
+const OrganizationDetail = lazy(() => import("./pages/admin/OrganizationDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
 const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
@@ -497,6 +499,8 @@ const App = () => {
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
                               <Route path="/settings" element={<Settings />} />
+                              <Route path="/organizations" element={<Organizations />} />
+                              <Route path="/organizations/:id" element={<OrganizationDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />
                               
                               <Route path="*" element={<NotFound />} />

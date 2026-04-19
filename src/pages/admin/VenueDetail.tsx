@@ -6,6 +6,8 @@ import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useUser } from "@/contexts/UserContext";
+import { LYMFEA_DEFAULT_ORGANIZATION_ID } from "@/lib/organizations";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useQuery } from "@tanstack/react-query";
@@ -83,6 +85,7 @@ export default function VenueDetail() {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const { isSuperAdmin, organizationId, activeOrganizationId } = useUser();
 
   const isNewMode = !id;
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
@@ -427,10 +430,16 @@ export default function VenueDetail() {
       };
 
       if (isNewMode && !savedHotelId) {
-        // INSERT new hotel
+        // INSERT new hotel — attach to the current active organization (or
+        // the admin's own organization if they are scoped).
+        const resolvedOrgId =
+          !isSuperAdmin && organizationId
+            ? organizationId
+            : activeOrganizationId ?? LYMFEA_DEFAULT_ORGANIZATION_ID;
+
         const { data: insertedHotel, error: hotelError } = await supabase
           .from("hotels")
-          .insert(hotelPayload)
+          .insert({ ...hotelPayload, organization_id: resolvedOrgId })
           .select('id')
           .single();
 

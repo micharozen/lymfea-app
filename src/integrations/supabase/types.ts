@@ -46,7 +46,9 @@ export type Database = {
           email: string
           first_name: string
           id: string
+          is_super_admin: boolean
           last_name: string
+          organization_id: string | null
           phone: string
           profile_image: string | null
           status: string
@@ -59,7 +61,9 @@ export type Database = {
           email: string
           first_name: string
           id?: string
+          is_super_admin?: boolean
           last_name: string
+          organization_id?: string | null
           phone: string
           profile_image?: string | null
           status?: string
@@ -72,14 +76,24 @@ export type Database = {
           email?: string
           first_name?: string
           id?: string
+          is_super_admin?: boolean
           last_name?: string
+          organization_id?: string | null
           phone?: string
           profile_image?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admins_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       amenity_bookings: {
         Row: {
@@ -1003,6 +1017,7 @@ export type Database = {
           name_en: string | null
           offert: boolean | null
           opening_time: string | null
+          organization_id: string
           out_of_hours_surcharge_percent: number | null
           pms_auto_charge_room: boolean | null
           pms_guest_lookup_enabled: boolean | null
@@ -1041,6 +1056,7 @@ export type Database = {
           name_en?: string | null
           offert?: boolean | null
           opening_time?: string | null
+          organization_id?: string
           out_of_hours_surcharge_percent?: number | null
           pms_auto_charge_room?: boolean | null
           pms_guest_lookup_enabled?: boolean | null
@@ -1079,6 +1095,7 @@ export type Database = {
           name_en?: string | null
           offert?: boolean | null
           opening_time?: string | null
+          organization_id?: string
           out_of_hours_surcharge_percent?: number | null
           pms_auto_charge_room?: boolean | null
           pms_guest_lookup_enabled?: boolean | null
@@ -1092,7 +1109,15 @@ export type Database = {
           vat?: number | null
           venue_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hotels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -1131,6 +1156,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      organizations: {
+        Row: {
+          contact_email: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       otp_rate_limits: {
         Row: {
@@ -2131,6 +2186,22 @@ export type Database = {
         Args: { _alert_ids: string[] }
         Returns: number
       }
+      admin_can_access_booking: {
+        Args: { _booking_id: string }
+        Returns: boolean
+      }
+      admin_can_access_concierge: {
+        Args: { _concierge_id: string }
+        Returns: boolean
+      }
+      admin_can_access_hotel: {
+        Args: { _hotel_id: string }
+        Returns: boolean
+      }
+      admin_can_access_therapist: {
+        Args: { _therapist_id: string }
+        Returns: boolean
+      }
       apply_schedule_template: {
         Args: {
           _month: number
@@ -2313,6 +2384,10 @@ export type Database = {
         }[]
       }
       get_therapist_id: { Args: { _user_id: string }; Returns: string }
+      get_user_organization_id: {
+        Args: { _user_id: string }
+        Returns: string
+      }
       get_user_timezone: { Args: { _user_id: string }; Returns: string }
       get_venue_available_dates: {
         Args: { _end_date: string; _hotel_id: string; _start_date: string }
@@ -2323,6 +2398,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_super_admin: {
+        Args: { _user_id: string }
         Returns: boolean
       }
       is_venue_available_on_date: {
