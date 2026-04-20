@@ -520,7 +520,7 @@ export default function Hotels() {
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <div className="flex items-center gap-1">
-                              <HotelQRCode hotelId={hotel.id} hotelName={hotel.name} />
+                              <HotelQRCode slug={hotel.slug || hotel.id} hotelName={hotel.name} />
                               {hotel.venue_type === "enterprise" && (
                                 <Button
                                   variant="ghost"

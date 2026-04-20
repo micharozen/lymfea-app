@@ -4,6 +4,7 @@ import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays }
 import { useBasket } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
+import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { format, addDays, parse } from 'date-fns';
@@ -41,8 +42,15 @@ export function SchedulePanel({
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
-  const [selectedDate, setSelectedDate] = useState(takenDate || '');
-  const [selectedTime, setSelectedTime] = useState('');
+  const {
+    date: urlDate,
+    time: urlTime,
+    setDateTime: setUrlDateTime,
+  } = useUrlBookingState();
+
+  // URL wins on cold load — `takenDate` override > URL > empty
+  const [selectedDate, setSelectedDate] = useState(takenDate || urlDate || '');
+  const [selectedTime, setSelectedTime] = useState(urlTime || '');
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
@@ -248,12 +256,14 @@ export function SchedulePanel({
 
   const proceedAfterAddons = (time: string) => {
     setBookingDateTime({ date: selectedDate, time });
+    setUrlDateTime(selectedDate, time);
     onContinue();
   };
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
     setShowSlotTakenBanner(false);
+    if (selectedDate) setUrlDateTime(selectedDate, time);
     trackAction('select_time_slot', { date: selectedDate, time });
   };
 
@@ -364,7 +374,9 @@ export function SchedulePanel({
                   selected={selectedDate ? parse(selectedDate, 'yyyy-MM-dd', new Date()) : undefined}
                   onSelect={(date) => {
                     if (date) {
-                      setSelectedDate(format(date, 'yyyy-MM-dd'));
+                      const value = format(date, 'yyyy-MM-dd');
+                      setSelectedDate(value);
+                      setUrlDateTime(value, '');
                       setIsCalendarOpen(false);
                     }
                   }}
@@ -405,7 +417,10 @@ export function SchedulePanel({
                   key={value}
                   ref={el => { dateButtonRefs.current[value] = el; }}
                   type="button"
-                  onClick={() => setSelectedDate(value)}
+                  onClick={() => {
+                    setSelectedDate(value);
+                    setUrlDateTime(value, '');
+                  }}
                   className={cn(
                     "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
                     embedded

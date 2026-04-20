@@ -67,6 +67,7 @@ import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
+import { slugify } from "@/lib/slugify";
 
 // Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
@@ -395,6 +396,37 @@ export function VenueGeneralTab({
                   )}
                 />
               </div>
+
+              {/* Public URL identifier (slug) */}
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => {
+                  const preview = slugify(field.value || "") || "le-ritz-paris";
+                  return (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        Lien public
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="ex: le-ritz-paris"
+                          {...field}
+                          disabled={disabled}
+                        />
+                      </FormControl>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                        Identifiant utilisé dans l'URL publique de votre espace de réservation
+                        (ex. <code className="text-[10px]">{`${brand.appDomain}/client/${preview}`}</code>).
+                        Utilisez des lettres minuscules, chiffres et tirets. Évitez de le changer
+                        une fois partagé, sinon les anciens liens ne fonctionneront plus.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
 
               {venueTypeValue === 'hotel' && (
                 <div className="grid grid-cols-2 gap-4 items-end">

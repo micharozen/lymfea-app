@@ -25,6 +25,16 @@ import { TreatmentAddonsTab } from "@/components/admin/treatment/TreatmentAddons
 const createFormSchema = (t: TFunction) =>
   z.object({
     name: z.string().min(1, t("errors.validation.nameRequired")),
+    slug: z
+      .string()
+      .min(2, "Au moins 2 caractères")
+      .max(60, "60 caractères max")
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        "Lettres minuscules, chiffres et tirets uniquement"
+      )
+      .optional()
+      .or(z.literal("")),
     name_en: z.string().optional(),
     description: z.string().optional(),
     description_en: z.string().optional(),
@@ -85,6 +95,7 @@ export default function TreatmentDetail() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      slug: "",
       description: "",
       lead_time: "0",
       service_for: "",
@@ -173,6 +184,7 @@ export default function TreatmentDetail() {
 
           form.reset({
             name: treatment.name || "",
+            slug: (treatment as any).slug || "",
             name_en: (treatment as any).name_en || "",
             description: treatment.description || "",
             description_en: (treatment as any).description_en || "",
@@ -237,6 +249,7 @@ export default function TreatmentDetail() {
 
       const treatmentPayload = {
         name: values.name,
+        ...(values.slug ? { slug: values.slug } : {}),
         name_en: values.name_en || null,
         description: values.description || null,
         description_en: values.description_en || null,

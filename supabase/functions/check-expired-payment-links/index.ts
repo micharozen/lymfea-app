@@ -89,8 +89,18 @@ serve(async (req: Request) => {
             ? bookingDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-          const bookingUrl = booking.hotel_id
-            ? `${siteUrl}/client/${booking.hotel_id}/treatments`
+          // Resolve slug to build a stable public URL; fall back to UUID if missing
+          let hotelSlugOrId: string | null = booking.hotel_id;
+          if (booking.hotel_id) {
+            const { data: hotelRow } = await supabase
+              .from('hotels')
+              .select('slug')
+              .eq('id', booking.hotel_id)
+              .maybeSingle();
+            hotelSlugOrId = hotelRow?.slug || booking.hotel_id;
+          }
+          const bookingUrl = hotelSlugOrId
+            ? `${siteUrl}/client/${hotelSlugOrId}/treatments`
             : brand.website;
           await resend.emails.send({
             from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,

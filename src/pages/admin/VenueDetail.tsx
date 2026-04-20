@@ -37,6 +37,16 @@ import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/Venu
 // Same form schema as VenueWizardDialog
 const createFormSchema = (t: TFunction) => z.object({
   name: z.string().min(1, t('errors.validation.nameRequired')),
+  slug: z
+    .string()
+    .min(2, "Au moins 2 caractères")
+    .max(60, "60 caractères max")
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      "Lettres minuscules, chiffres et tirets uniquement"
+    )
+    .optional()
+    .or(z.literal("")),
   venue_type: z.enum(['hotel', 'coworking', 'enterprise']).default('hotel'),
   address: z.string().min(1, t('errors.validation.addressRequired')),
   postal_code: z.string().optional(),
@@ -93,6 +103,7 @@ export default function VenueDetail() {
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [hotelName, setHotelName] = useState("");
+  const [hotelSlug, setHotelSlug] = useState<string | null>(null);
   const [isEditingState, setIsEditingState] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<"month" | "30d" | "year" | "all">("month");
   const isEditing = isNewMode || isEditingState;
@@ -130,6 +141,7 @@ export default function VenueDetail() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      slug: "",
       venue_type: "hotel",
       address: "",
       postal_code: "",
@@ -179,6 +191,7 @@ export default function VenueDetail() {
       if (hotel) {
         form.reset({
           name: hotel.name || "",
+          slug: (hotel as any).slug || "",
           venue_type: hotel.venue_type || "hotel",
           address: hotel.address || "",
           postal_code: hotel.postal_code || "",
@@ -211,6 +224,7 @@ export default function VenueDetail() {
         setHotelImage(hotel.image || "");
         setCoverImage(hotel.cover_image || "");
         setHotelName(hotel.name || "");
+        setHotelSlug((hotel as any).slug || null);
       }
 
       // Load deployment schedule
@@ -402,6 +416,7 @@ export default function VenueDetail() {
 
       const hotelPayload = {
         name: values.name,
+        ...(values.slug ? { slug: values.slug } : {}),
         venue_type: values.venue_type,
         address: values.address,
         postal_code: values.postal_code || null,
@@ -446,6 +461,7 @@ export default function VenueDetail() {
         const newId = insertedHotel.id;
         setSavedHotelId(newId);
         setHotelName(values.name);
+        if (values.slug) setHotelSlug(values.slug);
 
         // Save deployment schedule
         await saveDeploymentSchedule(newId);
@@ -469,6 +485,7 @@ export default function VenueDetail() {
         if (hotelError) throw hotelError;
 
         setHotelName(values.name);
+        if (values.slug) setHotelSlug(values.slug);
 
         // Update deployment schedule
         await saveDeploymentSchedule(targetId);
@@ -731,7 +748,7 @@ export default function VenueDetail() {
                 </TabsContent>
 
                 <TabsContent value="client-preview" className="mt-0">
-                  <VenueClientPreviewTab hotelId={effectiveHotelId!} />
+                  <VenueClientPreviewTab hotelId={effectiveHotelId!} slug={hotelSlug} />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">

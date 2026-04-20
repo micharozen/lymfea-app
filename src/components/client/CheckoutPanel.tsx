@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useBasket } from '@/pages/client/context/CartContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
+import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useCreateOffertBooking } from '@/pages/client/hooks/useCreateOffertBooking';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
@@ -34,6 +35,7 @@ export function CheckoutPanel({
   className,
 }: CheckoutPanelProps) {
   const navigate = useNavigate();
+  const { slug } = useClientVenue();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
@@ -223,7 +225,7 @@ export function CheckoutPanel({
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
           const { data, error } = await supabase.functions.invoke('create-setup-intent', {
@@ -309,7 +311,7 @@ export function CheckoutPanel({
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
@@ -386,7 +388,7 @@ export function CheckoutPanel({
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -407,7 +409,7 @@ export function CheckoutPanel({
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;

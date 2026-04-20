@@ -72,7 +72,7 @@ serve(async (req) => {
     // --- Hotel info ---
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('currency, name')
+      .select('slug, currency, name')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -114,8 +114,8 @@ serve(async (req) => {
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${origin}/client/${hotelId}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/client/${hotelId}/payment`,
+      success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotel.slug ?? hotelId}/payment`,
       metadata: {
         type: 'bundle_purchase',
         hotelId,

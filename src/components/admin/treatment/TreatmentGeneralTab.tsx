@@ -1,7 +1,9 @@
 import { UseFormReturn, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { slugify } from "@/lib/slugify";
 import { CategorySelectField } from "@/components/admin/category/CategorySelectField";
 import {
   FormControl,
@@ -47,6 +49,20 @@ export function TreatmentGeneralTab({
   const { t, i18n } = useTranslation("common");
 
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
+
+  // Auto-prepopulate slug from name until the user manually edits the slug field.
+  const nameValue = useWatch({ control: form.control, name: "name" });
+  const slugTouchedRef = useRef(false);
+  useEffect(() => {
+    if (slugTouchedRef.current) return;
+    const current = form.getValues("slug");
+    // In edit mode the slug comes from the DB — don't overwrite an already-set slug.
+    if (current && current.length > 0) {
+      slugTouchedRef.current = true;
+      return;
+    }
+    form.setValue("slug", slugify(nameValue), { shouldValidate: false });
+  }, [nameValue, form]);
 
   const { data: hotels } = useQuery({
     queryKey: ["hotels"],
@@ -198,6 +214,38 @@ export function TreatmentGeneralTab({
             </FormItem>
           )}
         />
+      </div>
+
+      {/* Public URL identifier (slug) */}
+      <FormField
+        control={form.control}
+        name="slug"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Lien public</FormLabel>
+            <FormControl>
+              <Input
+                placeholder="ex: massage-suedois-60"
+                {...field}
+                disabled={disabled}
+                onChange={(e) => {
+                  slugTouchedRef.current = true;
+                  field.onChange(e.target.value);
+                }}
+              />
+            </FormControl>
+            <FormDescription className="text-[11px] leading-snug">
+              Identifiant utilisé dans l'URL publique du soin
+              (ex. <code className="text-[10px]">/client/ritz-paris/treatment/{slugify(field.value || nameValue) || "massage-suedois-60"}</code>).
+              Lettres minuscules, chiffres et tirets uniquement.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Category, Specialty */}
+      <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="category"

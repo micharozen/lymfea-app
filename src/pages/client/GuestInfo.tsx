@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
 import { useForm } from 'react-hook-form';
@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useClientFlow } from './context/FlowContext';
 import { useBasket } from './context/CartContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useCreateOffertBooking } from './hooks/useCreateOffertBooking';
 import { GiftCardLoginModal, type AuthCustomerInfo } from '@/components/client/GiftCardLoginModal';
 import { CartDrawer } from '@/components/client/CartDrawer';
@@ -110,7 +111,7 @@ const inputStyles = "h-12 bg-gray-50 border-gray-200 text-gray-900 placeholder:t
 const labelStyles = "text-gray-500 text-xs uppercase tracking-wider font-medium";
 
 export default function GuestInfo() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const { canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
@@ -271,7 +272,7 @@ export default function GuestInfo() {
   }, [shouldRedirectToSchedule, t]);
 
   if (shouldRedirectToSchedule) {
-    return <Navigate to={`/client/${hotelId}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`} replace />;
+    return <Navigate to={`/client/${slug}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`} replace />;
   }
 
   const onSubmit = async (data: ClientInfoFormData) => {
@@ -332,7 +333,7 @@ export default function GuestInfo() {
         if ((isOffert || isCompanyOffered) && bookingDateTime) {
           await createOffertBooking(data, bookingDateTime);
         } else {
-          navigate(`/client/${hotelId}/payment`);
+          navigate(`/client/${slug}/payment`);
         }
       }
     } finally {
