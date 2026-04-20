@@ -1,5 +1,5 @@
 -- Internal notes thread on bookings (admin/concierge only)
-CREATE TABLE booking_notes (
+CREATE TABLE IF NOT EXISTS booking_notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -8,11 +8,12 @@ CREATE TABLE booking_notes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_booking_notes_booking ON booking_notes(booking_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_booking_notes_booking ON booking_notes(booking_id, created_at ASC);
 
 ALTER TABLE booking_notes ENABLE ROW LEVEL SECURITY;
 
 -- Staff can read all notes
+DO $$ BEGIN
 CREATE POLICY "staff_read_booking_notes" ON booking_notes
   FOR SELECT USING (
     EXISTS (
@@ -21,8 +22,11 @@ CREATE POLICY "staff_read_booking_notes" ON booking_notes
         AND user_roles.role IN ('admin', 'concierge')
     )
   );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Staff can insert their own notes
+DO $$ BEGIN
 CREATE POLICY "staff_insert_booking_notes" ON booking_notes
   FOR INSERT WITH CHECK (
     user_id = auth.uid()
@@ -32,9 +36,14 @@ CREATE POLICY "staff_insert_booking_notes" ON booking_notes
         AND user_roles.role IN ('admin', 'concierge')
     )
   );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Staff can delete their own notes
+DO $$ BEGIN
 CREATE POLICY "staff_delete_own_booking_notes" ON booking_notes
   FOR DELETE USING (
     user_id = auth.uid()
   );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
