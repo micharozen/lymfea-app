@@ -33,11 +33,18 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      input: {
+        app: path.resolve(__dirname, "index.html"),
+        landing: path.resolve(__dirname, "landing.html"),
+      },
       output: {
         // CORRECTION : manualChunks doit être une fonction pour Vite 8 / Rolldown
         manualChunks(id) {
           if (id.includes('node_modules')) {
             // Regroupement par thématique comme dans ton ancienne config
+            if (id.includes('framer-motion')) {
+              return 'vendor-motion';
+            }
             if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
               return 'vendor-react';
             }
