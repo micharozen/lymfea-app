@@ -24,13 +24,11 @@ serve(async (req: Request): Promise<Response> => {
   console.log("=== invite-therapist function called ===");
   console.log("Method:", req.method);
 
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Check if RESEND_API_KEY is configured
     if (!RESEND_API_KEY) {
       console.error("RESEND_API_KEY is not configured!");
       return new Response(
@@ -38,13 +36,9 @@ serve(async (req: Request): Promise<Response> => {
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-    console.log("RESEND_API_KEY configured:", !!RESEND_API_KEY);
 
-    // Verify authentication
+    // ---- Caller authentication (admin only) ----
     const authHeader = req.headers.get('Authorization');
-    console.log("Auth header present:", !!authHeader);
-    console.log("Auth header length:", authHeader?.length || 0);
-
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized - No auth header' }),
@@ -52,20 +46,13 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Decode user_id from JWT
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    console.log("Token length:", token.length);
-
     let userId: string;
     try {
       const parts = token.split('.');
-      console.log("Token parts count:", parts.length);
       if (parts.length !== 3) throw new Error('Malformed token - expected 3 parts');
       const payload = JSON.parse(atob(parts[1]));
-      console.log("Token payload keys:", Object.keys(payload).join(', '));
-      console.log("Token role:", payload.role);
       userId = payload.sub;
-      console.log('Decoded user id:', userId);
       if (!userId) throw new Error('No sub in token - this may be an anon key, not a user session token');
     } catch (e: any) {
       console.error('Failed to decode token:', e?.message);
@@ -75,27 +62,18 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Initialize Supabase admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    console.log("SUPABASE_URL configured:", !!supabaseUrl);
-    console.log("SUPABASE_SERVICE_ROLE_KEY configured:", !!serviceRoleKey);
+    const supabaseAdmin = createClient(supabaseUrl ?? "", serviceRoleKey ?? "", {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
-    const supabaseAdmin = createClient(
-      supabaseUrl ?? "",
-      serviceRoleKey ?? ""
-    );
-
-    // Verify admin role
-    console.log("Checking admin role for user:", userId);
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
-
-    console.log("Role check result:", roles, "Error:", roleError?.message);
 
     if (roleError || !roles) {
       return new Response(
@@ -105,33 +83,91 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const { therapistId, email, firstName, lastName, phone, countryCode, hotelIds }: InviteTherapistRequest = await req.json();
+    console.log(`Inviting therapist: ${email}`);
 
-    console.log(`Sending welcome email to therapist: ${email}`);
-
-    // Build app URL
+    // ---- Build app URL ----
     let appUrl = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
-    if (!appUrl) {
-      appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
-    }
+    if (!appUrl) appUrl = (req.headers.get("origin") || "").replace(/\/$/, "");
     if (!appUrl) {
       const ref = req.headers.get("referer") || "";
       try { appUrl = new URL(ref).origin; } catch (_) { /* ignore */ }
     }
     if (!appUrl) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-      const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
+      const supabaseHost = Deno.env.get("SUPABASE_URL") || "";
+      const projectRef = supabaseHost.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
       if (projectRef) appUrl = `https://${projectRef}.lovableproject.com`;
     }
     const pwaUrl = `${appUrl}/pwa`;
+    const onboardingRedirect = `${appUrl}/pwa/onboarding`;
 
-    // Get hotel names
+    // ---- Generate invite / magic link ----
+    // generateLink({ type: 'invite' }) creates the auth user if it doesn't exist
+    // and produces a link that establishes a session when clicked.
+    // If the user already exists (e.g. a retry, or created earlier via OTP),
+    // we fall back to a magiclink so the user can still open the app.
+    const fullPhone = `${countryCode}${phone}`;
+
+    let actionLink = "";
+    let authUserId: string | null = null;
+
+    const inviteRes = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: fullPhone,
+        },
+        redirectTo: onboardingRedirect,
+      },
+    });
+
+    if (inviteRes.error) {
+      console.warn("Invite link error, falling back to magiclink:", inviteRes.error.message);
+      const magicRes = await supabaseAdmin.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: { redirectTo: onboardingRedirect },
+      });
+      if (magicRes.error) {
+        console.error("Magic link fallback also failed:", magicRes.error);
+        throw magicRes.error;
+      }
+      actionLink = magicRes.data.properties.action_link;
+      authUserId = magicRes.data.user?.id ?? null;
+    } else {
+      actionLink = inviteRes.data.properties.action_link;
+      authUserId = inviteRes.data.user?.id ?? null;
+    }
+
+    // ---- Link therapist row to auth user + ensure role ----
+    if (authUserId) {
+      const { error: linkError } = await supabaseAdmin
+        .from('therapists')
+        .update({ user_id: authUserId })
+        .eq('id', therapistId);
+      if (linkError) {
+        console.warn("Could not link therapist to auth user:", linkError.message);
+      }
+
+      const { error: roleInsertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: authUserId, role: 'therapist' });
+      // Ignore duplicate-role errors (idempotent)
+      if (roleInsertError && !roleInsertError.message.toLowerCase().includes('duplicate')) {
+        console.warn("Could not insert therapist role:", roleInsertError.message);
+      }
+    } else {
+      console.warn("No auth user id returned from generateLink — therapist row not linked.");
+    }
+
+    // ---- Build welcome email ----
     const { data: hotels } = await supabaseAdmin
       .from('hotels')
       .select('id, name')
       .in('id', hotelIds);
     const hotelNames = hotels?.map(h => h.name).join(', ') || 'vos hôtels assignés';
-
-    const fullPhone = `${countryCode}${phone}`;
 
     const html = `
       <!DOCTYPE html>
@@ -146,34 +182,41 @@ serve(async (req: Request): Promise<Response> => {
             <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Bienvenue sur ${brand.name}</h1>
             <p style="color: #cccccc; margin: 10px 0 0 0; font-size: 16px;">Accès Thérapeute</p>
           </div>
-          
+
           <div style="background: #ffffff; padding: 40px; border: 1px solid #e5e5e5; border-top: none;">
             <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
               Bonjour <strong>${firstName} ${lastName}</strong>,
             </p>
-            
+
             <p style="font-size: 16px; color: #333; margin-bottom: 25px;">
-              Vous avez été ajouté(e) en tant que thérapeute pour <strong>${hotelNames}</strong>. 
+              Vous avez été ajouté(e) en tant que thérapeute pour <strong>${hotelNames}</strong>.
               Bienvenue dans l'équipe ${brand.name} !
             </p>
 
             <div style="background: #f8f8f8; padding: 25px; border-radius: 8px; margin: 30px 0;">
-              <h3 style="margin: 0 0 15px 0; color: #000;">🔐 Comment vous connecter</h3>
-              <p style="margin: 0 0 10px 0;">Votre numéro de téléphone pour la connexion :</p>
-              <p style="margin: 0; font-size: 18px; font-weight: bold; color: #000;">${fullPhone}</p>
-              <p style="margin: 15px 0 0 0; font-size: 14px; color: #666;">
-                Vous recevrez un code par SMS pour vous connecter.
+              <h3 style="margin: 0 0 15px 0; color: #000;">🔐 Activer votre compte</h3>
+              <p style="margin: 0 0 10px 0; font-size: 15px; color: #333;">
+                Cliquez sur le bouton ci-dessous pour activer votre compte, définir votre mot de passe et terminer la configuration (photo, notifications).
               </p>
             </div>
 
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="${pwaUrl}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Accéder à l'application</a>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${actionLink}" style="background: #000000; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block; font-size: 16px;">Activer mon compte</a>
             </div>
+
+            <p style="font-size: 13px; color: #666; margin: 10px 0 0 0; text-align: center;">
+              Ou copiez-collez ce lien dans votre navigateur :<br>
+              <a href="${actionLink}" style="color: #0066cc; word-break: break-all;">${actionLink}</a>
+            </p>
+
+            <p style="font-size: 13px; color: #999; margin: 20px 0 30px 0; padding: 10px 15px; background: #fafafa; border-left: 3px solid #ddd;">
+              Ce lien est valable 24 heures. Si vous le laissez expirer, vous pouvez toujours vous connecter avec votre numéro de téléphone <strong>${fullPhone}</strong> sur <a href="${pwaUrl}" style="color: #0066cc;">${pwaUrl}</a> (un code vous sera envoyé par SMS).
+            </p>
 
             <!-- PWA Installation Instructions -->
             <div style="background: #f0f9ff; border: 1px solid #0284c7; border-radius: 8px; padding: 25px; margin: 30px 0;">
               <h3 style="margin: 0 0 20px 0; color: #0369a1; font-size: 18px;">📱 Installer l'application sur votre téléphone</h3>
-              
+
               <div style="margin-bottom: 25px;">
                 <h4 style="margin: 0 0 12px 0; color: #333; font-size: 15px;">🍎 Sur iPhone (Safari) :</h4>
                 <ol style="margin: 0; padding-left: 20px; color: #555; font-size: 14px; line-height: 1.8;">
@@ -183,7 +226,7 @@ serve(async (req: Request): Promise<Response> => {
                   <li>Appuyez sur <strong>"Ajouter"</strong> en haut à droite</li>
                 </ol>
               </div>
-              
+
               <div>
                 <h4 style="margin: 0 0 12px 0; color: #333; font-size: 15px;">🤖 Sur Android (Chrome) :</h4>
                 <ol style="margin: 0; padding-left: 20px; color: #555; font-size: 14px; line-height: 1.8;">
@@ -217,15 +260,14 @@ serve(async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    // Send the email
     const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         from: brand.emails.from.default,
         to: [email],
-        subject: `Bienvenue sur ${brand.name} - Accès Praticien`,
-        html 
+        subject: `Bienvenue sur ${brand.name} - Activez votre compte`,
+        html
       })
     });
 
@@ -236,12 +278,13 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     const resendData = await resendResponse.json();
-    console.log("Email sent successfully:", resendData);
+    console.log("Invitation email sent:", resendData?.id);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Email de bienvenue envoyé avec succès"
+      JSON.stringify({
+        success: true,
+        message: "Email d'invitation envoyé avec succès",
+        userId: authUserId,
       }),
       {
         status: 200,
