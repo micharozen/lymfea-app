@@ -62,7 +62,6 @@ DROP FUNCTION IF EXISTS public.get_public_treatments(text);
 CREATE OR REPLACE FUNCTION public.get_public_treatments(_hotel_id text)
 RETURNS TABLE(
   id uuid,
-  slug text,
   name text,
   name_en text,
   description text,
@@ -87,7 +86,6 @@ SET search_path TO 'public'
 AS $$
   SELECT
     t.id,
-    t.slug,
     t.name,
     t.name_en,
     t.description,
