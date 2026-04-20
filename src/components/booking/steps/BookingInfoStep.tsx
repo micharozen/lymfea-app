@@ -695,6 +695,22 @@ export function BookingInfoStep({
         />
       </div>
 
+      <FormField
+        control={form.control}
+        name="clientEmail"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">
+              Email <span className="text-muted-foreground font-normal">(optionnel)</span>
+            </FormLabel>
+            <FormControl>
+              <Input {...field} type="email" className="h-9" placeholder="client@email.com" />
+            </FormControl>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
+
       <div className={cn("grid gap-2", pmsLookupEnabled ? "grid-cols-1" : "grid-cols-2")}>
         <FormField
           control={form.control}

@@ -262,21 +262,78 @@ export const getPaymentLinkEmailHtml = (language: 'fr' | 'en', data: PaymentLink
 };
 export const getPaymentCancellationEmailHtml = (language: 'fr' | 'en', data: { clientName: string, bookingDate: string, bookingUrl?: string }) => {
   const isFr = language === 'fr';
-  const labels = {
-    title: isFr ? 'Réservation Annulée' : 'Booking Cancelled',
-    message: isFr
-      ? `Bonjour ${data.clientName}, nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du ${data.bookingDate}. Afin de ne pas bloquer ce créneau indéfiniment, votre réservation a été automatiquement annulée.`
-      : `Hello ${data.clientName}, we did not receive your payment within the required time for your session on ${data.bookingDate}. To avoid blocking this slot indefinitely, your booking has been automatically cancelled.`,
-    cta: isFr ? 'Réserver à nouveau' : 'Book again'
-  };
+  const ctaUrl = data.bookingUrl || brand.website;
 
-  return `
-    <div style="font-family: Georgia, serif; max-width: 600px; margin: 0 auto; text-align: center; padding: 40px; border: 1px solid #eee;">
-      <h1 style="color: #000; font-weight: normal;">${labels.title}</h1>
-      <p style="color: #666; line-height: 1.6; margin: 20px 0;">${labels.message}</p>
-      <a href="${data.bookingUrl || brand.website}" style="display: inline-block; padding: 15px 30px; background-color: #000351; color: #fff; text-decoration: none; margin-top: 20px;">${labels.cta}</a>
-    </div>
-  `;
+  return `<!DOCTYPE html>
+<html lang="${language}">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background-color:#ffffff;color:#000000;-webkit-font-smoothing:antialiased;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+
+        <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="140" style="display:block;margin-bottom:40px;">
+
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;width:100%;">
+
+          <tr>
+            <td align="center" style="padding-bottom:8px;">
+              <p style="margin:0;font-size:11px;letter-spacing:3px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;">${isFr ? 'RÉSERVATION ANNULÉE' : 'BOOKING CANCELLED'}</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:10px;">
+              <h1 style="margin:0;font-weight:normal;font-size:26px;font-family:Georgia,'Times New Roman',serif;">${isFr ? `Chère ${data.clientName}` : `Dear ${data.clientName}`},</h1>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:36px;">
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#555;font-family:Georgia,'Times New Roman',serif;max-width:420px;">
+                ${isFr
+                  ? `Nous n'avons pas reçu votre paiement dans le délai imparti pour votre séance du <strong>${data.bookingDate}</strong>. Afin de ne pas bloquer ce créneau, votre réservation a été automatiquement annulée.`
+                  : `We did not receive your payment within the required time for your session on <strong>${data.bookingDate}</strong>. To avoid blocking this slot indefinitely, your booking has been automatically cancelled.`}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#FEFBF7;border:1px solid #C5B197;padding:24px 32px;border-radius:4px;text-align:center;">
+              <p style="margin:0 0 6px;font-size:10px;letter-spacing:2px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;text-transform:uppercase;">${isFr ? 'Votre créneau est disponible' : 'Your slot is available again'}</p>
+              <p style="margin:0;font-size:14px;font-family:Georgia,serif;color:#555;">
+                ${isFr ? 'Vous pouvez réserver à nouveau en un clic.' : 'You can book again in one click.'}
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:36px 0 12px;">
+              <a href="${ctaUrl}" style="background-color:#000351;color:#ffffff;padding:16px 36px;text-decoration:none;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:2px;border-radius:2px;">${isFr ? 'RÉSERVER À NOUVEAU' : 'BOOK AGAIN'}</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding-bottom:40px;">
+              <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">
+                ${isFr ? 'Une question ? Contactez-nous à ' : 'Any question? Contact us at '}
+                <a href="mailto:${brand.legal.contactEmail}" style="color:#999;">${brand.legal.contactEmail}</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="border-top:1px solid #e5e5e5;padding-top:24px;">
+              <p style="margin:0;font-size:10px;letter-spacing:3px;color:#bbb;font-family:Helvetica,Arial,sans-serif;">${brand.name.toUpperCase()} &nbsp;·&nbsp; ${brand.tagline.toUpperCase()}</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 };
 export const getPaymentReminderEmailHtml = (language: 'fr' | 'en', data: PaymentLinkTemplateData) => {
   const isFr = language === 'fr';

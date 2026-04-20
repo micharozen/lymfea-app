@@ -1,7 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,27 +12,7 @@ export default function PaymentConfirmation() {
   const navigate = useNavigate();
   const { t } = useTranslation('client');
 
-  const sessionId = searchParams.get('session_id');
   const isPaymentSuccess = searchParams.get('payment') === 'success';
-  const hasVerified = useRef(false);
-
-  // Verify payment and update booking status
-  useEffect(() => {
-    if (!bookingId || !sessionId || !isPaymentSuccess || hasVerified.current) return;
-    hasVerified.current = true;
-
-    console.log('[PaymentConfirmation] Verifying payment — bookingId:', bookingId, 'sessionId:', sessionId);
-
-    supabase.functions.invoke('verify-payment-link-session', {
-      body: { sessionId, bookingId },
-    }).then(({ data, error }) => {
-      if (error) {
-        console.error('[PaymentConfirmation] verify-payment-link-session error:', error);
-      } else {
-        console.log('[PaymentConfirmation] verify-payment-link-session success:', data);
-      }
-    });
-  }, [bookingId, sessionId, isPaymentSuccess]);
 
   // Fetch booking to get hotel_id and hotel_name for navigation and display
   const { data: booking, isLoading } = useQuery({

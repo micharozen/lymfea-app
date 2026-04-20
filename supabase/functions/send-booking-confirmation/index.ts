@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +22,41 @@ type IncomingTreatment =
       price_on_request?: boolean;
       priceOnRequest?: boolean;
     };
+const i18n = {
+  fr: {
+    statusConfirmed: 'RÉSERVATION CONFIRMÉE',
+    statusQuote: 'DEVIS DEMANDÉ',
+    greetingConfirmed: `Votre expérience bien-être a bien été confirmée. Nous avons hâte de vous accueillir.`,
+    greetingQuote: `Nous avons bien reçu votre demande et vous enverrons un devis personnalisé très prochainement.`,
+    yourReservation: 'Votre réservation',
+    labelDate: 'Date',
+    labelTime: 'Horaire',
+    labelVenue: 'Lieu',
+    labelRoom: 'Chambre',
+    labelBooking: 'Réservation n°',
+    labelTotal: 'TOTAL',
+    labelOnRequest: 'Sur devis',
+    ctaManage: 'GÉRER MA RÉSERVATION',
+    cancellationNote: 'Annulation gratuite jusqu\'à 2 heures avant le rendez-vous.',
+  },
+  en: {
+    statusConfirmed: 'BOOKING CONFIRMED',
+    statusQuote: 'QUOTE REQUESTED',
+    greetingConfirmed: `Your wellness experience has been successfully confirmed. We look forward to welcoming you.`,
+    greetingQuote: `We've received your request and will send you a personalised quote very soon.`,
+    yourReservation: 'Your reservation',
+    labelDate: 'Date',
+    labelTime: 'Time',
+    labelVenue: 'Venue',
+    labelRoom: 'Room',
+    labelBooking: 'Booking #',
+    labelTotal: 'TOTAL',
+    labelOnRequest: 'On request',
+    ctaManage: 'MANAGE MY BOOKING',
+    cancellationNote: 'Free cancellation up to 2 hours before the appointment.',
+  },
+};
+
 function generateBookingConfirmationHtml({
   bookingId,
   bookingNumber,
@@ -35,6 +70,7 @@ function generateBookingConfirmationHtml({
   currency,
   siteUrl,
   isQuotePending,
+  language = 'fr',
   venueType = 'hotel'
 }: {
   bookingId: string;
@@ -49,37 +85,39 @@ function generateBookingConfirmationHtml({
   currency: string;
   siteUrl: string;
   isQuotePending: boolean;
+  language?: 'fr' | 'en';
   venueType?: 'hotel' | 'coworking' | 'enterprise';
 }) {
+  const t = i18n[language] ?? i18n.en;
   const logoUrl = EMAIL_LOGO_URL;
   const brandName = brand.name;
   const manageBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
   const safeCurrency = (currency || 'EUR').toUpperCase();
-  const hasOnQuoteItems = treatments.some(t => t.isPriceOnRequest);
+  const hasOnQuoteItems = treatments.some(tr => tr.isPriceOnRequest);
 
-  const statusLabel = isQuotePending ? 'QUOTE REQUESTED' : 'BOOKING CONFIRMED';
-  const greeting = isQuotePending
-    ? `We've received your request and will send you a personalised quote very soon.`
-    : `Your wellness experience has been successfully confirmed. We look forward to welcoming you.`;
+  const statusLabel = isQuotePending ? t.statusQuote : t.statusConfirmed;
+  const greeting = isQuotePending ? t.greetingQuote : t.greetingConfirmed;
 
-  const treatmentsRows = treatments.map(t => {
-    const name = t?.name || 'Service';
-    const priceCell = t.isPriceOnRequest
-      ? `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;color:#C5B197;font-style:italic;">On request</td>`
-      : `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;">${t.price ?? 0} ${safeCurrency}</td>`;
+  const treatmentsRows = treatments.map(tr => {
+    const name = tr?.name || 'Service';
+    const priceCell = tr.isPriceOnRequest
+      ? `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;color:#C5B197;font-style:italic;">${t.labelOnRequest}</td>`
+      : `<td align="right" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;">${tr.price ?? 0} ${safeCurrency}</td>`;
     return `<tr><td align="left" style="padding:6px 0;font-size:14px;font-family:Georgia,serif;">${name}</td>${priceCell}</tr>`;
   }).join('');
 
   const totalCell = hasOnQuoteItems
-    ? `<td align="right" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${totalPrice} ${safeCurrency}</strong> <span style="font-size:12px;color:#C5B197;">+ quote</span></td>`
+    ? `<td align="right" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${totalPrice} ${safeCurrency}</strong> <span style="font-size:12px;color:#C5B197;">+ ${t.labelOnRequest.toLowerCase()}</span></td>`
     : `<td align="right" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${totalPrice} ${safeCurrency}</strong></td>`;
 
   const roomRow = roomNumber
-    ? `<tr><td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Room</td><td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${roomNumber}</td></tr>`
+    ? `<tr><td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">${t.labelRoom}</td><td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${roomNumber}</td></tr>`
     : '';
 
+  const salutation = language === 'fr' ? `Cher(e) ${clientName},` : `Dear ${clientName},`;
+
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -104,7 +142,7 @@ function generateBookingConfirmationHtml({
           <!-- Greeting -->
           <tr>
             <td align="center" style="padding-bottom:10px;">
-              <h1 style="margin:0;font-weight:normal;font-size:26px;font-family:Georgia,'Times New Roman',serif;">Dear ${clientName},</h1>
+              <h1 style="margin:0;font-weight:normal;font-size:26px;font-family:Georgia,'Times New Roman',serif;">${salutation}</h1>
             </td>
           </tr>
           <tr>
@@ -117,17 +155,17 @@ function generateBookingConfirmationHtml({
           <tr>
             <td style="background-color:#FEFBF7;border:1px solid #C5B197;padding:28px 32px;border-radius:4px;">
 
-              <p style="margin:0 0 18px;font-size:10px;letter-spacing:2px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;text-transform:uppercase;">Your reservation</p>
+              <p style="margin:0 0 18px;font-size:10px;letter-spacing:2px;color:#C5B197;font-family:Helvetica,Arial,sans-serif;text-transform:uppercase;">${t.yourReservation}</p>
 
               <!-- Date + Time -->
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
                 <tr>
                   <td style="width:50%;padding-right:12px;">
-                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Date</p>
+                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">${t.labelDate}</p>
                     <p style="margin:0;font-size:16px;font-family:Georgia,'Times New Roman',serif;"><strong>${bookingDate}</strong></p>
                   </td>
                   <td style="width:50%;border-left:1px solid #C5B197;padding-left:20px;">
-                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Time</p>
+                    <p style="margin:0 0 2px;font-size:10px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">${t.labelTime}</p>
                     <p style="margin:0;font-size:16px;font-family:Georgia,'Times New Roman',serif;"><strong>${bookingTime}</strong></p>
                   </td>
                 </tr>
@@ -136,12 +174,12 @@ function generateBookingConfirmationHtml({
               <!-- Venue + Room + Booking # -->
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
                 <tr>
-                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Venue</td>
+                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">${t.labelVenue}</td>
                   <td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${hotelName}</td>
                 </tr>
                 ${roomRow}
                 <tr>
-                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">Booking #</td>
+                  <td style="padding:5px 0;font-size:12px;letter-spacing:1px;color:#999;text-transform:uppercase;font-family:Helvetica,Arial,sans-serif;">${t.labelBooking}</td>
                   <td style="padding:5px 0;font-size:14px;font-family:Georgia,serif;">${String(bookingNumber).padStart(4, '0')}</td>
                 </tr>
               </table>
@@ -150,7 +188,7 @@ function generateBookingConfirmationHtml({
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top:1px solid #C5B197;padding-top:16px;">
                 ${treatmentsRows}
                 <tr>
-                  <td align="left" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>TOTAL</strong></td>
+                  <td align="left" style="padding:12px 0 0;font-size:16px;font-family:Georgia,serif;color:#000351;"><strong>${t.labelTotal}</strong></td>
                   ${totalCell}
                 </tr>
               </table>
@@ -161,14 +199,14 @@ function generateBookingConfirmationHtml({
           <!-- CTA -->
           <tr>
             <td align="center" style="padding:36px 0 12px;">
-              <a href="${manageBookingUrl}" style="background-color:#000351;color:#ffffff;padding:16px 36px;text-decoration:none;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:2px;border-radius:2px;">MANAGE MY BOOKING</a>
+              <a href="${manageBookingUrl}" style="background-color:#000351;color:#ffffff;padding:16px 36px;text-decoration:none;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:13px;letter-spacing:2px;border-radius:2px;">${t.ctaManage}</a>
             </td>
           </tr>
 
           <!-- Cancellation note -->
           <tr>
             <td align="center" style="padding-bottom:40px;">
-              <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">Free cancellation up to 2 hours before the appointment.</p>
+              <p style="margin:0;font-size:12px;color:#999;font-family:Georgia,serif;font-style:italic;">${t.cancellationNote}</p>
             </td>
           </tr>
 
@@ -193,8 +231,6 @@ serve(async (req) => {
   }
 
   try {
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
-    
     const {
       email,
       bookingId,
@@ -209,10 +245,13 @@ serve(async (req) => {
       currency,
       siteUrl: siteUrlFromBody,
       isQuotePending = false,
+      language = 'fr',
       venueType = 'hotel'
     } = await req.json();
 
-    console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending);
+    const lang: 'fr' | 'en' = language === 'en' ? 'en' : 'fr';
+
+    console.log('Sending booking confirmation email to:', email, '| isQuotePending:', isQuotePending, '| language:', lang);
 
     // Prefer the app URL coming from the checkout metadata/webhook, fallback to env
     const siteUrl =
@@ -236,7 +275,7 @@ serve(async (req) => {
     const normalizedCurrency = (currency || 'EUR').toUpperCase();
 
     // Format date for display
-    const formattedDate = new Date(bookingDate).toLocaleDateString('en-US', {
+    const formattedDate = new Date(bookingDate).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric'
@@ -255,44 +294,39 @@ serve(async (req) => {
       currency: normalizedCurrency,
       siteUrl,
       isQuotePending,
+      language: lang,
       venueType,
     });
 
-    const subjectPrefix = isQuotePending ? 'Quote Request' : 'Booking Confirmed';
+    const subjectPrefix = lang === 'fr'
+      ? (isQuotePending ? 'Demande de devis' : 'Réservation confirmée')
+      : (isQuotePending ? 'Quote Request' : 'Booking Confirmed');
 
-    const isLocal = Deno.env.get('IS_LOCAL') === 'true';
-
-    // Send email to client
-    const { data: clientData, error: clientError } = await resend.emails.send({
-      from: isLocal ? 'onboarding@resend.dev' : brand.emails.from.default,
-      to: [isLocal ? 'romainthierryom@gmail.com' : email],
+    const clientResult = await sendEmail({
+      to: email,
       subject: `${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });
 
-    if (clientError) {
-      console.error('Error sending client email:', clientError);
-      throw clientError;
+    if (clientResult.error) {
+      console.error('Error sending client email:', clientResult.error);
+      throw new Error(clientResult.error);
     }
+    console.log('Client email sent:', clientResult.id);
 
-    console.log('Client email sent successfully:', clientData);
-
-    // Send notification email to booking recipient
-    const { data: adminData, error: adminError } = await resend.emails.send({
-      from: isLocal ? 'onboarding@resend.dev' : brand.emails.from.default,
-      to: [isLocal ? 'romainthierryom@gmail.com' : brand.emails.bookingRecipient],
+    const adminResult = await sendEmail({
+      to: brand.emails.bookingRecipient,
       subject: `[ADMIN] ${subjectPrefix} #${bookingNumber} - ${hotelName}`,
       html,
     });
-
-    if (adminError) {
-      console.error('Error sending admin email:', adminError);
+    if (adminResult.error) {
+      console.error('Error sending admin email:', adminResult.error);
     } else {
-      console.log('Admin notification email sent successfully:', adminData);
+      console.log('Admin email sent:', adminResult.id);
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: clientData }),
+      JSON.stringify({ success: true, id: clientResult.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

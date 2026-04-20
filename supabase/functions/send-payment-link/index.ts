@@ -203,6 +203,11 @@ serve(async (req: Request) => {
     const email = clientEmail || booking.client_email;
     const phone = clientPhone || booking.phone;
 
+    // Persist email to booking if it wasn't already saved
+    if (email && !booking.client_email) {
+      await supabase.from('bookings').update({ client_email: email }).eq('id', bookingId);
+    }
+
     if (channels.includes('email') && !email) {
       throw new Error("Email address required for email channel");
     }
@@ -261,7 +266,7 @@ serve(async (req: Request) => {
       after_completion: {
         type: 'redirect',
         redirect: {
-          url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+          url: `${siteUrl}/client/${booking.hotel_id}/confirmation/${booking.id}?payment=success`,
         },
       },
     });

@@ -1,15 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
 import { getPaymentCancellationEmailHtml } from "../_shared/payment-link-templates.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
 });
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 serve(async (req: Request) => {
   try {
@@ -91,7 +90,7 @@ serve(async (req: Request) => {
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
 
           const treatmentIds = booking.booking_treatments
-            ?.map((bt: any) => bt.treatment_id)
+            ?.map((bt: { treatment_id: string }) => bt.treatment_id)
             .join(',') || '';
 
           let bookingUrl = brand.website;
@@ -104,9 +103,8 @@ serve(async (req: Request) => {
 
           console.log(`[CRON] Envoi de l'email d'annulation à ${booking.client_email}...`);
           
-          await resend.emails.send({
-            from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-            to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : booking.client_email,
+          await sendEmail({
+            to: booking.client_email,
             subject: lang === 'fr'
               ? `Votre réservation du ${formattedBookingDate} a été annulée`
               : `Your booking on ${formattedBookingDate} has been cancelled`,
@@ -127,8 +125,9 @@ serve(async (req: Request) => {
 
     return new Response(JSON.stringify({ success: true, count: expiredLinks.length }), { status: 200 });
 
-  } catch (error: any) {
-    console.error("[CRON] Global error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[CRON] Global error:", message);
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 });

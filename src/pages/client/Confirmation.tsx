@@ -17,7 +17,8 @@ export default function Confirmation() {
   const { hotelId, bookingId: paramBookingId } = useParams();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
-  const dateLocale = i18n.language === 'fr' ? fr : enUS;
+  const { changeLanguage, language: currentLanguage } = i18n;
+  const dateLocale = currentLanguage === 'fr' ? fr : enUS;
 
   const sessionId = searchParams.get('session_id');
   const isPaymentSuccess = searchParams.get('payment') === 'success';
@@ -68,14 +69,7 @@ export default function Confirmation() {
       try {
         let finalBookingId = paramBookingId;
 
-        if (isUUID && sessionId && isPaymentSuccess) {
-          console.log("[Confirmation] Appel verify-payment-link-session...");
-          const { data, error: verifyError } = await supabase.functions.invoke('verify-payment-link-session', {
-            body: { sessionId, bookingId: paramBookingId }
-          });
-          console.log("[Confirmation] Réponse verify-payment-link-session:", { data, verifyError });
-          if (verifyError) throw new Error("La vérification du paiement a échoué.");
-        } else if (!isUUID && sessionId) {
+        if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
           const { data: confirmData, error: confirmError } = await supabase.functions.invoke('confirm-setup-intent', {
             body: { sessionId }
@@ -95,7 +89,13 @@ export default function Confirmation() {
         if (dbError) throw dbError;
         if (!data) throw new Error("Votre réservation est introuvable.");
 
-        setBooking(data as Record<string, unknown>);
+        const bookingData = data as Record<string, unknown>;
+        setBooking(bookingData);
+
+        // Apply language from payment link if the client arrived via a payment link
+        if (isPaymentSuccess && bookingData.payment_link_language) {
+          changeLanguage(bookingData.payment_link_language as string);
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Une erreur est survenue lors de la récupération.";
         console.error("[Confirmation] Erreur:", msg);
@@ -114,7 +114,7 @@ export default function Confirmation() {
       setError("Aucune donnée de réservation trouvée.");
     }
 
-  }, [paramBookingId, sessionId, isUUID, isPaymentSuccess, isBundlePurchase]);
+  }, [paramBookingId, sessionId, isUUID, isPaymentSuccess, isBundlePurchase, changeLanguage]);
 
   const handleReturnHome = () => {
     navigate(hotelId ? `/client/${hotelId}` : "/");
@@ -398,7 +398,7 @@ export default function Confirmation() {
             <div className="flex items-start gap-3">
               <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{t('confirmation.yourService')}</p>
+                <p className="text-sm font-medium text-gray-900">{t('confirmation.treatments')}</p>
                 <p className="text-sm text-gray-500">{treatmentNames}</p>
                 {(booking as Record<string, unknown>)?.booking_date && (
                   <p className="text-sm text-gray-500 mt-0.5">
@@ -411,11 +411,11 @@ export default function Confirmation() {
             <div className="flex items-start gap-3">
               <Clock className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Horaire</p>
+                <p className="text-sm font-medium text-gray-900">{t('confirmation.time')}</p>
                 <p className="text-sm text-gray-500">
                   {(booking as Record<string, unknown>)?.booking_time
                     ? ((booking as Record<string, unknown>)?.booking_time as string).substring(0, 5)
-                    : "Heure à confirmer"}
+                    : t('confirmation.timeToConfirm')}
                 </p>
               </div>
             </div>
@@ -423,10 +423,10 @@ export default function Confirmation() {
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Lieu</p>
+                <p className="text-sm font-medium text-gray-900">{t('confirmation.venue')}</p>
                 <p className="text-sm text-gray-500">{hotelName}</p>
                 {(booking as Record<string, unknown>)?.room_number && (
-                  <p className="text-sm text-gray-500 mt-0.5">Chambre : {(booking as Record<string, unknown>)?.room_number as string}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{t('confirmation.room')} : {(booking as Record<string, unknown>)?.room_number as string}</p>
                 )}
               </div>
             </div>
@@ -462,6 +462,14 @@ export default function Confirmation() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-900">{t('confirmation.giftCardPaymentTitle')}</p>
               <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.giftCardPaymentMessage')}</p>
+            </div>
+          </div>
+        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && isPaymentSuccess ? (
+          <div className="flex items-start gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
+            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.paidOnlineTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.paidOnlineMessage')}</p>
             </div>
           </div>
         ) : !(booking as Record<string, unknown>)?.bundle_usage_id && (

@@ -200,10 +200,17 @@
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details.",
     "subtitle": "Thank you for your trust.",
     "yourService": "Your service",
+    "treatments": "Treatments",
+    "time": "Time",
+    "timeToConfirm": "Time to be confirmed",
+    "venue": "Venue",
+    "room": "Room",
     "giftCardPaymentTitle": "Paid by gift card",
     "giftCardPaymentMessage": "Your treatment amount has been deducted from your gift card. No additional payment is required.",
     "onSitePaymentTitle": "Pay on site",
-    "onSitePaymentMessage": "Your card details have been validated to guarantee the appointment. <strong>No amount has been charged today.</strong> Payment will be collected at the end of your treatment."
+    "onSitePaymentMessage": "Your card details have been validated to guarantee the appointment. <strong>No amount has been charged today.</strong> Payment will be collected at the end of your treatment.",
+    "paidOnlineTitle": "Payment received",
+    "paidOnlineMessage": "Your payment has been successfully recorded. No further charge will be made on the day of your treatment."
   },
   "paymentConfirmation": {
     "label": "Payment Confirmation",

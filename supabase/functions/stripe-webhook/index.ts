@@ -87,7 +87,6 @@ serve(async (req) => {
           const { error: updateError } = await supabase
             .from('bookings')
             .update({
-              status: 'confirmed',
               payment_status: 'paid',
               stripe_invoice_url: session.id
             })
@@ -95,7 +94,23 @@ serve(async (req) => {
 
           if (updateError) throw updateError;
 
-          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as confirmed+paid via payment link`);
+          console.log(`[STRIPE-WEBHOOK] Booking ${metadata.booking_id} marked as paid via payment link`);
+
+          const { error: paymentInfoError } = await supabase
+            .from('booking_payment_infos')
+            .update({
+              payment_status: 'charged',
+              payment_at: new Date().toISOString(),
+              stripe_session_id: session.id,
+              stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('booking_id', metadata.booking_id);
+          if (paymentInfoError) {
+            console.error('[STRIPE-WEBHOOK] booking_payment_infos update failed:', paymentInfoError);
+          } else {
+            console.log('[STRIPE-WEBHOOK] booking_payment_infos updated for booking:', metadata.booking_id);
+          }
 
           // Deactivate the Stripe Payment Link so it cannot be reused
           try {
@@ -188,6 +203,7 @@ serve(async (req) => {
                   totalPrice: booking.total_price,
                   currency: currency,
                   siteUrl: Deno.env.get("SITE_URL") || "https://lymfea.fr",
+                  language: booking.payment_link_language || 'fr',
                 },
               });
               console.log('[STRIPE-WEBHOOK] Confirmation email sent to client (Payment Link)');
