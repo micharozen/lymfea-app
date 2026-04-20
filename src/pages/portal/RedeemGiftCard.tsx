@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Gift, Loader2, ArrowLeft, Calendar, Sparkles, CheckCircle, Clock, ShoppingBag, PartyPopper, Mail, User, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,11 +35,19 @@ export default function RedeemGiftCard() {
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
   const navigate = useNavigate();
 
-  const [code, setCode] = useState('');
+  const [searchParams] = useSearchParams();
+  const tokenFromUrl = searchParams.get('token');
+
+  const formatCodeInput = (raw: string) => {
+    return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+  };
+
+  const [code, setCode] = useState(tokenFromUrl ? formatCodeInput(tokenFromUrl) : '');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cardData, setCardData] = useState<GiftCardData | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [autoLookedUp, setAutoLookedUp] = useState(false);
 
   // Claim form state
   const [claimEmail, setClaimEmail] = useState('');
@@ -50,10 +58,6 @@ export default function RedeemGiftCard() {
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [existingAccount, setExistingAccount] = useState(false);
-
-  const formatCodeInput = (raw: string) => {
-    return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-  };
 
   const handleLookup = async () => {
     const cleanCode = formatCodeInput(code);
@@ -90,6 +94,14 @@ export default function RedeemGiftCard() {
       setIsLoading(false);
     }
   };
+
+  // Auto-lookup when arriving via token link
+  useEffect(() => {
+    if (tokenFromUrl && !autoLookedUp && !cardData) {
+      setAutoLookedUp(true);
+      handleLookup();
+    }
+  }, [tokenFromUrl]);
 
   const handleClaim = async () => {
     if (!claimEmail.trim() || !claimEmail.includes('@')) return;
@@ -437,7 +449,48 @@ export default function RedeemGiftCard() {
   }
 
   // ---------------------------------------------------------------------------
-  // CODE ENTRY
+  // TOKEN AUTO-LOOKUP — show loader while resolving
+  // ---------------------------------------------------------------------------
+  if (tokenFromUrl && !cardData) {
+    return (
+      <div className="min-h-dvh bg-white flex flex-col items-center justify-center p-4 pb-safe pt-safe">
+        <div className="w-full max-w-sm space-y-8 animate-in fade-in duration-500">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-20 h-20 bg-[#03bfac]/10 rounded-full flex items-center justify-center">
+              {error ? (
+                <Gift className="w-10 h-10 text-[#03bfac]" strokeWidth={1.5} />
+              ) : (
+                <Loader2 className="w-10 h-10 text-[#03bfac] animate-spin" strokeWidth={1.5} />
+              )}
+            </div>
+            {error ? (
+              <div className="space-y-4">
+                <p className="text-sm text-red-500">{error}</p>
+                <Button
+                  onClick={() => {
+                    setError(null);
+                    handleLookup();
+                  }}
+                  className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 rounded-xl font-medium"
+                >
+                  {t('portal.lookup')}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">{t('portal.lookupLoading')}</p>
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-2 pt-8 opacity-40">
+            <img src={brandLogos.monogramBlack} alt={brand.name} className="h-4 w-4" />
+            <span className="text-xs text-gray-500 font-serif">{brand.name}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // CODE ENTRY — manual fallback (no token in URL)
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-dvh bg-white flex flex-col items-center justify-center p-4 pb-safe pt-safe">
