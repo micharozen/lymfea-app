@@ -195,17 +195,18 @@ export function SchedulePanel({
     return dates;
   }, [locale, t, availableDates, maxDaysAhead, daysWithSlots]);
 
-  // Auto-select the nearest day that has at least one free slot
+  // Auto-select the first deployed day (usually today) so the slot grid is
+  // populated without an extra click. If the day ends up being fully booked,
+  // the user sees the "fully booked" state and can browse from there.
   useEffect(() => {
     if (selectedDate) return;
     if (takenDate) return;
-    if (!daysWithSlots) return;
-    const firstAvailable = dateOptions.find((d) => d.hasSlots);
-    if (firstAvailable) {
-      setSelectedDate(firstAvailable.value);
-      setUrlDateTime(firstAvailable.value, '');
+    const first = dateOptions[0];
+    if (first) {
+      setSelectedDate(first.value);
+      setUrlDateTime(first.value, '');
     }
-  }, [daysWithSlots, dateOptions, selectedDate, takenDate, setUrlDateTime]);
+  }, [dateOptions, selectedDate, takenDate, setUrlDateTime]);
 
   // Generate time slots based on venue hours, filtering out past times for today
   const timeSlots = useMemo(() => {
