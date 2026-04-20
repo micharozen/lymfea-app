@@ -94,6 +94,8 @@
     "selectDateFirst": "Choisissez d'abord votre date ci-dessus",
     "noSlots": "Cette date est complète",
     "tryAnotherDate": "Veuillez essayer une autre date",
+    "dayFull": "Complet",
+    "pickDate": "Calendrier",
     "continue": "CONTINUER",
     "morning": "Matin",
     "afternoon": "Après-midi",

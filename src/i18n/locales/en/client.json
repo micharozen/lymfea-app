@@ -94,6 +94,8 @@
     "selectDateFirst": "First, choose your date above",
     "noSlots": "This date is fully booked",
     "tryAnotherDate": "Please try selecting a different date",
+    "dayFull": "Full",
+    "pickDate": "Calendar",
     "continue": "CONTINUE",
     "morning": "Morning",
     "afternoon": "Afternoon",
