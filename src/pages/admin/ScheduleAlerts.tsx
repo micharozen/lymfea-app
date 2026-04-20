@@ -21,8 +21,14 @@ import {
   ExternalLink,
   Smartphone,
   Shield,
+  Bell,
+  MapPin,
+  UserX,
+  AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -93,6 +99,86 @@ export default function ScheduleAlerts() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [therapistFilter, setTherapistFilter] = useState("all");
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("alerts");
+
+  // Notifications state
+  interface NotificationEntry {
+    id: string;
+    booking_id: string | null;
+    type: string;
+    message: string;
+    read: boolean;
+    created_at: string;
+  }
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
+  const [notifLoading, setNotifLoading] = useState(true);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setNotifications(data || []);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const notifChannel = supabase
+      .channel("notifications-alerts-page")
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => fetchNotifications())
+      .subscribe();
+    return () => { supabase.removeChannel(notifChannel); };
+  }, [fetchNotifications]);
+
+  const unreadNotifCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkNotifRead = async (notifId: string) => {
+    await supabase.from("notifications").update({ read: true }).eq("id", notifId);
+    setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+  };
+
+  const handleMarkAllNotifsRead = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    toast.success(t("scheduleAlerts.notifications.allMarkedRead"));
+  };
+
+  const handleDeleteNotif = async (notifId: string) => {
+    await supabase.from("notifications").delete().eq("id", notifId);
+    setNotifications(prev => prev.filter(n => n.id !== notifId));
+  };
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case "therapist_arrived": return <MapPin className="h-4 w-4 text-blue-600" />;
+      case "noshow": return <UserX className="h-4 w-4 text-amber-600" />;
+      case "new_booking": return <Bell className="h-4 w-4 text-green-600" />;
+      case "booking_cancelled": return <AlertTriangle className="h-4 w-4 text-red-600" />;
+      default: return <Bell className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  const getNotifTypeBadge = (type: string) => {
+    switch (type) {
+      case "therapist_arrived": return { label: isFr ? "Arrivée" : "Arrival", className: "bg-blue-100 text-blue-700" };
+      case "noshow": return { label: "No-show", className: "bg-amber-100 text-amber-700" };
+      case "new_booking": return { label: isFr ? "Réservation" : "Booking", className: "bg-green-100 text-green-700" };
+      case "booking_cancelled": return { label: isFr ? "Annulation" : "Cancellation", className: "bg-red-100 text-red-700" };
+      default: return { label: type, className: "bg-gray-100 text-gray-700" };
+    }
+  };
 
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
@@ -292,8 +378,105 @@ export default function ScheduleAlerts() {
             {t("scheduleAlerts.subtitle")}
           </p>
         </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="alerts" className="gap-1.5">
+              <Flag className="h-3.5 w-3.5" />
+              {t("scheduleAlerts.tabs.alerts")}
+              {pendingCount > 0 && (
+                <span className="ml-1 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-1.5">
+              <Bell className="h-3.5 w-3.5" />
+              {t("scheduleAlerts.tabs.notifications")}
+              {unreadNotifCount > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                  {unreadNotifCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
+      {/* Notifications Tab */}
+      {activeTab === "notifications" && (
+        <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6">
+          <div className="bg-card rounded-lg border border-border">
+            {/* Header */}
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">
+                {notifications.length} {isFr ? "notifications" : "notifications"}
+              </span>
+              {unreadNotifCount > 0 && (
+                <Button variant="outline" size="sm" onClick={handleMarkAllNotifsRead}>
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  {t("scheduleAlerts.notifications.markAllRead")}
+                </Button>
+              )}
+            </div>
+
+            {/* List */}
+            {notifLoading ? (
+              <div className="p-8 text-center text-muted-foreground text-sm">{isFr ? "Chargement..." : "Loading..."}</div>
+            ) : notifications.length === 0 ? (
+              <div className="p-8 text-center">
+                <Bell className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">{t("scheduleAlerts.notifications.empty")}</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {notifications.map((notif) => {
+                  const typeBadge = getNotifTypeBadge(notif.type);
+                  return (
+                    <div
+                      key={notif.id}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors cursor-pointer",
+                        !notif.read && "bg-primary/5"
+                      )}
+                      onClick={() => {
+                        if (!notif.read) handleMarkNotifRead(notif.id);
+                        if (notif.booking_id) navigate(`/admin/booking?bookingId=${notif.booking_id}`);
+                      }}
+                    >
+                      <div className="flex-shrink-0">{getNotifIcon(notif.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm", !notif.read ? "font-medium" : "text-muted-foreground")}>
+                          {notif.message}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge className={cn("text-[10px] px-1.5 py-0", typeBadge.className)}>{typeBadge.label}</Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true, locale })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {!notif.read && <div className="w-2 h-2 bg-primary rounded-full" />}
+                        {notif.booking_id && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteNotif(notif.id); }}
+                          className="p-1 hover:bg-destructive/10 rounded transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Alerts Tab */}
+      {activeTab === "alerts" && (
       <div
         className={cn(
           "flex-1 px-4 md:px-6 pb-4 md:pb-6",
@@ -649,6 +832,7 @@ export default function ScheduleAlerts() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

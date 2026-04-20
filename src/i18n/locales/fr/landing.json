@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "features": "Fonctionnalités",
+    "howItWorks": "Comment ça marche",
+    "contact": "Contact",
+    "login": "Se connecter",
+    "cta": "Réserver une démo"
+  },
+  "hero": {
+    "eyebrow": "Plateforme spa pour hôtels",
+    "title": "La gestion moderne de votre spa d'hôtel",
+    "titleHighlight": "enfin simple",
+    "subtitle": "Agenda unifié, paiement room charge, app thérapeute, booking client sans friction. Une seule plateforme pour réenchanter l'expérience spa de votre établissement.",
+    "ctaPrimary": "Réserver une démo",
+    "ctaSecondary": "Découvrir la plateforme",
+    "stats": {
+      "confirmation": "Confirmation en < 10 min",
+      "pms": "2 PMS intégrés",
+      "modules": "6 modules clés"
+    }
+  },
+  "problem": {
+    "title": "Le spa de votre hôtel mérite mieux",
+    "subtitle": "Les logiciels legacy sont lents, complexes et ne parlent pas à votre PMS. Vos équipes perdent du temps, vos clients attendent.",
+    "points": {
+      "fragmented": {
+        "title": "Outils fragmentés",
+        "desc": "Un agenda papier, un Excel pour les thérapeutes, un autre pour la facturation."
+      },
+      "slow": {
+        "title": "Confirmation lente",
+        "desc": "24h pour confirmer une réservation. Les clients abandonnent."
+      },
+      "noPms": {
+        "title": "Pas de room charge",
+        "desc": "Les soins ne se retrouvent pas sur la note de chambre automatiquement."
+      }
+    }
+  },
+  "features": {
+    "eyebrow": "Fonctionnalités",
+    "title": "Tout ce dont votre spa a besoin, dans une seule plateforme",
+    "subtitle": "Conçu avec des directeurs de spa en hôtels 4 et 5 étoiles.",
+    "pms": {
+      "title": "Intégration PMS native",
+      "desc": "Opera Cloud & Mews. Room charge automatique, synchronisation des données invités en temps réel."
+    },
+    "agenda": {
+      "title": "Agenda unifié multi-sites",
+      "desc": "Tous vos spas, toutes vos salles de soin, tous vos thérapeutes dans une seule vue."
+    },
+    "pwa": {
+      "title": "App mobile thérapeute",
+      "desc": "Notifications push, ajout de soin en séance, paiement Stripe Connect automatique."
+    },
+    "booking": {
+      "title": "Booking client sans friction",
+      "desc": "QR code en chambre, flow sans login, confirmation en moins de 10 minutes."
+    },
+    "billing": {
+      "title": "Facturation automatique",
+      "desc": "Commissions thérapeutes, factures hôtels mensuelles, rapports journaliers générés automatiquement."
+    },
+    "giftcards": {
+      "title": "Cartes cadeaux & bundles",
+      "desc": "Créez et vendez des cartes cadeaux, bundles de soins et offres saisonnières en quelques clics."
+    }
+  },
+  "howItWorks": {
+    "eyebrow": "Comment ça marche",
+    "title": "De la signature à vos premières réservations en 2 semaines",
+    "subtitle": "Un onboarding accompagné, sans friction pour vos équipes.",
+    "step1": {
+      "number": "01",
+      "title": "Connectez votre PMS",
+      "desc": "Notre équipe configure l'intégration Opera Cloud ou Mews. Vos données chambres et invités sont synchronisées."
+    },
+    "step2": {
+      "number": "02",
+      "title": "Formez vos équipes",
+      "desc": "Sessions de formation pour les concierges, directeurs spa et thérapeutes. Guides et support illimité inclus."
+    },
+    "step3": {
+      "number": "03",
+      "title": "Lancez les réservations",
+      "desc": "QR codes dans les chambres, booking en ligne, app thérapeute déployée. Vos clients réservent en 2 clics."
+    }
+  },
+  "cta": {
+    "title": "Prêt à moderniser votre spa ?",
+    "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
+    "button": "Réserver ma démo",
+    "secondary": "Ou écrivez-nous à hello@lymfea.fr"
+  },
+  "footer": {
+    "tagline": "La plateforme de gestion spa pour hôtels & day spas.",
+    "product": "Produit",
+    "company": "Société",
+    "legal": "Légal",
+    "links": {
+      "features": "Fonctionnalités",
+      "howItWorks": "Comment ça marche",
+      "login": "Se connecter",
+      "demo": "Réserver une démo",
+      "about": "À propos",
+      "contact": "Contact",
+      "email": "Email",
+      "terms": "Conditions générales",
+      "privacy": "Politique de confidentialité",
+      "legalMentions": "Mentions légales"
+    },
+    "copyright": "© {{year}} Eïa. Tous droits réservés."
+  }
+}

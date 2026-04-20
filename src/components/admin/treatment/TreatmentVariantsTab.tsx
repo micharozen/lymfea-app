@@ -58,6 +58,7 @@ export function TreatmentVariantsTab({
     append({
       label: "",
       duration: "",
+      guest_count: "1",
       price: "0",
       price_on_request: false,
       is_default: false,
@@ -96,7 +97,7 @@ export function TreatmentVariantsTab({
             key={field.id}
             className="flex items-start gap-3 rounded-lg border p-3"
           >
-            <div className="grid grid-cols-4 gap-3 flex-1">
+            <div className="grid grid-cols-5 gap-3 flex-1">
               <FormField
                 control={form.control}
                 name={`variants.${index}.label`}
@@ -129,6 +130,28 @@ export function TreatmentVariantsTab({
                       <Input
                         type="number"
                         placeholder="60"
+                        {...field}
+                        disabled={disabled}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name={`variants.${index}.guest_count`}
+                render={({ field }) => (
+                  <FormItem>
+                    {index === 0 && (
+                      <FormLabel className="text-xs">Pers.</FormLabel>
+                    )}
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="1"
                         {...field}
                         disabled={disabled}
                       />

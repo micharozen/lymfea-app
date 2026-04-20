@@ -36,6 +36,7 @@ interface TreatmentVariantData {
   price_on_request: boolean;
   is_default: boolean;
   sort_order: number;
+  guest_count?: number;
 }
 
 interface Treatment {
@@ -314,6 +315,7 @@ export default function Treatments() {
       isAddon: addonCategoryNames.has(treatment.category),
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
+      guestCount: resolvedVariant?.guest_count ?? 1,
     });
 
     if (navigator.vibrate) {
@@ -355,6 +357,15 @@ export default function Treatments() {
     return min === max ? `${min}` : `${min}-${max}`;
   };
 
+  /** Get guest count range string like "1-2 pers." if variants differ */
+  const getVariantGuestRange = (variants: TreatmentVariantData[]): string | null => {
+    const counts = variants.map(v => v.guest_count ?? 1);
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    if (min === max && min === 1) return null;
+    return min === max ? `${min} pers.` : `${min}-${max} pers.`;
+  };
+
   /** Render the price/duration line for a treatment */
   const renderPriceLine = (treatment: Treatment) => {
     // Multi-variant treatments show "from X" when collapsed
@@ -382,6 +393,7 @@ export default function Treatments() {
           </div>
         );
       }
+      const guestRange = getVariantGuestRange(variants);
       return (
         <div className="flex items-baseline gap-2">
           <span className="text-[10px] uppercase tracking-wider text-gray-400">{t('menu.fromPrice')}</span>
@@ -390,6 +402,7 @@ export default function Treatments() {
           </span>
           <span className="text-gray-400 text-xs font-light tracking-wider uppercase">
             {getVariantDurationRange(variants)} min
+            {guestRange && ` · ${guestRange}`}
           </span>
         </div>
       );

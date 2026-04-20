@@ -202,11 +202,13 @@ export default function GuestInfo() {
     let countryCode = '+33';
     let localPhone = phoneStr;
     if (phoneStr.startsWith('+')) {
-      // Try common patterns: +33, +1, +44, etc.
-      const match = phoneStr.match(/^(\+\d{1,3})(.*)/);
-      if (match) {
-        countryCode = match[1];
-        localPhone = match[2];
+      // Match against known country codes (longest first to avoid greedy mismatch)
+      const matchedCountry = countries
+        .sort((a, b) => b.code.length - a.code.length)
+        .find((c) => phoneStr.startsWith(c.code));
+      if (matchedCountry) {
+        countryCode = matchedCountry.code;
+        localPhone = phoneStr.slice(matchedCountry.code.length);
       }
     }
 
@@ -274,6 +276,16 @@ export default function GuestInfo() {
   }
 
   const onSubmit = async (data: ClientInfoFormData) => {
+    // Strip country code prefix from phone if user (or browser autofill) included it
+    let cleanPhone = data.phone.replace(/\s/g, '');
+    if (cleanPhone.startsWith(data.countryCode)) {
+      cleanPhone = cleanPhone.slice(data.countryCode.length);
+    } else if (cleanPhone.startsWith('+')) {
+      // Strip any international prefix (e.g. user typed +33... with a different code selected)
+      cleanPhone = cleanPhone.replace(/^\+\d{1,3}/, '');
+    }
+    data = { ...data, phone: cleanPhone };
+
     // Validate gift fields for gift card bundles
     if (isGiftCardBundle) {
       const errors: Record<string, string> = {};
@@ -334,6 +346,18 @@ export default function GuestInfo() {
       c.label.toLowerCase().includes(countrySearch.toLowerCase()) ||
       c.code.includes(countrySearch)
   );
+
+  // Strip country code prefix from phone input (handles browser autofill inserting full international number)
+  const handlePhoneChange = useCallback((value: string, onChange: (v: string) => void) => {
+    let clean = value.replace(/\s/g, '');
+    const currentCode = form.getValues('countryCode');
+    if (clean.startsWith(currentCode)) {
+      clean = clean.slice(currentCode.length);
+    } else if (clean.startsWith('+')) {
+      clean = clean.replace(/^\+\d{1,3}/, '');
+    }
+    onChange(clean);
+  }, [form]);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -611,7 +635,7 @@ export default function GuestInfo() {
                               <Input
                                 id="phone"
                                 value={field.value}
-                                onChange={(e) => field.onChange(e.target.value)}
+                                onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
                                 onBlur={() => {}}
                                 placeholder="612345678"
                                 className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
@@ -868,7 +892,7 @@ export default function GuestInfo() {
                               <Input
                                 id="phone"
                                 value={field.value}
-                                onChange={(e) => field.onChange(e.target.value)}
+                                onChange={(e) => handlePhoneChange(e.target.value, field.onChange)}
                                 onBlur={() => {}}
                                 placeholder="612345678"
                                 className="h-full flex-1 border-0 bg-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
