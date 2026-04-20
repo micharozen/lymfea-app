@@ -9,12 +9,19 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Loader2, ArrowLeft, User, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool, ChevronRight, Package
+  PenTool, ChevronRight, Package, History, MessageSquare
 } from "lucide-react";
+import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
+import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
+import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
 
 import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
@@ -41,9 +48,11 @@ export default function BookingDetail() {
 
   const { t } = useTranslation('admin');
 
+  const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [bundleInfo, setBundleInfo] = useState<{
     bundleName: string;
@@ -202,6 +211,9 @@ export default function BookingDetail() {
             </Button>
           )}
 
+          <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
+            <MessageSquare className="h-4 w-4 mr-2" /> Notes
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
             <Send className="h-4 w-4 mr-2" /> Paiement
           </Button>
@@ -212,6 +224,17 @@ export default function BookingDetail() {
       </header>
 
       <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-4">
+        <BookingStatusStepper status={booking.status} paymentStatus={booking.payment_status || "pending"} />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="details">Détails</TabsTrigger>
+            <TabsTrigger value="history" className="gap-1.5">
+              <History className="h-3.5 w-3.5" />
+              Historique
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="space-y-4 mt-4">
         {/* ALERTES DE STATUT (PAIEMENT) */}
         {isPaid ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
@@ -327,7 +350,7 @@ export default function BookingDetail() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Clock className="h-4 w-4 text-gray-400" />
-                  <span>{booking.booking_time?.substring(0, 5) || "-"}</span>
+                  <span>{booking.booking_time?.substring(0, 5) || "-"}{totalDuration > 0 && ` — ${totalDuration} min`}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Building2 className="h-4 w-4 text-gray-400" />
@@ -355,6 +378,13 @@ export default function BookingDetail() {
             </section>
           </div>
         </div>
+
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-4">
+            <BookingHistoryTab bookingId={id!} enabled={activeTab === "history"} />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* MODALES */}
@@ -388,6 +418,20 @@ export default function BookingDetail() {
         isAlreadyPaid={isPaid}
         currency={currency}
       />
+
+      <Sheet open={isNotesOpen} onOpenChange={setIsNotesOpen}>
+        <SheetContent side="right" className="sm:max-w-md flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Notes internes
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden px-1">
+            <BookingNotesSection bookingId={id!} />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

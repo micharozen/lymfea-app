@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useTranslation } from "react-i18next";
+import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import {
   Table,
   TableBody,
@@ -56,6 +58,7 @@ export default function TreatmentMenus() {
   const [userRole, setUserRole] = useState<string | null>(null);
 
   // Use shared hooks
+  const { i18n } = useTranslation();
   const { headerRef, filtersRef, itemsPerPage } = useLayoutCalculation();
   const { deleteId: deleteMenuId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
@@ -364,7 +367,7 @@ export default function TreatmentMenus() {
                         Tarif
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Public</TableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Spécialité</TableHead>
                       <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
                         Categorie
                       </SortableTableHead>
@@ -426,13 +429,7 @@ export default function TreatmentMenus() {
                               <span className="truncate block text-foreground">{formatLeadTime(menu.lead_time)}</span>
                             </TableCell>
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                              <span className="text-xs">
-                                {menu.service_for === "Male"
-                                  ? "👨"
-                                  : menu.service_for === "Female"
-                                  ? "👩"
-                                  : "👥"}
-                              </span>
+                              <span className="truncate block text-foreground text-xs">{menu.treatment_type ? getSpecialtyLabel(menu.treatment_type, i18n.language) : "—"}</span>
                             </TableCell>
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <span className="truncate block text-foreground">{menu.category}</span>

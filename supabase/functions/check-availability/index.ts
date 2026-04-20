@@ -12,7 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds, therapistGender } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount } = await req.json();
+    const requiredGuestCount = Math.max(1, rawGuestCount || 1);
 
     if (!hotelId || !date) {
       throw new Error('Missing hotelId or date');
@@ -60,7 +61,7 @@ serve(async (req) => {
     // Get hotel opening/closing hours and slot interval
     const { data: hotelData, error: hotelError } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes')
+      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes')
       .eq('id', hotelId)
       .single();
 
@@ -79,6 +80,7 @@ serve(async (req) => {
       : 23 * 60;
 
     const slotInterval = hotelData?.slot_interval || 30;
+    const roomTurnoverBuffer = hotelData?.room_turnover_buffer_minutes ?? 0;
 
     const openingDisplay = `${Math.floor(openingMinutes / 60)}:${(openingMinutes % 60).toString().padStart(2, '0')}`;
     const closingDisplay = `${Math.floor(closingMinutes / 60)}:${(closingMinutes % 60).toString().padStart(2, '0')}`;
@@ -182,10 +184,10 @@ serve(async (req) => {
     console.log(`[DEBUG] qualifiedTherapists after category filter: ${qualifiedTherapists.length}/${activeTherapists.length}`);
     _debug.qualifiedTherapists = qualifiedTherapists.length;
 
-    // Get treatment room count for this hotel (CAPACITY CONSTRAINT)
+    // Get treatment rooms with capacity for this hotel (CAPACITY CONSTRAINT)
     const { data: treatmentRooms, error: roomsError } = await supabase
       .from('treatment_rooms')
-      .select('id')
+      .select('id, capacity')
       .eq('hotel_id', hotelId)
       .in('status', ['active', 'Actif']);
 
@@ -195,6 +197,10 @@ serve(async (req) => {
     }
 
     const totalRooms = treatmentRooms?.length || 0;
+    const roomCapacityMap = new Map<string, number>();
+    (treatmentRooms || []).forEach((r: any) => {
+      roomCapacityMap.set(r.id, r.capacity || 1);
+    });
     console.log(`[DEBUG] treatment_rooms: ${JSON.stringify(treatmentRooms)}, totalRooms: ${totalRooms}`);
     _debug.treatmentRooms = treatmentRooms;
     _debug.totalRooms = totalRooms;
@@ -306,17 +312,18 @@ serve(async (req) => {
       return hours * 60 + minutes;
     };
 
-    // Function to check if a slot is blocked by an existing booking (considering duration)
+    // Function to check if a slot is blocked by an existing booking (considering duration + turnover buffer)
     const isSlotBlockedByBooking = (
       slotTime: string,
       bookingTime: string,
-      bookingDuration: number
+      bookingDuration: number,
+      turnoverMinutes: number = 0
     ): boolean => {
       const slotMinutes = timeToMinutes(slotTime);
       const bookingStartMinutes = timeToMinutes(bookingTime);
-      const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30);
+      const bookingEndMinutes = bookingStartMinutes + (bookingDuration || 30) + turnoverMinutes;
 
-      // The slot is blocked if it falls during the booking duration
+      // The slot is blocked if it falls during the booking duration (+ turnover buffer)
       return slotMinutes >= bookingStartMinutes && slotMinutes < bookingEndMinutes;
     };
 
@@ -385,14 +392,14 @@ serve(async (req) => {
         return false;
       }
 
-      // Get bookings that block this slot (considering duration overlap)
+      // Get bookings that block this slot (considering duration overlap + room turnover buffer)
       const bookingsBlockingSlot = (allHotelBookings || []).filter((b: any) =>
-        isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30)
+        isSlotBlockedByBooking(slot, b.booking_time, b.duration || 30, roomTurnoverBuffer)
       );
 
-      // ROOM CAPACITY CHECK: Only count bookings that have a therapist assigned.
-      // Count DISTINCT occupied rooms for bookings with a room_id.
-      // Bookings without an assigned room_id each consume one room slot (pessimistic).
+      // ROOM CAPACITY CHECK: account for room capacity (duo rooms can serve 2 guests).
+      // A room with capacity >= requiredGuestCount can serve the entire group.
+      // Otherwise, sum available capacity across free rooms.
       const capacityBookings = bookingsBlockingSlot.filter(
         (b: any) => b.therapist_id !== null
       );
@@ -405,8 +412,15 @@ serve(async (req) => {
           bookingsWithoutRoom++;
         }
       }
-      const freeRooms = totalRooms - occupiedRoomIds.size - bookingsWithoutRoom;
-      if (freeRooms <= 0) {
+
+      // Calculate free capacity: sum capacity of free rooms
+      const allRoomIds = Array.from(roomCapacityMap.keys());
+      const freeRoomIds = allRoomIds.filter(id => !occupiedRoomIds.has(id));
+      const freeRoomCapacity = freeRoomIds.reduce(
+        (sum, id) => sum + (roomCapacityMap.get(id) || 1), 0
+      ) - bookingsWithoutRoom;
+
+      if (freeRoomCapacity < requiredGuestCount) {
         return false;
       }
 
@@ -449,7 +463,7 @@ serve(async (req) => {
         });
       }).length;
 
-      return availableTherapistCount > 0;
+      return availableTherapistCount >= requiredGuestCount;
     });
 
     console.log(`[DEBUG] ====== RESULT: ${availableSlots.length} available out of ${timeSlots.length} ======`);

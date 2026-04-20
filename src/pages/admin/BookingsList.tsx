@@ -80,13 +80,12 @@ export default function BookingsList() {
   const headerRef = useRef<HTMLDivElement>(null);
 
   const computeRows = useCallback(() => {
-    const rowHeight = 48;
+    const rowHeight = 56;
     const tableHeaderHeight = 32;
     const paginationHeight = 48;
     const sidebarOffset = 64;
     const headerHeight = headerRef.current?.offsetHeight || 140;
     const contentPadding = 48;
-
     const usedHeight =
       headerHeight + tableHeaderHeight + paginationHeight + contentPadding + sidebarOffset;
     const availableForRows = window.innerHeight - usedHeight;
@@ -105,7 +104,7 @@ export default function BookingsList() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const totalListColumns = 10;
+  const totalListColumns = 12;
   const emptyRowsCount = Math.max(0, itemsPerPage - paginatedBookings.length);
   const totalPages = Math.max(1, Math.ceil(sortedBookings.length / itemsPerPage));
 
@@ -177,8 +176,8 @@ export default function BookingsList() {
         />
       </div>
 
-      <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 overflow-hidden">
-        <div className="bg-card rounded-lg border border-border h-full flex flex-col overflow-hidden">
+      <div className="flex-1 px-4 md:px-6 pb-4 md:pb-6 min-h-0 min-w-0">
+        <div className="bg-card rounded-lg border border-border h-full flex flex-col min-w-0 overflow-hidden">
           <BookingListView
             paginatedBookings={paginatedBookings}
             filteredBookingsCount={sortedBookings.length}

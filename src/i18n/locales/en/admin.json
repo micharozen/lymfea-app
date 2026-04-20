@@ -120,6 +120,11 @@
       "noActivity": "No activity",
       "noActivityDesc": "No schedule changes recorded for this therapist"
     },
+    "agendaView": {
+      "unassigned": "Unassigned",
+      "today": "Today",
+      "hour": "Hour"
+    },
     "bookings": "Bookings",
     "bookingsTab": {
       "noBookings": "No bookings",
@@ -321,6 +326,8 @@
     },
     "interVenueBuffer": "Inter-venue travel time",
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
+    "roomTurnoverBuffer": "Room turnover buffer",
+    "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
     "backToList": "Back to venues",
     "edit": "Edit",
     "cancelEdit": "Cancel",
@@ -482,7 +489,16 @@
     "acknowledgedSuccess": "Alert acknowledged",
     "acknowledgedAllSuccess": "{{count}} alert(s) acknowledged",
     "allSources": "All sources",
-    "allTherapists": "All therapists"
+    "allTherapists": "All therapists",
+    "tabs": {
+      "alerts": "Schedule alerts",
+      "notifications": "Notifications"
+    },
+    "notifications": {
+      "markAllRead": "Mark all as read",
+      "allMarkedRead": "All notifications marked as read",
+      "empty": "No notifications"
+    }
   },
   "pms": {
     "title": "PMS Integration",

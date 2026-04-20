@@ -375,6 +375,11 @@
   "badges": {
     "card_saved": "Carte enregistrée"
   },
+  "variant": {
+    "guestShort": "pers.",
+    "guest_one": "personne",
+    "guest_other": "personnes"
+  },
   "treatmentDetail": {
     "bookThisTreatment": "Réserver ce soin",
     "seeAllTreatments": "Voir tous les soins",

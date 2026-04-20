@@ -56,7 +56,7 @@ DECLARE
   _new_start INTEGER;
   _new_end INTEGER;
   _has_conflict BOOLEAN;
-  _required_categories TEXT[];
+  _required_specialties TEXT[];
   _therapist_id UUID;
   _therapist_skills TEXT[];
   _travel_buffer INTEGER;
@@ -65,6 +65,14 @@ BEGIN
   _therapist_gender := NULLIF(NULLIF(NULLIF(_therapist_gender, 'undefined'), 'null'), '');
   _customer_id := NULLIF(NULLIF(NULLIF(_customer_id, 'undefined'), 'null'), '');
 
+  -- Verrou anti-race condition : bloque les lignes de bookings concernées
+  PERFORM id FROM bookings
+  WHERE hotel_id::text = _hotel_id
+    AND booking_date = _booking_date
+    AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+    AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
+  FOR UPDATE;
+
   _new_start := EXTRACT(HOUR FROM _booking_time) * 60 + EXTRACT(MINUTE FROM _booking_time);
   _new_end := _new_start + COALESCE(_duration, 30);
 
@@ -72,11 +80,14 @@ BEGIN
   SELECT COALESCE(inter_venue_buffer_minutes, 0) INTO _travel_buffer
   FROM hotels WHERE id::text = _hotel_id;
 
-  -- 2. Extraction des catégories de soins requises, avec formatage strict (minuscules, sans espaces)
+  -- 2. Extraction des spécialités requises via treatment_type (enum applicatif)
+  --    category n'est PAS utilisé ici : c'est un libellé d'affichage côté client flow.
   IF _treatment_ids IS NOT NULL AND array_length(_treatment_ids, 1) > 0 THEN
-    SELECT array_agg(DISTINCT TRIM(LOWER(category))) INTO _required_categories
+    SELECT array_agg(DISTINCT treatment_type) INTO _required_specialties
     FROM treatment_menus
-    WHERE id::text = ANY(_treatment_ids) AND category IS NOT NULL AND TRIM(category) != '';
+    WHERE id::text = ANY(_treatment_ids)
+      AND treatment_type IS NOT NULL
+      AND treatment_type != '';
   END IF;
 
   <<room_loop>>
@@ -91,6 +102,7 @@ BEGIN
       WHERE room_id = _room.id
         AND booking_date = _booking_date
         AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+        AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
         AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30)
              AND _new_end > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)))
     ) INTO _has_conflict;
@@ -101,23 +113,16 @@ BEGIN
     FOR _therapist_id, _therapist_skills IN
       SELECT t.id, t.skills FROM therapists t
       WHERE LOWER(t.status) IN ('active', 'actif')
-        AND t.trunks LIKE '%' || _room.id::text || '%'
+        AND _room.id::text = ANY(string_to_array(t.trunks, ', '))
         AND (_therapist_gender IS NULL OR LOWER(t.gender) = LOWER(_therapist_gender))
     LOOP
-      -- 4a. Matching intelligent des compétences (tolère les variations de saisie Front/Back)
-      IF _required_categories IS NOT NULL AND array_length(_required_categories, 1) > 0 THEN
-        IF _therapist_skills IS NULL OR NOT (
-          SELECT bool_and(
-            EXISTS (
-              SELECT 1 FROM unnest(_therapist_skills) s
-              WHERE TRIM(LOWER(s)) = req
-                 OR TRIM(LOWER(s)) LIKE '%' || req || '%'
-                 OR req LIKE '%' || TRIM(LOWER(s)) || '%'
-            )
-          )
-          FROM unnest(_required_categories) req
-        ) THEN
-          CONTINUE; -- Le thérapeute n'a pas la compétence requise
+      -- 4a. Check therapist has ALL required specialties (treatment_type keys)
+      -- Fallback : thérapeute sans skills défini = qualifie pour tout (backward compat)
+      IF _required_specialties IS NOT NULL AND array_length(_required_specialties, 1) > 0 THEN
+        IF _therapist_skills IS NOT NULL AND array_length(_therapist_skills, 1) > 0 THEN
+          IF NOT _required_specialties <@ _therapist_skills THEN
+            CONTINUE;
+          END IF;
         END IF;
       END IF;
 
@@ -128,6 +133,7 @@ BEGIN
         WHERE b.therapist_id = _therapist_id
           AND b.booking_date = _booking_date
           AND b.status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
+          AND NOT (b.payment_status = 'awaiting_payment' AND b.created_at < NOW() - INTERVAL '4 minutes')
           AND (
             _new_start < (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time))
                           + COALESCE(b.duration, 30)

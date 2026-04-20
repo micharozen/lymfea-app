@@ -30,7 +30,6 @@ import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
-import { VenueGiftCardsTab } from "@/components/admin/venue/VenueGiftCardsTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { formatPrice } from "@/lib/formatPrice";
 import type { VenueWizardFormValues, BlockedSlot } from "@/components/admin/VenueWizardDialog";
@@ -57,6 +56,7 @@ const createFormSchema = (t: TFunction) => z.object({
   allow_out_of_hours_booking: z.boolean().default(false),
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
+  room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -149,6 +149,7 @@ export default function VenueDetail() {
       allow_out_of_hours_booking: false,
       out_of_hours_surcharge_percent: "0",
       inter_venue_buffer_minutes: 0,
+      room_turnover_buffer_minutes: 0,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -197,6 +198,7 @@ export default function VenueDetail() {
           allow_out_of_hours_booking: hotel.allow_out_of_hours_booking || false,
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
+          room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
@@ -421,6 +423,7 @@ export default function VenueDetail() {
         allow_out_of_hours_booking: values.allow_out_of_hours_booking,
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
+        room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
@@ -658,9 +661,6 @@ export default function VenueDetail() {
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Facturation
               </TabsTrigger>
-              <TabsTrigger value="gift-cards" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Cartes cadeaux
-              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -738,9 +738,6 @@ export default function VenueDetail() {
                   <VenueBillingTab hotelId={effectiveHotelId!} />
                 </TabsContent>
 
-                <TabsContent value="gift-cards" className="mt-0">
-                  <VenueGiftCardsTab hotelId={effectiveHotelId!} />
-                </TabsContent>
               </>
             )}
           </div>

@@ -13,6 +13,7 @@
     "sup:reset": "supabase db reset",
     "sup:start": "supabase start",
     "sup:stop": "supabase stop",
+    "sup:push": "supabase db push --local 2>&1",
     "sup:status": "supabase status",
     "sup:restart": "supabase restart",
     "sup:logs": "supabase logs",

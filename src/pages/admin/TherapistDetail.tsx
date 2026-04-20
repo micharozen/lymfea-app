@@ -309,7 +309,7 @@ export default function TherapistDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/admin/therapists")}
+              onClick={() => navigate(-1)}
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
