@@ -14,7 +14,7 @@
  * 6. Hydrates cart + booking date/time from URL query params (?t, ?date, ?time)
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,8 +142,8 @@ interface PublicTreatment {
 
 function UrlStateHydrator({ hotelId }: { hotelId: string }) {
   const { items, addItem } = useCart();
-  const { bookingDateTime, setBookingDateTime } = useClientFlow();
-  const { treatmentSlugs, date, time, setTreatmentSlugs } = useUrlBookingState();
+  const { bookingDateTime, setBookingDateTime, therapistGenderPreference, setTherapistGenderPreference } = useClientFlow();
+  const { treatmentSlugs, date, time, gender, setTreatmentSlugs, setDateTime, setGender } = useUrlBookingState();
 
   // Pull the treatments catalog (shared cache with Welcome/Treatments pages).
   const { data: treatments } = useQuery({
@@ -162,16 +162,16 @@ function UrlStateHydrator({ hotelId }: { hotelId: string }) {
 
   // ────────────────────────────────────────────────────────────
   // Hydrate cart from ?t= (only when cart is empty — URL wins on cold load only)
-  const hydratedRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (hydratedRef.current) return;
+    if (hydrated) return;
     if (!treatments || treatments.length === 0) return;
     if (items.length > 0) {
-      hydratedRef.current = true;
+      setHydrated(true);
       return;
     }
     if (treatmentSlugs.length === 0) {
-      hydratedRef.current = true;
+      setHydrated(true);
       return;
     }
 
@@ -195,8 +195,8 @@ function UrlStateHydrator({ hotelId }: { hotelId: string }) {
         isBundle: t.is_bundle || false,
       });
     }
-    hydratedRef.current = true;
-  }, [treatments, items.length, treatmentSlugs, addItem, hydratedRef]);
+    setHydrated(true);
+  }, [treatments, items.length, treatmentSlugs, addItem, hydrated]);
 
   // Hydrate booking date/time from URL (once)
   const dateTimeHydratedRef = useRef(false);
@@ -213,9 +213,24 @@ function UrlStateHydrator({ hotelId }: { hotelId: string }) {
   }, [date, time, bookingDateTime, setBookingDateTime, dateTimeHydratedRef]);
 
   // ────────────────────────────────────────────────────────────
+  // Hydrate gender preference from URL (once)
+  const genderHydratedRef = useRef(false);
+  useEffect(() => {
+    if (genderHydratedRef.current) return;
+    if (therapistGenderPreference) {
+      genderHydratedRef.current = true;
+      return;
+    }
+    if (gender) {
+      setTherapistGenderPreference(gender);
+    }
+    genderHydratedRef.current = true;
+  }, [gender, therapistGenderPreference, setTherapistGenderPreference]);
+
+  // ────────────────────────────────────────────────────────────
   // Sync cart → ?t= (skip add-ons, dedupe by slug)
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!hydrated) return;
     const slugs = Array.from(
       new Set(
         items
@@ -224,7 +239,19 @@ function UrlStateHydrator({ hotelId }: { hotelId: string }) {
       )
     );
     setTreatmentSlugs(slugs);
-  }, [items, setTreatmentSlugs, hydratedRef]);
+  }, [items, setTreatmentSlugs, hydrated]);
+
+  // Sync bookingDateTime → ?date= & ?time=
+  useEffect(() => {
+    if (bookingDateTime?.date) {
+      setDateTime(bookingDateTime.date, bookingDateTime.time || '');
+    }
+  }, [bookingDateTime, setDateTime]);
+
+  // Sync gender preference → ?gender=
+  useEffect(() => {
+    setGender(therapistGenderPreference);
+  }, [therapistGenderPreference, setGender]);
 
   return null;
 }

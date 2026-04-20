@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_RE = /^\d{2}:\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}(:\d{2})?$/;
+const GENDER_VALUES = new Set(['female', 'male']);
 
 function parseSlugList(raw: string | null): string[] {
   if (!raw) return [];
@@ -13,12 +14,16 @@ function parseSlugList(raw: string | null): string[] {
     .filter((s) => SLUG_RE.test(s));
 }
 
+export type UrlGender = 'female' | 'male' | null;
+
 export interface UrlBookingState {
   treatmentSlugs: string[];
   date: string | null;
   time: string | null;
+  gender: UrlGender;
   setTreatmentSlugs: (slugs: string[]) => void;
   setDateTime: (date: string, time: string) => void;
+  setGender: (gender: UrlGender) => void;
   clearDateTime: () => void;
 }
 
@@ -49,6 +54,11 @@ export function useUrlBookingState(): UrlBookingState {
   const time = useMemo(() => {
     const raw = searchParams.get('time');
     return raw && TIME_RE.test(raw) ? raw : null;
+  }, [searchParams]);
+
+  const gender = useMemo((): UrlGender => {
+    const raw = searchParams.get('gender');
+    return raw && GENDER_VALUES.has(raw) ? (raw as 'female' | 'male') : null;
   }, [searchParams]);
 
   const setTreatmentSlugs = useCallback(
@@ -93,6 +103,24 @@ export function useUrlBookingState(): UrlBookingState {
     [setSearchParams]
   );
 
+  const setGender = useCallback(
+    (g: UrlGender) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (g && GENDER_VALUES.has(g)) {
+            next.set('gender', g);
+          } else {
+            next.delete('gender');
+          }
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   const clearDateTime = useCallback(() => {
     setSearchParams(
       (prev) => {
@@ -109,8 +137,10 @@ export function useUrlBookingState(): UrlBookingState {
     treatmentSlugs,
     date,
     time,
+    gender,
     setTreatmentSlugs,
     setDateTime,
+    setGender,
     clearDateTime,
   };
 }
