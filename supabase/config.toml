@@ -81,7 +81,7 @@ verify_jwt = false
 [functions.notify-concierge-booking]
 verify_jwt = false
 
-[functions.notifty-therapist-arrived]
+[functions.notify-therapist-arrived]
 verify_jwt=false
 
 [functions.notify-concierge-completion]
