@@ -47,6 +47,12 @@ export function SchedulePanel({
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
+
+  // Max guest_count across all items determines therapist/room capacity needed
+  const requiredGuestCount = useMemo(
+    () => Math.max(1, ...items.map(i => i.guestCount ?? 1)),
+    [items]
+  );
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -178,13 +184,20 @@ export function SchedulePanel({
       }
 
       const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
+      const minuteStr = minute.toString().padStart(2, '0');
+
+      let timeLabel: string;
+      if (i18n.language === 'fr') {
+        timeLabel = `${hour.toString().padStart(2, '0')}:${minuteStr}`;
+      } else {
+        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const period = hour >= 12 ? 'PM' : 'AM';
+        timeLabel = `${hour12}:${minuteStr}${period}`;
+      }
 
       slots.push({
         value: time24,
-        label: time12,
+        label: timeLabel,
         hour,
       });
     }
@@ -204,6 +217,7 @@ export function SchedulePanel({
             hotelId,
             date: selectedDate,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
           }
         });
 
@@ -228,7 +242,7 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, t]);
 
   const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
 

@@ -38,6 +38,7 @@ export interface CreateBookingPayload {
   date: string;
   time: string;
   therapistId: string;
+  therapistIds?: string[];  // For multi-person bookings (admin selects N therapists)
   slot2Date: string | null;
   slot2Time: string | null;
   slot3Date: string | null;
@@ -50,6 +51,7 @@ export interface CreateBookingPayload {
   isOutOfHours: boolean;
   surchargeAmount: number;
   amenityAccess?: AmenityAccessPayload[];
+  guestCount?: number;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -137,6 +139,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,
+        guest_count: d.guestCount ?? 1,
       }).select().single();
 
       if (error) throw error;
@@ -155,6 +158,25 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid }))
         );
         if (te) throw te;
+      }
+
+      // Create booking_therapists bridge table entries
+      if (d.isAdmin && booking) {
+        const allTherapistIds = d.therapistIds?.length
+          ? d.therapistIds
+          : finalTherapistId ? [finalTherapistId] : [];
+
+        if (allTherapistIds.length > 0) {
+          const { error: btError } = await supabase.from("booking_therapists").insert(
+            allTherapistIds.map((tid: string) => ({
+              booking_id: booking.id,
+              therapist_id: tid,
+              status: "accepted",
+              assigned_at: new Date().toISOString(),
+            }))
+          );
+          if (btError) console.error("Error creating booking_therapists:", btError);
+        }
       }
 
       // Create linked amenity bookings if any

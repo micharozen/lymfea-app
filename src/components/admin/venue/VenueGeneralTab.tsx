@@ -871,6 +871,84 @@ export function VenueGeneralTab({
             />
           )}
 
+          <FormField
+            control={form.control}
+            name="inter_venue_buffer_minutes"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.interVenueBuffer', 'Temps de trajet inter-lieux')}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="5"
+                      min="0"
+                      max="120"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? '' : parseInt(val) || 0);
+                      }}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        if (e.target.value === '') field.onChange(0);
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">min</span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {t('venue.interVenueBufferDesc', "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="room_turnover_buffer_minutes"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.roomTurnoverBuffer', 'Temps de remise en état')}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="5"
+                      min="0"
+                      max="120"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? '' : parseInt(val) || 0);
+                      }}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        if (e.target.value === '') field.onChange(0);
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">min</span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {t('venue.roomTurnoverBufferDesc', "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
         </CardContent>
       </Card>
 

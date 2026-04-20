@@ -81,6 +81,9 @@ verify_jwt = false
 [functions.notify-concierge-booking]
 verify_jwt = false
 
+[functions.notifty-therapist-arrived]
+verify_jwt=false
+
 [functions.notify-concierge-completion]
 verify_jwt = false
 
@@ -169,4 +172,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-payment-link]
+verify_jwt = false
+
+[functions.notify-noshow]
+verify_jwt = false
+
+[functions.notify-therapist-arrived]
 verify_jwt = false

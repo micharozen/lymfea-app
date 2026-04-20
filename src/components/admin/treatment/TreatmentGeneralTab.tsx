@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -62,10 +61,9 @@ export function TreatmentGeneralTab({
   });
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Hotel + Status + Image */}
+    <div className="space-y-5 max-w-4xl">
+      {/* Row 1: Image + Hotel + Status */}
       <div className="flex items-start gap-4">
-        {/* Image compact */}
         <button
           type="button"
           onClick={!disabled ? triggerFileSelect : undefined}
@@ -94,85 +92,78 @@ export function TreatmentGeneralTab({
           onChange={handleImageUpload}
           className="hidden"
         />
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground mb-0.5">
-            {menuImage ? "Cliquez sur l'image pour la modifier" : "Cliquez pour ajouter une photo du soin"}
-          </p>
+        <div className="flex-1 grid grid-cols-2 gap-4 items-end">
+          <FormField
+            control={form.control}
+            name="hotel_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Hôtel *</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    form.setValue("category", "");
+                  }}
+                  value={field.value}
+                  disabled={disabled}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un hôtel" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {hotels?.map((hotel) => (
+                      <SelectItem key={hotel.id} value={hotel.id}>
+                        {hotel.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Statut</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={disabled}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        {t("status.active")}
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="inactive">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-red-500" />
+                        {t("status.inactive")}
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
       </div>
 
-      {/* Hotel + Status */}
-      <div className="grid grid-cols-2 gap-4 items-end">
-        <FormField
-          control={form.control}
-          name="hotel_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Hôtel *</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  form.setValue("category", "");
-                }}
-                value={field.value}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un hôtel" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {hotels?.map((hotel) => (
-                    <SelectItem key={hotel.id} value={hotel.id}>
-                      {hotel.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Statut</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      {t("status.active")}
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="inactive">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-red-500" />
-                      {t("status.inactive")}
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
-
-      {/* Name FR / EN */}
-      <div className="grid grid-cols-2 gap-4 items-end">
+      {/* Row 2: Name FR + Name EN + Category + Specialty */}
+      <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="name"
@@ -207,10 +198,6 @@ export function TreatmentGeneralTab({
             </FormItem>
           )}
         />
-      </div>
-
-      {/* Category, Specialty */}
-      <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="category"
@@ -230,13 +217,12 @@ export function TreatmentGeneralTab({
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="specialty"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t("admin:treatments.specialty")}</FormLabel>
+              <FormLabel>{t("admin:treatments.specialty")} *</FormLabel>
               <Select
                 onValueChange={field.onChange}
                 value={field.value || ""}
@@ -264,8 +250,8 @@ export function TreatmentGeneralTab({
         />
       </div>
 
-      {/* Description */}
-      <div className="grid grid-cols-2 gap-4 items-end">
+      {/* Row 3: Descriptions */}
+      <div className="grid grid-cols-2 gap-4">
         <FormField
           control={form.control}
           name="description"
@@ -274,8 +260,8 @@ export function TreatmentGeneralTab({
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Description du menu"
-                  className="min-h-[100px]"
+                  placeholder="Description du soin"
+                  className="min-h-[80px]"
                   {...field}
                   disabled={disabled}
                 />
@@ -293,7 +279,7 @@ export function TreatmentGeneralTab({
               <FormControl>
                 <Textarea
                   placeholder="English description"
-                  className="min-h-[100px]"
+                  className="min-h-[80px]"
                   {...field}
                   disabled={disabled}
                 />
@@ -304,30 +290,73 @@ export function TreatmentGeneralTab({
         />
       </div>
 
-      {/* Lead time */}
-      <FormField
-        control={form.control}
-        name="lead_time"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-sm whitespace-nowrap">
-              Délai minimum de réservation (min)
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                placeholder="0"
-                className="max-w-[200px]"
-                {...field}
+      {/* Row 4: Service for + Lead time + Sort order */}
+      <div className="grid grid-cols-3 gap-4 items-end">
+        <FormField
+          control={form.control}
+          name="service_for"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Service pour *</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
                 disabled={disabled}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="All">All</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="lead_time"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Délai min. réservation (min)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  {...field}
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="sort_order"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Ordre d'affichage</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  placeholder="10"
+                  {...field}
+                  disabled={disabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
 
-      {/* Bestseller */}
+      {/* Row 5: Bestseller checkbox */}
       <FormField
         control={form.control}
         name="is_bestseller"
@@ -346,57 +375,6 @@ export function TreatmentGeneralTab({
                 Bestseller (mis en avant sur la page de réservation)
               </FormLabel>
             </div>
-          </FormItem>
-        )}
-      />
-
-      {/* Service for */}
-      <FormField
-        control={form.control}
-        name="service_for"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Service pour *</FormLabel>
-            <Select
-              onValueChange={field.onChange}
-              value={field.value}
-              disabled={disabled}
-            >
-              <FormControl>
-                <SelectTrigger className="max-w-[200px]">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-                <SelectItem value="All">All</SelectItem>
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      {/* Sort order */}
-      <FormField
-        control={form.control}
-        name="sort_order"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel className="text-sm whitespace-nowrap">
-              Ordre d'affichage
-            </FormLabel>
-            <FormControl>
-              <Input
-                type="number"
-                placeholder="10"
-                className="max-w-[200px]"
-                {...field}
-                disabled={disabled}
-              />
-            </FormControl>
-            <FormMessage />
           </FormItem>
         )}
       />

@@ -374,6 +374,11 @@
   "badges": {
     "card_saved": "Card saved"
   },
+  "variant": {
+    "guestShort": "pers.",
+    "guest_one": "person",
+    "guest_other": "persons"
+  },
   "treatmentDetail": {
     "bookThisTreatment": "Book this treatment",
     "seeAllTreatments": "See all treatments",

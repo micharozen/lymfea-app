@@ -487,19 +487,19 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                                   bookingData.therapist_id !== booking.therapist_id;
       const wasCancelled = bookingData.status === "cancelled" && booking.status !== "cancelled";
 
-      if (bookingData.therapist_id && booking.status === "En attente") {
-        newStatus = "Assigné";
+      if (bookingData.therapist_id && booking.status === "pending") {
+        newStatus = "confirmed";
         assignedAt = new Date().toISOString();
       }
-      
-      if (bookingData.therapist_id && booking.therapist_id && 
-          bookingData.therapist_id !== booking.therapist_id && 
-          booking.status === "Assigné") {
+
+      if (bookingData.therapist_id && booking.therapist_id &&
+          bookingData.therapist_id !== booking.therapist_id &&
+          booking.status === "confirmed") {
         assignedAt = new Date().toISOString();
       }
-      
-      if (!bookingData.therapist_id && booking.status === "Assigné") {
-        newStatus = "En attente";
+
+      if (!bookingData.therapist_id && booking.status === "confirmed") {
+        newStatus = "pending";
         assignedAt = null;
       }
 
@@ -1203,12 +1203,19 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                               assignedAt = null;
                             }
 
+                            const newStatus = therapistId && booking!.status === "pending"
+                              ? "confirmed"
+                              : !therapistId && booking!.status === "confirmed"
+                                ? "pending"
+                                : booking!.status;
+
                             const { error } = await supabase
                               .from("bookings")
                               .update({
                                 therapist_id: therapistId,
                                 therapist_name: therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
                                 assigned_at: assignedAt,
+                                status: newStatus,
                               })
                               .eq("id", booking!.id);
 

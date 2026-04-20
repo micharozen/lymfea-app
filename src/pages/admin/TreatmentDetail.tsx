@@ -37,13 +37,14 @@ const createFormSchema = (t: TFunction) =>
     is_bestseller: z.boolean().default(false),
     is_addon: z.boolean().default(false),
     addon_ids: z.array(z.string().uuid()).default([]),
-    specialty: z.string().optional(),
+    specialty: z.string().min(1, "La spécialité est obligatoire"),
     variants: z
       .array(
         z.object({
           label: z.string().optional(),
           label_en: z.string().optional(),
           duration: z.string().min(1, "Durée requise"),
+          guest_count: z.string().default("1"),
           price: z.string().default("0"),
           price_on_request: z.boolean().default(false),
           is_default: z.boolean().default(false),
@@ -145,6 +146,7 @@ export default function TreatmentDetail() {
                   label: v.label || "",
                   label_en: (v as any).label_en || "",
                   duration: v.duration?.toString() || "0",
+                  guest_count: (v.guest_count ?? 1).toString(),
                   price: v.price?.toString() || "0",
                   price_on_request: v.price_on_request || false,
                   is_default: v.is_default || false,
@@ -273,6 +275,7 @@ export default function TreatmentDetail() {
           label: v.label || `${v.duration} min`,
           label_en: v.label_en || null,
           duration: parseInt(v.duration),
+          guest_count: parseInt(v.guest_count) || 1,
           price: parseFloat(v.price),
           price_on_request: v.price_on_request,
           is_default: v.is_default,
@@ -325,6 +328,7 @@ export default function TreatmentDetail() {
           label: v.label || `${v.duration} min`,
           label_en: v.label_en || null,
           duration: parseInt(v.duration),
+          guest_count: parseInt(v.guest_count) || 1,
           price: parseFloat(v.price),
           price_on_request: v.price_on_request,
           is_default: v.is_default,
@@ -389,7 +393,7 @@ export default function TreatmentDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/admin/treatments")}
+              onClick={() => navigate(-1)}
               className="flex-shrink-0"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />

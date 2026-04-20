@@ -31,6 +31,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomCapacity, setNewRoomCapacity] = useState("1");
   const [newRoomCapabilities, setNewRoomCapabilities] = useState<string[]>([]);
   const [selectedAssignIds, setSelectedAssignIds] = useState<string[]>([]);
 
@@ -138,6 +139,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
         name: newRoomName,
         room_type: newRoomCapabilities[0] || "Multi-purpose",
         capabilities: newRoomCapabilities,
+        capacity: parseInt(newRoomCapacity) || 1,
         room_number: generateRoomNumber(),
         hotel_id: hotelId,
         hotel_name: hotelName,
@@ -149,6 +151,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
     onSuccess: () => {
       invalidateQueries();
       setNewRoomName("");
+      setNewRoomCapacity("1");
       setNewRoomCapabilities([]);
       setNewRoomImage("");
       setShowCreateForm(false);
@@ -199,7 +202,14 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{room.name}</p>
+                  <p className="text-sm font-medium truncate">
+                    {room.name}
+                    {(room.capacity ?? 1) > 1 && (
+                      <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                        ({room.capacity} pers.)
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {((room as any).capabilities?.length
                       ? (room as any).capabilities.map((c: string) => ROOM_TYPES.find((t) => t.value === c)?.label || c).join(", ")
@@ -306,14 +316,27 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
             </div>
 
             <div className="space-y-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Nom *</Label>
-                <Input
-                  placeholder="Salle Zen"
-                  value={newRoomName}
-                  onChange={(e) => setNewRoomName(e.target.value)}
-                  className="h-9"
-                />
+              <div className="grid grid-cols-[1fr_80px] gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Nom *</Label>
+                  <Input
+                    placeholder="Salle Zen"
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Capacité</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="1"
+                    value={newRoomCapacity}
+                    onChange={(e) => setNewRoomCapacity(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Soins compatibles *</Label>
@@ -354,6 +377,7 @@ export function VenueTreatmentRoomsTab({ hotelId, hotelName }: VenueTreatmentRoo
                 onClick={() => {
                   setShowCreateForm(false);
                   setNewRoomName("");
+                  setNewRoomCapacity("1");
                   setNewRoomCapabilities([]);
                   setNewRoomImage("");
                 }}
