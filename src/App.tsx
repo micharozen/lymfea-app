@@ -62,6 +62,7 @@ const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 // Shared Pages
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
+const Landing = lazy(() => import("./pages/Landing"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -226,8 +227,11 @@ const App = () => {
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Root - Smart redirect based on user type */}
-            <Route path="/" element={<Home />} />
+            {/* Root - Public marketing landing page */}
+            <Route path="/" element={<Landing />} />
+
+            {/* Smart redirect based on user type (post-login entrypoint) */}
+            <Route path="/app" element={<Home />} />
             
             {/* Enterprise Dashboard (Public - QR Code) */}
             <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
