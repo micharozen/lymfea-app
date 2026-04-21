@@ -1351,7 +1351,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
                     {conciergeCanEditSlot
-                      ? "En tant que concierge, vous pouvez modifier uniquement le créneau et les prestations."
+                      ? "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations."
                       : "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."}
                   </AlertDescription>
                 </Alert>
