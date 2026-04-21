@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 
 const corsHeaders = {
@@ -28,19 +28,7 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    // The Resend template id must be set in the function's secrets
-    // (Supabase Dashboard → Edge Functions → invite-therapist → Secrets).
-    const templateId = Deno.env.get("RESEND_TEMPLATE_INVITE_THERAPIST_ID");
-    if (!templateId) {
-      console.error("RESEND_TEMPLATE_INVITE_THERAPIST_ID is not configured!");
-      return new Response(
-        JSON.stringify({
-          error: "Server configuration error",
-          details: "RESEND_TEMPLATE_INVITE_THERAPIST_ID env var is not set",
-        }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } },
-      );
-    }
+    const templateId = "62e91865-7ad4-4d07-8d92-b299c1fc4ba7";
 
     // ---- Caller authentication (admin only) ----
     const authHeader = req.headers.get("Authorization");
@@ -103,8 +91,12 @@ serve(async (req: Request): Promise<Response> => {
     }
     if (!appUrl) {
       const supabaseHost = Deno.env.get("SUPABASE_URL") || "";
-      const projectRef = supabaseHost.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
-      if (projectRef) appUrl = `https://${projectRef}.lovableproject.com`;
+      if (supabaseHost.includes("127.0.0.1") || supabaseHost.includes("localhost")) {
+        appUrl = "http://localhost:8080";
+      } else {
+        const projectRef = supabaseHost.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
+        if (projectRef) appUrl = `https://${projectRef}.lovableproject.com`;
+      }
     }
     const pwaUrl = `${appUrl}/pwa`;
     const onboardingRedirect = `${appUrl}/pwa/onboarding`;
@@ -179,17 +171,14 @@ serve(async (req: Request): Promise<Response> => {
     const hotelNames = hotels?.map((h) => h.name).join(", ") || "vos hôtels assignés";
 
     const templateVariables: Record<string, string> = {
+      app_name: brand.name,
       brand_name: brand.name,
-      logo_url: EMAIL_LOGO_URL,
       first_name: firstName,
       last_name: lastName,
       hotel_names: hotelNames,
-      activation_url: actionLink,
       full_phone: fullPhone,
       pwa_url: pwaUrl,
-      app_domain: brand.appDomain,
-      company_name: brand.legal.companyName,
-      year: String(new Date().getFullYear()),
+      activation_url: actionLink,
     };
 
     const result = await sendEmail({
