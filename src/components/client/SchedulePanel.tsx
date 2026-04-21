@@ -438,10 +438,10 @@ export function SchedulePanel({
                   disabled={(date) => {
                     const dateStr = format(date, 'yyyy-MM-dd');
                     if (!availableDates.has(dateStr)) return true;
-                    if (daysWithSlots && !daysWithSlots.has(dateStr)) return true;
                     if (!cartAllowedDays.includes(date.getDay())) return true;
                     return false;
                   }}
+                  showOutsideDays={false}
                   fromDate={new Date()}
                   toDate={addDays(new Date(), maxDaysAhead)}
                   locale={locale}
