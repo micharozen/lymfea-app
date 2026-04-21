@@ -64,6 +64,7 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
@@ -983,6 +984,8 @@ export function VenueGeneralTab({
 
         </CardContent>
       </Card>
+
+      <VenueBookingRulesTab form={form} disabled={disabled} />
 
       {/* Card E: Horaires & Disponibilité */}
       <Card>
