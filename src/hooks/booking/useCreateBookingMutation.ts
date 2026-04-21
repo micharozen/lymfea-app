@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
+import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Hotel {
   id: string;
@@ -52,6 +53,9 @@ export interface CreateBookingPayload {
   surchargeAmount: number;
   amenityAccess?: AmenityAccessPayload[];
   guestCount?: number;
+  clientType?: BookingClientType;
+  payByVoucher?: boolean;
+  voucherReference?: string | null;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -82,6 +86,22 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         finalTherapistId = null;
         finalTherapistName = null;
       }
+
+      // Resolve payment_method + payment_status from clientType + voucher flag
+      const clientType: BookingClientType = d.clientType ?? "external";
+      let paymentMethod: string | null = null;
+      let paymentStatus: string | null = null;
+      if (d.payByVoucher && (clientType === "hotel" || clientType === "external")) {
+        paymentMethod = "voucher";
+        paymentStatus = "paid";
+      } else if (clientType === "hotel") {
+        paymentMethod = "room";
+        paymentStatus = "charged_to_room";
+      } else if (clientType === "staycation" || clientType === "classpass") {
+        paymentMethod = "partner_billed";
+        paymentStatus = "pending";
+      }
+      // else: external + no voucher -> leave null/null (Stripe link flow handles later)
 
       // Auto-assign treatment room from hotel
       let roomId: string | null = null;
@@ -140,7 +160,11 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         duration: d.totalDuration,
         customer_id: customerId || null,
         guest_count: d.guestCount ?? 1,
-      }).select().single();
+        client_type: clientType,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        payment_reference: d.voucherReference || null,
+      } as any).select().single();
 
       if (error) throw error;
 

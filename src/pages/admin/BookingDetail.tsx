@@ -19,6 +19,7 @@ import {
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
+import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -40,6 +41,16 @@ const PAYMENT_LABELS: Record<string, string> = {
   failed: "Paiement échoué",
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  room: "Facturé en chambre",
+  card: "Carte bancaire",
+  tap_to_pay: "Tap to Pay",
+  offert: "Offert",
+  gift_amount: "Carte cadeau",
+  voucher: "Payé par voucher — encaissé par le lieu",
+  partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
 export default function BookingDetail() {
@@ -168,12 +179,11 @@ export default function BookingDetail() {
 
         <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
           <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
-          {booking.room_number ? (
+          <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
+          {booking.room_number && (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              Client Hôtel — Ch. {booking.room_number}
+              Ch. {booking.room_number}
             </Badge>
-          ) : (
-            <Badge variant="outline" className="text-gray-500">Client Extérieur</Badge>
           )}
           <StatusBadge status={booking.status} type="booking" />
           <StatusBadge
@@ -373,7 +383,12 @@ export default function BookingDetail() {
                 </div>
               )}
               <div className="mt-4 pt-4 border-t border-white/10 text-xs opacity-70">
-                Méthode : {booking.payment_method || "À définir"}
+                Méthode : {booking.payment_method ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method) : "À définir"}
+                {(booking as any).payment_reference && (
+                  <div className="mt-1 font-mono text-[10px] opacity-80">
+                    Réf. voucher : {(booking as any).payment_reference}
+                  </div>
+                )}
               </div>
             </section>
           </div>

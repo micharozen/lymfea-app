@@ -53,12 +53,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     },
   });
 
@@ -72,6 +75,21 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const clientLastName = form.watch("clientLastName");
   const phone = form.watch("phone");
   const roomNumber = form.watch("roomNumber");
+  const clientType = form.watch("clientType");
+  const payByVoucher = form.watch("payByVoucher");
+  const voucherReference = form.watch("voucherReference");
+
+  // Clear roomNumber when clientType switches away from 'hotel'
+  // and reset voucher when moving to partner client types.
+  useEffect(() => {
+    if (clientType !== "hotel" && roomNumber) {
+      form.setValue("roomNumber", "");
+    }
+    if (clientType !== "hotel" && clientType !== "external" && payByVoucher) {
+      form.setValue("payByVoucher", false);
+      form.setValue("voucherReference", "");
+    }
+  }, [clientType, roomNumber, payByVoucher, form]);
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -280,6 +298,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       isOutOfHours: isBookingOutOfHours,
       surchargeAmount,
       amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
+      clientType: values.clientType,
+      payByVoucher: values.payByVoucher,
+      voucherReference: values.voucherReference?.trim() || null,
     });
   };
 
@@ -308,12 +329,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     });
     setCart([]);
     setCustomPrice("");
@@ -391,6 +415,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   venueAmenities={venueAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
+                  clientType={clientType}
+                  payByVoucher={payByVoucher}
+                  onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
+                  voucherReference={voucherReference}
+                  onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
                 />
             </TabsContent>
 
