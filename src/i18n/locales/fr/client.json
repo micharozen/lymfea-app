@@ -95,6 +95,7 @@
     "noSlots": "Cette date est complète",
     "tryAnotherDate": "Veuillez essayer une autre date",
     "dayFull": "Complet",
+    "dayRestricted": "Indisponible",
     "pickDate": "Calendrier",
     "continue": "CONTINUER",
     "morning": "Matin",
@@ -102,7 +103,8 @@
     "evening": "Soir",
     "available": "disponibles",
     "slotTakenBanner": "Ce créneau n'est plus disponible",
-    "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous."
+    "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous.",
+    "dayConstraintInfo": "Certains soins de votre panier ne sont disponibles que certains jours. Seules les dates compatibles sont affichées."
   },
   "info": {
     "title": "Vos Informations",
@@ -372,6 +374,7 @@
     "confirmMixedPayment": "Payer le reste : {{amount}}"
   },
   "cart": {
+    "dayConflict": "Ce soin n'est pas disponible le même jour que les autres soins de votre panier.",
     "bundleMixWarning": "Les cures doivent être achetées séparément"
   },
   "badges": {

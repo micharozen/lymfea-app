@@ -95,6 +95,7 @@
     "noSlots": "This date is fully booked",
     "tryAnotherDate": "Please try selecting a different date",
     "dayFull": "Full",
+    "dayRestricted": "Unavailable",
     "pickDate": "Calendar",
     "continue": "CONTINUE",
     "morning": "Morning",
@@ -102,7 +103,8 @@
     "evening": "Evening",
     "available": "available",
     "slotTakenBanner": "This slot is no longer available",
-    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below."
+    "slotTakenDesc": "This slot was just taken. Nearby available slots are highlighted below.",
+    "dayConstraintInfo": "Some treatments in your cart are only available on certain days. Only compatible dates are shown."
   },
   "info": {
     "title": "Your Information",
@@ -371,6 +373,7 @@
     "confirmMixedPayment": "Pay the rest: {{amount}}"
   },
   "cart": {
+    "dayConflict": "This treatment is not available on the same days as the other treatments in your cart.",
     "bundleMixWarning": "Packages must be purchased separately"
   },
   "badges": {
