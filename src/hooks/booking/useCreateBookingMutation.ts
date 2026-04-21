@@ -99,9 +99,11 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         paymentStatus = "charged_to_room";
       } else if (clientType === "staycation" || clientType === "classpass") {
         paymentMethod = "partner_billed";
+        paymentStatus = "pending_partner_billing";
+      } else {
+        // external + no voucher: payment_method stays null (set after Stripe payment), status pending
         paymentStatus = "pending";
       }
-      // else: external + no voucher -> leave null/null (Stripe link flow handles later)
 
       // Auto-assign treatment room from hotel
       let roomId: string | null = null;

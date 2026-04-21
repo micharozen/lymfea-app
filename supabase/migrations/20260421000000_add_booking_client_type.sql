@@ -27,6 +27,25 @@ ALTER TABLE bookings
     ])
   );
 
+-- Extend payment_status CHECK to allow 'pending_partner_billing' (staycation/classpass)
+-- and 'pending_room_charge' (hotel room charge pending invoice).
+ALTER TABLE bookings
+  DROP CONSTRAINT IF EXISTS bookings_payment_status_check;
+
+ALTER TABLE bookings
+  ADD CONSTRAINT bookings_payment_status_check
+  CHECK (
+    payment_status = ANY (ARRAY[
+      'pending'::text,
+      'paid'::text,
+      'failed'::text,
+      'refunded'::text,
+      'charged_to_room'::text,
+      'pending_partner_billing'::text,
+      'pending_room_charge'::text
+    ])
+  );
+
 -- Partial index to accelerate month-end partner billing extraction (minority of rows).
 CREATE INDEX IF NOT EXISTS idx_bookings_client_type_month
   ON bookings (client_type, booking_date)
