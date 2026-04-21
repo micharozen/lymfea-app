@@ -284,7 +284,49 @@ export default function Treatments() {
       trackPageView('treatments');
     }
   }, [trackPageView]);
+  useEffect(() => {
+    if (!isTreatmentsLoading && allTreatments.length > 0) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const treatmentsParam = searchParams.get('treatments');
 
+      if (treatmentsParam) {
+        const requestedIds = treatmentsParam.split(',');
+        let hasAddedItems = false;
+
+        requestedIds.forEach(id => {
+          const treatmentToAdd = allTreatments.find(t => t.id === id);
+          const isAlreadyInCart = items.some(item => item.id === id);
+
+          if (treatmentToAdd && !isAlreadyInCart) {
+            const resolvedVariant = treatmentToAdd.variants?.find(v => v.is_default) || treatmentToAdd.variants?.[0];
+
+            addItem({
+              id: treatmentToAdd.id,
+              variantId: resolvedVariant?.id,
+              variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
+              name: localize(treatmentToAdd.name, treatmentToAdd.name_en),
+              price: Number(resolvedVariant?.price ?? treatmentToAdd.price) || 0,
+              currency: treatmentToAdd.currency || 'EUR',
+              duration: resolvedVariant?.duration ?? treatmentToAdd.duration ?? 0,
+              image: treatmentToAdd.image || undefined,
+              category: treatmentToAdd.category,
+              isPriceOnRequest: resolvedVariant?.price_on_request ?? treatmentToAdd.price_on_request ?? false,
+              isAddon: addonCategoryNames.has(treatmentToAdd.category),
+              isBundle: treatmentToAdd.is_bundle ?? false,
+              bundleId: treatmentToAdd.bundle_id ?? undefined,
+            });
+            hasAddedItems = true;
+          }
+        });
+
+        if (hasAddedItems) {
+          setIsCartOpen(true);
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }
+      }
+    }
+  }, [allTreatments, isTreatmentsLoading, items, addItem, localize, addonCategoryNames]);
 
   const handleAddToBasket = (treatment: Treatment, variant?: TreatmentVariantData) => {
     const resolvedVariant = variant ||

@@ -42,7 +42,7 @@ export function CheckoutPanel({
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -218,6 +218,7 @@ export function CheckoutPanel({
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -228,6 +229,7 @@ export function CheckoutPanel({
           navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
+          setHoldExpiresAt(null);
           const { data, error } = await supabase.functions.invoke('create-setup-intent', {
             body: {
               hotelId,
@@ -254,6 +256,7 @@ export function CheckoutPanel({
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -304,6 +307,7 @@ export function CheckoutPanel({
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -317,6 +321,9 @@ export function CheckoutPanel({
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -339,6 +346,7 @@ export function CheckoutPanel({
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -381,6 +389,7 @@ export function CheckoutPanel({
             paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 

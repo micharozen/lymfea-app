@@ -38,7 +38,7 @@ export function PhoneBookingFab() {
               aria-label={t("phoneBooking.fabLabel")}
               onClick={() => setOpen(true)}
               className={cn(
-                "fixed right-6 z-40",
+                "fixed right-20 z-40",
                 "h-14 w-14 rounded-full",
                 "bg-primary text-primary-foreground",
                 "shadow-lg shadow-primary/30",
@@ -47,7 +47,7 @@ export function PhoneBookingFab() {
                 "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
               )}
               style={{
-                bottom: "calc(1.5rem + env(safe-area-inset-bottom))",
+                bottom: "calc(0.5rem + env(safe-area-inset-bottom))",
               }}
             >
               <Phone className="h-6 w-6" />
