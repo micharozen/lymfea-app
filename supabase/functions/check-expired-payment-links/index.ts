@@ -36,7 +36,8 @@ serve(async (req: Request) => {
           status,
           hotel_id,
           booking_treatments (
-            treatment_id
+            treatment_id,
+            treatment_menus ( slug )
           )
         )
       `)
@@ -100,14 +101,15 @@ serve(async (req: Request) => {
             hotelSlugOrId = hotelRow?.slug || booking.hotel_id;
           }
 
-          const treatmentIds = booking.booking_treatments
-            ?.map((bt: { treatment_id: string }) => bt.treatment_id)
-            .join(',') || '';
+          const treatmentSlugs = (booking.booking_treatments || [])
+            .map((bt: { treatment_menus?: { slug?: string } }) => bt.treatment_menus?.slug)
+            .filter(Boolean)
+            .join(',');
 
           let bookingUrl = hotelSlugOrId
             ? `${siteUrl}/client/${hotelSlugOrId}/treatments`
             : brand.website;
-          if (treatmentIds) bookingUrl += `?treatments=${treatmentIds}`;
+          if (treatmentSlugs) bookingUrl += `?t=${treatmentSlugs}`;
 
           console.log(`[CRON] Envoi de l'email d'annulation à ${booking.client_email}...`);
 
