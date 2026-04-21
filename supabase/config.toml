@@ -1,5 +1,9 @@
 project_id = "xfkujlgettlxdgrnqluw"
 
+[auth]
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080"]
+
 [functions.get-therapist-earnings]
 verify_jwt = false
 
