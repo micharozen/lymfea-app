@@ -48,12 +48,18 @@ WHERE slug IS NULL;
 ALTER TABLE public.treatment_menus
   ALTER COLUMN slug SET NOT NULL;
 
-ALTER TABLE public.treatment_menus
-  ADD CONSTRAINT treatment_menus_hotel_slug_key UNIQUE (hotel_id, slug);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'treatment_menus_hotel_slug_key') THEN
+    ALTER TABLE public.treatment_menus ADD CONSTRAINT treatment_menus_hotel_slug_key UNIQUE (hotel_id, slug);
+  END IF;
+END $$;
 
-ALTER TABLE public.treatment_menus
-  ADD CONSTRAINT treatment_menus_slug_pattern_check
-  CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND LENGTH(slug) BETWEEN 2 AND 60);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'treatment_menus_slug_pattern_check') THEN
+    ALTER TABLE public.treatment_menus ADD CONSTRAINT treatment_menus_slug_pattern_check
+      CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$' AND LENGTH(slug) BETWEEN 2 AND 60);
+  END IF;
+END $$;
 
 -- Auto-generate slug on insert when omitted
 CREATE OR REPLACE FUNCTION public.treatment_menus_autofill_slug()
