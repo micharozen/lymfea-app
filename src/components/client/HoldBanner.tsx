@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 export function HoldBanner() {
-  const { holdExpiresAt, clearFlow } = useClientFlow();
+  const { holdExpiresAt, cancelHold } = useClientFlow();
   const { t } = useTranslation('client');
   const navigate = useNavigate();
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -29,15 +29,15 @@ export function HoldBanner() {
 
       if (remaining === 0) {
         clearInterval(interval);
-        clearFlow();
+        cancelHold();
         navigate(window.location.pathname.split('/guest-info')[0].split('/checkout')[0], {
-          state: { slotTaken: true }
+          state: { sessionExpired: true }
         });
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [holdExpiresAt, clearFlow, navigate]);
+  }, [holdExpiresAt, cancelHold, navigate]);
 
   if (!holdExpiresAt || timeLeft === null) return null;
 

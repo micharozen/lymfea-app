@@ -25,18 +25,8 @@ export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { cancelHold, bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId } = useClientFlow();
-
-  console.log('[Payment] items:', items);
-  console.log('[Payment] isBundleOnly:', isBundleOnly);
-  console.log('[Payment] isBundleOnlyPurchase:', isBundleOnlyPurchase);
-  console.log('[Payment] selectedBundle:', selectedBundle);
-  console.log('[Payment] bookingDateTime:', bookingDateTime);
-  console.log('[Payment] clientInfo:', clientInfo);
-  console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
-  console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
-  const { authBundles } = useClientFlow();
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -88,9 +78,9 @@ export default function Payment() {
 
   useEffect(() => {
     if (!canProceedToStep('payment')) {
-      navigate(`/client/${slug}/cart`);
+      navigate(`/client/${slug}/schedule`);
     }
-  }, [canProceedToStep, navigate, hotelId]);
+  }, [canProceedToStep, navigate, slug]);
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -313,12 +303,9 @@ export default function Payment() {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
-        // Libérer le draft avant de partir vers Stripe (confirm-setup-intent créera un nouveau booking)
-        if (draftBookingId) {
-          await supabase.from('bookings').delete()
-            .eq('id', draftBookingId)
-            .eq('status', 'awaiting_payment');
-        }
+        // Le draft reste en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -341,6 +328,7 @@ export default function Payment() {
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -432,10 +420,7 @@ export default function Payment() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={async () => {
-              await cancelHold();
-              navigate(`/client/${slug}/guest-info`);
-            }}
+            onClick={() => navigate(`/client/${slug}/guest-info`, { replace: true })}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >

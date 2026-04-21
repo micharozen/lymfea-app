@@ -25,6 +25,7 @@ interface SchedulePanelProps {
   onContinue: () => void;
   takenDate?: string;
   slotTaken?: boolean;
+  sessionExpired?: boolean;
   /** When true, renders with tighter spacing for embedding inside another page */
   embedded?: boolean;
   className?: string;
@@ -35,6 +36,7 @@ export function SchedulePanel({
   onContinue,
   takenDate,
   slotTaken = false,
+  sessionExpired = false,
   embedded = false,
   className,
 }: SchedulePanelProps) {
@@ -413,6 +415,21 @@ export function SchedulePanel({
             </h3>
             <p className="text-xs text-red-600/70">
               {t('datetime.slotTakenDesc')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Session expired banner */}
+      {sessionExpired && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg animate-fade-in flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-medium text-amber-700 text-sm mb-1">
+              {t('datetime.sessionExpiredBanner')}
+            </h3>
+            <p className="text-xs text-amber-600/70">
+              {t('datetime.sessionExpiredDesc')}
             </p>
           </div>
         </div>

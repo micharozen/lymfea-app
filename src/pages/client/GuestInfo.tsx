@@ -272,6 +272,18 @@ export default function GuestInfo() {
     }
   }, [shouldRedirectToSchedule, t]);
 
+  // Must be declared before any early return (Rules of Hooks)
+  const handlePhoneChange = useCallback((value: string, onChange: (v: string) => void) => {
+    let clean = value.replace(/\s/g, '');
+    const currentCode = form.getValues('countryCode');
+    if (clean.startsWith(currentCode)) {
+      clean = clean.slice(currentCode.length);
+    } else if (clean.startsWith('+')) {
+      clean = clean.replace(/^\+\d{1,3}/, '');
+    }
+    onChange(clean);
+  }, [form]);
+
   if (shouldRedirectToSchedule) {
     return <Navigate to={`/client/${slug}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`} replace />;
   }
@@ -348,18 +360,6 @@ export default function GuestInfo() {
       c.code.includes(countrySearch)
   );
 
-  // Strip country code prefix from phone input (handles browser autofill inserting full international number)
-  const handlePhoneChange = useCallback((value: string, onChange: (v: string) => void) => {
-    let clean = value.replace(/\s/g, '');
-    const currentCode = form.getValues('countryCode');
-    if (clean.startsWith(currentCode)) {
-      clean = clean.slice(currentCode.length);
-    } else if (clean.startsWith('+')) {
-      clean = clean.replace(/^\+\d{1,3}/, '');
-    }
-    onChange(clean);
-  }, [form]);
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
       <HoldBanner />
@@ -371,8 +371,8 @@ export default function GuestInfo() {
               variant="ghost"
               size="icon"
              onClick={async () => {
-    await cancelHold(); // 1. On libère le draft
-    navigate(-1);       // 2. On retourne à la sélection des heures
+    await cancelHold();
+    navigate(`/client/${slug}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`, { replace: true });
   }}
               className="text-gray-900 hover:bg-gray-100"
             >

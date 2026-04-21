@@ -116,21 +116,19 @@ export function ClientFlowProvider({ children }: { children: React.ReactNode }) 
     setAuthBundlesState(null);
   }, []);
 const cancelHold = useCallback(async () => {
-    if (draftBookingId) {
-      try {
-        // Extra sécurité : on ne supprime que si le statut est toujours 'awaiting_payment'
-        await supabase
-          .from('bookings')
-          .delete()
-          .eq('id', draftBookingId)
-          .eq('status', 'awaiting_payment'); 
-          
-        console.log("[Hold] Brouillon supprimé car abandonné.");
-      } catch (error) {
-        console.error("[Hold] Erreur lors de la suppression du brouillon", error);
-      }
+    if (!draftBookingId) {
+      clearFlow();
+      return;
     }
-    // On vide ensuite la mémoire du navigateur
+    try {
+      await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', draftBookingId)
+        .eq('status', 'awaiting_payment');
+    } catch (error) {
+      console.error("[Hold] Erreur lors de la suppression du brouillon", error);
+    }
     clearFlow();
   }, [draftBookingId, clearFlow]);
   const canProceedToStep = useCallback(

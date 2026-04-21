@@ -42,7 +42,7 @@ export function CheckoutPanel({
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -229,6 +229,7 @@ export function CheckoutPanel({
           navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
+          setHoldExpiresAt(null);
           const { data, error } = await supabase.functions.invoke('create-setup-intent', {
             body: {
               hotelId,
@@ -255,6 +256,7 @@ export function CheckoutPanel({
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -319,12 +321,9 @@ export function CheckoutPanel({
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
-        // Libérer le draft avant de partir vers Stripe (confirm-setup-intent créera un nouveau booking)
-        if (draftBookingId) {
-          await supabase.from('bookings').delete()
-            .eq('id', draftBookingId)
-            .eq('status', 'awaiting_payment');
-        }
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -347,6 +346,7 @@ export function CheckoutPanel({
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
