@@ -176,10 +176,14 @@ serve(async (req) => {
       await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
     }
 
-// 4. Attacher les soins à la réservation (nécessaire pour l'envoi du lien de paiement)
-    // On le fait systématiquement, que ce soit un nouveau booking ou un update du draft
+    if (!bookingId) {
+      throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+    }
+
+    await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+
+    // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
     if (treatmentIds && treatmentIds.length > 0) {
-      // On commence par nettoyer les anciens soins si c'était un draft pour éviter les doublons
       if (meta.draftBookingId) {
         await supabaseAdmin
           .from('booking_treatments')
@@ -190,18 +194,21 @@ serve(async (req) => {
       const treatmentInserts = treatmentIds.map((id: string) => ({
         booking_id: bookingId,
         treatment_id: id,
+        variant_id: null,
       }));
 
-      const { error: treatmentsError } = await supabaseAdmin
-        .from('booking_treatments')
-        .insert(treatmentInserts);
+      if (treatmentInserts.length > 0) {
+        const { error: treatmentsError } = await supabaseAdmin
+          .from('booking_treatments')
+          .insert(treatmentInserts);
 
-      if (treatmentsError) {
-        console.error("[CONFIRM-SETUP] Erreur lors de l'ajout des soins :", treatmentsError);
+        if (treatmentsError) {
+          console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
+        }
       }
     }
 
-    // 5. Sauvegarde de la carte dans la nouvelle table
+    // 4. Sauvegarde de la carte dans la nouvelle table
     const setupIntent = session.setup_intent as Stripe.SetupIntent;
     const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
     const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card : null;

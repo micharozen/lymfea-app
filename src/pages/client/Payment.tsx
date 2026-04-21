@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -21,7 +22,7 @@ import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 
 export default function Payment() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
   const { cancelHold, bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId } = useClientFlow();
@@ -87,7 +88,7 @@ export default function Payment() {
 
   useEffect(() => {
     if (!canProceedToStep('payment')) {
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
     }
   }, [canProceedToStep, navigate, hotelId]);
 
@@ -118,7 +119,7 @@ export default function Payment() {
   const handlePayment = async () => {
     if (!clientInfo) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -169,7 +170,7 @@ export default function Payment() {
 
     if (!bookingDateTime) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -218,7 +219,7 @@ export default function Payment() {
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
           // Partial coverage — pay remainder via Stripe
@@ -306,7 +307,7 @@ export default function Payment() {
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
@@ -390,7 +391,7 @@ export default function Payment() {
         clearBasket();
         clearFlow();
         // Redirection vers la page dynamique
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -410,7 +411,7 @@ export default function Payment() {
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;
@@ -431,10 +432,10 @@ export default function Payment() {
           <Button
             variant="ghost"
             size="icon"
-           onClick={async () => {
-    await cancelHold();
-    navigate(-1);
-  }}
+            onClick={async () => {
+              await cancelHold();
+              navigate(`/client/${slug}/guest-info`);
+            }}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >

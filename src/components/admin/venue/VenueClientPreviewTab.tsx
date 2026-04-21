@@ -9,22 +9,25 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface VenueClientPreviewTabProps {
   hotelId: string;
+  /** Canonical slug for URL construction. Falls back to hotelId (UUID) if absent. */
+  slug?: string | null;
 }
 
-export function VenueClientPreviewTab({ hotelId }: VenueClientPreviewTabProps) {
+export function VenueClientPreviewTab({ hotelId, slug }: VenueClientPreviewTabProps) {
   const { t } = useTranslation('admin');
   const [copied, setCopied] = useState(false);
   const [treatmentCopied, setTreatmentCopied] = useState(false);
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState<string>("");
+  const [selectedTreatmentSlug, setSelectedTreatmentSlug] = useState<string>("");
 
-  const clientUrl = `${window.location.origin}/client/${hotelId}`;
+  const identifier = slug || hotelId;
+  const clientUrl = `${window.location.origin}/client/${identifier}`;
 
   const { data: treatments = [] } = useQuery({
     queryKey: ['venue-treatments-links', hotelId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('treatment_menus')
-        .select('id, name, name_en, category')
+        .select('id, slug, name, name_en, category')
         .eq('hotel_id', hotelId)
         .eq('status', 'active')
         .order('category', { ascending: true })
@@ -36,11 +39,11 @@ export function VenueClientPreviewTab({ hotelId }: VenueClientPreviewTabProps) {
     staleTime: 5 * 60 * 1000,
   });
 
-  const treatmentUrl = selectedTreatmentId
-    ? `${window.location.origin}/client/${hotelId}/treatment/${selectedTreatmentId}`
+  const treatmentUrl = selectedTreatmentSlug
+    ? `${window.location.origin}/client/${identifier}/treatment/${selectedTreatmentSlug}`
     : '';
 
-  const previewUrl = selectedTreatmentId ? treatmentUrl : clientUrl;
+  const previewUrl = selectedTreatmentSlug ? treatmentUrl : clientUrl;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(clientUrl);
@@ -129,13 +132,13 @@ export function VenueClientPreviewTab({ hotelId }: VenueClientPreviewTabProps) {
           </p>
         ) : (
           <>
-            <Select value={selectedTreatmentId} onValueChange={setSelectedTreatmentId}>
+            <Select value={selectedTreatmentSlug} onValueChange={setSelectedTreatmentSlug}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t('venue.clientPreview.selectTreatment')} />
               </SelectTrigger>
               <SelectContent>
                 {treatments.map((tr) => (
-                  <SelectItem key={tr.id} value={tr.id}>
+                  <SelectItem key={tr.id} value={tr.slug || tr.id}>
                     <span className="text-muted-foreground text-xs mr-2">{tr.category}</span>
                     {tr.name}
                   </SelectItem>
@@ -143,7 +146,7 @@ export function VenueClientPreviewTab({ hotelId }: VenueClientPreviewTabProps) {
               </SelectContent>
             </Select>
 
-            {selectedTreatmentId && treatmentUrl && (
+            {selectedTreatmentSlug && treatmentUrl && (
               <div className="flex items-center gap-2 animate-fade-in">
                 <div className="flex-1 truncate rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground font-mono">
                   {treatmentUrl}

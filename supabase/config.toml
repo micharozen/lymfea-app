@@ -172,5 +172,8 @@ verify_jwt = false
 [functions.send-payment-link]
 verify_jwt = false
 
-[functions.verify-payment-link-session]
+[functions.notify-noshow]
+verify_jwt = false
+
+[functions.notify-therapist-arrived]
 verify_jwt = false

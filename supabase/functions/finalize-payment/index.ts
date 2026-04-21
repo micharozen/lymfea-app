@@ -120,6 +120,8 @@ serve(async (req) => {
         client_first_name,
         client_last_name,
         room_number,
+        customer_id,
+        customers(email, first_name, last_name),
         booking_treatments(
           treatment_id,
           treatment_menus(name, price, duration)
@@ -304,8 +306,9 @@ serve(async (req) => {
       // ===== PAIEMENT CHAMBRE =====
       log("Processing ROOM payment");
 
-      // Room payment requires email for invoice generation
-      if (!booking.client_email) {
+      // Room payment requires email for invoice generation — fallback to customer
+      const clientEmail = booking.client_email || booking.customers?.email;
+      if (!clientEmail) {
         throw new Error("L'email du client est requis pour le paiement sur chambre (génération de facture)");
       }
 
@@ -315,7 +318,6 @@ serve(async (req) => {
       }
 
       // Create or find Stripe customer for room payment (for invoice generation)
-      const clientEmail = booking.client_email;
       let customerId: string | undefined;
 
       const customers = await stripe.customers.list({ email: clientEmail, limit: 1 });

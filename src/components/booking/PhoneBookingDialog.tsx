@@ -193,6 +193,7 @@ export default function PhoneBookingDialog({
     date,
     time,
     durationMinutes: totalDuration || 60,
+    treatmentIds: flatIds,
   });
 
   const mutation = useCreateBookingMutation({

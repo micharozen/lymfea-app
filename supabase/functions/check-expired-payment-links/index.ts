@@ -89,20 +89,28 @@ serve(async (req: Request) => {
             : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
 
+          // Resolve slug for stable public URL, fall back to UUID if missing
+          let hotelSlugOrId: string | null = booking.hotel_id;
+          if (booking.hotel_id) {
+            const { data: hotelRow } = await supabase
+              .from('hotels')
+              .select('slug')
+              .eq('id', booking.hotel_id)
+              .maybeSingle();
+            hotelSlugOrId = hotelRow?.slug || booking.hotel_id;
+          }
+
           const treatmentIds = booking.booking_treatments
             ?.map((bt: { treatment_id: string }) => bt.treatment_id)
             .join(',') || '';
 
-          let bookingUrl = brand.website;
-          if (booking.hotel_id) {
-            bookingUrl = `${siteUrl}/client/${booking.hotel_id}/treatments`;
-            if (treatmentIds) {
-              bookingUrl += `?treatments=${treatmentIds}`;
-            }
-          }
+          let bookingUrl = hotelSlugOrId
+            ? `${siteUrl}/client/${hotelSlugOrId}/treatments`
+            : brand.website;
+          if (treatmentIds) bookingUrl += `?treatments=${treatmentIds}`;
 
           console.log(`[CRON] Envoi de l'email d'annulation à ${booking.client_email}...`);
-          
+
           await sendEmail({
             to: booking.client_email,
             subject: lang === 'fr'

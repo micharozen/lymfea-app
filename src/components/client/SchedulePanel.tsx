@@ -4,6 +4,7 @@ import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays }
 import { useBasket } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
+import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
@@ -49,14 +50,27 @@ export function SchedulePanel({
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
-  const [selectedDate, setSelectedDate] = useState(takenDate || '');
-  const [selectedTime, setSelectedTime] = useState('');
+  const {
+    date: urlDate,
+    time: urlTime,
+    setDateTime: setUrlDateTime,
+  } = useUrlBookingState();
+
+  // URL wins on cold load — `takenDate` override > URL > empty
+  const [selectedDate, setSelectedDate] = useState(takenDate || urlDate || '');
+  const [selectedTime, setSelectedTime] = useState(urlTime || '');
   const selectedTimeRef = useRef(selectedTime);
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
+
+  // Max guest_count across all items determines therapist/room capacity needed
+  const requiredGuestCount = useMemo(
+    () => Math.max(1, ...items.map(i => i.guestCount ?? 1)),
+    [items]
+  );
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -136,7 +150,32 @@ export function SchedulePanel({
     gcTime: 30 * 60 * 1000,
   });
 
-  // Generate date options filtered by venue deployment schedule
+  // Fetch per-day availability (which deployed days actually have at least one free slot)
+  const { data: daysWithSlots } = useQuery({
+    queryKey: ['venue-days-with-slots', hotelId, maxDaysAhead, therapistGenderPreference, requiredGuestCount],
+    queryFn: async () => {
+      const today = new Date();
+      const endDate = addDays(today, maxDaysAhead);
+
+      const { data, error } = await supabase.functions.invoke('check-availability-range', {
+        body: {
+          hotelId,
+          startDate: format(today, 'yyyy-MM-dd'),
+          endDate: format(endDate, 'yyyy-MM-dd'),
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
+        },
+      });
+
+      if (error) throw error;
+      return new Set<string>((data?.daysWithSlots as string[]) || []);
+    },
+    enabled: !!hotelId && !!venueData && !!availableDates,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  // Generate date options (all venue-deployed dates) with a flag for per-day availability
   const dateOptions = useMemo(() => {
     if (!availableDates) return [];
 
@@ -159,11 +198,25 @@ export function SchedulePanel({
         dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
         fullLabel: format(date, 'd MMM', { locale }),
         isSpecial: i === 0 || i === 1,
+        hasSlots: daysWithSlots ? daysWithSlots.has(dateStr) : true,
       });
     }
 
     return dates;
-  }, [locale, t, availableDates, maxDaysAhead]);
+  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots]);
+
+  // Auto-select the first deployed day (usually today) so the slot grid is
+  // populated without an extra click. If the day ends up being fully booked,
+  // the user sees the "fully booked" state and can browse from there.
+  useEffect(() => {
+    if (selectedDate) return;
+    if (takenDate) return;
+    const first = dateOptions[0];
+    if (first) {
+      setSelectedDate(first.value);
+      setUrlDateTime(first.value, '');
+    }
+  }, [dateOptions, selectedDate, takenDate, setUrlDateTime]);
 
   // Generate time slots based on venue hours, filtering out past times for today
   const timeSlots = useMemo(() => {
@@ -188,13 +241,20 @@ export function SchedulePanel({
       }
 
       const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-      const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-      const period = hour >= 12 ? 'PM' : 'AM';
-      const time12 = `${hour12}:${minute.toString().padStart(2, '0')}${period}`;
+      const minuteStr = minute.toString().padStart(2, '0');
+
+      let timeLabel: string;
+      if (i18n.language === 'fr') {
+        timeLabel = `${hour.toString().padStart(2, '0')}:${minuteStr}`;
+      } else {
+        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const period = hour >= 12 ? 'PM' : 'AM';
+        timeLabel = `${hour12}:${minuteStr}${period}`;
+      }
 
       slots.push({
         value: time24,
-        label: time12,
+        label: timeLabel,
         hour,
       });
     }
@@ -214,6 +274,7 @@ export function SchedulePanel({
             hotelId,
             date: selectedDate,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(requiredGuestCount > 1 ? { requiredGuestCount } : {}),
           }
         });
 
@@ -239,7 +300,7 @@ export function SchedulePanel({
     };
 
     fetchAvailability();
-  }, [selectedDate, hotelId, therapistGenderPreference, t]);
+  }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, t]);
 
   /**
    * Creates a draft booking (holds the slot for 5 minutes) then navigates forward.
@@ -292,12 +353,9 @@ export function SchedulePanel({
 
   const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
 
- const proceedAfterAddons = (time: string) => {
-    // 1. On ferme le tiroir proprement
+  const proceedAfterAddons = (time: string) => {
     setIsAddonDrawerOpen(false);
-
-    // 2. On laisse 300ms au tiroir pour faire son animation de fermeture
-    // avant de déclencher le changement de page
+    setUrlDateTime(selectedDate, time);
     setTimeout(async () => {
       await executeHoldAndContinue(selectedDate, time);
     }, 300);
@@ -307,6 +365,7 @@ export function SchedulePanel({
     setSelectedTime(time);
     selectedTimeRef.current = time;
     setShowSlotTakenBanner(false);
+    if (selectedDate) setUrlDateTime(selectedDate, time);
     trackAction('select_time_slot', { date: selectedDate, time });
 
     // Note: le hold ne démarre que sur "Continuer", pas au clic du créneau
@@ -421,13 +480,17 @@ export function SchedulePanel({
                   selected={selectedDate ? parse(selectedDate, 'yyyy-MM-dd', new Date()) : undefined}
                   onSelect={(date) => {
                     if (date) {
-                      setSelectedDate(format(date, 'yyyy-MM-dd'));
+                      const value = format(date, 'yyyy-MM-dd');
+                      setSelectedDate(value);
+                      setUrlDateTime(value, '');
                       setIsCalendarOpen(false);
                     }
                   }}
                   disabled={(date) => {
                     const dateStr = format(date, 'yyyy-MM-dd');
-                    return !availableDates.has(dateStr);
+                    if (!availableDates.has(dateStr)) return true;
+                    if (daysWithSlots && !daysWithSlots.has(dateStr)) return true;
+                    return false;
                   }}
                   fromDate={new Date()}
                   toDate={addDays(new Date(), maxDaysAhead)}
@@ -457,12 +520,16 @@ export function SchedulePanel({
                 embedded ? "gap-1.5" : "sm:gap-3"
               )}
             >
-              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial }) => (
+              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots }) => (
                 <button
                   key={value}
                   ref={el => { dateButtonRefs.current[value] = el; }}
                   type="button"
-                  onClick={() => setSelectedDate(value)}
+                  onClick={() => {
+                    setSelectedDate(value);
+                    setUrlDateTime(value, '');
+                  }}
+                  aria-disabled={!hasSlots}
                   className={cn(
                     "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
                     embedded
@@ -470,12 +537,17 @@ export function SchedulePanel({
                       : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
                     selectedDate === value
                       ? "border-gold-500 bg-gold-500/10"
-                      : "border-gray-200 bg-gray-50 hover:border-gray-300"
+                      : !hasSlots
+                        ? "border-gray-200 bg-gray-100/60 opacity-60"
+                        : "border-gray-200 bg-gray-50 hover:border-gray-300"
                   )}
                 >
                   <div className="text-center">
                     {!isSpecial && (
-                      <div className="text-[10px] text-gray-400 mb-1 tracking-wider">
+                      <div className={cn(
+                        "text-[10px] mb-1 tracking-wider",
+                        !hasSlots && selectedDate !== value ? "text-gray-300" : "text-gray-400"
+                      )}>
                         {dayLabel}
                       </div>
                     )}
@@ -484,10 +556,17 @@ export function SchedulePanel({
                       embedded ? "text-xs" : "text-sm",
                       selectedDate === value
                         ? "text-gold-600 font-medium"
-                        : "text-gray-900 font-light"
+                        : !hasSlots
+                          ? "text-gray-400 font-light line-through"
+                          : "text-gray-900 font-light"
                     )}>
                       {isSpecial ? label : fullLabel}
                     </div>
+                    {!hasSlots && (
+                      <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
+                        {t('datetime.dayFull')}
+                      </div>
+                    )}
                   </div>
                 </button>
               ))}
