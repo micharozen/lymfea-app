@@ -56,6 +56,7 @@ interface Treatment {
   is_addon?: boolean;
   is_bundle?: boolean;
   bundle_id?: string | null;
+  available_days?: number[] | null;
   variants?: TreatmentVariantData[];
 }
 
@@ -316,6 +317,7 @@ export default function Treatments() {
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
       guestCount: resolvedVariant?.guest_count ?? 1,
+      availableDays: treatment.available_days ?? null,
     });
 
     if (navigator.vibrate) {
