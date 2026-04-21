@@ -10,7 +10,32 @@
     "verify": "Verify",
     "wrongNumber": "Wrong number?",
     "codeExpiredIn": "Code expires in",
-    "seconds": "seconds"
+    "seconds": "seconds",
+    "divider": "Or",
+    "password": {
+      "title": "Sign in",
+      "subtitle": "Use your email and password to access your account.",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "submit": "Sign in",
+      "signingIn": "Signing in...",
+      "forgot": "Forgot password?",
+      "useSms": "Sign in with an SMS code",
+      "usePassword": "Sign in with a password",
+      "wrongCredentials": "Wrong email or password",
+      "notATherapist": "This account is not a therapist account.",
+      "fillAllFields": "Please fill in both email and password",
+      "error": "Sign-in failed. Please try again."
+    },
+    "reset": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a link to reset your password.",
+      "submit": "Send reset link",
+      "sending": "Sending...",
+      "sent": "Reset link sent",
+      "checkInbox": "Check your inbox and follow the link to set a new password.",
+      "emailRequired": "Please enter your email"
+    }
   },
   "welcome": {
     "title": "Welcome",
@@ -94,7 +119,7 @@
     "name": "Name",
     "add": "Add",
     "noTreatments": "No treatments added",
-    "contactConcierge": "Contact Concierge",
+    "contactConcierge": "Contact venue team",
     "contactBrand": "Contact {{brandName}}",
     "unassignBooking": "Withdraw from booking",
     "chooseApp": "Choose an app",
@@ -243,9 +268,44 @@
       "heading": "Stay informed",
       "subtitle": "Receive notifications for new bookings and important updates",
       "enable": "Enable notifications",
+      "enabling": "Enabling...",
+      "enabled": "Notifications enabled",
+      "notEnabled": "Notifications not enabled — you can turn them on later in Settings",
       "later": "Configure later"
     },
+    "tour": {
+      "next": "Next",
+      "finish": "Get started",
+      "bookings": {
+        "heading": "Receive and accept bookings",
+        "subtitle": "When a new booking is available, you'll get a push notification. Open the Bookings tab to accept or decline it in one tap."
+      },
+      "agenda": {
+        "heading": "Check your schedule",
+        "subtitle": "Your upcoming appointments are grouped by day in the Agenda. You can see the venue, the treatment room and the client at a glance."
+      },
+      "addTreatment": {
+        "heading": "Add a treatment on the go",
+        "subtitle": "During a session, you can propose an extra treatment from the booking detail. The client is charged automatically and the new treatment shows up in your agenda."
+      }
+    },
+    "stepIndicator": "Step {{current}} of {{total}}",
     "complete": "Welcome to {{brandName}}!"
+  },
+  "resetPassword": {
+    "title": "Choose a new password",
+    "subtitle": "Your new password must be at least 6 characters long.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "submit": "Update password",
+    "saving": "Saving...",
+    "success": "Password updated",
+    "error": "Could not update password",
+    "fillAllFields": "Please fill in both fields",
+    "noMatch": "Passwords do not match",
+    "tooShort": "Password must be at least 6 characters",
+    "invalidLink": "This reset link is invalid or has expired. Please request a new one from the login screen.",
+    "backToLogin": "Back to sign in"
   },
   "newBooking": {
     "title": "New booking",
