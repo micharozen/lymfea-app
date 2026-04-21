@@ -23,6 +23,13 @@ import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  treatmentKeys,
+  listHotelsForOrg,
+  listTreatmentMenusForOrg,
+} from "@shared/db";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -256,16 +263,11 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
     return hoursUntilAppointment <= 2 && hoursUntilAppointment > 0;
   }, [booking?.booking_date, booking?.booking_time]);
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, timezone, currency")
-        .order("name");
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
@@ -381,16 +383,11 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
   });
 
   const { data: treatments } = useQuery({
-    queryKey: ["treatment_menus", "active"],
+    queryKey: treatmentKeys.list(scope),
+    enabled: !!scope,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_menus")
-        .select("*")
-        .eq("status", "active")
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
-      if (error) throw error;
-      return data;
+      const all = await listTreatmentMenusForOrg(supabase, scope!, { includeNullHotel: true });
+      return all.filter((t) => t.status === "active");
     },
   });
 

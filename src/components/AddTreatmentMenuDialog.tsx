@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { hotelKeys, listHotelsForOrg } from "@shared/db";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useTreatmentCategories } from "@/hooks/useTreatmentCategories";
 import {
@@ -108,17 +110,11 @@ export function AddTreatmentMenuDialog({
   const selectedHotelId = useWatch({ control: form.control, name: "hotel_id" });
   const variants = useWatch({ control: form.control, name: "variants" });
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, currency")
-        .order("name");
-
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const selectedHotel = hotels?.find(h => h.id === selectedHotelId);

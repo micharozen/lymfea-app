@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listHotelsForOrg, listTreatmentRoomsForOrgDropdown } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import {
@@ -100,39 +102,40 @@ export default function AddTherapistDialog({
     status: "pending",
   });
 
+  const scope = useOrgScope();
+
   useEffect(() => {
-    if (open) {
+    if (open && scope) {
       fetchHotels();
       fetchRooms();
     }
-  }, [open]);
+  }, [open, scope]);
 
   const fetchHotels = async () => {
-    const { data, error } = await supabase
-      .from("hotels")
-      .select("id, name, image")
-      .order("name");
-
-    if (error) {
+    if (!scope) return;
+    try {
+      const data = await listHotelsForOrg(supabase, scope);
+      setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
+    } catch {
       toast.error("Erreur lors du chargement des hôtels");
-      return;
     }
-
-    setHotels(data || []);
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from("treatment_rooms")
-      .select("id, name, room_number, image")
-      .order("name");
-
-    if (error) {
+    if (!scope) return;
+    try {
+      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
+      setRooms(
+        data.map((r) => ({
+          id: r.id,
+          name: r.name,
+          room_number: r.room_number,
+          image: r.image,
+        })),
+      );
+    } catch {
       toast.error("Erreur lors du chargement des salles de soin");
-      return;
     }
-
-    setRooms(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

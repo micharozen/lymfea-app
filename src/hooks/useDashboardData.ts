@@ -1,28 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, differenceInDays, addDays, subDays, isWithinInterval, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useExchangeRates } from "@/hooks/useExchangeRates";
-import { convertToEUR, type ExchangeRatesMap } from "@/lib/currencyConversion";
+import { convertToEUR } from "@/lib/currencyConversion";
 import { formatPrice } from "@/lib/formatPrice";
 import { bookingStatusConfig, type BookingStatus } from "@/utils/statusStyles";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { getDashboardDataForOrg, type DashboardBooking } from "@shared/db";
 
 // ── Types ───────────────────────────────────────────────────────────
 
-interface BookingRow {
-  booking_date: string;
-  booking_time: string;
-  total_price: number | null;
-  hotel_id: string;
-  hotel_name: string | null;
-  status: string;
-  payment_status: string | null;
-  therapist_id: string | null;
-  therapist_name: string | null;
-  room_id: string | null;
-  duration: number | null;
+type BookingRow = DashboardBooking & {
   booking_treatments: { treatment_menus: { name: string } | null }[];
-}
+};
 
 interface HotelRow {
   id: string;
@@ -32,16 +23,7 @@ interface HotelRow {
 
 interface RoomRow {
   id: string;
-  hotel_id: string;
-}
-
-interface AvailabilityRow {
-  therapist_id: string;
-}
-
-interface AssignmentRow {
-  therapist_id: string;
-  hotel_id: string;
+  hotel_id: string | null;
 }
 
 export interface AlertsData {
@@ -121,90 +103,69 @@ export function useDashboardData(
   endDate: Date,
   selectedHotel: string
 ): DashboardData {
+  const scope = useOrgScope();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [hotels, setHotels] = useState<HotelRow[]>([]);
   const [rooms, setRooms] = useState<RoomRow[]>([]);
-  const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
-  const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [availabilityIds, setAvailabilityIds] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<Array<{ therapist_id: string; hotel_id: string }>>([]);
   const [loading, setLoading] = useState(true);
   const { rates } = useExchangeRates();
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const todayStr = format(new Date(), "yyyy-MM-dd");
-
-      const [bookingsRes, hotelsRes, roomsRes, availRes, assignRes] =
-        await Promise.all([
-          supabase
-            .from("bookings")
-            .select(
-              "id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration"
-            )
-            .order("booking_date", { ascending: true }),
-          supabase
-            .from("hotels")
-            .select("id, name, currency")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("treatment_rooms")
-            .select("id, hotel_id")
-            .in("status", ["active", "Actif"]),
-          supabase
-            .from("therapist_availability")
-            .select("therapist_id")
-            .eq("date", todayStr)
-            .eq("is_available", true),
-          supabase
-            .from("therapist_venues")
-            .select("therapist_id, hotel_id"),
-        ]);
-
-      if (bookingsRes.error) throw bookingsRes.error;
-      if (hotelsRes.error) throw hotelsRes.error;
-
-      // Fetch treatment names separately (non-blocking — if it fails, Top 3 soins is empty)
-      let treatmentMap: Record<string, string[]> = {};
+    if (!scope) return;
+    let cancelled = false;
+    (async () => {
       try {
-        const { data: btData } = await supabase
-          .from("booking_treatments")
-          .select("booking_id, treatment_menus(name)");
-        if (btData) {
-          btData.forEach((bt: any) => {
-            const name = bt.treatment_menus?.name;
-            if (name && bt.booking_id) {
-              if (!treatmentMap[bt.booking_id]) treatmentMap[bt.booking_id] = [];
-              treatmentMap[bt.booking_id].push(name);
+        setLoading(true);
+        const data = await getDashboardDataForOrg(supabase, scope);
+
+        // Fetch treatment names for the bookings we got (non-blocking).
+        const treatmentMap: Record<string, string[]> = {};
+        const bookingIds = data.bookings.map((b) => b.id);
+        if (bookingIds.length > 0) {
+          try {
+            const { data: btData } = await supabase
+              .from("booking_treatments")
+              .select("booking_id, treatment_menus(name)")
+              .in("booking_id", bookingIds);
+            if (btData) {
+              btData.forEach((bt: { booking_id: string | null; treatment_menus: { name: string } | null }) => {
+                const name = bt.treatment_menus?.name;
+                if (name && bt.booking_id) {
+                  if (!treatmentMap[bt.booking_id]) treatmentMap[bt.booking_id] = [];
+                  treatmentMap[bt.booking_id].push(name);
+                }
+              });
             }
-          });
+          } catch {
+            // Non-critical
+          }
         }
-      } catch {
-        // Non-critical — Top 3 soins will just be empty
+
+        if (cancelled) return;
+        setBookings(
+          data.bookings.map((b) => ({
+            ...b,
+            booking_treatments: (treatmentMap[b.id] || []).map((name) => ({
+              treatment_menus: { name },
+            })),
+          })),
+        );
+        setHotels(data.hotels);
+        setRooms(data.treatmentRooms);
+        setAvailabilityIds(data.todayAvailableTherapistIds);
+        setAssignments(data.therapistVenues);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Merge treatment names into bookings
-      const bookingsWithTreatments = (bookingsRes.data || []).map((b: any) => ({
-        ...b,
-        booking_treatments: (treatmentMap[b.id] || []).map((name: string) => ({
-          treatment_menus: { name },
-        })),
-      }));
-
-      setBookings(bookingsWithTreatments as BookingRow[]);
-      setHotels(hotelsRes.data || []);
-      setRooms(roomsRes.data || []);
-      setAvailability(availRes.data || []);
-      setAssignments(assignRes.data || []);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scope]);
 
   // ── Currency map ──────────────────────────────────────────────────
 
@@ -270,7 +231,6 @@ export function useDashboardData(
 
     const averageBasket = totalBookings > 0 ? (totalSales / totalBookings).toFixed(2) : "0.00";
 
-    // Trends vs previous period
     const prevSales = prevFilteredBookings.reduce((s, b) => s + toEUR(b.total_price, b.hotel_id), 0);
     const prevCount = prevFilteredBookings.length;
     const salesTrend = prevSales > 0 ? Math.round(((totalSales - prevSales) / prevSales) * 100) : 0;
@@ -287,8 +247,6 @@ export function useDashboardData(
       bookingsTrend,
     };
   }, [filteredBookings, prevFilteredBookings, bookings, selectedHotel, rates]);
-
-  // ── Alerts (global, not filtered by period) ───────────────────────
 
   const alerts = useMemo<AlertsData>(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
@@ -309,8 +267,6 @@ export function useDashboardData(
     };
   }, [bookings, selectedHotel]);
 
-  // ── Room occupancy today ──────────────────────────────────────────
-
   const roomOccupancy = useMemo<OccupancyData>(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const todayBookingsWithRoom = bookings.filter((b) => {
@@ -329,8 +285,6 @@ export function useDashboardData(
     return { used: usedRoomIds.size, total: totalRooms };
   }, [bookings, rooms, selectedHotel]);
 
-  // ── Active therapists today ───────────────────────────────────────
-
   const activeTherapists = useMemo<OccupancyData>(() => {
     const venueTherapistIds =
       selectedHotel === "all"
@@ -338,21 +292,16 @@ export function useDashboardData(
         : new Set(assignments.filter((a) => a.hotel_id === selectedHotel).map((a) => a.therapist_id));
 
     const availableIds = new Set(
-      availability
-        .filter((a) => venueTherapistIds.has(a.therapist_id))
-        .map((a) => a.therapist_id)
+      availabilityIds.filter((id) => venueTherapistIds.has(id))
     );
 
     return { used: availableIds.size, total: venueTherapistIds.size };
-  }, [assignments, availability, selectedHotel]);
-
-  // ── Sales chart data ──────────────────────────────────────────────
+  }, [assignments, availabilityIds, selectedHotel]);
 
   const salesChartData = useMemo<ChartPoint[]>(() => {
     const days = differenceInDays(endDate, startDate);
     if (filteredBookings.length === 0) return [];
 
-    // For "Today", generate hourly points
     if (days === 0) {
       return Array.from({ length: 8 }, (_, i) => {
         const hour = 9 + i * 2;
@@ -367,13 +316,12 @@ export function useDashboardData(
       });
     }
 
-    // Group sales by date
     const salesByDate: Record<string, number> = {};
     for (let i = 0; i <= days; i++) {
       salesByDate[format(addDays(startDate, i), "yyyy-MM-dd")] = 0;
     }
     filteredBookings.forEach((b) => {
-      if (salesByDate.hasOwnProperty(b.booking_date)) {
+      if (Object.prototype.hasOwnProperty.call(salesByDate, b.booking_date)) {
         salesByDate[b.booking_date] += toEUR(b.total_price, b.hotel_id);
       }
     });
@@ -395,8 +343,6 @@ export function useDashboardData(
     }));
   }, [filteredBookings, startDate, endDate, rates]);
 
-  // ── Status distribution (donut) ───────────────────────────────────
-
   const statusDistribution = useMemo<StatusSlice[]>(() => {
     const counts: Record<string, number> = {};
     filteredBookings.forEach((b) => {
@@ -411,8 +357,6 @@ export function useDashboardData(
       }))
       .sort((a, b) => b.value - a.value);
   }, [filteredBookings]);
-
-  // ── Week forecast (bar chart) ─────────────────────────────────────
 
   const weekForecast = useMemo<ForecastPoint[]>(() => {
     const today = new Date();
@@ -432,8 +376,6 @@ export function useDashboardData(
     });
   }, [bookings, selectedHotel]);
 
-  // ── Top 3 venues ──────────────────────────────────────────────────
-
   const topVenues = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
     filteredBookings.forEach((b) => {
@@ -449,8 +391,6 @@ export function useDashboardData(
       .slice(0, 3);
   }, [filteredBookings, hotels, rates]);
 
-  // ── Top 3 therapists ──────────────────────────────────────────────
-
   const topTherapists = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
     filteredBookings.forEach((b) => {
@@ -465,8 +405,6 @@ export function useDashboardData(
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 3);
   }, [filteredBookings, rates]);
-
-  // ── Top 3 treatments ──────────────────────────────────────────────
 
   const topTreatments = useMemo<RankingItem[]>(() => {
     const map: Record<string, RankingItem> = {};
@@ -486,8 +424,6 @@ export function useDashboardData(
       .sort((a, b) => b.bookings - a.bookings)
       .slice(0, 3);
   }, [filteredBookings, rates]);
-
-  // ── Hotel overview table ──────────────────────────────────────────
 
   const hotelData = useMemo<HotelOverviewRow[]>(
     () =>

@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  treatmentRoomKeys,
+  listHotelsForOrg,
+  listTreatmentRoomsForOrg,
+  resolveHotelIdsForOrg,
+} from "@shared/db";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,25 +86,21 @@ export default function TreatmentRooms() {
 
   const isAdmin = userRole === "admin";
 
-  const { data: rooms, isLoading } = useQuery({
-    queryKey: ["treatment-rooms"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_rooms")
-        .select("*")
-        .order("created_at", { ascending: false });
+  const scope = useOrgScope();
 
-      if (error) throw error;
-      return data;
-    },
+  const { data: rooms, isLoading } = useQuery({
+    queryKey: treatmentRoomKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listTreatmentRoomsForOrg(supabase, scope!),
   });
 
-  // Fetch upcoming bookings for each room
   const { data: upcomingBookings } = useQuery({
-    queryKey: ["treatment-room-upcoming-bookings"],
+    queryKey: ["treatment-room-upcoming-bookings", scope ? (scope as { organizationId?: string }).organizationId ?? "all" : "pending"],
+    enabled: !!scope,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
+      const hotelIds = await resolveHotelIdsForOrg(supabase, scope!);
+      let q = supabase
         .from("bookings")
         .select("room_id, booking_date, booking_time")
         .not("room_id", "is", null)
@@ -104,7 +108,11 @@ export default function TreatmentRooms() {
         .not("status", "in", '("cancelled","completed")')
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
-
+      if (hotelIds !== null) {
+        if (hotelIds.length === 0) return [];
+        q = q.in("hotel_id", hotelIds);
+      }
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -119,16 +127,9 @@ export default function TreatmentRooms() {
   };
 
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image")
-        .order("name");
-
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const getHotelInfo = (hotelId: string | null) => {

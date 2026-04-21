@@ -19,6 +19,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  therapistKeys,
+  treatmentKeys,
+  listHotelsForOrg,
+  listActiveTherapistsForHotel,
+  listActiveTherapistsForOrg,
+  listActiveTreatmentsForHotel,
+  listTreatmentMenusForOrg,
+} from "@shared/db";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
@@ -85,12 +96,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   }, [selectedDate, selectedTime]);
 
 
+  const scope = useOrgScope();
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hotels").select("id, name, timezone, currency, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent, pms_guest_lookup_enabled, slot_interval").order("name");
-      return data || [];
-    }
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
@@ -104,25 +114,23 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   });
 
   const { data: therapists } = useQuery({
-    queryKey: ["therapists-for-hotel", hotelId],
-    queryFn: async () => {
-      if (!hotelId) {
-        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
-        return data || [];
-      }
-      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
-      return data?.map((hh: any) => hh.therapists).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
-    },
+    queryKey: hotelId
+      ? therapistKeys.forHotel(hotelId)
+      : therapistKeys.activeForOrg(scope),
+    enabled: hotelId ? true : !!scope,
+    queryFn: () =>
+      hotelId
+        ? listActiveTherapistsForHotel(supabase, hotelId)
+        : listActiveTherapistsForOrg(supabase, scope!),
   });
 
   const { data: treatments } = useQuery({
-    queryKey: ["treatment_menus", hotelId],
-    queryFn: async () => {
-      let q = supabase.from("treatment_menus").select("*").in("status", ["Actif", "active", "Active"]).order("sort_order", { ascending: true, nullsFirst: false }).order("name");
-      if (hotelId) q = q.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
-      const { data } = await q;
-      return data || [];
-    },
+    queryKey: hotelId ? treatmentKeys.forHotel(hotelId) : treatmentKeys.list(scope),
+    enabled: hotelId ? true : !!scope,
+    queryFn: () =>
+      hotelId
+        ? listActiveTreatmentsForHotel(supabase, hotelId)
+        : listTreatmentMenusForOrg(supabase, scope!, { includeNullHotel: true }),
   });
 
   const {

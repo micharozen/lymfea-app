@@ -5,6 +5,8 @@ import * as z from "zod";
 import { useTranslation } from "react-i18next";
 import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listHotelsForOrg } from "@shared/db";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
@@ -105,22 +107,20 @@ export function AddConciergeDialog({ open, onOpenChange, onSuccess }: AddConcier
     },
   });
 
+  const scope = useOrgScope();
+
   useEffect(() => {
-    if (open) {
+    if (open && scope) {
       fetchHotels();
     }
-  }, [open]);
+  }, [open, scope]);
 
   const fetchHotels = async () => {
+    if (!scope) return;
     try {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image")
-        .order("name");
-
-      if (error) throw error;
-      setHotels(data || []);
-    } catch (error: any) {
+      const data = await listHotelsForOrg(supabase, scope);
+      setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
+    } catch (error: unknown) {
       toast.error("Erreur lors du chargement des hôtels");
       console.error(error);
     }

@@ -2,6 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  hotelKeys,
+  treatmentKeys,
+  listHotelsForOrg,
+  listTreatmentMenusForOrg,
+} from "@shared/db";
 import { useTranslation } from "react-i18next";
 import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import {
@@ -85,31 +92,18 @@ export default function TreatmentMenus() {
 
   const isAdmin = userRole === "admin";
 
-  const { data: menus, refetch, isLoading } = useQuery({
-    queryKey: ["treatment-menus"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("treatment_menus")
-        .select("*")
-        .order("sort_order", { ascending: true, nullsFirst: false })
-        .order("name", { ascending: true });
+  const scope = useOrgScope();
 
-      if (error) throw error;
-      return data;
-    },
+  const { data: menus, refetch, isLoading } = useQuery({
+    queryKey: treatmentKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listTreatmentMenusForOrg(supabase, scope!),
   });
 
   const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name, image")
-        .order("name");
-
-      if (error) throw error;
-      return data;
-    },
+    queryKey: hotelKeys.list(scope),
+    enabled: !!scope,
+    queryFn: () => listHotelsForOrg(supabase, scope!),
   });
 
   const filteredMenus = menus?.filter((menu) => {

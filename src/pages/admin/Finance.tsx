@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listLedgerForOrg, listTherapistPayoutsForOrg } from "@shared/db";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +80,7 @@ interface FinanceSummary {
 
 const Finance = () => {
   const { t } = useTranslation();
+  const scope = useOrgScope();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
@@ -90,37 +93,16 @@ const Finance = () => {
     pendingPayouts: 0,
   });
 
-  const fetchFinanceData = async () => {
+  const fetchFinanceData = useCallback(async () => {
+    if (!scope) return;
     try {
-      // Fetch ledger entries with hotel info
-      const { data: ledgerData, error: ledgerError } = await supabase
-        .from('hotel_ledger')
-        .select(`
-          *,
-          hotels (name, image),
-          bookings (booking_id, client_first_name, client_last_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
+      const [ledgerData, payoutData] = await Promise.all([
+        listLedgerForOrg(supabase, scope, { limit: 100 }),
+        listTherapistPayoutsForOrg(supabase, scope, { limit: 100 }),
+      ]);
+      setLedgerEntries(ledgerData as unknown as LedgerEntry[]);
+      setPayoutEntries(payoutData as unknown as PayoutEntry[]);
 
-      if (ledgerError) throw ledgerError;
-      setLedgerEntries(ledgerData || []);
-
-      // Fetch payout entries with therapist info
-      const { data: payoutData, error: payoutError } = await supabase
-        .from('therapist_payouts')
-        .select(`
-          *,
-          therapists (first_name, last_name, profile_image),
-          bookings (booking_id, hotel_name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (payoutError) throw payoutError;
-      setPayoutEntries(payoutData || []);
-
-      // Calculate hotel netting (group by hotel)
       const nettingMap = new Map<string, HotelNetting>();
       (ledgerData || [])
         .filter(entry => entry.status === 'pending')
@@ -141,7 +123,6 @@ const Finance = () => {
         });
       setHotelNetting(Array.from(nettingMap.values()));
 
-      // Calculate summary
       const totalReceivables = (ledgerData || [])
         .filter(e => e.status === 'pending' && e.amount > 0)
         .reduce((sum, e) => sum + e.amount, 0);
@@ -172,12 +153,12 @@ const Finance = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [scope]);
 
   useEffect(() => {
+    if (!scope) return;
     fetchFinanceData();
 
-    // Real-time subscriptions
     const ledgerChannel = supabase
       .channel('ledger-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'hotel_ledger' }, fetchFinanceData)
@@ -192,7 +173,7 @@ const Finance = () => {
       supabase.removeChannel(ledgerChannel);
       supabase.removeChannel(payoutChannel);
     };
-  }, []);
+  }, [scope, fetchFinanceData]);
 
   const handleRefresh = () => {
     setRefreshing(true);

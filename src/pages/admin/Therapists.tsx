@@ -4,6 +4,12 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { getSpecialtyLabel } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  listHotelsForOrg,
+  listTreatmentRoomsForOrgDropdown,
+  listTherapistsForOrg,
+} from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -96,12 +102,18 @@ export default function Therapists() {
   const { isAddOpen, openAdd, closeAdd, deleteId: deleteTherapistId, openDelete, closeDelete } = useDialogState<string>();
   const { toggleSort, getSortDirection, sortItems } = useTableSort<string>();
 
+  const scope = useOrgScope();
+
   useEffect(() => {
+    fetchUserRole();
+  }, []);
+
+  useEffect(() => {
+    if (!scope) return;
     fetchTherapists();
     fetchHotels();
     fetchRooms();
-    fetchUserRole();
-  }, []);
+  }, [scope]);
 
   const fetchUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -125,51 +137,36 @@ export default function Therapists() {
   }, [searchQuery, hotelFilter, statusFilter, therapists]);
 
   const fetchHotels = async () => {
-    const { data, error } = await supabase
-      .from("hotels")
-      .select("id, name, image")
-      .order("name");
-
-    if (error) {
+    if (!scope) return;
+    try {
+      const data = await listHotelsForOrg(supabase, scope);
+      setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
+    } catch {
       toast.error("Erreur lors du chargement des hôtels");
-      return;
     }
-
-    setHotels(data || []);
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from("treatment_rooms")
-      .select("id, name, image")
-      .order("name");
-
-    if (error) {
-      console.error("Erreur lors du chargement des salles de soin:", error);
-      return;
+    if (!scope) return;
+    try {
+      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
+      setRooms(data.map((r) => ({ id: r.id, name: r.name, image: r.image })));
+    } catch (err) {
+      console.error("Erreur lors du chargement des salles de soin:", err);
     }
-
-    setRooms(data || []);
   };
 
   const fetchTherapists = async () => {
+    if (!scope) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("therapists")
-      .select(`
-        *,
-        therapist_venues(hotel_id)
-      `)
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const data = await listTherapistsForOrg(supabase, scope);
+      setTherapists(data as unknown as Therapist[]);
+    } catch {
       toast.error("Erreur lors du chargement des thérapeutes");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setTherapists(data || []);
-    setLoading(false);
   };
 
   const filterTherapists = () => {

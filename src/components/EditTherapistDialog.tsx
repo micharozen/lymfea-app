@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { getSpecialtySelectOptions } from "@/lib/specialtyTypes";
 import { supabase } from "@/integrations/supabase/client";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listHotelsForOrg, listTreatmentRoomsForOrgDropdown } from "@shared/db";
 import { Button } from "@/components/ui/button";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import {
@@ -115,10 +117,17 @@ export default function EditTherapistDialog({
     status: therapist.status,
   });
 
+  const scope = useOrgScope();
+
   useEffect(() => {
-    if (open) {
+    if (open && scope) {
       fetchHotels();
       fetchRooms();
+    }
+  }, [open, scope]);
+
+  useEffect(() => {
+    if (open) {
       setFormData({
         first_name: therapist.first_name,
         last_name: therapist.last_name,
@@ -141,34 +150,30 @@ export default function EditTherapistDialog({
   }, [open, therapist]);
 
   const fetchHotels = async () => {
-    const { data, error } = await supabase
-      .from("hotels")
-      .select("id, name, image")
-      .order("name");
-
-    if (error) {
+    if (!scope) return;
+    try {
+      const data = await listHotelsForOrg(supabase, scope);
+      setHotels(data.map((h) => ({ id: h.id, name: h.name, image: h.image })));
+    } catch {
       toast.error("Erreur lors du chargement des hôtels");
-      return;
     }
-
-    setHotels(data || []);
   };
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from("treatment_rooms")
-      .select("id, name, room_number, image")
-      .order("name");
-
-    if (error) {
+    if (!scope) return;
+    try {
+      const data = await listTreatmentRoomsForOrgDropdown(supabase, scope);
+      const list = data.map((r) => ({
+        id: r.id,
+        name: r.name,
+        room_number: r.room_number,
+        image: r.image,
+      }));
+      setRooms(list);
+      setSelectedRooms((prev) => prev.filter((id) => list.some((r) => r.id === id)));
+    } catch {
       toast.error("Erreur lors du chargement des salles de soin");
-      return;
     }
-
-    const list = data || [];
-    setRooms(list);
-    // Remove any legacy/unknown room values that might still be stored on the therapist
-    setSelectedRooms((prev) => prev.filter((id) => list.some((r) => r.id === id)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

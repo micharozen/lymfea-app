@@ -27,6 +27,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { listHotelsForOrg } from "@shared/db";
 import { Users, Eye, Target, TrendingUp } from "lucide-react";
 
 const DEVICE_COLORS: Record<string, string> = {
@@ -96,17 +98,14 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Fetch hotels for filter
+  const scope = useOrgScope();
+
   useEffect(() => {
-    const fetchHotels = async () => {
-      const { data, error } = await supabase
-        .from("hotels")
-        .select("id, name")
-        .order("name");
-      if (!error) setHotels(data || []);
-    };
-    fetchHotels();
-  }, []);
+    if (!scope) return;
+    listHotelsForOrg(supabase, scope)
+      .then((data) => setHotels(data.map((h) => ({ id: h.id, name: h.name }))))
+      .catch(() => setHotels([]));
+  }, [scope]);
 
   // Fetch analytics data
   useEffect(() => {
