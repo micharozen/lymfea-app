@@ -27,6 +27,7 @@ import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalen
 import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
 import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
 import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
+import { VenueBookingRulesTab } from "@/components/admin/venue/VenueBookingRulesTab";
 import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
@@ -67,6 +68,8 @@ const createFormSchema = (t: TFunction) => z.object({
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
   room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
+  booking_hold_enabled: z.boolean().default(true),
+  booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -162,6 +165,8 @@ export default function VenueDetail() {
       out_of_hours_surcharge_percent: "0",
       inter_venue_buffer_minutes: 0,
       room_turnover_buffer_minutes: 0,
+      booking_hold_enabled: true,
+      booking_hold_duration_minutes: 5,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -212,6 +217,8 @@ export default function VenueDetail() {
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
           room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
+          booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
+          booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
@@ -439,6 +446,8 @@ export default function VenueDetail() {
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
         room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
+        booking_hold_enabled: values.booking_hold_enabled,
+        booking_hold_duration_minutes: values.booking_hold_duration_minutes,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
@@ -672,6 +681,9 @@ export default function VenueDetail() {
               <TabsTrigger value="categories" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Catégories
               </TabsTrigger>
+              <TabsTrigger value="booking-rules" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Règles de réservation
+              </TabsTrigger>
               <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Aperçu client
               </TabsTrigger>
@@ -707,6 +719,11 @@ export default function VenueDetail() {
                     onBlockedSlotsChange={setBlockedSlots}
                   />
                 </TabsContent>
+                {canAccessTabs && (
+                  <TabsContent value="booking-rules" className="mt-0">
+                    <VenueBookingRulesTab form={form} disabled={!isEditing} />
+                  </TabsContent>
+                )}
               </form>
             </Form>
 
