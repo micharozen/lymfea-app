@@ -139,11 +139,18 @@ serve(async (req) => {
           customerBundleId = data;
         } else {
           // gift_treatments or gift_amount → use create_customer_gift_card
+          const isGift = isGiftMeta === 'true';
           const { data, error: createError } = await supabaseAdmin.rpc('create_customer_gift_card', {
             _bundle_id: item.bundleId,
             _purchaser_customer_id: customerId,
             _hotel_id: hotelId,
-            _is_gift: false,
+            _is_gift: isGift,
+            _gift_delivery_mode: isGift ? (giftDeliveryMode || 'email') : null,
+            _sender_name: isGift ? (senderName || null) : null,
+            _sender_email: isGift ? (senderEmail || null) : null,
+            _recipient_name: isGift ? (recipientName || null) : null,
+            _recipient_email: isGift ? (recipientEmail || null) : null,
+            _gift_message: isGift ? (giftMessage || null) : null,
             _payment_reference: paymentRef,
           });
 
@@ -170,7 +177,7 @@ serve(async (req) => {
     const bundleDetailIds = createdBundles.map(b => b.id);
     const { data: bundleDetails } = await supabaseAdmin
       .from('customer_treatment_bundles')
-      .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
+      .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
       .in('id', bundleDetailIds);
 
     // --- Send confirmation email only for cure bundles (not gift cards) ---
@@ -209,7 +216,8 @@ serve(async (req) => {
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
         // Build template variables from the first gift bundle
-        const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
+        console.log('[PURCHASE-BUNDLE] bundleDetails raw:', JSON.stringify(bundleDetails, null, 2));
+        const giftBundle = bundleDetails?.[0];
         const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
         const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
@@ -217,27 +225,28 @@ serve(async (req) => {
           ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
 
-        const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-        const activateUrl = `${siteUrl}/portal/redeem`;
-        const redemptionCode = giftBundle?.redemption_code ?? '';
+        const activateUrl = `https://apptest.eiaspa.fr/portal/redeem?token=${encodeURIComponent(giftBundle?.redemption_code ?? '')}`;
+
+        const templateVars = {
+          logo_url: logoUrl,
+          recipient_name: recipientName || '',
+          recipient_email: recipientEmail,
+          venue_name: venueName,
+          bundle_title: bundleName,
+          value_display: valueDisplay,
+          expiry_date: expiryDate,
+          activate_url: activateUrl,
+          sender_name: senderName || firstName || '',
+          gift_message: giftMessage || '',
+          redemption_code: '',
+        };
+        console.log('[PURCHASE-BUNDLE] Gift email template variables:', JSON.stringify(templateVars, null, 2));
 
         const result = await sendEmail({
           to: recipientEmail,
           subject: `You've received a gift card — ${venueName}`,
           templateId: '1b1674f1-5145-4bb5-8fce-b8b9f2c405ac',
-          templateVariables: {
-            logo_url: logoUrl,
-            recipient_name: recipientName || '',
-            recipient_email: recipientEmail,
-            venue_name: venueName,
-            bundle_title: bundleName,
-            value_display: valueDisplay,
-            expiry_date: expiryDate,
-            activate_url: activateUrl,
-            sender_name: senderName || firstName || '',
-            gift_message: giftMessage || '',
-            redemption_code: redemptionCode,
-          },
+          templateVariables: templateVars,
         });
 
         if (result.error) {

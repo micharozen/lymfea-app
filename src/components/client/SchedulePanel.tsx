@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays } from 'lucide-react';
-import { useBasket } from '@/pages/client/context/CartContext';
+import { useBasket, getCartAvailableDays } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
@@ -41,6 +41,8 @@ export function SchedulePanel({
   className,
 }: SchedulePanelProps) {
   const { items } = useBasket();
+  const cartAllowedDays = useMemo(() => getCartAvailableDays(items), [items]);
+  const hasCartDayConstraint = cartAllowedDays.length < 7;
   const {
     setBookingDateTime,
     therapistGenderPreference,
@@ -189,6 +191,9 @@ export function SchedulePanel({
       const dateStr = format(date, 'yyyy-MM-dd');
 
       if (!availableDates.has(dateStr)) continue;
+      
+      const isAllowedByCart = cartAllowedDays.includes(date.getDay());
+      const actuallyHasSlots = daysWithSlots ? daysWithSlots.has(dateStr) : true;
 
       let label = format(date, 'd MMM', { locale });
       if (i === 0) label = t('common:dates.today');
@@ -200,12 +205,13 @@ export function SchedulePanel({
         dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
         fullLabel: format(date, 'd MMM', { locale }),
         isSpecial: i === 0 || i === 1,
-        hasSlots: daysWithSlots ? daysWithSlots.has(dateStr) : true,
+        hasSlots: actuallyHasSlots,
+        isAllowedByCart,
       });
     }
 
     return dates;
-  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots]);
+  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots, cartAllowedDays]);
 
   // Auto-select the first deployed day (usually today) so the slot grid is
   // populated without an extra click. If the day ends up being fully booked,
@@ -213,7 +219,7 @@ export function SchedulePanel({
   useEffect(() => {
     if (selectedDate) return;
     if (takenDate) return;
-    const first = dateOptions[0];
+    const first = dateOptions.find(d => d.hasSlots && d.isAllowedByCart);
     if (first) {
       setSelectedDate(first.value);
       setUrlDateTime(first.value, '');
@@ -464,6 +470,16 @@ export function SchedulePanel({
         />
       </div>
 
+      {/* Day constraint info banner */}
+      {hasCartDayConstraint && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2.5">
+          <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
+          <p className="text-xs text-blue-700">
+            {t('datetime.dayConstraintInfo')}
+          </p>
+        </div>
+      )}
+
       {/* Date Selection */}
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <div className="flex items-center justify-between">
@@ -506,9 +522,10 @@ export function SchedulePanel({
                   disabled={(date) => {
                     const dateStr = format(date, 'yyyy-MM-dd');
                     if (!availableDates.has(dateStr)) return true;
-                    if (daysWithSlots && !daysWithSlots.has(dateStr)) return true;
+                    if (!cartAllowedDays.includes(date.getDay())) return true;
                     return false;
                   }}
+                  showOutsideDays={false}
                   fromDate={new Date()}
                   toDate={addDays(new Date(), maxDaysAhead)}
                   locale={locale}
@@ -537,56 +554,63 @@ export function SchedulePanel({
                 embedded ? "gap-1.5" : "sm:gap-3"
               )}
             >
-              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots }) => (
-                <button
-                  key={value}
-                  ref={el => { dateButtonRefs.current[value] = el; }}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDate(value);
-                    setUrlDateTime(value, '');
-                  }}
-                  aria-disabled={!hasSlots}
-                  className={cn(
-                    "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
-                    embedded
-                      ? "px-2.5 py-2.5 min-w-[60px]"
-                      : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
-                    selectedDate === value
-                      ? "border-gold-500 bg-gold-500/10"
-                      : !hasSlots
-                        ? "border-gray-200 bg-gray-100/60 opacity-60"
-                        : "border-gray-200 bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  <div className="text-center">
-                    {!isSpecial && (
-                      <div className={cn(
-                        "text-[10px] mb-1 tracking-wider",
-                        !hasSlots && selectedDate !== value ? "text-gray-300" : "text-gray-400"
-                      )}>
-                        {dayLabel}
-                      </div>
-                    )}
-                    <div className={cn(
-                      "whitespace-nowrap",
-                      embedded ? "text-xs" : "text-sm",
+              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots, isAllowedByCart }) => {
+                // Un jour est cliquable s'il a des créneaux ET qu'il est autorisé par les soins du panier
+                const isClickable = hasSlots && isAllowedByCart;
+
+                return (
+                  <button
+                    key={value}
+                    ref={el => { dateButtonRefs.current[value] = el; }}
+                    type="button"
+                    disabled={!isClickable} // 🔒 LE VERROU EST ICI
+                    onClick={() => {
+                      if (!isClickable) return; // Double sécurité
+                      setSelectedDate(value);
+                      setUrlDateTime(value, '');
+                    }}
+                    aria-disabled={!isClickable}
+                    className={cn(
+                      "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
+                      embedded
+                        ? "px-2.5 py-2.5 min-w-[60px]"
+                        : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
                       selectedDate === value
-                        ? "text-gold-600 font-medium"
-                        : !hasSlots
-                          ? "text-gray-400 font-light line-through"
-                          : "text-gray-900 font-light"
-                    )}>
-                      {isSpecial ? label : fullLabel}
-                    </div>
-                    {!hasSlots && (
-                      <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
-                        {t('datetime.dayFull')}
-                      </div>
+                        ? "border-gold-500 bg-gold-500/10"
+                        : !isClickable
+                          ? "border-gray-200 bg-gray-100/60 opacity-60 cursor-not-allowed" // Rend le bouton visiblement inactif
+                          : "border-gray-200 bg-gray-50 hover:border-gray-300"
                     )}
-                  </div>
-                </button>
-              ))}
+                  >
+                    <div className="text-center">
+                      {!isSpecial && (
+                        <div className={cn(
+                          "text-[10px] mb-1 tracking-wider",
+                          !isClickable && selectedDate !== value ? "text-gray-300" : "text-gray-400"
+                        )}>
+                          {dayLabel}
+                        </div>
+                      )}
+                      <div className={cn(
+                        "whitespace-nowrap",
+                        embedded ? "text-xs" : "text-sm",
+                        selectedDate === value
+                          ? "text-gold-600 font-medium"
+                          : !isClickable
+                            ? "text-gray-400 font-light line-through" // Barre le texte du jour
+                            : "text-gray-900 font-light"
+                      )}>
+                        {isSpecial ? label : fullLabel}
+                      </div>
+                      {!isClickable && (
+                        <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
+                          {!isAllowedByCart ? t('datetime.dayRestricted') : t('datetime.dayFull')}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

@@ -43,6 +43,7 @@ interface Treatment {
   is_addon?: boolean;
   is_bundle?: boolean;
   bundle_id?: string | null;
+  available_days?: number[] | null;
   service_for?: string;
   variants?: TreatmentVariantData[];
 }
@@ -153,6 +154,7 @@ export default function TreatmentLanding() {
       isPriceOnRequest: false,
       isBundle: treatment.is_bundle ?? false,
       bundleId: treatment.bundle_id ?? undefined,
+      availableDays: treatment.available_days ?? null,
     });
 
     if (navigator.vibrate) navigator.vibrate(50);
