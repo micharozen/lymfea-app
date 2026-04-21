@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Gift, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Gift, Loader2, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -125,7 +125,7 @@ interface TreatmentForBundle {
 }
 
 interface VenueGiftCardsTabProps {
-  hotelId: string;
+  hotelId?: string;
 }
 
 const formSchema = z
@@ -194,24 +194,48 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
   const { t } = useTranslation("admin");
   const queryClient = useQueryClient();
 
+  const isStandalone = !hotelId;
+  const [hotelFilter, setHotelFilter] = useState<string>("all");
   const [activeSubTab, setActiveSubTab] = useState<"templates" | "sales">("templates");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogHotelId, setDialogHotelId] = useState<string | undefined>(undefined);
   const [editingTemplate, setEditingTemplate] = useState<GiftCardTemplate | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const templatesQueryKey = useMemo(() => ["gift-card-templates", hotelId], [hotelId]);
-  const salesQueryKey = useMemo(() => ["gift-card-sales", hotelId], [hotelId]);
-  const treatmentsQueryKey = useMemo(() => ["gift-card-eligible-treatments", hotelId], [hotelId]);
+  const effectiveHotelId = hotelId ?? (hotelFilter !== "all" ? hotelFilter : undefined);
+  const dialogEffectiveHotelId = hotelId ?? dialogHotelId;
+
+  const { data: hotels } = useQuery({
+    queryKey: ["hotels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotels")
+        .select("id, name, image")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: isStandalone,
+  });
+
+  const templatesQueryKey = useMemo(() => ["gift-card-templates", hotelId ?? hotelFilter], [hotelId, hotelFilter]);
+  const salesQueryKey = useMemo(() => ["gift-card-sales", hotelId ?? hotelFilter], [hotelId, hotelFilter]);
+  const treatmentsQueryKey = useMemo(() => ["gift-card-eligible-treatments", dialogEffectiveHotelId], [dialogEffectiveHotelId]);
 
   const { data: templates, isLoading: templatesLoading } = useQuery<GiftCardTemplate[]>({
     queryKey: templatesQueryKey,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("treatment_bundles")
         .select("*")
-        .eq("hotel_id", hotelId)
         .in("bundle_type", ["gift_treatments", "gift_amount"])
         .order("created_at", { ascending: false });
+      if (hotelId) {
+        query = query.eq("hotel_id", hotelId);
+      } else if (hotelFilter !== "all") {
+        query = query.eq("hotel_id", hotelFilter);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as GiftCardTemplate[];
     },
@@ -220,16 +244,21 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
   const { data: sales, isLoading: salesLoading } = useQuery<CustomerGiftCard[]>({
     queryKey: salesQueryKey,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_treatment_bundles")
         .select(
           `id, bundle_id, hotel_id, is_gift, gift_delivery_mode, sender_name, recipient_name, recipient_email, redemption_code, delivered_at, claimed_at, total_sessions, used_sessions, total_amount_cents, used_amount_cents, expires_at, status, created_at,
           treatment_bundles:bundle_id!inner(title, name, bundle_type),
           customers:customer_id(first_name, last_name, email)`,
         )
-        .eq("hotel_id", hotelId)
         .in("treatment_bundles.bundle_type", ["gift_treatments", "gift_amount"])
         .order("created_at", { ascending: false });
+      if (hotelId) {
+        query = query.eq("hotel_id", hotelId);
+      } else if (hotelFilter !== "all") {
+        query = query.eq("hotel_id", hotelFilter);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as CustomerGiftCard[];
     },
@@ -238,10 +267,11 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
   const { data: treatments } = useQuery<TreatmentForBundle[]>({
     queryKey: treatmentsQueryKey,
     queryFn: async () => {
+      if (!dialogEffectiveHotelId) return [];
       const { data, error } = await supabase
         .from("treatment_menus")
         .select("id, name, category")
-        .eq("hotel_id", hotelId)
+        .eq("hotel_id", dialogEffectiveHotelId)
         .eq("status", "active")
         .is("is_bundle", false)
         .order("category")
@@ -261,19 +291,21 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
 
   const { uploading, fileInputRef, handleUpload, triggerFileSelect } = useFileUpload({
     bucket: "avatars",
-    path: `gift-cards/${hotelId}`,
+    path: `gift-cards/${dialogEffectiveHotelId ?? "general"}`,
     initialUrl: watchedCoverUrl || "",
     onSuccess: (uploadedUrl) => form.setValue("cover_image_url", uploadedUrl, { shouldDirty: true }),
   });
 
   const handleOpenCreate = () => {
     setEditingTemplate(null);
+    setDialogHotelId(effectiveHotelId);
     form.reset(defaultFormValues);
     setDialogOpen(true);
   };
 
   const handleOpenEdit = async (template: GiftCardTemplate) => {
     setEditingTemplate(template);
+    setDialogHotelId(template.hotel_id);
     const [itemsResult, menuResult] = await Promise.all([
       supabase
         .from("treatment_bundle_items")
@@ -308,7 +340,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
     mutationFn: async (values: FormValues) => {
       const isGiftAmount = values.bundle_type === "gift_amount";
       const bundlePayload = {
-        hotel_id: hotelId,
+        hotel_id: dialogEffectiveHotelId!,
         bundle_type: values.bundle_type,
         name: values.title,
         name_en: values.title_en || null,
@@ -366,7 +398,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
         .maybeSingle();
 
       const menuPayload = {
-        hotel_id: hotelId,
+        hotel_id: dialogEffectiveHotelId!,
         name: values.title,
         name_en: values.title_en || null,
         description: values.description || null,
@@ -483,24 +515,49 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-medium flex items-center gap-2">
-            <Gift className="h-5 w-5" />
-            {t("giftCards.title", "Cartes cadeaux")}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "giftCards.description",
-              "Créez des cartes cadeaux offrant des soins ou un montant, utilisables sur ce lieu.",
-            )}
-          </p>
+      {!isStandalone && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-medium flex items-center gap-2">
+              <Gift className="h-5 w-5" />
+              {t("giftCards.title", "Cartes cadeaux")}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {t(
+                "giftCards.description",
+                "Créez des cartes cadeaux offrant des soins ou un montant, utilisables sur ce lieu.",
+              )}
+            </p>
+          </div>
+          <Button onClick={handleOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("giftCards.create", "Créer une carte cadeau")}
+          </Button>
         </div>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("giftCards.create", "Créer une carte cadeau")}
-        </Button>
-      </div>
+      )}
+
+      {isStandalone && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={hotelFilter} onValueChange={setHotelFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Tous les lieux" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les lieux</SelectItem>
+              {hotels?.map((hotel) => (
+                <SelectItem key={hotel.id} value={hotel.id}>
+                  {hotel.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex-1" />
+          <Button onClick={handleOpenCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t("giftCards.create", "Créer une carte cadeau")}
+          </Button>
+        </div>
+      )}
 
       <Tabs value={activeSubTab} onValueChange={(v) => setActiveSubTab(v as "templates" | "sales")}>
         <TabsList>
@@ -535,6 +592,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                   <TableRow>
                     <TableHead className="w-[56px]" />
                     <TableHead>{t("giftCards.columns.title", "Titre")}</TableHead>
+                    {isStandalone && <TableHead>Lieu</TableHead>}
                     <TableHead>{t("giftCards.columns.type", "Type")}</TableHead>
                     <TableHead className="text-right">
                       {t("giftCards.columns.value", "Valeur")}
@@ -573,6 +631,11 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                           <div className="text-xs text-muted-foreground">{template.title_en}</div>
                         )}
                       </TableCell>
+                      {isStandalone && (
+                        <TableCell className="text-sm">
+                          {hotels?.find((h) => h.id === template.hotel_id)?.name ?? "—"}
+                        </TableCell>
+                      )}
                       <TableCell>{renderTemplateTypeBadge(template.bundle_type)}</TableCell>
                       <TableCell className="text-right text-sm">
                         {template.bundle_type === "gift_amount" && template.amount_cents != null
@@ -646,6 +709,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t("giftCards.columns.template", "Carte")}</TableHead>
+                    {isStandalone && <TableHead>Lieu</TableHead>}
                     <TableHead>{t("giftCards.columns.buyer", "Acheteur")}</TableHead>
                     <TableHead>{t("giftCards.columns.recipient", "Destinataire")}</TableHead>
                     <TableHead>{t("giftCards.columns.code", "Code")}</TableHead>
@@ -678,6 +742,11 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                         <TableCell className="text-sm">
                           {sale.treatment_bundles?.title || sale.treatment_bundles?.name || "—"}
                         </TableCell>
+                        {isStandalone && (
+                          <TableCell className="text-sm">
+                            {hotels?.find((h) => h.id === sale.hotel_id)?.name ?? "—"}
+                          </TableCell>
+                        )}
                         <TableCell className="text-sm">{buyer}</TableCell>
                         <TableCell className="text-sm">{recipient}</TableCell>
                         <TableCell className="font-mono text-xs">
@@ -716,6 +785,31 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
 
           <Form {...form}>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isStandalone && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Lieu</label>
+                  <Select
+                    value={dialogHotelId ?? ""}
+                    onValueChange={(v) => {
+                      setDialogHotelId(v);
+                      form.setValue("category", "");
+                      form.setValue("eligible_treatment_ids", []);
+                    }}
+                    disabled={!!editingTemplate}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionner un lieu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hotels?.map((hotel) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>
+                          {hotel.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="bundle_type"
@@ -805,7 +899,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                     <FormLabel>{t("giftCards.form.category", "Catégorie")}</FormLabel>
                     <FormControl>
                       <CategorySelectField
-                        hotelId={hotelId}
+                        hotelId={dialogEffectiveHotelId!}
                         value={field.value}
                         onChange={field.onChange}
                         placeholder={t(
@@ -1096,7 +1190,7 @@ export function VenueGiftCardsTab({ hotelId }: VenueGiftCardsTabProps) {
                 >
                   {t("common.cancel", "Annuler")}
                 </Button>
-                <Button type="submit" disabled={saveMutation.isPending}>
+                <Button type="submit" disabled={saveMutation.isPending || !dialogEffectiveHotelId}>
                   {saveMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   {editingTemplate
                     ? t("giftCards.form.save", "Enregistrer")

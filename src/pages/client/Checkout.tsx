@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
@@ -14,7 +15,7 @@ import { formatPrice } from '@/lib/formatPrice';
 import { useQuery } from '@tanstack/react-query';
 
 export default function Checkout() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total } = useBasket();
   const { setBookingDateTime, setClientInfo } = useClientFlow();
@@ -185,7 +186,7 @@ export default function Checkout() {
       roomNumber: formData.roomNumber,
     });
 
-    navigate(`/client/${hotelId}/payment`);
+    navigate(`/client/${slug}/payment`);
   };
 
   return (
@@ -196,7 +197,7 @@ export default function Checkout() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/cart`)}
+            onClick={() => navigate(`/client/${slug}/cart`)}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

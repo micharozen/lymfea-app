@@ -497,6 +497,73 @@ export type Database = {
           },
         ]
       }
+      booking_therapists: {
+        Row: {
+          id: string
+          booking_id: string
+          therapist_id: string
+          status: string
+          assigned_at: string | null
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          therapist_id: string
+          status?: string
+          assigned_at?: string | null
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          therapist_id?: string
+          status?: string
+          assigned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_therapists_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_notes: {
+        Row: {
+          id: string
+          booking_id: string
+          user_id: string
+          author_name: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          booking_id: string
+          user_id: string
+          author_name: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          booking_id?: string
+          user_id?: string
+          author_name?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_notes_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           assigned_at: string | null
@@ -546,6 +613,7 @@ export type Database = {
           therapist_name: string | null
           total_price: number | null
           updated_at: string
+          guest_count: number
         }
         Insert: {
           assigned_at?: string | null
@@ -595,6 +663,7 @@ export type Database = {
           therapist_name?: string | null
           total_price?: number | null
           updated_at?: string
+          guest_count?: number
         }
         Update: {
           assigned_at?: string | null
@@ -644,6 +713,7 @@ export type Database = {
           therapist_name?: string | null
           total_price?: number | null
           updated_at?: string
+          guest_count?: number
         }
         Relationships: [
           {
@@ -1011,6 +1081,8 @@ export type Database = {
           hotel_commission: number | null
           id: string
           image: string | null
+          inter_venue_buffer_minutes: number | null
+          room_turnover_buffer_minutes: number | null
           landing_subtitle: string | null
           landing_subtitle_en: string | null
           name: string
@@ -1024,6 +1096,7 @@ export type Database = {
           pms_type: string | null
           postal_code: string | null
           slot_interval: number | null
+          slug: string
           status: string | null
           therapist_commission: number | null
           timezone: string | null
@@ -1050,6 +1123,8 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
+          inter_venue_buffer_minutes?: number | null
+          room_turnover_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name: string
@@ -1063,6 +1138,7 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
+          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1089,6 +1165,8 @@ export type Database = {
           hotel_commission?: number | null
           id?: string
           image?: string | null
+          inter_venue_buffer_minutes?: number | null
+          room_turnover_buffer_minutes?: number | null
           landing_subtitle?: string | null
           landing_subtitle_en?: string | null
           name?: string
@@ -1102,6 +1180,7 @@ export type Database = {
           pms_type?: string | null
           postal_code?: string | null
           slot_interval?: number | null
+          slug?: string
           status?: string | null
           therapist_commission?: number | null
           timezone?: string | null
@@ -1764,6 +1843,7 @@ export type Database = {
           price_on_request: boolean | null
           requires_room: boolean | null
           service_for: string
+          slug: string
           sort_order: number | null
           status: string
           treatment_type: string | null
@@ -1787,6 +1867,7 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for: string
+          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
@@ -1810,6 +1891,7 @@ export type Database = {
           price_on_request?: boolean | null
           requires_room?: boolean | null
           service_for?: string
+          slug?: string
           sort_order?: number | null
           status?: string
           treatment_type?: string | null
@@ -1945,6 +2027,7 @@ export type Database = {
           status: string | null
           treatment_id: string
           updated_at: string | null
+          guest_count: number
         }
         Insert: {
           created_at?: string | null
@@ -1959,6 +2042,7 @@ export type Database = {
           status?: string | null
           treatment_id: string
           updated_at?: string | null
+          guest_count?: number
         }
         Update: {
           created_at?: string | null
@@ -1973,6 +2057,7 @@ export type Database = {
           status?: string | null
           treatment_id?: string
           updated_at?: string | null
+          guest_count?: number
         }
         Relationships: [
           {
@@ -2301,12 +2386,14 @@ export type Database = {
           total_sessions: number
         }[]
       }
-      get_public_hotel_by_id: {
-        Args: { _hotel_id: string }
+      get_public_hotel: {
+        Args: { _identifier: string }
         Returns: {
+          address: string
           city: string
           closing_time: string
           company_offered: boolean
+          contact_phone: string
           country: string
           cover_image: string
           currency: string
@@ -2322,11 +2409,48 @@ export type Database = {
           offert: boolean
           opening_time: string
           pms_guest_lookup_enabled: boolean
+          postal_code: string
           recurrence_interval: number
           recurring_end_date: string
           recurring_start_date: string
           schedule_type: string
           slot_interval: number
+          slug: string
+          status: string
+          vat: number
+          venue_type: string
+        }[]
+      }
+      get_public_hotel_by_id: {
+        Args: { _hotel_id: string }
+        Returns: {
+          address: string
+          city: string
+          closing_time: string
+          company_offered: boolean
+          contact_phone: string
+          country: string
+          cover_image: string
+          currency: string
+          days_of_week: number[]
+          description: string
+          description_en: string
+          id: string
+          image: string
+          landing_subtitle: string
+          landing_subtitle_en: string
+          name: string
+          name_en: string
+          offert: boolean
+          opening_time: string
+          pms_guest_lookup_enabled: boolean
+          postal_code: string
+          recurrence_interval: number
+          recurring_end_date: string
+          recurring_start_date: string
+          schedule_type: string
+          slot_interval: number
+          slug: string
           status: string
           vat: number
           venue_type: string
@@ -2357,6 +2481,7 @@ export type Database = {
       get_public_treatments: {
         Args: { _hotel_id: string }
         Returns: {
+          bundle_id: string
           category: string
           currency: string
           description: string
@@ -2364,13 +2489,16 @@ export type Database = {
           duration: number
           id: string
           image: string
+          is_addon: boolean
           is_bestseller: boolean
+          is_bundle: boolean
           lead_time: number
           name: string
           name_en: string
           price: number
           price_on_request: boolean
           service_for: string
+          slug: string
           sort_order: number
           variants: Json
         }[]

@@ -64,6 +64,7 @@ const ForgotPassword = lazy(() => import("./pages/auth/ForgotPassword"));
 // Shared Pages
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Home = lazy(() => import("./pages/Home"));
+const Landing = lazy(() => import("./pages/Landing"));
 const RateTherapist = lazy(() => import("./pages/RateTherapist"));
 const QuoteResponse = lazy(() => import("./pages/QuoteResponse"));
 const PaymentConfirmation = lazy(() => import("./pages/PaymentConfirmation"));
@@ -79,6 +80,7 @@ const PwaHotels = lazy(() => import("./pages/pwa/Hotels"));
 const PwaSplash = lazy(() => import("./pages/pwa/Splash"));
 const PwaWelcome = lazy(() => import("./pages/pwa/Welcome"));
 const PwaOnboarding = lazy(() => import("./pages/pwa/Onboarding"));
+const PwaResetPassword = lazy(() => import("./pages/pwa/ResetPassword"));
 const PwaNotifications = lazy(() => import("./pages/pwa/Notifications"));
 const PwaInstall = lazy(() => import("./pages/pwa/Install"));
 const PwaTestNotifications = lazy(() => import("./pages/pwa/TestNotifications"));
@@ -228,29 +230,32 @@ const App = () => {
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* Root - Smart redirect based on user type */}
-            <Route path="/" element={<Home />} />
+            {/* Root - Public marketing landing page */}
+            <Route path="/" element={<Landing />} />
+
+            {/* Smart redirect based on user type (post-login entrypoint) */}
+            <Route path="/app" element={<Home />} />
             
             {/* Enterprise Dashboard (Public - QR Code) */}
             <Route path="/enterprise/:hotelId" element={<EnterpriseDashboard />} />
 
             {/* Client Routes (QR Code - Public Access with Isolated Session) */}
-            <Route path="/client/:hotelId/*" element={
+            {/* :slug accepts either a human-readable slug or a legacy UUID;
+                ClientFlowWrapper redirects UUIDs to the canonical slug. */}
+            <Route path="/client/:slug/*" element={
               <ErrorBoundary fallback={(error, reset) => <ClientErrorFallback error={error} reset={reset} />}>
                 <Suspense fallback={<ClientPageLoader />}>
                   <ClientFlowWrapper>
-                    <CartProvider hotelId={window.location.pathname.split('/')[2]}>
-                      <Routes>
-                        <Route index element={<Welcome />} />
-                        <Route path="/treatment/:treatmentId" element={<ClientTreatmentLanding />} />
-                        <Route path="/treatments" element={<ClientTreatments />} />
-                        <Route path="/schedule" element={<Schedule />} />
-                        <Route path="/guest-info" element={<GuestInfo />} />
-                        <Route path="/payment" element={<Payment />} />
-                        <Route path="/checkout" element={<Checkout />} />
-                        <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
-                      </Routes>
-                    </CartProvider>
+                    <Routes>
+                      <Route index element={<Welcome />} />
+                      <Route path="/treatment/:treatmentSlug" element={<ClientTreatmentLanding />} />
+                      <Route path="/treatments" element={<ClientTreatments />} />
+                      <Route path="/schedule" element={<Schedule />} />
+                      <Route path="/guest-info" element={<GuestInfo />} />
+                      <Route path="/payment" element={<Payment />} />
+                      <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/confirmation/:bookingId?" element={<Confirmation />} />
+                    </Routes>
                   </ClientFlowWrapper>
                 </Suspense>
               </ErrorBoundary>
@@ -337,6 +342,7 @@ const App = () => {
             <Route path="/pwa/welcome" element={<PwaWelcome />} />
             <Route path="/pwa/install" element={<PwaInstall />} />
             <Route path="/pwa/login" element={<PwaLogin />} />
+            <Route path="/pwa/reset-password" element={<PwaResetPassword />} />
             <Route path="/pwa/test-notifications" element={<PwaTestNotifications />} />
             <Route
               path="/pwa/onboarding"

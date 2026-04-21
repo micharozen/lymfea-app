@@ -202,7 +202,7 @@ const Auth = () => {
         const { redirectPath } = await getRoleRedirect(signInData.user.id);
         navigate(redirectPath, { replace: true });
       } else {
-        navigate("/");
+        navigate("/app");
       }
     } finally {
       setIsLoading(false);

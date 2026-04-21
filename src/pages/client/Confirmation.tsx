@@ -1,4 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useClientVenue } from "./context/ClientVenueContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,8 @@ import { brand, brandLogos } from "@/config/brand";
 
 export default function Confirmation() {
   const navigate = useNavigate();
-  const { hotelId, bookingId: paramBookingId } = useParams();
+  const { bookingId: paramBookingId } = useParams<{ bookingId?: string }>();
+  const { slug, hotelId } = useClientVenue();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -108,7 +110,7 @@ export default function Confirmation() {
   }, [paramBookingId, sessionId, isUUID, isBundlePurchase]);
 
   const handleReturnHome = () => {
-    navigate(hotelId ? `/client/${hotelId}` : "/");
+    navigate(slug ? `/client/${slug}` : "/");
   };
 
   const handleCopyCode = (code: string) => {
@@ -294,7 +296,7 @@ export default function Confirmation() {
 
             {/* CTA */}
             <Button
-              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              onClick={() => navigate(`/client/${slug}/treatments`)}
               className="w-full h-14 bg-gray-900 text-white hover:bg-gray-800 rounded-xl text-base font-medium shadow-sm transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
@@ -369,7 +371,7 @@ export default function Confirmation() {
           {/* Return buttons */}
           <div className="pt-2 space-y-3">
             <Button
-              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              onClick={() => navigate(`/client/${slug}/treatments`)}
               className="w-full h-14 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="mr-2 h-5 w-5" />
@@ -498,7 +500,7 @@ export default function Confirmation() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                  onClick={() => navigate(`/client/${slug}/treatments`)}
                   className="mt-2 h-8 text-xs border-amber-300 text-amber-800 hover:bg-amber-100"
                 >
                   <ShoppingBag className="w-3.5 h-3.5 mr-1.5" />

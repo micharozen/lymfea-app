@@ -60,7 +60,7 @@ export const getPendingNotificationUrl = (): string | null => {
 };
 
 // Pages where OneSignal should NOT initialize (auth pages and client booking flow)
-const EXCLUDED_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash', '/client'];
+const EXCLUDED_PAGES = ['/auth', '/login', '/set-password', '/update-password', '/pwa/login', '/pwa/welcome', '/pwa/splash', '/pwa/reset-password', '/client'];
 
 export const useOneSignal = () => {
   const [isInitialized, setIsInitialized] = useState(isOneSignalInitialized);

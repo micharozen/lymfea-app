@@ -71,7 +71,7 @@ const adminPrimaryItems: MenuItem[] = [
   { title: "Lieux", url: "/admin/places", icon: Building2 },
   { title: "Thérapeutes", url: "/admin/therapists", icon: Users },
   { title: "Menus de soins", url: "/admin/treatments", icon: BookOpen },
-  { title: "Cures", url: "/admin/cures", icon: Package },
+  { title: "Cures / Cartes cadeaux", url: "/admin/cures", icon: Package },
   { title: "Clients", url: "/admin/customers", icon: Contact },
   { title: "Alertes", url: "/admin/schedule-alerts", icon: Bell, badge: true },
 ];
@@ -118,6 +118,7 @@ export function AppSidebar() {
   const [userRole, setUserRole] = useState<string>("...");
   const [redFlagCount, setRedFlagCount] = useState(0);
   const [switcherOrgs, setSwitcherOrgs] = useState<SidebarOrganization[]>([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [moreOpen, setMoreOpen] = useState(() => {
     try { return localStorage.getItem(STORAGE_KEY) !== "false"; } catch { /* storage unavailable */ return true; }
   });
@@ -208,10 +209,28 @@ export function AppSidebar() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_log' }, () => fetchRedFlagCount())
       .subscribe();
 
+    const fetchUnreadNotifCount = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { count } = await supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      setUnreadNotifCount(count || 0);
+    };
+    fetchUnreadNotifCount();
+
+    const notifChannel = supabase
+      .channel('notifications-sidebar')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchUnreadNotifCount())
+      .subscribe();
+
     return () => {
       supabase.removeChannel(adminChannel);
       supabase.removeChannel(conciergeChannel);
       supabase.removeChannel(alertChannel);
+      supabase.removeChannel(notifChannel);
     };
   }, []);
 
@@ -278,9 +297,9 @@ export function AppSidebar() {
           >
             <item.icon className="h-[18px] w-[18px] flex-shrink-0" strokeWidth={isActive ? 2 : 1.5} />
             <span className="text-sm">{item.title}</span>
-            {item.badge && redFlagCount > 0 && (
+            {item.badge && (redFlagCount + unreadNotifCount) > 0 && (
               <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                {redFlagCount > 99 ? '99+' : redFlagCount}
+                {(redFlagCount + unreadNotifCount) > 99 ? '99+' : (redFlagCount + unreadNotifCount)}
               </span>
             )}
           </NavLink>

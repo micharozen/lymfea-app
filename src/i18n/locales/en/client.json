@@ -94,6 +94,8 @@
     "selectDateFirst": "First, choose your date above",
     "noSlots": "This date is fully booked",
     "tryAnotherDate": "Please try selecting a different date",
+    "dayFull": "Full",
+    "pickDate": "Calendar",
     "continue": "CONTINUE",
     "morning": "Morning",
     "afternoon": "Afternoon",
@@ -373,6 +375,11 @@
   },
   "badges": {
     "card_saved": "Card saved"
+  },
+  "variant": {
+    "guestShort": "pers.",
+    "guest_one": "person",
+    "guest_other": "persons"
   },
   "treatmentDetail": {
     "bookThisTreatment": "Book this treatment",

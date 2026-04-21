@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, FileText, Package } from "lucide-react";
+import { Clock, FileText, Package, Users } from "lucide-react";
 import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -87,32 +87,36 @@ export function BookingListView({
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-hidden overflow-x-auto bg-card">
-        <Table className="text-xs w-full table-fixed h-full min-w-[900px]">
+    <div className="h-full flex flex-col min-w-0">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
+        <Table className="text-xs w-full table-fixed">
           <colgroup>
+            <col className="w-[5%]" />
+            <col className="w-[8%]" />
+            <col className="w-[5%]" />
+            <col className="w-[5%]" />
+            <col className="w-[8%]" />
             <col className="w-[7%]" />
-            <col className="w-[10%]" />
+            <col className="w-[11%]" />
+            <col className="w-[11%]" />
             <col className="w-[7%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[14%]" />
-            <col className="w-[9%]" />
-            <col className="w-[12%]" />
-            <col className="w-[12%]" />
-            <col className="w-[9%]" />
+            <col className="w-[11%]" />
+            <col className="w-[11%]" />
+            <col className="w-[5%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Réservation</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Heure</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center">Paiement</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Réservation</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Date</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Heure</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Durée</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Statut</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Paiement</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Client</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Prestations</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Total</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Hôtel</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Thérapeute</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
             </TableRow>
           </TableHeader>
@@ -124,24 +128,35 @@ export function BookingListView({
                 className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
                 onClick={() => onBookingClick(booking)}
               >
-                <TableCell className="font-medium text-primary h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate leading-none flex items-center gap-1">
+                <TableCell className="font-medium text-primary py-3 px-2">
+                  <span className="leading-none flex items-center gap-1">
                     #{booking.booking_id}
                     {(booking as any).bundle_usage_id && (
                       <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
                     )}
                   </span>
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-none">{format(new Date(booking.booking_date), "dd-MM-yyyy")}</span>
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{booking.booking_time.substring(0, 5)}</span>
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-none">{booking.booking_time.substring(0, 5)}</span>
                 </TableCell>
-                <TableCell className="h-12 py-0 px-2 overflow-hidden">
-                  <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-none">{booking.totalDuration ? `${booking.totalDuration} min` : "-"}</span>
                 </TableCell>
-                <TableCell className="h-12 py-0 px-2 overflow-hidden text-center">
+                <TableCell className="py-3 px-2">
+                  <div className="flex items-center gap-1">
+                    <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
+                    {(booking as any).guest_count > 1 && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap" title={`${(booking as any).guest_count} personnes`}>
+                        <Users className="h-2.5 w-2.5" />
+                        {(booking as any).guest_count}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="py-3 px-2 text-center">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
                     <StatusBadge
                       status={booking.payment_status || "pending"}
@@ -155,24 +170,31 @@ export function BookingListView({
                     />
                   )}
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate leading-none flex items-center gap-1">
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-snug">
+                    {booking.treatments.length > 0
+                      ? booking.treatments.map(t => t.name).join(", ")
+                      : "-"}
+                  </span>
+                </TableCell>
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="leading-none flex items-center gap-1">
                     {formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}
                     {booking.is_out_of_hours && (
                       <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
                     )}
                   </span>
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
+                <TableCell className="text-foreground py-3 px-2">
                   <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
                 </TableCell>
-                <TableCell className="text-foreground h-12 py-0 px-2 overflow-hidden">
-                  <span className="truncate block leading-none">{booking.therapist_name || "-"}</span>
+                <TableCell className="text-foreground py-3 px-2">
+                  <span className="block leading-none">{booking.therapist_name || "-"}</span>
                 </TableCell>
-                <TableCell className="h-12 py-0 px-2 overflow-hidden text-center">
+                <TableCell className="py-3 px-2 text-center">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
                     const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
                     const isRoomPayment = booking.payment_method === "room";

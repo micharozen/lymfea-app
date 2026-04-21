@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Clock, ShoppingBag, Sparkles, HandHeart, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
@@ -27,6 +28,7 @@ interface TreatmentVariantData {
 
 interface Treatment {
   id: string;
+  slug: string;
   name: string;
   name_en: string | null;
   description: string | null;
@@ -46,8 +48,8 @@ interface Treatment {
 }
 
 export default function TreatmentLanding() {
-  const hotelId = window.location.pathname.split('/')[2];
-  const treatmentId = window.location.pathname.split('/')[4];
+  const { slug, hotelId } = useClientVenue();
+  const { treatmentSlug } = useParams<{ treatmentSlug: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
   const localize = useLocalizedField();
@@ -85,7 +87,11 @@ export default function TreatmentLanding() {
     gcTime: 15 * 60 * 1000,
   });
 
-  const treatment = allTreatments.find(t => t.id === treatmentId) || null;
+  const treatment =
+    allTreatments.find(t => t.slug === treatmentSlug) ||
+    // Legacy: if caller still passes a UUID, fall back to id match
+    allTreatments.find(t => t.id === treatmentSlug) ||
+    null;
 
   const venueType = hotel?.venue_type as VenueType | null;
   const venueTerms = useVenueTerms(venueType);
@@ -135,6 +141,7 @@ export default function TreatmentLanding() {
 
     addItem({
       id: treatment.id,
+      slug: treatment.slug,
       variantId: resolvedVariant?.id,
       variantLabel: (resolvedVariant ? localize(resolvedVariant.label, resolvedVariant.label_en) : undefined) || (resolvedVariant ? `${resolvedVariant.duration} min` : undefined),
       name: localize(treatment.name, treatment.name_en),
@@ -152,7 +159,7 @@ export default function TreatmentLanding() {
 
     setAdded(true);
     setTimeout(() => {
-      navigate(`/client/${hotelId}/schedule`);
+      navigate(`/client/${slug}/schedule`);
     }, 600);
   };
 
@@ -186,7 +193,7 @@ export default function TreatmentLanding() {
           {t('treatmentDetail.treatmentNotFoundDescription')}
         </p>
         <Button
-          onClick={() => navigate(`/client/${hotelId}`)}
+          onClick={() => navigate(`/client/${slug}`)}
           className="bg-gold-400 text-black hover:bg-gold-200 font-medium"
         >
           {t('treatmentDetail.seeAllTreatments')}
@@ -216,7 +223,7 @@ export default function TreatmentLanding() {
             <div className="flex-1 flex justify-start">
               <Button
                 variant="ghost"
-                onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                onClick={() => navigate(`/client/${slug}/treatments`)}
                 className="h-9 px-2 gap-1.5 text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -235,7 +242,7 @@ export default function TreatmentLanding() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => navigate(`/client/${hotelId}/treatments`)}
+                  onClick={() => navigate(`/client/${slug}/treatments`)}
                   className="relative text-gray-900 hover:bg-gray-100 hover:text-gold-600 transition-colors"
                 >
                   <ShoppingBag className="h-5 w-5" />

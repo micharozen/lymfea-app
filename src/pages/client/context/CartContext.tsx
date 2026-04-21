@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 export interface BasketItem {
   id: string;           // treatment_id
+  slug?: string;        // treatment slug — propagated to ?t= query param when present
   variantId?: string;   // selected variant ID
   variantLabel?: string; // e.g. "60 min"
   name: string;
@@ -19,6 +20,7 @@ export interface BasketItem {
   parentCartKey?: string; // Composite key of the parent cart item this add-on is linked to
   isBundle?: boolean;   // True if this is a cure/bundle purchase
   bundleId?: string;    // FK to treatment_bundles template
+  guestCount?: number;  // Number of guests (for multi-person treatments)
 }
 
 /** Composite key for cart items — allows same treatment with different variants as separate items */
