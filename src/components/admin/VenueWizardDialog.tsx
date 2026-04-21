@@ -71,6 +71,8 @@ const createFormSchema = (t: TFunction) => z.object({
   allow_out_of_hours_booking: z.boolean().default(false),
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
+  booking_hold_enabled: z.boolean().default(true),
+  booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),

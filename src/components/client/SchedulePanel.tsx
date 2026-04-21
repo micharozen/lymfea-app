@@ -122,8 +122,10 @@ export function SchedulePanel({
       const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const slotInterval = hotel?.slot_interval || 30;
+      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
+      const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
-      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval };
+      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval, holdEnabled, holdDurationMinutes };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
@@ -305,19 +307,32 @@ export function SchedulePanel({
   }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, t]);
 
   /**
-   * Creates a draft booking (holds the slot for 5 minutes) then navigates forward.
-   * If the slot was taken in the last second, shows an error and resets.
+   * Creates a draft booking (holds the slot) then navigates forward.
+   * When the venue has hold disabled, skips draft creation — the slot will be locked
+   * at confirm-setup-intent via the reserve_trunk_atomically fallback path.
    */
   const executeHoldAndContinue = async (date: string, time: string) => {
+    const holdEnabled = venueData?.holdEnabled ?? true;
+    const holdMinutes = venueData?.holdDurationMinutes ?? 5;
+
     setIsHolding(true);
     try {
-      // Supprimer le draft précédent si le client change de créneau
       if (draftBookingId) {
         await supabase.from('bookings').delete()
           .eq('id', draftBookingId)
           .eq('status', 'awaiting_payment');
         setDraftBookingId(null);
         setHoldExpiresAt(null);
+      }
+
+      if (!holdEnabled) {
+        flushSync(() => {
+          setDraftBookingId(null);
+          setHoldExpiresAt(null);
+          setBookingDateTime({ date, time });
+        });
+        onContinue();
+        return;
       }
 
       const { data, error } = await supabase.functions.invoke('create-draft-booking', {
@@ -338,13 +353,12 @@ export function SchedulePanel({
 
       flushSync(() => {
         setDraftBookingId(data.bookingId);
-        setHoldExpiresAt(Date.now() + 5 * 60 * 1000);
+        setHoldExpiresAt(Date.now() + holdMinutes * 60 * 1000);
         setBookingDateTime({ date, time });
       });
       onContinue();
     } catch (err: unknown) {
       console.error('Hold error:', err);
-      // Reset selected time to force the user to pick another slot
       setSelectedTime('');
       setShowSlotTakenBanner(true);
       toast.error(t('datetime.slotTakenBanner', 'Ce créneau vient d\'être pris. Veuillez en choisir un autre.'));

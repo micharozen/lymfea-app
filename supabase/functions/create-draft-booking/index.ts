@@ -25,9 +25,19 @@ serve(async (req: Request) => {
 
     const { data: hotelData } = await supabase
       .from('hotels')
-      .select('name')
+      .select('name, booking_hold_enabled, booking_hold_duration_minutes')
       .eq('id', hotelId)
       .single();
+
+    if (hotelData && hotelData.booking_hold_enabled === false) {
+      return new Response(
+        JSON.stringify({ success: false, reason: 'hold_disabled' }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const holdMinutes = hotelData?.booking_hold_duration_minutes ?? 5;
+    const holdExpiresAt = new Date(Date.now() + holdMinutes * 60 * 1000).toISOString();
 
     let totalPrice = 0;
     let totalDuration = 0;
@@ -80,6 +90,11 @@ serve(async (req: Request) => {
     if (rpcError) throw rpcError;
     if (!newBookingId) throw new Error("Le créneau n'a pas pu être réservé (conflit).");
 
+    await supabase
+      .from('bookings')
+      .update({ hold_expires_at: holdExpiresAt })
+      .eq('id', newBookingId);
+
     for (const item of treatments) {
       await supabase.from('booking_treatments').insert({
         booking_id: newBookingId,
@@ -88,10 +103,10 @@ serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, bookingId: newBookingId }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return new Response(
+      JSON.stringify({ success: true, bookingId: newBookingId, holdExpiresAt, holdDurationMinutes: holdMinutes }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error: any) {
     console.error("Erreur create-draft-booking:", error);
