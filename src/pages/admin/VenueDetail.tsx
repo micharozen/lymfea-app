@@ -29,6 +29,7 @@ import {
 import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
+import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
 import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
 import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
@@ -705,26 +706,29 @@ export default function VenueDetail() {
             <Form {...form}>
               <form onSubmit={(e) => e.preventDefault()}>
                 <TabsContent value="configuration" className="mt-0">
+                  {/* Option 2: Horizontal sticky sub-nav */}
+                  <VenueSectionNavBar sections={VENUE_CONFIG_SECTIONS} />
+
                   <VenueGeneralTab
-                    form={form}
-                    mode={isNewMode ? 'add' : 'edit'}
-                    disabled={!isEditing}
-                    hotelId={effectiveHotelId || undefined}
-                    hotelImage={hotelImage}
-                    coverImage={coverImage}
-                    uploadingHotel={uploadingHotel}
-                    uploadingCover={uploadingCover}
-                    hotelImageRef={hotelImageRef}
-                    coverImageRef={coverImageRef}
-                    handleHotelImageUpload={handleHotelImageUpload}
-                    handleCoverImageUpload={handleCoverImageUpload}
-                    triggerHotelImageSelect={triggerHotelImageSelect}
-                    triggerCoverImageSelect={triggerCoverImageSelect}
-                    deploymentState={deploymentState}
-                    onDeploymentStateChange={setDeploymentState}
-                    blockedSlots={blockedSlots}
-                    onBlockedSlotsChange={setBlockedSlots}
-                  />
+                        form={form}
+                        mode={isNewMode ? 'add' : 'edit'}
+                        disabled={!isEditing}
+                        hotelId={effectiveHotelId || undefined}
+                        hotelImage={hotelImage}
+                        coverImage={coverImage}
+                        uploadingHotel={uploadingHotel}
+                        uploadingCover={uploadingCover}
+                        hotelImageRef={hotelImageRef}
+                        coverImageRef={coverImageRef}
+                        handleHotelImageUpload={handleHotelImageUpload}
+                        handleCoverImageUpload={handleCoverImageUpload}
+                        triggerHotelImageSelect={triggerHotelImageSelect}
+                        triggerCoverImageSelect={triggerCoverImageSelect}
+                        deploymentState={deploymentState}
+                        onDeploymentStateChange={setDeploymentState}
+                        blockedSlots={blockedSlots}
+                        onBlockedSlotsChange={setBlockedSlots}
+                      />
                 </TabsContent>
               </form>
             </Form>

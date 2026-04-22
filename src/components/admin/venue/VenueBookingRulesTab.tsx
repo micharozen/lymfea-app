@@ -24,9 +24,9 @@ export function VenueBookingRulesTab({ form, disabled }: VenueBookingRulesTabPro
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <Card>
+      <Card id="booking-rules" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Timer className="h-4 w-4 text-indigo-500" />
             {t('venue.bookingRules.holdSectionTitle', 'Pré-réservation (hold)')}
           </CardTitle>
