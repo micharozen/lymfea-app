@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "features": "Features",
+    "howItWorks": "How it works",
+    "contact": "Contact",
+    "login": "Sign in",
+    "cta": "Book a demo"
+  },
+  "hero": {
+    "eyebrow": "Spa platform for hotels",
+    "title": "Modern hotel spa management,",
+    "titleHighlight": "finally simple",
+    "subtitle": "Unified schedule, room charge payment, therapist app, frictionless client booking. One platform to elevate your hotel's spa experience.",
+    "ctaPrimary": "Book a demo",
+    "ctaSecondary": "Explore the platform",
+    "stats": {
+      "confirmation": "Confirmation in < 10 min",
+      "pms": "2 PMS integrations",
+      "modules": "6 core modules"
+    }
+  },
+  "problem": {
+    "title": "Your hotel's spa deserves better",
+    "subtitle": "Legacy software is slow, complex and doesn't talk to your PMS. Your teams waste time, your guests wait.",
+    "points": {
+      "fragmented": {
+        "title": "Fragmented tools",
+        "desc": "Paper agenda, Excel for therapists, another sheet for billing."
+      },
+      "slow": {
+        "title": "Slow confirmation",
+        "desc": "24h to confirm a booking. Clients drop off."
+      },
+      "noPms": {
+        "title": "No room charge",
+        "desc": "Treatments don't automatically land on the room bill."
+      }
+    }
+  },
+  "features": {
+    "eyebrow": "Features",
+    "title": "Everything your spa needs, in one platform",
+    "subtitle": "Designed with directors of 4 and 5-star hotel spas.",
+    "pms": {
+      "title": "Native PMS integration",
+      "desc": "Opera Cloud & Mews. Automatic room charge, real-time guest data sync."
+    },
+    "agenda": {
+      "title": "Unified multi-site schedule",
+      "desc": "All your spas, treatment rooms and therapists in a single view."
+    },
+    "pwa": {
+      "title": "Therapist mobile app",
+      "desc": "Push notifications, in-session add-ons, automatic Stripe Connect payouts."
+    },
+    "booking": {
+      "title": "Frictionless client booking",
+      "desc": "In-room QR code, no-login flow, confirmation in under 10 minutes."
+    },
+    "billing": {
+      "title": "Automatic billing",
+      "desc": "Therapist commissions, monthly hotel invoices, daily reports generated automatically."
+    },
+    "giftcards": {
+      "title": "Gift cards & bundles",
+      "desc": "Create and sell gift cards, treatment bundles and seasonal offers in a few clicks."
+    }
+  },
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "From signup to first bookings in 2 weeks",
+    "subtitle": "Guided onboarding, zero friction for your teams.",
+    "step1": {
+      "number": "01",
+      "title": "Connect your PMS",
+      "desc": "Our team sets up the Opera Cloud or Mews integration. Your rooms and guest data are synced."
+    },
+    "step2": {
+      "number": "02",
+      "title": "Train your teams",
+      "desc": "Training sessions for venue teams, spa directors and therapists. Guides and unlimited support included."
+    },
+    "step3": {
+      "number": "03",
+      "title": "Launch bookings",
+      "desc": "QR codes in rooms, online booking, therapist app deployed. Your clients book in 2 clicks."
+    }
+  },
+  "cta": {
+    "title": "Ready to modernize your spa?",
+    "subtitle": "Book a personalized 30-minute demo with our team. We'll show the platform with your treatments and organization.",
+    "button": "Book my demo",
+    "secondary": "Or email us at hello@lymfea.fr"
+  },
+  "footer": {
+    "tagline": "The spa management platform for hotels & day spas.",
+    "product": "Product",
+    "company": "Company",
+    "legal": "Legal",
+    "links": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "login": "Sign in",
+      "demo": "Book a demo",
+      "about": "About",
+      "contact": "Contact",
+      "email": "Email",
+      "terms": "Terms of service",
+      "privacy": "Privacy policy",
+      "legalMentions": "Legal notice"
+    },
+    "copyright": "© {{year}} Eïa. All rights reserved."
+  }
+}

@@ -64,9 +64,11 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
+import { slugify } from "@/lib/slugify";
 
 // Component to display calculated Eïa commission
 function LymfeaCommissionDisplay({ control }: { control: Control<VenueWizardFormValues> }) {
@@ -237,11 +239,11 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
-      <Card className="border-l-4 border-l-gold-500">
+      <Card id="identity" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-gold-600" />
                 Identité du lieu
               </CardTitle>
@@ -396,6 +398,37 @@ export function VenueGeneralTab({
                 />
               </div>
 
+              {/* Public URL identifier (slug) */}
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => {
+                  const preview = slugify(field.value || "") || "le-ritz-paris";
+                  return (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        Lien public
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="ex: le-ritz-paris"
+                          {...field}
+                          disabled={disabled}
+                        />
+                      </FormControl>
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                        Identifiant utilisé dans l'URL publique de votre espace de réservation
+                        (ex. <code className="text-[10px]">{`${brand.appDomain}/client/${preview}`}</code>).
+                        Utilisez des lettres minuscules, chiffres et tirets. Évitez de le changer
+                        une fois partagé, sinon les anciens liens ne fonctionneront plus.
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
               {venueTypeValue === 'hotel' && (
                 <div className="grid grid-cols-2 gap-4 items-end">
                   <FormField
@@ -505,9 +538,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card B: Localisation */}
-      <Card>
+      <Card id="location" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <MapPin className="h-4 w-4 text-blue-500" />
             Localisation
           </CardTitle>
@@ -646,9 +679,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card C: Finance */}
-      <Card>
+      <Card id="finance" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
             Finance
           </CardTitle>
@@ -794,9 +827,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card D: Booking Settings */}
-      <Card>
+      <Card id="booking-settings" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Settings className="h-4 w-4 text-orange-500" />
             Paramètres de réservation
           </CardTitle>
@@ -871,13 +904,93 @@ export function VenueGeneralTab({
             />
           )}
 
+          <FormField
+            control={form.control}
+            name="inter_venue_buffer_minutes"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.interVenueBuffer', 'Temps de trajet inter-lieux')}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="5"
+                      min="0"
+                      max="120"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? '' : parseInt(val) || 0);
+                      }}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        if (e.target.value === '') field.onChange(0);
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">min</span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {t('venue.interVenueBufferDesc', "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="room_turnover_buffer_minutes"
+            render={({ field }) => (
+              <FormItem className="py-4">
+                <FormLabel className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t('venue.roomTurnoverBuffer', 'Temps de remise en état')}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative w-40">
+                    <Input
+                      type="number"
+                      step="5"
+                      min="0"
+                      max="120"
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        field.onChange(val === '' ? '' : parseInt(val) || 0);
+                      }}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        if (e.target.value === '') field.onChange(0);
+                      }}
+                      disabled={disabled}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">min</span>
+                  </div>
+                </FormControl>
+                <p className="text-xs text-muted-foreground">
+                  {t('venue.roomTurnoverBufferDesc', "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.")}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
         </CardContent>
       </Card>
 
+      <VenueBookingRulesTab form={form} disabled={disabled} />
+
       {/* Card E: Horaires & Disponibilité */}
-      <Card>
+      <Card id="schedule" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-500" />
             Horaires & Disponibilité
           </CardTitle>
@@ -897,10 +1010,10 @@ export function VenueGeneralTab({
 
       {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
       {hotelId && (
-        <Card>
+        <Card id="team" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-violet-500" />
                 Équipe lieu
               </CardTitle>
@@ -951,13 +1064,13 @@ export function VenueGeneralTab({
         </Card>
       )}
 
-      {/* Card F: PMS Integration (hotel type only, when venue is saved) */}
+      {/* Card G: PMS Integration (hotel type only, when venue is saved) */}
       {hotelId && venueTypeValue === 'hotel' && (
         <>
-          <Card>
+          <Card id="pms" className="scroll-mt-32">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
                   <Plug className="h-4 w-4 text-cyan-500" />
                   Intégration PMS
                 </CardTitle>

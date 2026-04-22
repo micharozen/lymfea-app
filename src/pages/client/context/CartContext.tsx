@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 export interface BasketItem {
   id: string;           // treatment_id
+  slug?: string;        // treatment slug — propagated to ?t= query param when present
   variantId?: string;   // selected variant ID
   variantLabel?: string; // e.g. "60 min"
   name: string;
@@ -14,11 +15,33 @@ export interface BasketItem {
   note?: string;
   image?: string;
   category: string;
-  isPriceOnRequest?: boolean; // New field to track variable price items
+  isPriceOnRequest?: boolean;
   isAddon?: boolean;    // True if treatment is an add-on (category-level or per-treatment)
   parentCartKey?: string; // Composite key of the parent cart item this add-on is linked to
   isBundle?: boolean;   // True if this is a cure/bundle purchase
   bundleId?: string;    // FK to treatment_bundles template
+  guestCount?: number;  // Number of guests (for multi-person treatments)
+  availableDays?: number[] | null; // 0=Sun,1=Mon,…,6=Sat. null/[] = all days
+}
+
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/** null or [] means no constraint — treatment is available every day */
+function effectiveDays(days: number[] | null | undefined): number[] {
+  return !days || days.length === 0 ? ALL_DAYS : days;
+}
+
+/**
+ * Returns the days available for the whole cart (intersection of all non-addon,
+ * non-bundle items). Useful to disable calendar days in SchedulePanel.
+ */
+export function getCartAvailableDays(items: BasketItem[]): number[] {
+  const constrained = items.filter(i => !i.isAddon && !i.isBundle);
+  if (constrained.length === 0) return ALL_DAYS;
+  return constrained.reduce<number[]>(
+    (acc, item) => acc.filter(d => effectiveDays(item.availableDays).includes(d)),
+    ALL_DAYS
+  );
 }
 
 /** Composite key for cart items — allows same treatment with different variants as separate items */
@@ -69,6 +92,17 @@ export const BasketProvider: React.FC<{ children: React.ReactNode; hotelId: stri
       if (!item.isBundle && hasBundle) {
         toast.info(t('cart.bundleMixWarning', 'Les cures doivent être achetées séparément'));
         return [{ ...item, quantity: 1 }];
+      }
+
+      // Day-constraint compatibility check (skip add-ons and bundles)
+      if (!item.isAddon && !item.isBundle) {
+        const cartDays = getCartAvailableDays(prev);
+        const newDays = effectiveDays(item.availableDays);
+        const intersection = cartDays.filter(d => newDays.includes(d));
+        if (intersection.length === 0) {
+          toast.error(t('cart.dayConflict'));
+          return prev;
+        }
       }
 
       const itemKey = getCartKey(item.id, item.variantId);

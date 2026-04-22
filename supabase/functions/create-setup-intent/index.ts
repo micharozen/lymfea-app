@@ -22,6 +22,7 @@ serve(async (req) => {
       hotelId,
       language,
       therapistGender,
+      draftBookingId,
       giftAmountUsage
     } = await req.json();
 
@@ -81,7 +82,7 @@ serve(async (req) => {
     // Récupérer les infos de l'hôtel (Horaires, devises, etc.)
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -154,8 +155,8 @@ serve(async (req) => {
       mode: 'setup',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,      
-      cancel_url: `${origin}/client/${hotelId}/payment`,
+      success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotel.slug ?? hotelId}/payment`,
       metadata: {
         hotelId: hotelId,
         bookingDate: bookingData.date,
@@ -169,6 +170,7 @@ serve(async (req) => {
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
         language: language || 'fr',
         therapistGender: therapistGender || '',
+        draftBookingId: draftBookingId || '',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),

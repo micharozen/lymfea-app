@@ -42,6 +42,7 @@ interface Booking {
   payment_method?: string | null;
   booking_treatments?: Array<{
     treatment_menus: {
+      name: string;
       price: number;
       duration: number;
     } | null;
@@ -327,6 +328,7 @@ const PwaDashboard = () => {
         *,
         booking_treatments (
           treatment_menus (
+            name,
             price,
             duration
           )
@@ -357,6 +359,7 @@ const PwaDashboard = () => {
         *,
         booking_treatments (
           treatment_menus (
+            name,
             price,
             duration
           )
@@ -847,6 +850,9 @@ const PwaDashboard = () => {
                           ) : null;
                         })()}
                       </div>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {booking.booking_treatments?.map(bt => bt.treatment_menus?.name).filter(Boolean).join(', ') || ''}
+                      </p>
                       <p className="text-[11px] text-muted-foreground">
                         {format(new Date(booking.booking_date), "EEE d MMM")}, {booking.booking_time.substring(0, 5)} • {calculateTotalDuration(booking)}min • {formatPrice(calculateTotalPrice(booking), getHotelCurrency(booking))}
                       </p>
@@ -947,6 +953,9 @@ const PwaDashboard = () => {
                                 </Badge>
                               )}
                             </div>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {booking.booking_treatments?.map(bt => bt.treatment_menus?.name).filter(Boolean).join(', ') || ''}
+                            </p>
                             {booking.proposed_slots ? (
                               <p className="text-[11px] text-muted-foreground">
                                 {format(new Date(booking.proposed_slots.slot_1_date + "T00:00:00"), "d/MM")} {booking.proposed_slots.slot_1_time.substring(0, 5)}

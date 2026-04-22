@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UseFormReturn, useWatch, Control } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
@@ -47,6 +47,7 @@ import { getCountryDefaults } from "@/lib/timezones";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VenueWizardFormValues } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
+import { slugify } from "@/lib/slugify";
 
 interface TreatmentRoom {
   id: string;
@@ -137,6 +138,16 @@ export function VenueGeneralInfoStep({
 
   // Watch country field and auto-suggest timezone, currency, VAT (only for add mode)
   const countryValue = useWatch({ control: form.control, name: "country" });
+
+  // Auto-prepopulate slug from name until the user manually edits the slug field.
+  const nameValue = useWatch({ control: form.control, name: "name" });
+  const slugValue = useWatch({ control: form.control, name: "slug" });
+  const slugTouchedRef = useRef(false);
+  useEffect(() => {
+    if (mode !== 'add') return;
+    if (slugTouchedRef.current) return;
+    form.setValue("slug", slugify(nameValue), { shouldValidate: false });
+  }, [nameValue, mode, form]);
 
   // Watch global therapist commission toggle
   const globalTherapistCommission = useWatch({ control: form.control, name: "global_therapist_commission" });
@@ -301,6 +312,36 @@ export function VenueGeneralInfoStep({
                 <FormControl>
                   <Input {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="slug"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Lien public
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="ex: le-ritz-paris"
+                    {...field}
+                    onChange={(e) => {
+                      slugTouchedRef.current = true;
+                      field.onChange(e.target.value);
+                    }}
+                  />
+                </FormControl>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Identifiant utilisé dans l'URL publique de votre espace de réservation
+                  (ex. <code className="text-[10px]">{`${brand.appDomain}/client/${slugify(slugValue || nameValue) || 'le-ritz-paris'}`}</code>).
+                  Lettres minuscules, chiffres et tirets uniquement. Évitez de le changer
+                  une fois partagé — les anciens liens ne fonctionneront plus.
+                </p>
                 <FormMessage />
               </FormItem>
             )}

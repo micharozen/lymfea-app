@@ -72,7 +72,7 @@ const SetPassword = () => {
         // Check if already authenticated
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          navigate("/", { replace: true });
+          navigate("/app", { replace: true });
         } else {
           // No valid link and not authenticated - redirect to auth
           navigate("/auth", { replace: true });
@@ -147,7 +147,7 @@ const SetPassword = () => {
         const { redirectPath } = await getRoleRedirect(data.user.id);
         navigate(redirectPath, { replace: true });
       } else {
-        navigate("/", { replace: true });
+        navigate("/app", { replace: true });
       }
     } catch (error: any) {
       toast({

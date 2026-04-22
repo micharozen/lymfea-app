@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
+import type { BookingClientType } from "@/lib/clientTypeMeta";
 
 interface Hotel {
   id: string;
@@ -31,6 +32,7 @@ export interface CreateBookingPayload {
   hotelId: string;
   clientFirstName: string;
   clientLastName: string;
+  clientEmail?: string;
   phone: string;
   countryCode: string;
   roomNumber: string;
@@ -38,6 +40,7 @@ export interface CreateBookingPayload {
   date: string;
   time: string;
   therapistId: string;
+  therapistIds?: string[];  // For multi-person bookings (admin selects N therapists)
   slot2Date: string | null;
   slot2Time: string | null;
   slot3Date: string | null;
@@ -50,6 +53,10 @@ export interface CreateBookingPayload {
   isOutOfHours: boolean;
   surchargeAmount: number;
   amenityAccess?: AmenityAccessPayload[];
+  guestCount?: number;
+  clientType?: BookingClientType;
+  payByVoucher?: boolean;
+  voucherReference?: string | null;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -79,6 +86,24 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         status = "awaiting_hairdresser_selection";
         finalTherapistId = null;
         finalTherapistName = null;
+      }
+
+      // Resolve payment_method + payment_status from clientType + voucher flag
+      const clientType: BookingClientType = d.clientType ?? "external";
+      let paymentMethod: string | null = null;
+      let paymentStatus: string | null = null;
+      if (d.payByVoucher && (clientType === "hotel" || clientType === "external")) {
+        paymentMethod = "voucher";
+        paymentStatus = "paid";
+      } else if (clientType === "hotel") {
+        paymentMethod = "room";
+        paymentStatus = "charged_to_room";
+      } else if (clientType === "staycation" || clientType === "classpass") {
+        paymentMethod = "partner_billed";
+        paymentStatus = "pending_partner_billing";
+      } else {
+        // external + no voucher: payment_method stays null (set after Stripe payment), status pending
+        paymentStatus = "pending";
       }
 
       // Auto-assign treatment room from hotel
@@ -122,6 +147,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         hotel_name: hotel?.name || "",
         client_first_name: d.clientFirstName,
         client_last_name: d.clientLastName,
+        client_email: d.clientEmail || null,
         phone: normalizedPhone,
         room_number: d.roomNumber,
         client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
@@ -137,7 +163,12 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,
-      }).select().single();
+        guest_count: d.guestCount ?? 1,
+        client_type: clientType,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        payment_reference: d.voucherReference || null,
+      } as any).select().single();
 
       if (error) throw error;
 
@@ -155,6 +186,25 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
           d.treatmentIds.map((tid: string) => ({ booking_id: booking.id, treatment_id: tid }))
         );
         if (te) throw te;
+      }
+
+      // Create booking_therapists bridge table entries
+      if (d.isAdmin && booking) {
+        const allTherapistIds = d.therapistIds?.length
+          ? d.therapistIds
+          : finalTherapistId ? [finalTherapistId] : [];
+
+        if (allTherapistIds.length > 0) {
+          const { error: btError } = await supabase.from("booking_therapists").insert(
+            allTherapistIds.map((tid: string) => ({
+              booking_id: booking.id,
+              therapist_id: tid,
+              status: "accepted",
+              assigned_at: new Date().toISOString(),
+            }))
+          );
+          if (btError) console.error("Error creating booking_therapists:", btError);
+        }
       }
 
       // Create linked amenity bookings if any

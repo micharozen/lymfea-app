@@ -312,6 +312,7 @@ payments.post("/purchase-bundle", async (c) => {
       throw new Error("Payment not completed");
     }
 
+    // Check this is a bundle purchase
     if (session.metadata?.type !== 'bundle_purchase') {
       throw new Error("Invalid session type");
     }
@@ -324,12 +325,17 @@ payments.post("/purchase-bundle", async (c) => {
       .limit(1);
 
     if (existingBundles && existingBundles.length > 0) {
+      // Already processed — return existing bundle IDs
       const { data: allBundles } = await supabaseAdmin
         .from('customer_treatment_bundles')
         .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
         .eq('payment_reference', `stripe:${sessionId}`);
 
-      return c.json({ success: true, alreadyProcessed: true, customerBundles: allBundles });
+      return c.json({
+        success: true,
+        alreadyProcessed: true,
+        customerBundles: allBundles,
+      });
     }
 
     console.log('[PURCHASE-BUNDLE] Session metadata:', JSON.stringify(session.metadata));
@@ -442,7 +448,7 @@ payments.post("/purchase-bundle", async (c) => {
     const hasNonGiftBundles = bundleDetails?.some((b: any) => b.treatment_bundles?.bundle_type === 'cure');
     if (hasNonGiftBundles) {
       try {
-        // TODO: replace with direct import when send-booking-confirmation is migrated
+        // TODO: replace with direct import once send-booking-confirmation is migrated
         await supabaseAdmin.functions.invoke('send-booking-confirmation', {
           body: {
             type: 'bundle_purchase',
@@ -465,7 +471,7 @@ payments.post("/purchase-bundle", async (c) => {
       .eq('id', hotelId)
       .single();
     const venueName = venue?.name || '';
-    const logoUrl = venue?.image || process.env.EMAIL_LOGO_URL || '';
+    const logoUrl = venue?.image || 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 
     // --- Send gift card email to recipient via Resend template ---
     const isGift = isGiftMeta === 'true';
@@ -473,6 +479,7 @@ payments.post("/purchase-bundle", async (c) => {
     console.log('[PURCHASE-BUNDLE] Condition result:', isGift && recipientEmail && giftDeliveryMode === 'email');
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
+        // Build template variables from the first gift bundle
         const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
         const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
@@ -554,7 +561,10 @@ payments.post("/purchase-bundle", async (c) => {
       }
     }
 
-    return c.json({ success: true, customerBundles: bundleDetails });
+    return c.json({
+      success: true,
+      customerBundles: bundleDetails,
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[PURCHASE-BUNDLE] Error:", errorMessage);
@@ -585,8 +595,8 @@ payments.post("/confirm-setup", async (c) => {
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
-    const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
+    const verifiedPrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
+    const totalDuration = (treatments || []).reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
 
     const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
 
@@ -692,6 +702,41 @@ payments.post("/confirm-setup", async (c) => {
   }
 });
 
+function timeToMinutes(time: string): number {
+  const parts = time.split(':');
+  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+async function isInBlockedSlot(
+  hotelId: string,
+  bookingDate: string,
+  bookingTime: string,
+  durationMinutes: number
+): Promise<boolean> {
+  const { data: blockedSlots, error } = await supabaseAdmin
+    .from('venue_blocked_slots')
+    .select('start_time, end_time, days_of_week')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true);
+
+  if (error || !blockedSlots || blockedSlots.length === 0) {
+    return false;
+  }
+
+  const dayOfWeek = new Date(bookingDate + 'T00:00:00').getDay();
+  const bookingStartMinutes = timeToMinutes(bookingTime);
+  const bookingEndMinutes = bookingStartMinutes + durationMinutes;
+
+  return blockedSlots.some((block: any) => {
+    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
+      return false;
+    }
+    const blockStartMinutes = timeToMinutes(block.start_time);
+    const blockEndMinutes = timeToMinutes(block.end_time);
+    return bookingStartMinutes < blockEndMinutes && bookingEndMinutes > blockStartMinutes;
+  });
+}
+
 payments.post("/setup-intent", async (c) => {
   try {
     const {
@@ -713,24 +758,23 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Missing required client information (including email)");
     }
 
-    const effectiveTreatmentIds: string[] =
-      treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
+    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
 
     if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
       throw new Error("At least one treatment is required");
     }
 
     const { data: treatments, error: treatmentsError } = await supabaseAdmin
-      .from("treatment_menus")
-      .select("id, name, price, hotel_id, status, duration")
-      .in("id", effectiveTreatmentIds);
+      .from('treatment_menus')
+      .select('id, name, price, hotel_id, status, duration')
+      .in('id', effectiveTreatmentIds);
 
     if (treatmentsError || !treatments || treatments.length === 0) {
       throw new Error("Failed to fetch valid treatments");
     }
 
-    const invalidTreatments = treatments.filter(
-      (t) => (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== "active"
+    const invalidTreatments = treatments.filter(t =>
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
     );
 
     if (invalidTreatments.length > 0) {
@@ -750,9 +794,9 @@ payments.post("/setup-intent", async (c) => {
     }
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
-      .from("hotels")
-      .select("currency, name, offert, opening_time, closing_time")
-      .eq("id", hotelId)
+      .from('hotels')
+      .select('currency, name, offert, opening_time, closing_time')
+      .eq('id', hotelId)
       .maybeSingle();
 
     if (hotelError || !hotel) {
@@ -764,37 +808,20 @@ payments.post("/setup-intent", async (c) => {
     }
 
     if (hotel.opening_time && hotel.closing_time) {
-      const bookingMinutes =
-        parseInt(bookingData.time.split(":")[0]) * 60 +
-        parseInt(bookingData.time.split(":")[1]);
-      const openMinutes =
-        parseInt(hotel.opening_time.split(":")[0]) * 60 +
-        parseInt(hotel.opening_time.split(":")[1]);
-      const closeMinutes =
-        parseInt(hotel.closing_time.split(":")[0]) * 60 +
-        parseInt(hotel.closing_time.split(":")[1]);
+      const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
+      const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
+      const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
       if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
-        return c.json({ error: "BLOCKED_SLOT" }, 400);
+        return c.json({ error: 'BLOCKED_SLOT' }, 400);
       }
     }
 
-    if (
-      await isInBlockedSlot(
-        supabaseAdmin,
-        hotelId,
-        bookingData.date,
-        bookingData.time,
-        totalDuration
-      )
-    ) {
-      return c.json({ error: "BLOCKED_SLOT" }, 400);
+    if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
+      return c.json({ error: 'BLOCKED_SLOT' }, 400);
     }
 
     let stripeCustomerId: string;
-    const existingCustomers = await stripe.customers.list({
-      email: clientData.email,
-      limit: 1,
-    });
+    const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
 
     if (existingCustomers.data.length > 0) {
       stripeCustomerId = existingCustomers.data[0].id;
@@ -808,17 +835,14 @@ payments.post("/setup-intent", async (c) => {
     }
 
     const { error: upsertError } = await supabaseAdmin
-      .from("customers")
-      .upsert(
-        {
-          phone: clientData.phone,
-          email: clientData.email,
-          first_name: clientData.firstName,
-          last_name: clientData.lastName,
-          stripe_customer_id: stripeCustomerId,
-        },
-        { onConflict: "phone" }
-      );
+      .from('customers')
+      .upsert({
+        phone: clientData.phone,
+        email: clientData.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        stripe_customer_id: stripeCustomerId,
+      }, { onConflict: 'phone' });
 
     if (upsertError) {
       console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
@@ -827,9 +851,9 @@ payments.post("/setup-intent", async (c) => {
     const origin = c.req.header("origin") || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
-      mode: "setup",
+      mode: 'setup',
       customer: stripeCustomerId,
-      payment_method_types: ["card"],
+      payment_method_types: ['card'],
       success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/client/${hotelId}/payment`,
       metadata: {
@@ -840,17 +864,15 @@ payments.post("/setup-intent", async (c) => {
         lastName: clientData.lastName,
         clientEmail: clientData.email,
         phone: clientData.phone,
-        roomNumber: clientData.roomNumber || "",
-        note: clientData.note || "",
+        roomNumber: clientData.roomNumber || '',
+        note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
-        language: language || "fr",
-        therapistGender: therapistGender || "",
-        ...(giftAmountUsage
-          ? {
-              giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
-              giftAmountCents: String(giftAmountUsage.amountCents),
-            }
-          : {}),
+        language: language || 'fr',
+        therapistGender: therapistGender || '',
+        ...(giftAmountUsage ? {
+          giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
+          giftAmountCents: String(giftAmountUsage.amountCents),
+        } : {}),
       },
     });
 

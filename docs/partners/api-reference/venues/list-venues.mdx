@@ -1,0 +1,90 @@
+---
+title: "List venues"
+api: "GET /v1/venues"
+description: "List every venue accessible to your API key."
+---
+
+Returns a paginated list of active venues that are in the scope of your API
+key.
+
+## Query parameters
+
+<ParamField query="country" type="string">
+  Filter by ISO 3166-1 alpha-2 country code (e.g. `FR`).
+</ParamField>
+
+<ParamField query="city" type="string">
+  Filter by city name (case-insensitive, exact match).
+</ParamField>
+
+<ParamField query="type" type="'hotel' | 'spa'">
+  Filter by venue type.
+</ParamField>
+
+<ParamField query="has_category" type="string">
+  Keep only venues that offer at least one treatment in this category
+  (e.g. `massage`, `facial`).
+</ParamField>
+
+<ParamField query="cursor" type="string">
+  Cursor from the previous page's `next_cursor`. Omit on the first call.
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Page size. Max `100`.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="Venue[]">
+  Array of [Venue](/concepts/venues) objects.
+</ResponseField>
+
+<ResponseField name="next_cursor" type="string | null">
+  Cursor to fetch the next page, or `null` if this is the last page.
+</ResponseField>
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl "https://api-sandbox.lymfea.com/v1/venues?country=FR&type=hotel" \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+```javascript Node.js
+const params = new URLSearchParams({ country: "FR", type: "hotel" });
+const res = await fetch(`https://api-sandbox.lymfea.com/v1/venues?${params}`, {
+  headers: { Authorization: `Bearer ${process.env.LYMFEA_API_KEY}` },
+});
+const { data, next_cursor } = await res.json();
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": [
+    {
+      "id": "hot_lutetia_paris",
+      "slug": "hotel-lutetia-paris",
+      "type": "hotel",
+      "name": "Spa Akasha — Hôtel Lutetia",
+      "name_en": "Akasha Spa — Hotel Lutetia",
+      "city": "Paris",
+      "country": "FR",
+      "timezone": "Europe/Paris",
+      "currency": "EUR",
+      "opening_time": "09:00",
+      "closing_time": "21:00",
+      "slot_interval": 30
+    }
+  ],
+  "next_cursor": null
+}
+```
+
+</ResponseExample>

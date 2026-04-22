@@ -16,6 +16,7 @@ import { brand } from '@/config/brand';
 import { formatPrice } from '@/lib/formatPrice';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useBasket } from './context/CartContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { cn } from '@/lib/utils';
 import { useLocalizedField } from '@/hooks/useLocalizedField';
 import { ShoppingBag, Minus, Plus, Sparkles, ChevronDown, CalendarDays } from 'lucide-react';
@@ -31,6 +32,7 @@ const getOptimizedImageUrl = (url: string | null, width: number, quality = 75): 
 
 interface Treatment {
   id: string;
+  slug: string;
   name: string;
   name_en: string | null;
   description: string | null;
@@ -41,10 +43,11 @@ interface Treatment {
   category: string;
   price_on_request: boolean | null;
   currency: string | null;
+  available_days?: number[] | null;
 }
 
 export default function Welcome() {
-  const hotelId = window.location.pathname.split('/')[2];
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('client');
   const dateLocale = i18n.language === 'fr' ? fr : enUS;
@@ -206,6 +209,7 @@ export default function Welcome() {
 
     addItem({
       id: treatment.id,
+      slug: treatment.slug,
       name: localize(treatment.name, treatment.name_en),
       price: Number(treatment.price) || 0,
       currency: treatment.currency || 'EUR',
@@ -213,6 +217,7 @@ export default function Welcome() {
       image: treatment.image || undefined,
       category: treatment.category,
       isPriceOnRequest: treatment.price_on_request || false,
+      availableDays: treatment.available_days ?? null,
     });
 
     if (navigator.vibrate) {
@@ -309,7 +314,7 @@ export default function Welcome() {
             style={{ animationDelay: '1.8s' }}
           >
             <Button
-              onClick={() => navigate(`/client/${hotelId}/treatments`)}
+              onClick={() => navigate(`/client/${slug}/treatments`)}
               className="w-full h-14 sm:h-16 text-base sm:text-lg font-grotesk font-medium tracking-widest uppercase bg-white text-black hover:bg-gray-100 transition-all duration-300 shadow-lg"
             >
               {t('welcome.booking')}
@@ -575,7 +580,7 @@ export default function Welcome() {
       {itemCount > 0 && (
         <div className="fixed bottom-4 left-0 right-0 px-4 pb-safe z-30 bg-gradient-to-t from-white via-white to-transparent">
           <Button
-            onClick={() => navigate(`/client/${hotelId}/schedule`)}
+            onClick={() => navigate(`/client/${slug}/schedule`)}
             className="w-full h-12 sm:h-14 md:h-16 text-base font-medium tracking-wide transition-all duration-300 bg-gray-900 text-white hover:bg-gray-800 shadow-lg"
           >
             <ShoppingBag className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
@@ -589,7 +594,7 @@ export default function Welcome() {
         open={videoOpen}
         onOpenChange={setVideoOpen}
         videoId={venueType === 'coworking' ? 'u8HxuKPgtco' : 'Lw0gv5VjqY8'}
-        hotelId={hotelId!}
+        slug={slug}
       />
 
       {/* On Request Form Drawer */}

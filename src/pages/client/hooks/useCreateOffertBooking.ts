@@ -5,9 +5,11 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useBasket } from '../context/CartContext';
 import { useClientFlow, type BookingDateTime, type ClientInfo } from '../context/FlowContext';
+import { useClientVenue } from '../context/ClientVenueContext';
 
 export function useCreateOffertBooking(hotelId: string | undefined) {
   const navigate = useNavigate();
+  const { slug } = useClientVenue();
   const { t } = useTranslation('client');
   const { items, clearBasket } = useBasket();
   const { clearFlow, therapistGenderPreference } = useClientFlow();
@@ -50,7 +52,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
 
       clearBasket();
       clearFlow();
-      navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+      navigate(`/client/${slug}/confirmation/${data.bookingId}`);
     } catch (error: any) {
       console.error('Offert booking error:', error);
 
@@ -71,7 +73,7 @@ export function useCreateOffertBooking(hotelId: string | undefined) {
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           replace: true,
           state: { slotTaken: true, takenDate: bookingDateTime.date, takenTime: bookingDateTime.time },
         });

@@ -193,6 +193,7 @@ export default function PhoneBookingDialog({
     date,
     time,
     durationMinutes: totalDuration || 60,
+    treatmentIds: flatIds,
   });
 
   const mutation = useCreateBookingMutation({
@@ -246,6 +247,7 @@ export default function PhoneBookingDialog({
       hotelId,
       clientFirstName: clientFirstName.trim(),
       clientLastName: clientLastName.trim(),
+      clientEmail: clientEmail.trim() || undefined, // <-- L'EMAIL EST AJOUTÉ ICI !
       phone: phone.trim(),
       countryCode,
       roomNumber: roomNumber.trim(),

@@ -36,6 +36,8 @@ import { countries, formatPhoneNumber } from "@/lib/phone";
 import { BookingFormValues } from "../CreateBookingDialog.schema";
 import { usePmsGuestLookup } from "@/hooks/usePmsGuestLookup";
 import { toast } from "sonner";
+import { BOOKING_CLIENT_TYPES, CLIENT_TYPE_META } from "@/lib/clientTypeMeta";
+import { useTranslation } from "react-i18next";
 
 interface BookingInfoStepProps {
   form: UseFormReturn<BookingFormValues>;
@@ -80,7 +82,10 @@ export function BookingInfoStep({
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
+  const { t } = useTranslation('admin');
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
+  const clientType = form.watch("clientType");
+  const isHotelClient = clientType === "hotel";
 
   const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
     if (!pmsLookupEnabled || !roomNumber || roomNumber.length === 0) return;
@@ -239,6 +244,50 @@ export function BookingInfoStep({
           />
         )}
       </div>
+
+      {/* Client type */}
+      <FormField
+        control={form.control}
+        name="clientType"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">{t('bookings.clientType.label')} *</FormLabel>
+            <Select value={field.value} onValueChange={field.onChange}>
+              <FormControl>
+                <SelectTrigger className="h-9">
+                  <SelectValue>
+                    {field.value && (
+                      <span className="flex items-center gap-2">
+                        <img
+                          src={CLIENT_TYPE_META[field.value].logo}
+                          alt=""
+                          className="w-4 h-4 shrink-0"
+                        />
+                        <span>{t(CLIENT_TYPE_META[field.value].labelKey)}</span>
+                      </span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {BOOKING_CLIENT_TYPES.map((ct) => (
+                  <SelectItem key={ct} value={ct}>
+                    <span className="flex items-center gap-2">
+                      <img
+                        src={CLIENT_TYPE_META[ct].logo}
+                        alt=""
+                        className="w-4 h-4 shrink-0"
+                      />
+                      <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
 
       {/* Concierge info banner */}
       {!isAdmin && (
@@ -624,8 +673,8 @@ export function BookingInfoStep({
         )}
       </div>
 
-      {/* PMS hint banner + Room number FIRST when PMS enabled */}
-      {pmsLookupEnabled && (
+      {/* PMS hint banner + Room number FIRST when PMS enabled (hotel clients only) */}
+      {pmsLookupEnabled && isHotelClient && (
         <div className="flex gap-2 items-start rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 p-3">
           <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
           <p className="text-xs text-blue-800 dark:text-blue-300">
@@ -633,13 +682,13 @@ export function BookingInfoStep({
           </p>
         </div>
       )}
-      {pmsLookupEnabled && (
+      {pmsLookupEnabled && isHotelClient && (
         <FormField
           control={form.control}
           name="roomNumber"
           render={({ field }) => (
             <FormItem className="space-y-1">
-              <FormLabel className="text-xs">Room number</FormLabel>
+              <FormLabel className="text-xs">N° de chambre *</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Input
@@ -695,6 +744,22 @@ export function BookingInfoStep({
         />
       </div>
 
+      <FormField
+        control={form.control}
+        name="clientEmail"
+        render={({ field }) => (
+          <FormItem className="space-y-1">
+            <FormLabel className="text-xs">
+              Email <span className="text-muted-foreground font-normal">(optionnel)</span>
+            </FormLabel>
+            <FormControl>
+              <Input {...field} type="email" className="h-9" placeholder="client@email.com" />
+            </FormControl>
+            <FormMessage className="text-xs" />
+          </FormItem>
+        )}
+      />
+
       <div className={cn("grid gap-2", pmsLookupEnabled ? "grid-cols-1" : "grid-cols-2")}>
         <FormField
           control={form.control}
@@ -719,14 +784,14 @@ export function BookingInfoStep({
           )}
         />
 
-        {/* Room number AFTER phone when PMS disabled */}
-        {!pmsLookupEnabled && (
+        {/* Room number AFTER phone when PMS disabled and hotel client */}
+        {!pmsLookupEnabled && isHotelClient && (
           <FormField
             control={form.control}
             name="roomNumber"
             render={({ field }) => (
               <FormItem className="space-y-1">
-                <FormLabel className="text-xs">Room number</FormLabel>
+                <FormLabel className="text-xs">N° de chambre *</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input

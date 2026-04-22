@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useBasket } from '@/pages/client/context/CartContext';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
+import { useClientVenue } from '@/pages/client/context/ClientVenueContext';
 import { useCreateOffertBooking } from '@/pages/client/hooks/useCreateOffertBooking';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
@@ -34,13 +35,14 @@ export function CheckoutPanel({
   className,
 }: CheckoutPanelProps) {
   const navigate = useNavigate();
+  const { slug } = useClientVenue();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
   const {
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
-    selectedBundle, setSelectedBundle, giftInfo, authBundles,
+    selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -216,6 +218,7 @@ export function CheckoutPanel({
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -223,9 +226,10 @@ export function CheckoutPanel({
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
+          setHoldExpiresAt(null);
           const { data, error } = await supabase.functions.invoke('create-setup-intent', {
             body: {
               hotelId,
@@ -252,6 +256,7 @@ export function CheckoutPanel({
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -302,6 +307,7 @@ export function CheckoutPanel({
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -309,12 +315,15 @@ export function CheckoutPanel({
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -337,6 +346,7 @@ export function CheckoutPanel({
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -379,6 +389,7 @@ export function CheckoutPanel({
             paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -386,7 +397,7 @@ export function CheckoutPanel({
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -407,7 +418,7 @@ export function CheckoutPanel({
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;

@@ -15,11 +15,12 @@ import { toast } from 'sonner';
 type Lang = 'fr' | 'en';
 
 interface HotelQRCodeProps {
-  hotelId: string;
+  /** Public URL identifier (slug preferred; UUID accepted as legacy fallback). */
+  slug: string;
   hotelName: string;
 }
 
-export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
+export function HotelQRCode({ slug, hotelName }: HotelQRCodeProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState<Lang | null>(null);
@@ -38,7 +39,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
   };
 
   const getBookingUrl = (lang: Lang) =>
-    `${getPublicBaseUrl()}/client/${hotelId}?lang=${lang}`;
+    `${getPublicBaseUrl()}/client/${slug}?lang=${lang}`;
 
   const bookingUrl = getBookingUrl(selectedLang);
 
@@ -49,7 +50,7 @@ export function HotelQRCode({ hotelId, hotelName }: HotelQRCodeProps) {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, hotelId, selectedLang]);
+  }, [isOpen, slug, selectedLang]);
 
   const generateQRCode = async () => {
     try {

@@ -9,6 +9,7 @@ import {
 import { Globe } from 'lucide-react';
 import { useLanguagePreference } from '@/hooks/useLanguagePreference';
 import { brand } from '@/config/brand';
+import { useClientVenueOptional } from '@/pages/client/context/ClientVenueContext';
 
 interface LanguageSwitcherProps {
   variant?: 'default' | 'minimal' | 'flag' | 'pill' | 'client' | 'list';
@@ -25,6 +26,7 @@ const languages = [
 export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect, persistToProfile = false }: LanguageSwitcherProps) => {
   const { i18n } = useTranslation();
   const { saveLanguage } = useLanguagePreference();
+  const clientVenue = useClientVenueOptional();
 
   const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
 
@@ -36,12 +38,9 @@ export const LanguageSwitcher = ({ variant = 'default', className = '', onSelect
     }
 
     // Persist in venue sessionStorage so useVenueDefaultLanguage respects it
-    if (variant === 'client') {
-      const hotelId = window.location.pathname.split('/')[2];
-      if (hotelId) {
-        const storageKey = `${brand.storageKeys.venueLangPrefix}:${hotelId}`;
-        sessionStorage.setItem(storageKey, langCode);
-      }
+    if (variant === 'client' && clientVenue?.hotelId) {
+      const storageKey = `${brand.storageKeys.venueLangPrefix}:${clientVenue.hotelId}`;
+      sessionStorage.setItem(storageKey, langCode);
     }
 
     onSelect?.();

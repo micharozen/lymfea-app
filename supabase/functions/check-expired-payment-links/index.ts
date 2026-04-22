@@ -1,15 +1,14 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { Resend } from 'https://esm.sh/resend@4.0.0';
 import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
 import { getPaymentCancellationEmailHtml } from "../_shared/payment-link-templates.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
 });
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
 
 serve(async (req: Request) => {
   try {
@@ -20,7 +19,6 @@ serve(async (req: Request) => {
 
     console.log("[CRON] Checking for expired payment links...");
 
-    // 1. Trouver les bookings expirés qui ne sont pas encore annulés
     const { data: expiredLinks, error: fetchError } = await supabase
       .from('booking_payment_infos')
       .select(`
@@ -36,7 +34,11 @@ serve(async (req: Request) => {
           payment_link_language,
           payment_status,
           status,
-          hotel_id
+          hotel_id,
+          booking_treatments (
+            treatment_id,
+            treatment_menus ( slug )
+          )
         )
       `)
       .lt('payment_link_expires_at', new Date().toISOString())
@@ -51,9 +53,9 @@ serve(async (req: Request) => {
     console.log(`[CRON] Found ${expiredLinks.length} links to expire`);
 
     for (const item of expiredLinks) {
-      const booking = item.bookings as any;
+      // GESTION DU TABLEAU SUPABASE : Si c'est un tableau, on prend le premier élément
+      const booking = Array.isArray(item.bookings) ? item.bookings[0] : item.bookings;
 
-      // 2. Désactiver le lien sur Stripe
       if (item.payment_link_stripe_id) {
         try {
           await stripe.paymentLinks.update(item.payment_link_stripe_id, { active: false });
@@ -63,7 +65,6 @@ serve(async (req: Request) => {
         }
       }
 
-      // 3. Mettre à jour le statut du booking en base
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -74,7 +75,6 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // Stocker la raison d'annulation dans booking_payment_infos (où la colonne est définie)
       await supabase
         .from('booking_payment_infos')
         .update({ cancellation_reason: 'payment_link_expired' })
@@ -89,12 +89,32 @@ serve(async (req: Request) => {
             ? bookingDateObj.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             : bookingDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
           const siteUrl = Deno.env.get('SITE_URL') || brand.website;
-          const bookingUrl = booking.hotel_id
-            ? `${siteUrl}/client/${booking.hotel_id}/treatments`
+
+          // Resolve slug for stable public URL, fall back to UUID if missing
+          let hotelSlugOrId: string | null = booking.hotel_id;
+          if (booking.hotel_id) {
+            const { data: hotelRow } = await supabase
+              .from('hotels')
+              .select('slug')
+              .eq('id', booking.hotel_id)
+              .maybeSingle();
+            hotelSlugOrId = hotelRow?.slug || booking.hotel_id;
+          }
+
+          const treatmentSlugs = (booking.booking_treatments || [])
+            .map((bt: { treatment_menus?: { slug?: string } }) => bt.treatment_menus?.slug)
+            .filter(Boolean)
+            .join(',');
+
+          let bookingUrl = hotelSlugOrId
+            ? `${siteUrl}/client/${hotelSlugOrId}/treatments`
             : brand.website;
-          await resend.emails.send({
-            from: Deno.env.get('IS_LOCAL') === 'true' ? 'onboarding@resend.dev' : brand.emails.from.default,
-            to: Deno.env.get('IS_LOCAL') === 'true' ? 'romainthierryom@gmail.com' : booking.client_email,
+          if (treatmentSlugs) bookingUrl += `?t=${treatmentSlugs}`;
+
+          console.log(`[CRON] Envoi de l'email d'annulation à ${booking.client_email}...`);
+
+          await sendEmail({
+            to: booking.client_email,
             subject: lang === 'fr'
               ? `Votre réservation du ${formattedBookingDate} a été annulée`
               : `Your booking on ${formattedBookingDate} has been cancelled`,
@@ -104,17 +124,20 @@ serve(async (req: Request) => {
               bookingUrl,
             }),
           });
-          console.log(`[EMAIL] Sent cancellation to ${booking.client_email}`);
+          console.log(`[EMAIL] ✅ Sent cancellation to ${booking.client_email}`);
         } catch (e) {
-          console.error(`[EMAIL] Failed to send email for booking ${item.booking_id}:`, e);
+          console.error(`[EMAIL] ❌ Failed to send email for booking ${item.booking_id}:`, e);
         }
+      } else {
+        console.log(`[CRON] ⚠️ Aucun email client trouvé pour le booking ${item.booking_id}`);
       }
     }
 
     return new Response(JSON.stringify({ success: true, count: expiredLinks.length }), { status: 200 });
 
-  } catch (error: any) {
-    console.error("[CRON] Global error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[CRON] Global error:", message);
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 });

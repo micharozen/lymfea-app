@@ -94,13 +94,19 @@
     "selectDateFirst": "Choisissez d'abord votre date ci-dessus",
     "noSlots": "Cette date est complète",
     "tryAnotherDate": "Veuillez essayer une autre date",
+    "dayFull": "Complet",
+    "dayRestricted": "Indisponible",
+    "pickDate": "Calendrier",
     "continue": "CONTINUER",
     "morning": "Matin",
     "afternoon": "Après-midi",
     "evening": "Soir",
     "available": "disponibles",
     "slotTakenBanner": "Ce créneau n'est plus disponible",
-    "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous."
+    "slotTakenDesc": "Ce créneau vient d'être réservé. Les créneaux proches disponibles sont mis en évidence ci-dessous.",
+    "sessionExpiredBanner": "Votre session a expiré",
+    "sessionExpiredDesc": "Le temps de réservation est écoulé. Ce créneau est peut-être encore disponible, sélectionnez-le à nouveau.",
+    "dayConstraintInfo": "Certains soins de votre panier ne sont disponibles que certains jours. Seules les dates compatibles sont affichées."
   },
   "info": {
     "title": "Vos Informations",
@@ -200,10 +206,17 @@
     "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails.",
     "subtitle": "Merci de votre confiance.",
     "yourService": "Votre prestation",
+    "treatments": "Prestations",
+    "time": "Horaire",
+    "timeToConfirm": "Heure à confirmer",
+    "venue": "Lieu",
+    "room": "Chambre",
     "giftCardPaymentTitle": "Payé par carte cadeau",
     "giftCardPaymentMessage": "Le montant de votre soin a été déduit de votre carte cadeau. Aucun paiement supplémentaire n'est requis.",
     "onSitePaymentTitle": "Règlement sur place",
-    "onSitePaymentMessage": "Votre empreinte bancaire a bien été validée pour garantir le rendez-vous. <strong>Aucun montant n'a été débité aujourd'hui.</strong> Le paiement s'effectuera à la fin de votre soin."
+    "onSitePaymentMessage": "Votre empreinte bancaire a bien été validée pour garantir le rendez-vous. <strong>Aucun montant n'a été débité aujourd'hui.</strong> Le paiement s'effectuera à la fin de votre soin.",
+    "paidOnlineTitle": "Paiement reçu",
+    "paidOnlineMessage": "Votre paiement a bien été enregistré. Aucun règlement supplémentaire ne sera demandé le jour de votre soin."
   },
   "paymentConfirmation": {
     "label": "Confirmation de paiement",
@@ -370,10 +383,16 @@
     "confirmMixedPayment": "Payer le reste : {{amount}}"
   },
   "cart": {
+    "dayConflict": "Ce soin n'est pas disponible le même jour que les autres soins de votre panier.",
     "bundleMixWarning": "Les cures doivent être achetées séparément"
   },
   "badges": {
     "card_saved": "Carte enregistrée"
+  },
+  "variant": {
+    "guestShort": "pers.",
+    "guest_one": "personne",
+    "guest_other": "personnes"
   },
   "treatmentDetail": {
     "bookThisTreatment": "Réserver ce soin",

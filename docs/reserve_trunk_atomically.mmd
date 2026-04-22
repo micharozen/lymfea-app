@@ -1,0 +1,96 @@
+flowchart TD
+    START(["`**reserve_trunk_atomically**
+    _hotel_id, _booking_date, _booking_time,
+    _duration, _treatment_ids, _therapist_gender`"]) --> SANITIZE
+
+    SANITIZE["`**1. Nettoyage inputs**
+    _therapist_gender: 'undefined'/'null'/'' → NULL
+    _customer_id: idem`"] --> LOCK
+
+    LOCK["`**2. FOR UPDATE lock**
+    Verrouille tous les bookings actifs
+    du même hotel + date
+    *(exclut awaiting_payment > 4min)*`"] --> CALC
+
+    CALC["`**3. Calcul créneaux**
+    _new_start = heure → minutes
+    _new_end = _new_start + durée`"] --> BUFFERS
+
+    BUFFERS["`**4. Charger buffers**
+    _travel_buffer = inter_venue_buffer_minutes
+    _turnover_buffer = room_turnover_buffer_minutes`"] --> SPECIALTIES
+
+    SPECIALTIES{"`treatment_ids
+    fournis ?`"}
+    SPECIALTIES -- Non --> ROOM_LOOP
+    SPECIALTIES -- Oui --> LOAD_SPEC
+
+    LOAD_SPEC["`**5. Charger spécialités**
+    SELECT DISTINCT treatment_type
+    FROM treatment_menus
+    WHERE id IN (treatment_ids)`"] --> ROOM_LOOP
+
+    ROOM_LOOP[/"`**BOUCLE SALLES**
+    Toutes les treatment_rooms
+    actives du venue`"/] --> ROOM_CHECK
+
+    ROOM_CHECK{"`**Salle libre ?**
+    Overlap check avec turnover buffer :
+    new_start < booking_end + turnover
+    AND new_end + turnover > booking_start
+    *(exclut awaiting_payment > 4min)*`"}
+
+    ROOM_CHECK -- Conflit --> NEXT_ROOM
+    ROOM_CHECK -- Libre --> THERAPIST_LOOP
+
+    NEXT_ROOM{"`Autre salle
+    disponible ?`"}
+    NEXT_ROOM -- Oui --> ROOM_LOOP
+    NEXT_ROOM -- Non --> FAIL
+
+    THERAPIST_LOOP[/"`**BOUCLE THERAPEUTES**
+    Thérapeutes actifs assignés
+    à cette salle (trunks)
+    + filtre genre si demandé`"/] --> SKILL_CHECK
+
+    SKILL_CHECK{"`**Compétences OK ?**
+    required_specialties ⊆ therapist.skills
+    *(si skills NULL → qualifié)*`"}
+
+    SKILL_CHECK -- Non --> NEXT_THERAPIST
+    SKILL_CHECK -- Oui --> AVAIL_CHECK
+
+    AVAIL_CHECK{"`**Thérapeute libre ?**
+    Vérifie TOUS les bookings du thérapeute
+    (tous venues) avec :
+
+    **Même venue** → turnover buffer
+    **Autre venue** → travel buffer
+    *(exclut awaiting_payment > 4min)*`"}
+
+    AVAIL_CHECK -- Conflit --> NEXT_THERAPIST
+    AVAIL_CHECK -- Libre --> SUCCESS_MATCH
+
+    NEXT_THERAPIST{"`Autre thérapeute
+    pour cette salle ?`"}
+    NEXT_THERAPIST -- Oui --> THERAPIST_LOOP
+    NEXT_THERAPIST -- Non --> NEXT_ROOM
+
+    SUCCESS_MATCH["`**MATCH TROUVÉ !**
+    Salle + Thérapeute valides`"] --> INSERT
+
+    INSERT["`**INSERT booking**
+    hotel, client, date, time, room_id,
+    therapist_id, price, duration...`"] --> RETURN
+
+    RETURN(["`**RETURN booking_id** ✓`"])
+
+    FAIL(["`**RAISE EXCEPTION**
+    'NO_TRUNK_AVAILABLE' ✗`"])
+
+    style START fill:#4a90d9,color:#fff
+    style RETURN fill:#27ae60,color:#fff
+    style FAIL fill:#e74c3c,color:#fff
+    style SUCCESS_MATCH fill:#27ae60,color:#fff
+    style LOCK fill:#f39c12,color:#fff
+    style INSERT fill:#27ae60,color:#fff

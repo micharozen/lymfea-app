@@ -1,10 +1,11 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, AlertTriangle, CreditCard, Building, Gift, ShieldCheck, Calendar, Clock, Repeat, X, Package, MapPin, Phone } from 'lucide-react';
 import { useBasket } from './context/CartContext';
 import { useClientFlow } from './context/FlowContext';
+import { useClientVenue } from './context/ClientVenueContext';
 import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -18,23 +19,14 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { HoldBanner } from '@/components/client/HoldBanner';
 
 export default function Payment() {
-  const { hotelId } = useParams<{ hotelId: string }>();
+  const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase } = useClientFlow();
-
-  console.log('[Payment] items:', items);
-  console.log('[Payment] isBundleOnly:', isBundleOnly);
-  console.log('[Payment] isBundleOnlyPurchase:', isBundleOnlyPurchase);
-  console.log('[Payment] selectedBundle:', selectedBundle);
-  console.log('[Payment] bookingDateTime:', bookingDateTime);
-  console.log('[Payment] clientInfo:', clientInfo);
-  console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
-  console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
-  const { authBundles } = useClientFlow();
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -86,9 +78,9 @@ export default function Payment() {
 
   useEffect(() => {
     if (!canProceedToStep('payment')) {
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/schedule`);
     }
-  }, [canProceedToStep, navigate, hotelId]);
+  }, [canProceedToStep, navigate, slug]);
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -117,7 +109,7 @@ export default function Payment() {
   const handlePayment = async () => {
     if (!clientInfo) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -168,7 +160,7 @@ export default function Payment() {
 
     if (!bookingDateTime) {
       toast.error(t('common:errors.generic'));
-      navigate(`/client/${hotelId}/cart`);
+      navigate(`/client/${slug}/cart`);
       return;
     }
 
@@ -209,6 +201,7 @@ export default function Payment() {
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -216,7 +209,7 @@ export default function Payment() {
 
           clearBasket();
           clearFlow();
-          navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+          navigate(`/client/${slug}/confirmation/${data.bookingId}`);
           return;
         } else {
           // Partial coverage — pay remainder via Stripe
@@ -296,6 +289,7 @@ export default function Payment() {
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -303,12 +297,15 @@ export default function Payment() {
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
         return;
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Le draft reste en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -331,6 +328,7 @@ export default function Payment() {
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -372,6 +370,7 @@ export default function Payment() {
             paymentMethod: 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -380,7 +379,7 @@ export default function Payment() {
         clearBasket();
         clearFlow();
         // Redirection vers la page dynamique
-        navigate(`/client/${hotelId}/confirmation/${data.bookingId}`);
+        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -400,7 +399,7 @@ export default function Payment() {
           : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
           : 'errors.leadTimeViolation';
         toast.error(t(messageKey));
-        navigate(`/client/${hotelId}/schedule`, {
+        navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });
         return;
@@ -414,13 +413,14 @@ export default function Payment() {
 
   return (
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${hotelId}/guest-info`)}
+            onClick={() => navigate(`/client/${slug}/guest-info`, { replace: true })}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >

@@ -53,12 +53,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     },
   });
 
@@ -70,8 +73,24 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const countryCode = form.watch("countryCode");
   const clientFirstName = form.watch("clientFirstName");
   const clientLastName = form.watch("clientLastName");
+  const clientEmail = form.watch("clientEmail");
   const phone = form.watch("phone");
   const roomNumber = form.watch("roomNumber");
+  const clientType = form.watch("clientType");
+  const payByVoucher = form.watch("payByVoucher");
+  const voucherReference = form.watch("voucherReference");
+
+  // Clear roomNumber when clientType switches away from 'hotel'
+  // and reset voucher when moving to partner client types.
+  useEffect(() => {
+    if (clientType !== "hotel" && roomNumber) {
+      form.setValue("roomNumber", "");
+    }
+    if (clientType !== "hotel" && clientType !== "external" && payByVoucher) {
+      form.setValue("payByVoucher", false);
+      form.setValue("voucherReference", "");
+    }
+  }, [clientType, roomNumber, payByVoucher, form]);
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
@@ -196,7 +215,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const validateInfo = async () => {
     const fields: (keyof BookingFormValues)[] = [
-      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
+      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time", "roomNumber",
     ];
     const result = await form.trigger(fields);
     if (isAdmin && !form.getValues("therapistId")) {
@@ -262,6 +281,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
       clientLastName: values.clientLastName,
+      clientEmail: values.clientEmail || undefined,
       phone: values.phone,
       countryCode: values.countryCode,
       roomNumber: values.roomNumber,
@@ -280,6 +300,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       isOutOfHours: isBookingOutOfHours,
       surchargeAmount,
       amenityAccess: amenityAccessPayload.length > 0 ? amenityAccessPayload : undefined,
+      clientType: values.clientType,
+      payByVoucher: values.payByVoucher,
+      voucherReference: values.voucherReference?.trim() || null,
     });
   };
 
@@ -308,12 +331,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       slot2Time: "",
       slot3Date: undefined,
       slot3Time: "",
+      clientType: "external",
       clientFirstName: "",
       clientLastName: "",
       phone: "",
       countryCode: "+33",
       roomNumber: "",
       clientNote: "",
+      payByVoucher: false,
+      voucherReference: "",
     });
     setCart([]);
     setCustomPrice("");
@@ -391,6 +417,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   venueAmenities={venueAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
+                  clientType={clientType}
+                  payByVoucher={payByVoucher}
+                  onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
+                  voucherReference={voucherReference}
+                  onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
                 />
             </TabsContent>
 
@@ -423,6 +454,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_id: createdBooking.booking_id,
           client_first_name: clientFirstName,
           client_last_name: clientLastName,
+          client_email: clientEmail || undefined,
           phone: `${countryCode} ${phone}`,
           room_number: roomNumber || undefined,
           booking_date: date ? format(date, "yyyy-MM-dd") : "",
