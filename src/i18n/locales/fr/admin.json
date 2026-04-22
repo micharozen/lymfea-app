@@ -57,6 +57,22 @@
     "noBookings": "Aucune réservation",
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
+    "clientType": {
+      "label": "Type de client",
+      "hotel": "Hôtel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "Externe"
+    },
+    "payByVoucher": {
+      "label": "Payé par voucher (encaissé par le lieu)",
+      "helper": "Le lieu a encaissé le client. La prestation sera facturée au lieu en fin de mois.",
+      "referenceLabel": "Référence du voucher (optionnel)"
+    },
+    "payment": {
+      "paidByVoucher": "Payé par voucher — encaissé par le lieu",
+      "partnerBilled": "Facturé au partenaire (fin de mois)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",
@@ -328,6 +344,20 @@
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "roomTurnoverBuffer": "Temps de remise en état",
     "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "bookingRules": {
+      "tabLabel": "Règles de réservation",
+      "holdSectionTitle": "Pré-réservation (hold)",
+      "holdSectionDescription": "Un hold verrouille temporairement un créneau dès que le client clique sur \"Continuer\" depuis la sélection du créneau, pour qu'il ait le temps de remplir ses informations et de payer sans qu'un autre client ne réserve le même créneau.",
+      "holdEnabled": {
+        "label": "Activer le hold du créneau",
+        "description": "Si désactivé, aucun hold n'est posé et le créneau n'est verrouillé qu'au moment du paiement. Un autre client peut réserver le même créneau entre la sélection et le paiement."
+      },
+      "holdDuration": {
+        "label": "Durée du hold",
+        "description": "Entre 1 et 15 minutes. Le compte à rebours s'affiche côté client et le hold est libéré automatiquement à l'expiration.",
+        "suffix": "min"
+      }
+    },
     "backToList": "Retour aux lieux",
     "edit": "Modifier",
     "cancelEdit": "Annuler",

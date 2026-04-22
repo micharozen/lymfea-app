@@ -23,6 +23,7 @@ const PAYMENT_TEXT_LABELS: Record<string, string> = {
   failed: "Échec",
   refunded: "Remboursé",
   charged_to_room: "Chambre",
+  pending_partner_billing: "Paiement partenaire",
 };
 
 function getPaymentTextLabel(status: string | null | undefined): string {
@@ -89,34 +90,34 @@ export function BookingListView({
   return (
     <div className="h-full flex flex-col min-w-0">
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
-        <Table className="text-xs w-full table-fixed">
+        <Table className="text-xs w-full min-w-[1100px] table-fixed">
           <colgroup>
-            <col className="w-[5%]" />
+            <col className="w-[7%]" />
             <col className="w-[8%]" />
             <col className="w-[5%]" />
             <col className="w-[5%]" />
             <col className="w-[8%]" />
-            <col className="w-[7%]" />
             <col className="w-[11%]" />
-            <col className="w-[11%]" />
-            <col className="w-[7%]" />
-            <col className="w-[11%]" />
-            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[6%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
             <col className="w-[5%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Réservation</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Date</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Heure</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Durée</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Statut</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Réservation</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Date</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Heure</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Durée</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Statut</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Paiement</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Client</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Prestations</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Total</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Hôtel</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2">Thérapeute</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
             </TableRow>
           </TableHeader>
@@ -156,25 +157,25 @@ export function BookingListView({
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="py-3 px-2 text-center">
+                <TableCell className="py-3 px-2 text-center overflow-hidden">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
                     <StatusBadge
                       status={booking.payment_status || "pending"}
                       type="payment"
                       className={
                         paymentAsText
-                          ? "text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                          ? "text-[10px] px-2 py-0.5 max-w-full truncate inline-flex items-center justify-center"
                           : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
                       }
                       customLabel={paymentAsText ? getPaymentTextLabel(booking.payment_status) : undefined}
                     />
                   )}
                 </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-none">{booking.client_first_name} {booking.client_last_name}</span>
+                <TableCell className="text-foreground py-3 px-2 truncate">
+                  <span className="block leading-none truncate">{booking.client_first_name} {booking.client_last_name}</span>
                 </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-snug">
+                <TableCell className="text-foreground py-3 px-2 truncate">
+                  <span className="block leading-snug truncate">
                     {booking.treatments.length > 0
                       ? booking.treatments.map(t => t.name).join(", ")
                       : "-"}
@@ -188,11 +189,11 @@ export function BookingListView({
                     )}
                   </span>
                 </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
+                <TableCell className="text-foreground py-3 px-2 truncate">
                   <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
                 </TableCell>
-                <TableCell className="text-foreground py-3 px-2">
-                  <span className="block leading-none">{booking.therapist_name || "-"}</span>
+                <TableCell className="text-foreground py-3 px-2 truncate">
+                  <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
                 </TableCell>
                 <TableCell className="py-3 px-2 text-center">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {

@@ -35,8 +35,13 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
     return { error: "RESEND_API_KEY is not configured" };
   }
 
-  const to = Array.isArray(options.to) ? options.to : [options.to];
-  const from = options.from ?? brand.emails.from.default;
+  const isLocal = Deno.env.get("IS_LOCAL") === "true";
+  const to = isLocal
+    ? ["romainthierryom@gmail.com"]
+    : Array.isArray(options.to) ? options.to : [options.to];
+  const from = isLocal
+    ? "onboarding@resend.dev"
+    : (options.from ?? brand.emails.from.default);
 
   const body: Record<string, unknown> = { from, to };
 

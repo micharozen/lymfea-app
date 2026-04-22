@@ -15,6 +15,7 @@ import { PaymentSelectionDrawer } from "@/components/pwa/PaymentSelectionDrawer"
 import PwaHeader from "@/components/pwa/Header";
 import PwaPageLoader from "@/components/pwa/PageLoader";
 import { computeTherapistEarnings } from "@/lib/therapistEarnings";
+import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Drawer,
   DrawerClose,
@@ -77,6 +78,7 @@ const getPaymentStatusBadge = (paymentStatus?: string | null) => {
     case 'charged_to_room': return { label: 'Facturé chambre', className: 'bg-blue-100 text-blue-700' };
     case 'card_saved': return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
     case 'pending': return { label: 'Paiement requis', className: 'bg-yellow-100 text-yellow-700' };
+    case 'pending_partner_billing': return { label: 'Paiement partenaire', className: 'bg-indigo-100 text-indigo-700' };
     case 'failed': return { label: 'Échoué', className: 'bg-red-100 text-red-700' };
     default: return null;
   }
@@ -606,9 +608,12 @@ const PwaBookingDetail = () => {
 
           {/* Client info */}
           <div className="mt-3 rounded-xl border bg-card p-3 space-y-1.5">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
               <User className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs font-medium">{booking.client_first_name} {booking.client_last_name || ''}</span>
+              {(booking as any).client_type && (
+                <ClientTypeBadge clientType={(booking as any).client_type} size="sm" />
+              )}
             </div>
             {booking.phone && (
               <div className="flex items-center gap-2.5">

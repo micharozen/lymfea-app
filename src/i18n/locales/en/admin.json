@@ -57,6 +57,22 @@
     "noBookings": "No bookings",
     "filters": "Filters",
     "searchPlaceholder": "Search by client, hotel...",
+    "clientType": {
+      "label": "Client type",
+      "hotel": "Hotel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "External"
+    },
+    "payByVoucher": {
+      "label": "Paid by voucher (collected by venue)",
+      "helper": "The venue collected payment from the client. The service will be billed to the venue at month-end.",
+      "referenceLabel": "Voucher reference (optional)"
+    },
+    "payment": {
+      "paidByVoucher": "Paid by voucher — collected by venue",
+      "partnerBilled": "Billed to partner (month-end)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",
@@ -328,6 +344,20 @@
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "roomTurnoverBuffer": "Room turnover buffer",
     "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
+    "bookingRules": {
+      "tabLabel": "Booking rules",
+      "holdSectionTitle": "Slot hold",
+      "holdSectionDescription": "A hold temporarily locks the selected time slot as soon as the client clicks \"Continue\" on the schedule step, giving them time to fill in their information and pay without another client booking the same slot.",
+      "holdEnabled": {
+        "label": "Enable slot hold",
+        "description": "If disabled, no hold is placed and the slot is only reserved at the moment of payment. Another client may book the same slot between selection and payment."
+      },
+      "holdDuration": {
+        "label": "Hold duration",
+        "description": "Between 1 and 15 minutes. The countdown is shown client-side and the hold is released automatically on expiry.",
+        "suffix": "min"
+      }
+    },
     "backToList": "Back to venues",
     "edit": "Edit",
     "cancelEdit": "Cancel",

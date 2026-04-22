@@ -19,23 +19,14 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { HoldBanner } from '@/components/client/HoldBanner';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase } = useClientFlow();
-
-  console.log('[Payment] items:', items);
-  console.log('[Payment] isBundleOnly:', isBundleOnly);
-  console.log('[Payment] isBundleOnlyPurchase:', isBundleOnlyPurchase);
-  console.log('[Payment] selectedBundle:', selectedBundle);
-  console.log('[Payment] bookingDateTime:', bookingDateTime);
-  console.log('[Payment] clientInfo:', clientInfo);
-  console.log('[Payment] total:', total, 'fixedTotal:', fixedTotal);
-  console.log('[Payment] canProceedToStep("payment"):', canProceedToStep('payment'));
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
-  const { authBundles } = useClientFlow();
 
   useEffect(() => {
     if (selectedMethod === 'room' && clientInfo?.isExternalGuest) {
@@ -87,9 +78,9 @@ export default function Payment() {
 
   useEffect(() => {
     if (!canProceedToStep('payment')) {
-      navigate(`/client/${slug}/cart`);
+      navigate(`/client/${slug}/schedule`);
     }
-  }, [canProceedToStep, navigate, hotelId]);
+  }, [canProceedToStep, navigate, slug]);
 
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
@@ -210,6 +201,7 @@ export default function Payment() {
               },
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
             },
           });
 
@@ -297,6 +289,7 @@ export default function Payment() {
             },
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -310,6 +303,9 @@ export default function Payment() {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Le draft reste en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
         const { data, error } = await supabase.functions.invoke('create-setup-intent', {
           body: {
             hotelId,
@@ -332,6 +328,7 @@ export default function Payment() {
             })),
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -373,6 +370,7 @@ export default function Payment() {
             paymentMethod: 'room',
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            ...(draftBookingId ? { draftBookingId } : {}),
           },
         });
 
@@ -415,13 +413,14 @@ export default function Payment() {
 
   return (
     <div className="relative min-h-[100dvh] w-full bg-white pb-safe">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center gap-4 p-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(`/client/${slug}/guest-info`)}
+            onClick={() => navigate(`/client/${slug}/guest-info`, { replace: true })}
             disabled={isProcessing || isOffertProcessing}
             className="text-gray-900 hover:bg-gray-100"
           >

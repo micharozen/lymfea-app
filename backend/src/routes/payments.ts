@@ -6,6 +6,7 @@ import { sendEmail } from "../lib/email";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
+import { isInBlockedSlot } from "../lib/blocked-slots";
 
 /**
  * Payment routes — authenticated (therapist or admin).
@@ -448,7 +449,7 @@ payments.post("/purchase-bundle", async (c) => {
     const bundleDetailIds = createdBundles.map(b => b.id);
     const { data: bundleDetails } = await supabaseAdmin
       .from('customer_treatment_bundles')
-      .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
+      .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
       .in('id', bundleDetailIds);
 
     // --- Send confirmation email only for cure bundles (not gift cards) ---
@@ -487,8 +488,8 @@ payments.post("/purchase-bundle", async (c) => {
     console.log('[PURCHASE-BUNDLE] Condition result:', isGift && recipientEmail && giftDeliveryMode === 'email');
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
-        console.log('[PURCHASE-BUNDLE] bundleDetails raw:', JSON.stringify(bundleDetails, null, 2));
-        const giftBundle = bundleDetails?.[0];
+        // Build template variables from the first gift bundle
+        const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
         const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
         const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
@@ -673,25 +674,22 @@ payments.post("/confirm-setup", async (c) => {
 
     await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
 
-    const treatmentInserts = treatmentIds.map((tid: string) => ({
-      booking_id: bookingId,
-      treatment_id: tid,
-      variant_id: null,
-    }));
-
-    if (treatmentInserts.length > 0) {
+    if (treatmentIds && treatmentIds.length > 0) {
+      const treatmentInserts = treatmentIds.map((id: string) => ({
+        booking_id: bookingId,
+        treatment_id: id,
+      }));
       const { error: treatmentsError } = await supabaseAdmin
         .from('booking_treatments')
         .insert(treatmentInserts);
-
       if (treatmentsError) {
-        console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
+        console.error("[CONFIRM-SETUP] Erreur lors de l'ajout des soins :", treatmentsError);
       }
     }
 
-    const setupIntent = session.setup_intent as import('stripe').Stripe.SetupIntent;
-    const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as import('stripe').Stripe.PaymentMethod)?.id;
-    const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as import('stripe').Stripe.PaymentMethod)?.card : null;
+    const setupIntent = session.setup_intent as import("stripe").Stripe.SetupIntent;
+    const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.id;
+    const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.card : null;
 
     if (paymentMethodId && setupIntent) {
       await supabaseAdmin.from('booking_payment_infos').insert({
@@ -708,10 +706,191 @@ payments.post("/confirm-setup", async (c) => {
     }
 
     return c.json({ success: true, bookingId });
-
   } catch (error: any) {
     console.error("[CONFIRM-SETUP] Erreur :", error.message);
     return c.json({ error: error.message }, 500);
+  }
+});
+
+function timeToMinutes(time: string): number {
+  const parts = time.split(':');
+  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+async function isInBlockedSlot(
+  hotelId: string,
+  bookingDate: string,
+  bookingTime: string,
+  durationMinutes: number
+): Promise<boolean> {
+  const { data: blockedSlots, error } = await supabaseAdmin
+    .from('venue_blocked_slots')
+    .select('start_time, end_time, days_of_week')
+    .eq('hotel_id', hotelId)
+    .eq('is_active', true);
+
+  if (error || !blockedSlots || blockedSlots.length === 0) {
+    return false;
+  }
+
+  const dayOfWeek = new Date(bookingDate + 'T00:00:00').getDay();
+  const bookingStartMinutes = timeToMinutes(bookingTime);
+  const bookingEndMinutes = bookingStartMinutes + durationMinutes;
+
+  return blockedSlots.some((block: any) => {
+    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
+      return false;
+    }
+    const blockStartMinutes = timeToMinutes(block.start_time);
+    const blockEndMinutes = timeToMinutes(block.end_time);
+    return bookingStartMinutes < blockEndMinutes && bookingEndMinutes > blockStartMinutes;
+  });
+}
+
+payments.post("/setup-intent", async (c) => {
+  try {
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
+      hotelId,
+      language,
+      therapistGender,
+      giftAmountUsage,
+    } = await c.req.json();
+
+    if (!bookingData || !clientData || !hotelId) {
+      throw new Error("Missing required data");
+    }
+
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
+      throw new Error("Missing required client information (including email)");
+    }
+
+    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
+
+    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+      throw new Error("At least one treatment is required");
+    }
+
+    const { data: treatments, error: treatmentsError } = await supabaseAdmin
+      .from('treatment_menus')
+      .select('id, name, price, hotel_id, status, duration')
+      .in('id', effectiveTreatmentIds);
+
+    if (treatmentsError || !treatments || treatments.length === 0) {
+      throw new Error("Failed to fetch valid treatments");
+    }
+
+    const invalidTreatments = treatments.filter(t =>
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
+    );
+
+    if (invalidTreatments.length > 0) {
+      throw new Error("Some treatments are not available for this hotel");
+    }
+
+    const rawTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
+    const totalDuration = treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+
+    const giftDeductionEuros = giftAmountUsage?.amountCents
+      ? Math.round(giftAmountUsage.amountCents / 100)
+      : 0;
+    const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
+
+    if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
+      throw new Error("Invalid total price calculated");
+    }
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from('hotels')
+      .select('currency, name, offert, opening_time, closing_time')
+      .eq('id', hotelId)
+      .maybeSingle();
+
+    if (hotelError || !hotel) {
+      throw new Error("Hotel not found");
+    }
+
+    if (hotel.offert) {
+      throw new Error("Ce lieu propose actuellement des soins offerts.");
+    }
+
+    if (hotel.opening_time && hotel.closing_time) {
+      const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
+      const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
+      const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        return c.json({ error: 'BLOCKED_SLOT' }, 400);
+      }
+    }
+
+    if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
+      return c.json({ error: 'BLOCKED_SLOT' }, 400);
+    }
+
+    let stripeCustomerId: string;
+    const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
+
+    if (existingCustomers.data.length > 0) {
+      stripeCustomerId = existingCustomers.data[0].id;
+    } else {
+      const newCustomer = await stripe.customers.create({
+        email: clientData.email,
+        name: `${clientData.firstName} ${clientData.lastName}`,
+        phone: clientData.phone,
+      });
+      stripeCustomerId = newCustomer.id;
+    }
+
+    const { error: upsertError } = await supabaseAdmin
+      .from('customers')
+      .upsert({
+        phone: clientData.phone,
+        email: clientData.email,
+        first_name: clientData.firstName,
+        last_name: clientData.lastName,
+        stripe_customer_id: stripeCustomerId,
+      }, { onConflict: 'phone' });
+
+    if (upsertError) {
+      console.error("[CREATE-SETUP-INTENT] Erreur Upsert Customer:", upsertError);
+    }
+
+    const origin = c.req.header("origin") || "http://localhost:5173";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'setup',
+      customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotelId}/payment`,
+      metadata: {
+        hotelId: hotelId,
+        bookingDate: bookingData.date,
+        bookingTime: bookingData.time,
+        firstName: clientData.firstName,
+        lastName: clientData.lastName,
+        clientEmail: clientData.email,
+        phone: clientData.phone,
+        roomNumber: clientData.roomNumber || '',
+        note: clientData.note || '',
+        treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        language: language || 'fr',
+        therapistGender: therapistGender || '',
+        ...(giftAmountUsage ? {
+          giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
+          giftAmountCents: String(giftAmountUsage.amountCents),
+        } : {}),
+      },
+    });
+
+    return c.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-SETUP-INTENT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
   }
 });
 

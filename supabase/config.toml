@@ -1,5 +1,9 @@
 project_id = "xfkujlgettlxdgrnqluw"
 
+[auth]
+site_url = "http://localhost:8080"
+additional_redirect_urls = ["http://localhost:8080"]
+
 [functions.get-therapist-earnings]
 verify_jwt = false
 
@@ -162,6 +166,7 @@ verify_jwt = false
 [functions.create-portal-account]
 verify_jwt = false
 
+
 [functions.check-expired-payment-links]
 verify_jwt = false
 
@@ -175,4 +180,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notify-therapist-arrived]
+verify_jwt = false
+
+[functions.send-slack-notification]
 verify_jwt = false

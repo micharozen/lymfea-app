@@ -64,6 +64,7 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
@@ -238,11 +239,11 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
-      <Card className="border-l-4 border-l-gold-500">
+      <Card id="identity" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-gold-600" />
                 Identité du lieu
               </CardTitle>
@@ -537,9 +538,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card B: Localisation */}
-      <Card>
+      <Card id="location" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <MapPin className="h-4 w-4 text-blue-500" />
             Localisation
           </CardTitle>
@@ -678,9 +679,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card C: Finance */}
-      <Card>
+      <Card id="finance" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
             Finance
           </CardTitle>
@@ -826,9 +827,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card D: Booking Settings */}
-      <Card>
+      <Card id="booking-settings" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Settings className="h-4 w-4 text-orange-500" />
             Paramètres de réservation
           </CardTitle>
@@ -984,10 +985,12 @@ export function VenueGeneralTab({
         </CardContent>
       </Card>
 
+      <VenueBookingRulesTab form={form} disabled={disabled} />
+
       {/* Card E: Horaires & Disponibilité */}
-      <Card>
+      <Card id="schedule" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-500" />
             Horaires & Disponibilité
           </CardTitle>
@@ -1007,10 +1010,10 @@ export function VenueGeneralTab({
 
       {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
       {hotelId && (
-        <Card>
+        <Card id="team" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-violet-500" />
                 Équipe lieu
               </CardTitle>
@@ -1061,13 +1064,13 @@ export function VenueGeneralTab({
         </Card>
       )}
 
-      {/* Card F: PMS Integration (hotel type only, when venue is saved) */}
+      {/* Card G: PMS Integration (hotel type only, when venue is saved) */}
       {hotelId && venueTypeValue === 'hotel' && (
         <>
-          <Card>
+          <Card id="pms" className="scroll-mt-32">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
                   <Plug className="h-4 w-4 text-cyan-500" />
                   Intégration PMS
                 </CardTitle>
