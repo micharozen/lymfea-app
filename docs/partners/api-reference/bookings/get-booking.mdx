@@ -1,0 +1,70 @@
+---
+title: "Retrieve a booking"
+api: "GET /v1/bookings/{booking_id}"
+description: "Fetch the current state of a booking."
+---
+
+Returns the current state of a booking, including its status, assigned
+therapist and scheduled time.
+
+## Path parameters
+
+<ParamField path="booking_id" type="string" required>
+  The booking id returned by `POST /v1/bookings`. You can also pass your own
+  `external_reference` by prefixing it with `ext:` (e.g.
+  `ext:STAYCATION-ABC123`).
+</ParamField>
+
+## Response
+
+Returns the [Booking](/concepts/bookings) object.
+
+## Errors
+
+| Code                    | HTTP | Meaning                                              |
+| ----------------------- | ---- | ---------------------------------------------------- |
+| `BOOKING_NOT_FOUND`     | 404  | Unknown booking id or external reference            |
+| `FORBIDDEN`             | 403  | Booking exists but was not created by your API key  |
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl https://api-sandbox.lymfea.com/v1/bookings/bkg_7f1a9c3b8d4e4f21 \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+```bash curl (by external_reference)
+curl https://api-sandbox.lymfea.com/v1/bookings/ext:STAYCATION-ABC123 \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": {
+    "id": "bkg_7f1a9c3b8d4e4f21",
+    "booking_number": 4832,
+    "status": "confirmed",
+    "venue_id": "hot_lutetia_paris",
+    "treatment_id": "trt_swedish_60",
+    "variant_id": "var_swedish_60",
+    "start_at": "2026-05-12T12:00:00Z",
+    "end_at": "2026-05-12T13:00:00Z",
+    "duration": 60,
+    "therapist": { "id": "thp_amelie", "assigned_at": "2026-04-22T13:05:12Z" },
+    "external_reference": "STAYCATION-ABC123",
+    "price": { "amount": 12000, "currency": "EUR" },
+    "client_type": "partner",
+    "payment_method": "partner_billed",
+    "payment_status": "pending_partner_billing",
+    "created_at": "2026-04-22T13:05:10Z"
+  }
+}
+```
+
+</ResponseExample>
