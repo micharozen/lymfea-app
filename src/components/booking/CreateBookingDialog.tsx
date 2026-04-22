@@ -215,7 +215,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const validateInfo = async () => {
     const fields: (keyof BookingFormValues)[] = [
-      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time",
+      "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time", "roomNumber",
     ];
     const result = await form.trigger(fields);
     if (isAdmin && !form.getValues("therapistId")) {
