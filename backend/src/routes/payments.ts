@@ -224,7 +224,7 @@ payments.post("/bundle", async (c) => {
     // --- Hotel info ---
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('currency, name')
+      .select('slug, currency, name')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -260,14 +260,15 @@ payments.post("/bundle", async (c) => {
 
     // --- Create Stripe Checkout Session (payment mode) ---
     const origin = c.req.header("origin") || "http://localhost:5173";
+    const venueSlug = (hotel as any).slug ?? hotelId;
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${origin}/client/${hotelId}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/client/${hotelId}/payment`,
+      success_url: `${origin}/client/${venueSlug}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${venueSlug}/payment`,
       metadata: {
         type: 'bundle_purchase',
         hotelId,
@@ -409,11 +410,18 @@ payments.post("/purchase-bundle", async (c) => {
           customerBundleId = data;
         } else {
           // gift_treatments or gift_amount → use create_customer_gift_card
+          const isGiftVal = isGiftMeta === 'true';
           const { data, error: createError } = await supabaseAdmin.rpc('create_customer_gift_card', {
             _bundle_id: item.bundleId,
             _purchaser_customer_id: customerId,
             _hotel_id: hotelId,
-            _is_gift: false,
+            _is_gift: isGiftVal,
+            _gift_delivery_mode: isGiftVal ? (giftDeliveryMode || 'email') : null,
+            _sender_name: isGiftVal ? (senderName || null) : null,
+            _sender_email: isGiftVal ? (senderEmail || null) : null,
+            _recipient_name: isGiftVal ? (recipientName || null) : null,
+            _recipient_email: isGiftVal ? (recipientEmail || null) : null,
+            _gift_message: isGiftVal ? (giftMessage || null) : null,
             _payment_reference: paymentRef,
           });
 
@@ -440,7 +448,7 @@ payments.post("/purchase-bundle", async (c) => {
     const bundleDetailIds = createdBundles.map(b => b.id);
     const { data: bundleDetails } = await supabaseAdmin
       .from('customer_treatment_bundles')
-      .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
+      .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
       .in('id', bundleDetailIds);
 
     // --- Send confirmation email only for cure bundles (not gift cards) ---
@@ -466,10 +474,11 @@ payments.post("/purchase-bundle", async (c) => {
     // --- Fetch venue for email templates ---
     const { data: venue } = await supabaseAdmin
       .from('hotels')
-      .select('name, image')
+      .select('slug, name, image')
       .eq('id', hotelId)
       .single();
     const venueName = venue?.name || '';
+    const venueSlug = venue?.slug || hotelId;
     const logoUrl = venue?.image || 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 
     // --- Send gift card email to recipient via Resend template ---
@@ -479,7 +488,7 @@ payments.post("/purchase-bundle", async (c) => {
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
         // Build template variables from the first gift bundle
-        const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
+        const giftBundle = bundleDetails?.[0];
         const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
         const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
@@ -533,7 +542,7 @@ payments.post("/purchase-bundle", async (c) => {
           : '';
 
         const siteUrl = process.env.SITE_URL || 'https://lymfea.fr';
-        const bookingUrl = `${siteUrl}/client/${hotelId}/treatments`;
+        const bookingUrl = `${siteUrl}/client/${venueSlug}/treatments`;
 
         const result = await sendEmail({
           to: clientEmail,
@@ -575,9 +584,11 @@ payments.post("/confirm-setup", async (c) => {
   try {
     const { sessionId } = await c.req.json();
 
+    // 1. Récupération de la session et des metadata
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
     const meta = session.metadata || {};
 
+    // On regarde dans booking_payment_infos si la session existe déjà
     const { data: existingPaymentInfo } = await supabaseAdmin
       .from('booking_payment_infos')
       .select('booking_id')
@@ -593,6 +604,7 @@ payments.post("/confirm-setup", async (c) => {
 
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
+    // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
     const verifiedPrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
@@ -630,31 +642,100 @@ payments.post("/confirm-setup", async (c) => {
       }
     }
 
-    const { data: bookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
-      _booking_date: meta.bookingDate,
-      _booking_time: meta.bookingTime,
-      _client_email: meta.clientEmail || null,
-      _client_first_name: meta.firstName,
-      _client_last_name: meta.lastName,
-      _client_note: meta.note || null,
-      _customer_id: customerId,
-      _duration: totalDuration,
-      _hotel_id: meta.hotelId,
-      _hotel_name: hotel?.name || 'Hotel',
-      _language: meta.language || 'fr',
-      _payment_method: 'card',
-      _payment_status: 'pending',
-      _phone: meta.phone,
-      _room_number: meta.roomNumber || null,
-      _status: 'pending',
-      _therapist_gender: meta.therapistGender || null,
-      _total_price: verifiedPrice,
-      _treatment_ids: treatmentIds
-    });
+    // 3. Création/mise à jour de la réservation
+    let bookingId: string;
 
-    if (rpcError) {
-      console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
-      throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+    if (meta.draftBookingId) {
+      // The slot is already held — update the draft booking with real client data
+      const { data: draftBooking, error: draftFetchError } = await supabaseAdmin
+        .from('bookings')
+        .select('id')
+        .eq('id', meta.draftBookingId)
+        .eq('hotel_id', meta.hotelId)
+        .eq('status', 'awaiting_payment')
+        .single();
+
+      if (draftFetchError || !draftBooking) {
+        console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
+        const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+          _booking_date: meta.bookingDate,
+          _booking_time: meta.bookingTime,
+          _client_email: meta.clientEmail || null,
+          _client_first_name: meta.firstName,
+          _client_last_name: meta.lastName,
+          _client_note: meta.note || null,
+          _customer_id: customerId,
+          _duration: totalDuration,
+          _hotel_id: meta.hotelId,
+          _hotel_name: hotel?.name || 'Hotel',
+          _language: meta.language || 'fr',
+          _payment_method: 'card',
+          _payment_status: 'pending',
+          _phone: meta.phone,
+          _room_number: meta.roomNumber || null,
+          _status: 'pending',
+          _therapist_gender: meta.therapistGender || null,
+          _total_price: verifiedPrice,
+          _treatment_ids: treatmentIds
+        });
+        if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
+        if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+        bookingId = fallbackId;
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from('bookings')
+          .update({
+            client_first_name: meta.firstName,
+            client_last_name: meta.lastName,
+            client_email: meta.clientEmail || null,
+            phone: meta.phone,
+            room_number: meta.roomNumber || null,
+            client_note: meta.note || null,
+            status: 'pending',
+            payment_method: 'card',
+            payment_status: 'pending',
+            total_price: verifiedPrice,
+            customer_id: customerId,
+            therapist_id: null,
+          })
+          .eq('id', meta.draftBookingId);
+
+        if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
+        bookingId = meta.draftBookingId;
+        console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+      }
+    } else {
+      // No hold — standard atomic reserve
+      const { data: newBookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+        _booking_date: meta.bookingDate,
+        _booking_time: meta.bookingTime,
+        _client_email: meta.clientEmail || null,
+        _client_first_name: meta.firstName,
+        _client_last_name: meta.lastName,
+        _client_note: meta.note || null,
+        _customer_id: customerId,
+        _duration: totalDuration,
+        _hotel_id: meta.hotelId,
+        _hotel_name: hotel?.name || 'Hotel',
+        _language: meta.language || 'fr',
+        _payment_method: 'card',
+        _payment_status: 'pending',
+        _phone: meta.phone,
+        _room_number: meta.roomNumber || null,
+        _status: 'pending',
+        _therapist_gender: meta.therapistGender || null,
+        _total_price: verifiedPrice,
+        _treatment_ids: treatmentIds
+      });
+
+      if (rpcError) {
+        console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
+        throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+      }
+      if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+
+      bookingId = newBookingId;
+      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
     }
 
     if (!bookingId) {
@@ -663,19 +744,33 @@ payments.post("/confirm-setup", async (c) => {
 
     await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
 
+    // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
     if (treatmentIds && treatmentIds.length > 0) {
+      if (meta.draftBookingId) {
+        await supabaseAdmin
+          .from('booking_treatments')
+          .delete()
+          .eq('booking_id', bookingId);
+      }
+
       const treatmentInserts = treatmentIds.map((id: string) => ({
         booking_id: bookingId,
         treatment_id: id,
+        variant_id: null,
       }));
-      const { error: treatmentsError } = await supabaseAdmin
-        .from('booking_treatments')
-        .insert(treatmentInserts);
-      if (treatmentsError) {
-        console.error("[CONFIRM-SETUP] Erreur lors de l'ajout des soins :", treatmentsError);
+
+      if (treatmentInserts.length > 0) {
+        const { error: treatmentsError } = await supabaseAdmin
+          .from('booking_treatments')
+          .insert(treatmentInserts);
+
+        if (treatmentsError) {
+          console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
+        }
       }
     }
 
+    // 4. Sauvegarde de la carte dans la nouvelle table
     const setupIntent = session.setup_intent as import("stripe").Stripe.SetupIntent;
     const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.id;
     const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.card : null;

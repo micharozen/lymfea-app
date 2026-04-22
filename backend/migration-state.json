@@ -168,8 +168,8 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-18T07:08:56.164Z",
-      "sourceHash": "6313f8575dd512ce"
+      "migratedAt": "2026-04-22T03:13:11.974Z",
+      "sourceHash": "c8b6dcaa266e5184"
     },
     {
       "name": "purchase-bundle",
@@ -180,8 +180,8 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-19T03:13:41.836Z",
-      "sourceHash": "451719b1b00ef16a"
+      "migratedAt": "2026-04-22T03:14:43.961Z",
+      "sourceHash": "8f7d74a1dd239458"
     },
     {
       "name": "confirm-setup-intent",
@@ -192,12 +192,12 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-19T03:14:11.003Z",
-      "sourceHash": "79ee549d83e6c3da"
+      "migratedAt": "2026-04-22T03:16:25.799Z",
+      "sourceHash": "ec73890d192fdea9"
     },
     {
       "name": "create-setup-intent",
-      "status": "migrated",
+      "status": "outdated",
       "route": "/payments/setup-intent",
       "target": "src/routes/payments.ts",
       "priority": 2,
