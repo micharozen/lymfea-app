@@ -123,7 +123,7 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
     hexColor: '#3b82f6',
   },
   pending_partner_billing: {
-    label: '🏨⏳',
+    label: 'Paiement partenaire',
     badgeClass: 'bg-indigo-100 text-indigo-700',
     cardClass: 'bg-indigo-500 text-white',
     hexColor: '#6366f1',

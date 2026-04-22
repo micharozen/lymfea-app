@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Loader2, Calendar as CalendarIcon, Clock, AlertTriangle, CalendarDays } from 'lucide-react';
-import { useBasket } from '@/pages/client/context/CartContext';
+import { useBasket, getCartAvailableDays } from '@/pages/client/context/CartContext';
 import { TherapistGenderSelector } from '@/components/client/TherapistGenderSelector';
 import { useClientFlow } from '@/pages/client/context/FlowContext';
 import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
 import { format, addDays, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
@@ -24,6 +25,7 @@ interface SchedulePanelProps {
   onContinue: () => void;
   takenDate?: string;
   slotTaken?: boolean;
+  sessionExpired?: boolean;
   /** When true, renders with tighter spacing for embedding inside another page */
   embedded?: boolean;
   className?: string;
@@ -34,11 +36,21 @@ export function SchedulePanel({
   onContinue,
   takenDate,
   slotTaken = false,
+  sessionExpired = false,
   embedded = false,
   className,
 }: SchedulePanelProps) {
   const { items } = useBasket();
-  const { setBookingDateTime, therapistGenderPreference, setTherapistGenderPreference } = useClientFlow();
+  const cartAllowedDays = useMemo(() => getCartAvailableDays(items), [items]);
+  const hasCartDayConstraint = cartAllowedDays.length < 7;
+  const {
+    setBookingDateTime,
+    therapistGenderPreference,
+    setTherapistGenderPreference,
+    draftBookingId,
+    setDraftBookingId,
+    setHoldExpiresAt,
+  } = useClientFlow();
   const { t, i18n } = useTranslation('client');
   const locale = i18n.language === 'fr' ? fr : enUS;
 
@@ -51,10 +63,12 @@ export function SchedulePanel({
   // URL wins on cold load — `takenDate` override > URL > empty
   const [selectedDate, setSelectedDate] = useState(takenDate || urlDate || '');
   const [selectedTime, setSelectedTime] = useState(urlTime || '');
+  const selectedTimeRef = useRef(selectedTime);
   const [showSlotTakenBanner, setShowSlotTakenBanner] = useState(slotTaken);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [noTherapists, setNoTherapists] = useState(false);
+  const [isHolding, setIsHolding] = useState(false);
 
   // Max guest_count across all items determines therapist/room capacity needed
   const requiredGuestCount = useMemo(
@@ -110,8 +124,10 @@ export function SchedulePanel({
       const maxDaysAhead = isOneTime ? 90 : (isRecurring && daysPerWeek < 5) ? 90 : 90;
 
       const slotInterval = hotel?.slot_interval || 30;
+      const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
+      const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
-      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval };
+      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval, holdEnabled, holdDurationMinutes };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
@@ -177,6 +193,9 @@ export function SchedulePanel({
       const dateStr = format(date, 'yyyy-MM-dd');
 
       if (!availableDates.has(dateStr)) continue;
+      
+      const isAllowedByCart = cartAllowedDays.includes(date.getDay());
+      const actuallyHasSlots = daysWithSlots ? daysWithSlots.has(dateStr) : true;
 
       let label = format(date, 'd MMM', { locale });
       if (i === 0) label = t('common:dates.today');
@@ -188,12 +207,13 @@ export function SchedulePanel({
         dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
         fullLabel: format(date, 'd MMM', { locale }),
         isSpecial: i === 0 || i === 1,
-        hasSlots: daysWithSlots ? daysWithSlots.has(dateStr) : true,
+        hasSlots: actuallyHasSlots,
+        isAllowedByCart,
       });
     }
 
     return dates;
-  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots]);
+  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots, cartAllowedDays]);
 
   // Auto-select the first deployed day (usually today) so the slot grid is
   // populated without an extra click. If the day ends up being fully booked,
@@ -201,7 +221,7 @@ export function SchedulePanel({
   useEffect(() => {
     if (selectedDate) return;
     if (takenDate) return;
-    const first = dateOptions[0];
+    const first = dateOptions.find(d => d.hasSlots && d.isAllowedByCart);
     if (first) {
       setSelectedDate(first.value);
       setUrlDateTime(first.value, '');
@@ -277,8 +297,9 @@ export function SchedulePanel({
           setNoTherapists(true);
         }
 
-        if (selectedTime && !slots.includes(selectedTime)) {
+        if (selectedTimeRef.current && !slots.includes(selectedTimeRef.current)) {
           setSelectedTime('');
+          selectedTimeRef.current = '';
         }
       } catch (error) {
         console.error('Error checking availability:', error);
@@ -291,19 +312,85 @@ export function SchedulePanel({
     fetchAvailability();
   }, [selectedDate, hotelId, therapistGenderPreference, requiredGuestCount, t]);
 
+  /**
+   * Creates a draft booking (holds the slot) then navigates forward.
+   * When the venue has hold disabled, skips draft creation — the slot will be locked
+   * at confirm-setup-intent via the reserve_trunk_atomically fallback path.
+   */
+  const executeHoldAndContinue = async (date: string, time: string) => {
+    const holdEnabled = venueData?.holdEnabled ?? true;
+    const holdMinutes = venueData?.holdDurationMinutes ?? 5;
+
+    setIsHolding(true);
+    try {
+      if (draftBookingId) {
+        await supabase.from('bookings').delete()
+          .eq('id', draftBookingId)
+          .eq('status', 'awaiting_payment');
+        setDraftBookingId(null);
+        setHoldExpiresAt(null);
+      }
+
+      if (!holdEnabled) {
+        flushSync(() => {
+          setDraftBookingId(null);
+          setHoldExpiresAt(null);
+          setBookingDateTime({ date, time });
+        });
+        onContinue();
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-draft-booking', {
+        body: {
+          hotelId,
+          bookingData: { date, time },
+          treatments: items.map(item => ({
+            id: item.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+          therapistGender: therapistGenderPreference || null,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.bookingId) throw new Error('No booking ID returned');
+
+      flushSync(() => {
+        setDraftBookingId(data.bookingId);
+        setHoldExpiresAt(Date.now() + holdMinutes * 60 * 1000);
+        setBookingDateTime({ date, time });
+      });
+      onContinue();
+    } catch (err: unknown) {
+      console.error('Hold error:', err);
+      setSelectedTime('');
+      setShowSlotTakenBanner(true);
+      toast.error(t('datetime.slotTakenBanner', 'Ce créneau vient d\'être pris. Veuillez en choisir un autre.'));
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
   const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
 
   const proceedAfterAddons = (time: string) => {
-    setBookingDateTime({ date: selectedDate, time });
+    setIsAddonDrawerOpen(false);
     setUrlDateTime(selectedDate, time);
-    onContinue();
+    setTimeout(async () => {
+      await executeHoldAndContinue(selectedDate, time);
+    }, 300);
   };
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
+    selectedTimeRef.current = time;
     setShowSlotTakenBanner(false);
     if (selectedDate) setUrlDateTime(selectedDate, time);
     trackAction('select_time_slot', { date: selectedDate, time });
+
+    // Note: le hold ne démarre que sur "Continuer", pas au clic du créneau
   };
 
   const handleContinue = () => {
@@ -328,8 +415,10 @@ export function SchedulePanel({
       return;
     }
 
-    proceedAfterAddons(selectedTime);
+    executeHoldAndContinue(selectedDate, selectedTime);
   };
+
+  const isBusy = loadingAvailability || isHolding;
 
   return (
     <div className={cn(
@@ -351,9 +440,24 @@ export function SchedulePanel({
         </div>
       )}
 
+      {/* Session expired banner */}
+      {sessionExpired && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg animate-fade-in flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-medium text-amber-700 text-sm mb-1">
+              {t('datetime.sessionExpiredBanner')}
+            </h3>
+            <p className="text-xs text-amber-600/70">
+              {t('datetime.sessionExpiredDesc')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Page headline */}
       {!embedded && (
-        <div>
+        <div className="animate-fade-in">
           <h3 className="text-[10px] uppercase tracking-[0.3em] text-gold-600 mb-3 font-semibold">
             {t('datetime.stepLabel')}
           </h3>
@@ -373,15 +477,25 @@ export function SchedulePanel({
       )}
 
       {/* Therapist Gender Preference */}
-      <div>
+      <div className={embedded ? "" : "animate-fade-in"} style={embedded ? undefined : { animationDelay: '0.1s' }}>
         <TherapistGenderSelector
           value={therapistGenderPreference}
           onChange={setTherapistGenderPreference}
         />
       </div>
 
+      {/* Day constraint info banner */}
+      {hasCartDayConstraint && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2.5">
+          <CalendarDays className="h-4 w-4 text-blue-500 shrink-0" />
+          <p className="text-xs text-blue-700">
+            {t('datetime.dayConstraintInfo')}
+          </p>
+        </div>
+      )}
+
       {/* Date Selection */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
         <div className="flex items-center justify-between">
           <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
             {t('checkout.dateTime').split('&')[0].trim()}
@@ -422,9 +536,10 @@ export function SchedulePanel({
                   disabled={(date) => {
                     const dateStr = format(date, 'yyyy-MM-dd');
                     if (!availableDates.has(dateStr)) return true;
-                    if (daysWithSlots && !daysWithSlots.has(dateStr)) return true;
+                    if (!cartAllowedDays.includes(date.getDay())) return true;
                     return false;
                   }}
+                  showOutsideDays={false}
                   fromDate={new Date()}
                   toDate={addDays(new Date(), maxDaysAhead)}
                   locale={locale}
@@ -453,63 +568,70 @@ export function SchedulePanel({
                 embedded ? "gap-1.5" : "sm:gap-3"
               )}
             >
-              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots }) => (
-                <button
-                  key={value}
-                  ref={el => { dateButtonRefs.current[value] = el; }}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDate(value);
-                    setUrlDateTime(value, '');
-                  }}
-                  aria-disabled={!hasSlots}
-                  className={cn(
-                    "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
-                    embedded
-                      ? "px-2.5 py-2.5 min-w-[60px]"
-                      : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
-                    selectedDate === value
-                      ? "border-gold-500 bg-gold-500/10"
-                      : !hasSlots
-                        ? "border-gray-200 bg-gray-100/60 opacity-60"
-                        : "border-gray-200 bg-gray-50 hover:border-gray-300"
-                  )}
-                >
-                  <div className="text-center">
-                    {!isSpecial && (
-                      <div className={cn(
-                        "text-[10px] mb-1 tracking-wider",
-                        !hasSlots && selectedDate !== value ? "text-gray-300" : "text-gray-400"
-                      )}>
-                        {dayLabel}
-                      </div>
-                    )}
-                    <div className={cn(
-                      "whitespace-nowrap",
-                      embedded ? "text-xs" : "text-sm",
+              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots, isAllowedByCart }) => {
+                // Un jour est cliquable s'il a des créneaux ET qu'il est autorisé par les soins du panier
+                const isClickable = hasSlots && isAllowedByCart;
+
+                return (
+                  <button
+                    key={value}
+                    ref={el => { dateButtonRefs.current[value] = el; }}
+                    type="button"
+                    disabled={!isClickable} // 🔒 LE VERROU EST ICI
+                    onClick={() => {
+                      if (!isClickable) return; // Double sécurité
+                      setSelectedDate(value);
+                      setUrlDateTime(value, '');
+                    }}
+                    aria-disabled={!isClickable}
+                    className={cn(
+                      "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
+                      embedded
+                        ? "px-2.5 py-2.5 min-w-[60px]"
+                        : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
                       selectedDate === value
-                        ? "text-gold-600 font-medium"
-                        : !hasSlots
-                          ? "text-gray-400 font-light line-through"
-                          : "text-gray-900 font-light"
-                    )}>
-                      {isSpecial ? label : fullLabel}
-                    </div>
-                    {!hasSlots && (
-                      <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
-                        {t('datetime.dayFull')}
-                      </div>
+                        ? "border-gold-500 bg-gold-500/10"
+                        : !isClickable
+                          ? "border-gray-200 bg-gray-100/60 opacity-60 cursor-not-allowed" // Rend le bouton visiblement inactif
+                          : "border-gray-200 bg-gray-50 hover:border-gray-300"
                     )}
-                  </div>
-                </button>
-              ))}
+                  >
+                    <div className="text-center">
+                      {!isSpecial && (
+                        <div className={cn(
+                          "text-[10px] mb-1 tracking-wider",
+                          !isClickable && selectedDate !== value ? "text-gray-300" : "text-gray-400"
+                        )}>
+                          {dayLabel}
+                        </div>
+                      )}
+                      <div className={cn(
+                        "whitespace-nowrap",
+                        embedded ? "text-xs" : "text-sm",
+                        selectedDate === value
+                          ? "text-gold-600 font-medium"
+                          : !isClickable
+                            ? "text-gray-400 font-light line-through" // Barre le texte du jour
+                            : "text-gray-900 font-light"
+                      )}>
+                        {isSpecial ? label : fullLabel}
+                      </div>
+                      {!isClickable && (
+                        <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
+                          {!isAllowedByCart ? t('datetime.dayRestricted') : t('datetime.dayFull')}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
 
       {/* Time Selection */}
-      <div className="space-y-4">
+      <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.3s' }}>
         <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
           {t('checkout.dateTime').split('&')[1]?.trim() || 'Time'}
         </h4>
@@ -544,10 +666,15 @@ export function SchedulePanel({
         <div className="sticky bottom-0 z-10 p-4 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent">
           <Button
             onClick={handleContinue}
-            disabled={!selectedDate || !selectedTime || loadingAvailability}
+            disabled={!selectedDate || !selectedTime || isBusy}
             className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
           >
-            {loadingAvailability ? (
+            {isHolding ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {t('datetime.securing', 'Sécurisation du créneau…')}
+              </>
+            ) : loadingAvailability ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {t('common:loading')}
@@ -563,10 +690,15 @@ export function SchedulePanel({
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
             <Button
               onClick={handleContinue}
-              disabled={!selectedDate || !selectedTime || loadingAvailability}
+              disabled={!selectedDate || !selectedTime || isBusy}
               className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
-              {loadingAvailability ? (
+              {isHolding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('datetime.securing', 'Sécurisation du créneau…')}
+                </>
+              ) : loadingAvailability ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t('common:loading')}

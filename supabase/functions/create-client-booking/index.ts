@@ -63,6 +63,7 @@ const requestSchema = z.object({
   totalPrice: z.number().min(0, 'Total price must be positive').max(100000, 'Total price exceeds maximum'),
   therapistGender: z.enum(['female', 'male']).optional(),
   bundleUsage: bundleUsageSchema.optional(),
+  draftBookingId: z.string().uuid('Invalid draft booking ID').optional(),
   giftAmountUsage: z.object({
     customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
     amountCents: z.number().int().min(1, 'Amount must be positive'),
@@ -130,6 +131,7 @@ try {
       totalPrice,
       therapistGender,
       bundleUsage,
+      draftBookingId,
       giftAmountUsage
     } = validationResult.data;
 
@@ -274,83 +276,143 @@ try {
       console.log('Customer linked:', customerId);
     }
 
-    // TOCTOU FIX: Atomically reserve treatment room + create booking via RPC with FOR UPDATE lock
-    const { data: bookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
-      _hotel_id: hotelId,
-      _booking_date: bookingData.date,
-      _booking_time: bookingData.time,
-      _duration: totalDuration > 0 ? totalDuration : null,
-      _hotel_name: hotel.name,
-      _client_first_name: sanitizedClientData.firstName,
-      _client_last_name: sanitizedClientData.lastName,
-      _client_email: sanitizedClientData.email,
-      _phone: sanitizedClientData.phone,
-      _room_number: sanitizedClientData.roomNumber,
-      _client_note: sanitizedClientData.note,
-      _status: bookingStatus,
-      _payment_method: effectivePaymentMethod,
-      _payment_status: effectivePaymentStatus,
-      _total_price: effectiveTotalPrice,
-      _language: 'fr',
-      _treatment_ids: treatmentIds,
-      _customer_id: customerId || null,
-      _therapist_gender: therapistGender || null,
-    });
+    // -------------------------------------------------------------------------
+    // Slot reservation: UPDATE draft booking if hold exists, otherwise INSERT
+    // -------------------------------------------------------------------------
+    let bookingId: string;
 
-    if (rpcError) {
-      if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
-        console.log('Slot taken (atomic check)');
-        return new Response(
-          JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
-        );
-      }
-      console.error('RPC error:', rpcError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create booking' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+    if (draftBookingId) {
+      // The slot is already held — verify the draft belongs to this hotel and is still pending
+      const { data: draftBooking, error: draftFetchError } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('id', draftBookingId)
+        .eq('hotel_id', hotelId)
+        .eq('status', 'awaiting_payment')
+        .single();
 
-    console.log('Booking created atomically:', bookingId);
-
-    // Fetch the created booking to get booking_id (sequence number)
-    const { data: booking, error: bookingFetchError } = await supabase
-      .from('bookings')
-      .select('id, booking_id')
-      .eq('id', bookingId)
-      .single();
-
-    if (bookingFetchError || !booking) {
-      console.error('Failed to fetch created booking:', bookingFetchError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Booking created but failed to retrieve details' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
-    // Create booking treatments
-    const treatmentInserts = [];
-    for (const treatment of treatments) {
-      for (let i = 0; i < treatment.quantity; i++) {
-        treatmentInserts.push({
-          booking_id: bookingId,
-          treatment_id: treatment.treatmentId,
-          variant_id: treatment.variantId || null,
+      if (draftFetchError || !draftBooking) {
+        console.warn('Draft booking not found or expired, falling back to atomic reserve');
+        // Supprimer le draft expiré pour éviter qu'il reste en base indéfiniment
+        await supabase.from('bookings').delete().eq('id', draftBookingId).eq('status', 'awaiting_payment');
+        // Draft expired — fall through to the atomic reserve below
+        const { data: fallbackId, error: fallbackError } = await supabase.rpc('reserve_trunk_atomically', {
+          _hotel_id: hotelId,
+          _booking_date: bookingData.date,
+          _booking_time: bookingData.time,
+          _duration: totalDuration > 0 ? totalDuration : null,
+          _hotel_name: hotel.name,
+          _client_first_name: sanitizedClientData.firstName,
+          _client_last_name: sanitizedClientData.lastName,
+          _client_email: sanitizedClientData.email,
+          _phone: sanitizedClientData.phone,
+          _room_number: sanitizedClientData.roomNumber,
+          _client_note: sanitizedClientData.note,
+          _status: bookingStatus,
+          _payment_method: effectivePaymentMethod,
+          _payment_status: effectivePaymentStatus,
+          _total_price: effectiveTotalPrice,
+          _language: 'fr',
+          _treatment_ids: treatmentIds,
+          _customer_id: customerId || null,
+          _therapist_gender: therapistGender || null,
         });
+        if (fallbackError) {
+          if (fallbackError.message?.includes('NO_TRUNK_AVAILABLE')) {
+            return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
+          }
+          return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+        }
+        bookingId = fallbackId;
+      } else {
+        // Update the draft with real client data
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({
+            client_first_name: sanitizedClientData.firstName,
+            client_last_name: sanitizedClientData.lastName,
+            client_email: sanitizedClientData.email,
+            phone: sanitizedClientData.phone,
+            room_number: sanitizedClientData.roomNumber,
+            client_note: sanitizedClientData.note,
+            status: bookingStatus,
+            payment_method: effectivePaymentMethod,
+            payment_status: effectivePaymentStatus,
+            total_price: effectiveTotalPrice,
+            customer_id: customerId || null,
+          })
+          .eq('id', draftBookingId);
+
+        if (updateError) {
+          console.error('Failed to update draft booking:', updateError);
+          return new Response(JSON.stringify({ success: false, error: 'Failed to update booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+        }
+
+        bookingId = draftBookingId;
+        console.log('Draft booking updated with real client data:', bookingId);
       }
+
+      // Re-insert booking_treatments with proper quantity support
+      await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+      const treatmentInserts = treatments.flatMap(t =>
+        Array.from({ length: t.quantity }, () => ({
+          booking_id: bookingId,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+        }))
+      );
+      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      if (treatmentsError) console.error('Treatments re-insert error:', treatmentsError);
+
+    } else {
+      // No hold — TOCTOU fix: atomically reserve treatment room + create booking
+      const { data: newBookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
+        _hotel_id: hotelId,
+        _booking_date: bookingData.date,
+        _booking_time: bookingData.time,
+        _duration: totalDuration > 0 ? totalDuration : null,
+        _hotel_name: hotel.name,
+        _client_first_name: sanitizedClientData.firstName,
+        _client_last_name: sanitizedClientData.lastName,
+        _client_email: sanitizedClientData.email,
+        _phone: sanitizedClientData.phone,
+        _room_number: sanitizedClientData.roomNumber,
+        _client_note: sanitizedClientData.note,
+        _status: bookingStatus,
+        _payment_method: effectivePaymentMethod,
+        _payment_status: effectivePaymentStatus,
+        _total_price: effectiveTotalPrice,
+        _language: 'fr',
+        _treatment_ids: treatmentIds,
+        _customer_id: customerId || null,
+        _therapist_gender: therapistGender || null,
+      });
+
+      if (rpcError) {
+        if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
+          console.log('Slot taken (atomic check)');
+          return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
+        }
+        console.error('RPC error:', rpcError);
+        return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
+      }
+
+      bookingId = newBookingId;
+      console.log('Booking created atomically:', bookingId);
+
+      // Create booking treatments
+      const treatmentInserts = treatments.flatMap(t =>
+        Array.from({ length: t.quantity }, () => ({
+          booking_id: bookingId,
+          treatment_id: t.treatmentId,
+          variant_id: t.variantId || null,
+        }))
+      );
+      const { error: treatmentsError } = await supabase.from('booking_treatments').insert(treatmentInserts);
+      if (treatmentsError) console.error('Treatments creation error:', treatmentsError);
     }
 
-    const { error: treatmentsError } = await supabase
-      .from('booking_treatments')
-      .insert(treatmentInserts);
-
-    if (treatmentsError) {
-      console.error('Treatments creation error:', treatmentsError);
-      // Note: booking is already created, so we continue
-    }
-
-    console.log('Booking treatments created');
+    console.log('Booking treatments ready');
 
     // --- Bundle handling ---
     let bundleWarning: string | null = null;
@@ -529,6 +591,13 @@ try {
       }
     }
 
+    // Fetch the created/updated booking to get booking_id (numéro séquentiel)
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('booking_id')
+      .eq('id', bookingId)
+      .single();
+
     // Get treatment names, prices and price_on_request status for email
     const { data: treatmentDetails } = await supabase
       .from('treatment_menus')
@@ -556,7 +625,7 @@ try {
             body: JSON.stringify({
               email: sanitizedClientData.email,
               bookingId: bookingId,
-              bookingNumber: booking.booking_id.toString(),
+              bookingNumber: booking?.booking_id?.toString() ?? '',
               clientName: `${sanitizedClientData.firstName} ${sanitizedClientData.lastName}`,
               hotelName: hotel.name,
               roomNumber: sanitizedClientData.roomNumber,
@@ -691,7 +760,7 @@ try {
       JSON.stringify({
         success: true,
         bookingId: bookingId,
-        bookingNumber: booking.booking_id,
+        bookingNumber: booking?.booking_id ?? null,
         ...(bundleWarning ? { bundleWarning } : {}),
       }),
       {

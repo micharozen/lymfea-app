@@ -20,14 +20,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, Pencil, CalendarDays } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { ArrowLeft, Loader2, Save, Pencil, CalendarDays, Eye } from "lucide-react";
 import { startOfMonth, startOfYear, subDays } from "date-fns";
 import { VenueGeneralTab } from "@/components/admin/venue/VenueGeneralTab";
+import { VenueSectionNavBar, VENUE_CONFIG_SECTIONS } from "@/components/admin/venue/VenueSectionNav";
 import { VenueBookingCalendar } from "@/components/admin/venue/VenueBookingCalendar";
-import { VenueTreatmentRoomsTab } from "@/components/admin/venue/VenueTreatmentRoomsTab";
-import { VenueTherapistsTab } from "@/components/admin/venue/VenueTherapistsTab";
-import { VenueAmenitiesTab } from "@/components/admin/venue/VenueAmenitiesTab";
-import { VenueCategoriesStep } from "@/components/admin/steps/VenueCategoriesStep";
+import { VenueCatalogTab } from "@/components/admin/venue/VenueCatalogTab";
+import { VenueResourcesTab } from "@/components/admin/venue/VenueResourcesTab";
 import { VenueClientPreviewTab } from "@/components/admin/venue/VenueClientPreviewTab";
 import { VenueBillingTab } from "@/components/admin/venue/VenueBillingTab";
 import { DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
@@ -67,6 +72,8 @@ const createFormSchema = (t: TFunction) => z.object({
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
   room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
+  booking_hold_enabled: z.boolean().default(true),
+  booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
   company_offered: z.boolean().default(false),
   landing_subtitle: z.string().optional(),
@@ -99,7 +106,8 @@ export default function VenueDetail() {
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("configuration");
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
   const [hotelName, setHotelName] = useState("");
@@ -162,6 +170,8 @@ export default function VenueDetail() {
       out_of_hours_surcharge_percent: "0",
       inter_venue_buffer_minutes: 0,
       room_turnover_buffer_minutes: 0,
+      booking_hold_enabled: true,
+      booking_hold_duration_minutes: 5,
       offert: false,
       company_offered: false,
       landing_subtitle: "",
@@ -212,6 +222,8 @@ export default function VenueDetail() {
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
           room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
+          booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
+          booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
           offert: hotel.offert || false,
           company_offered: hotel.company_offered || false,
           landing_subtitle: (hotel as any).landing_subtitle || "",
@@ -400,13 +412,13 @@ export default function VenueDetail() {
           ? `Champs requis manquants : ${missingFields.join(", ")}`
           : "Veuillez corriger les erreurs du formulaire"
       );
-      setActiveTab("general");
+      setActiveTab("configuration");
       return;
     }
 
     // Validate deployment
     if (!validateDeployment()) {
-      setActiveTab("general");
+      setActiveTab("configuration");
       return;
     }
 
@@ -439,6 +451,8 @@ export default function VenueDetail() {
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
         room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
+        booking_hold_enabled: values.booking_hold_enabled,
+        booking_hold_duration_minutes: values.booking_hold_duration_minutes,
         offert: values.offert,
         company_offered: values.company_offered,
         landing_subtitle: values.landing_subtitle || null,
@@ -610,6 +624,17 @@ export default function VenueDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {canAccessTabs && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewOpen(true)}
+                className="flex-shrink-0"
+              >
+                <Eye className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Aperçu client</span>
+              </Button>
+            )}
             {isNewMode ? (
               <Button
                 onClick={handleSave}
@@ -658,22 +683,17 @@ export default function VenueDetail() {
           {/* Tab bar — sticky below header */}
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
-              <TabsTrigger value="general" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Général</TabsTrigger>
-              <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">Planning</TabsTrigger>
-              <TabsTrigger value="rooms" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Salles
+              <TabsTrigger value="configuration" className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Configuration
               </TabsTrigger>
-              <TabsTrigger value="amenities" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Commodités
+              <TabsTrigger value="planning" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Planning
               </TabsTrigger>
-              <TabsTrigger value="therapists" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Thérapeutes
+              <TabsTrigger value="catalog" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Catalogue
               </TabsTrigger>
-              <TabsTrigger value="categories" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Catégories
-              </TabsTrigger>
-              <TabsTrigger value="client-preview" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
-                Aperçu client
+              <TabsTrigger value="resources" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
+                Ressources
               </TabsTrigger>
               <TabsTrigger value="billing" disabled={!canAccessTabs} className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 pb-2.5 pt-1.5">
                 Facturation
@@ -685,27 +705,30 @@ export default function VenueDetail() {
           <div className="px-4 md:px-6 py-4">
             <Form {...form}>
               <form onSubmit={(e) => e.preventDefault()}>
-                <TabsContent value="general" className="mt-0">
+                <TabsContent value="configuration" className="mt-0">
+                  {/* Option 2: Horizontal sticky sub-nav */}
+                  <VenueSectionNavBar sections={VENUE_CONFIG_SECTIONS} />
+
                   <VenueGeneralTab
-                    form={form}
-                    mode={isNewMode ? 'add' : 'edit'}
-                    disabled={!isEditing}
-                    hotelId={effectiveHotelId || undefined}
-                    hotelImage={hotelImage}
-                    coverImage={coverImage}
-                    uploadingHotel={uploadingHotel}
-                    uploadingCover={uploadingCover}
-                    hotelImageRef={hotelImageRef}
-                    coverImageRef={coverImageRef}
-                    handleHotelImageUpload={handleHotelImageUpload}
-                    handleCoverImageUpload={handleCoverImageUpload}
-                    triggerHotelImageSelect={triggerHotelImageSelect}
-                    triggerCoverImageSelect={triggerCoverImageSelect}
-                    deploymentState={deploymentState}
-                    onDeploymentStateChange={setDeploymentState}
-                    blockedSlots={blockedSlots}
-                    onBlockedSlotsChange={setBlockedSlots}
-                  />
+                        form={form}
+                        mode={isNewMode ? 'add' : 'edit'}
+                        disabled={!isEditing}
+                        hotelId={effectiveHotelId || undefined}
+                        hotelImage={hotelImage}
+                        coverImage={coverImage}
+                        uploadingHotel={uploadingHotel}
+                        uploadingCover={uploadingCover}
+                        hotelImageRef={hotelImageRef}
+                        coverImageRef={coverImageRef}
+                        handleHotelImageUpload={handleHotelImageUpload}
+                        handleCoverImageUpload={handleCoverImageUpload}
+                        triggerHotelImageSelect={triggerHotelImageSelect}
+                        triggerCoverImageSelect={triggerCoverImageSelect}
+                        deploymentState={deploymentState}
+                        onDeploymentStateChange={setDeploymentState}
+                        blockedSlots={blockedSlots}
+                        onBlockedSlotsChange={setBlockedSlots}
+                      />
                 </TabsContent>
               </form>
             </Form>
@@ -725,40 +748,40 @@ export default function VenueDetail() {
 
             {canAccessTabs && (
               <>
-                <TabsContent value="rooms" className="mt-0">
-                  <VenueTreatmentRoomsTab
-                    hotelId={effectiveHotelId!}
-                    hotelName={hotelName || watchedName}
-                  />
-                </TabsContent>
-
-                <TabsContent value="amenities" className="mt-0">
-                  <VenueAmenitiesTab
+                <TabsContent value="catalog" className="mt-0">
+                  <VenueCatalogTab
                     hotelId={effectiveHotelId!}
                     venueType={watchedVenueType}
                   />
                 </TabsContent>
 
-                <TabsContent value="therapists" className="mt-0">
-                  <VenueTherapistsTab hotelId={effectiveHotelId!} />
-                </TabsContent>
-
-                <TabsContent value="categories" className="mt-0">
-                  <VenueCategoriesStep hotelId={effectiveHotelId} />
-                </TabsContent>
-
-                <TabsContent value="client-preview" className="mt-0">
-                  <VenueClientPreviewTab hotelId={effectiveHotelId!} slug={hotelSlug} />
+                <TabsContent value="resources" className="mt-0">
+                  <VenueResourcesTab
+                    hotelId={effectiveHotelId!}
+                    hotelName={hotelName || watchedName}
+                  />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
                   <VenueBillingTab hotelId={effectiveHotelId!} />
                 </TabsContent>
-
               </>
             )}
           </div>
         </Tabs>
+      )}
+
+      {canAccessTabs && (
+        <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+          <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Aperçu client</SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <VenueClientPreviewTab hotelId={effectiveHotelId!} slug={hotelSlug} />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );

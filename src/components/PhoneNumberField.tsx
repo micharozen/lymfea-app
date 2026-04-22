@@ -16,6 +16,7 @@ type PhoneNumberFieldProps = {
   setCountryCode: (value: string) => void;
   countries: CountryOption[];
   placeholder?: string;
+  disabled?: boolean;
 };
 
 export function PhoneNumberField({
@@ -26,6 +27,7 @@ export function PhoneNumberField({
   setCountryCode,
   countries,
   placeholder,
+  disabled,
 }: PhoneNumberFieldProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -41,14 +43,16 @@ export function PhoneNumberField({
       className={cn(
         "flex h-9 w-full items-center overflow-hidden rounded-md border border-input bg-background",
         "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
+        disabled && "opacity-50 cursor-not-allowed",
       )}
     >
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
         <PopoverTrigger asChild>
           <Button
             type="button"
             variant="ghost"
             size="sm"
+            disabled={disabled}
             className={cn(
               "h-full rounded-none border-r border-input px-2 font-normal text-sm",
               "hover:bg-muted hover:text-foreground",
@@ -128,6 +132,7 @@ export function PhoneNumberField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        disabled={disabled}
         className="h-full flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none"
       />
     </div>

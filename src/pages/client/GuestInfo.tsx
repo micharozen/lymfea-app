@@ -1,6 +1,7 @@
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { TFunction } from 'i18next';
+import { HoldBanner } from '@/components/client/HoldBanner';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -114,7 +115,7 @@ export default function GuestInfo() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { t } = useTranslation('client');
-  const { canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
+  const { cancelHold,canProceedToStep, setClientInfo, clientInfo, bookingDateTime, isBundleOnlyPurchase, setGiftInfo, giftInfo, setAuthBundles, authBundles } = useClientFlow();
   const { items, itemCount, isBundleOnly } = useBasket();
   const { createOffertBooking, isCreating } = useCreateOffertBooking(hotelId);
   const isDesktop = useIsDesktop();
@@ -271,6 +272,18 @@ export default function GuestInfo() {
     }
   }, [shouldRedirectToSchedule, t]);
 
+  // Must be declared before any early return (Rules of Hooks)
+  const handlePhoneChange = useCallback((value: string, onChange: (v: string) => void) => {
+    let clean = value.replace(/\s/g, '');
+    const currentCode = form.getValues('countryCode');
+    if (clean.startsWith(currentCode)) {
+      clean = clean.slice(currentCode.length);
+    } else if (clean.startsWith('+')) {
+      clean = clean.replace(/^\+\d{1,3}/, '');
+    }
+    onChange(clean);
+  }, [form]);
+
   if (shouldRedirectToSchedule) {
     return <Navigate to={`/client/${slug}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`} replace />;
   }
@@ -347,20 +360,9 @@ export default function GuestInfo() {
       c.code.includes(countrySearch)
   );
 
-  // Strip country code prefix from phone input (handles browser autofill inserting full international number)
-  const handlePhoneChange = useCallback((value: string, onChange: (v: string) => void) => {
-    let clean = value.replace(/\s/g, '');
-    const currentCode = form.getValues('countryCode');
-    if (clean.startsWith(currentCode)) {
-      clean = clean.slice(currentCode.length);
-    } else if (clean.startsWith('+')) {
-      clean = clean.replace(/^\+\d{1,3}/, '');
-    }
-    onChange(clean);
-  }, [form]);
-
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      <HoldBanner />
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 pt-safe">
         <div className="flex items-center justify-between p-4">
@@ -368,7 +370,10 @@ export default function GuestInfo() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+             onClick={async () => {
+    await cancelHold();
+    navigate(`/client/${slug}/${isBundleOnlyPurchase ? 'treatments' : 'schedule'}`, { replace: true });
+  }}
               className="text-gray-900 hover:bg-gray-100"
             >
               <ArrowLeft className="h-5 w-5" />

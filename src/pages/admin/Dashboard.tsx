@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { StatCard } from "@/components/StatCard";
@@ -13,19 +13,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useUser } from "@/contexts/UserContext";
 import { DashboardAlerts } from "@/components/admin/dashboard/DashboardAlerts";
 import { SalesChart, StatusDonut, WeekForecast } from "@/components/admin/dashboard/DashboardCharts";
 import { DashboardRankings } from "@/components/admin/dashboard/DashboardRankings";
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
 
 export default function Dashboard() {
+  const { isConcierge, hotelIds } = useUser();
   const [startDate, setStartDate] = useState<Date>(
     new Date(new Date().setDate(new Date().getDate() - 30))
   );
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [selectedHotel, setSelectedHotel] = useState<string>("all");
 
+  // For concierges, scope the dashboard to their assigned hotel(s) — no "Tous les lieux".
+  useEffect(() => {
+    if (isConcierge && hotelIds.length > 0 && (selectedHotel === "all" || !hotelIds.includes(selectedHotel))) {
+      setSelectedHotel(hotelIds[0]);
+    }
+  }, [isConcierge, hotelIds, selectedHotel]);
+
   const data = useDashboardData(startDate, endDate, selectedHotel);
+
+  const visibleHotels = useMemo(
+    () => (isConcierge ? data.hotels.filter((h) => hotelIds.includes(h.id)) : data.hotels),
+    [data.hotels, isConcierge, hotelIds]
+  );
 
   const handlePeriodChange = (start: Date, end: Date) => {
     setStartDate(start);
@@ -53,11 +67,11 @@ export default function Dashboard() {
             <PeriodSelector onPeriodChange={handlePeriodChange} />
             <Select value={selectedHotel} onValueChange={setSelectedHotel}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tous les lieux" />
+                <SelectValue placeholder={isConcierge ? "Sélectionner un lieu" : "Tous les lieux"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les lieux</SelectItem>
-                {data.hotels.map((hotel) => (
+                {!isConcierge && <SelectItem value="all">Tous les lieux</SelectItem>}
+                {visibleHotels.map((hotel) => (
                   <SelectItem key={hotel.id} value={hotel.id}>
                     {hotel.name}
                   </SelectItem>
@@ -75,20 +89,22 @@ export default function Dashboard() {
         <DashboardAlerts alerts={data.alerts} />
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          <StatCard
-            title="Ventes totales"
-            value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
-            trend={
-              stats.salesTrend !== 0
-                ? {
-                    value: `${Math.abs(stats.salesTrend)}%`,
-                    isPositive: stats.salesTrend > 0,
-                    periodLabel: "vs période précédente",
-                  }
-                : undefined
-            }
-          />
+        <div className={`grid grid-cols-2 sm:grid-cols-3 ${isConcierge ? "lg:grid-cols-4" : "lg:grid-cols-6"} gap-3 mb-6`}>
+          {!isConcierge && (
+            <StatCard
+              title="Ventes totales"
+              value={stats.totalSales === "0.00" ? "0 €" : `${stats.totalSales} €`}
+              trend={
+                stats.salesTrend !== 0
+                  ? {
+                      value: `${Math.abs(stats.salesTrend)}%`,
+                      isPositive: stats.salesTrend > 0,
+                      periodLabel: "vs période précédente",
+                    }
+                  : undefined
+              }
+            />
+          )}
           <StatCard
             title="Réservations"
             value={stats.totalBookings}
@@ -105,10 +121,12 @@ export default function Dashboard() {
           <StatCard title="Aujourd'hui" value={stats.todayBookings} />
           <StatCard title="Attente paiement" value={stats.pendingPayment} />
           <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} />
-          <StatCard
-            title="Panier moyen"
-            value={stats.averageBasket === "0.00" ? "0 €" : `${stats.averageBasket} €`}
-          />
+          {!isConcierge && (
+            <StatCard
+              title="Panier moyen"
+              value={stats.averageBasket === "0.00" ? "0 €" : `${stats.averageBasket} €`}
+            />
+          )}
         </div>
 
         {/* Operational gauges */}
@@ -180,8 +198,8 @@ export default function Dashboard() {
           isSingleVenue={isSingleVenue}
         />
 
-        {/* Overview table */}
-        <DashboardOverview hotelData={data.hotelData} />
+        {/* Overview table — admins only (comparative view across all venues) */}
+        {!isConcierge && <DashboardOverview hotelData={data.hotelData} />}
       </div>
     </div>
   );

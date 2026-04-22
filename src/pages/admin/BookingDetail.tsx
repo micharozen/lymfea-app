@@ -41,7 +41,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   failed: "Paiement échoué",
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
-  pending_partner_billing: "Facturation partenaire",
+  pending_partner_billing: "Paiement partenaire",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -123,7 +123,7 @@ export default function BookingDetail() {
 
   // États logiques
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
-  const isPartnerBilling = booking.payment_status === 'pending_partner_billing';
+  const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
   const isSigned = !!booking.signed_at; // Vérifie si la date de signature existe
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -226,9 +226,11 @@ export default function BookingDetail() {
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
-            <Send className="h-4 w-4 mr-2" /> Paiement
-          </Button>
+          {!isPartnerBilled && (
+            <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
+              <Send className="h-4 w-4 mr-2" /> Paiement
+            </Button>
+          )}
           <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-2" /> Modifier
           </Button>
@@ -253,10 +255,10 @@ export default function BookingDetail() {
             <CheckCircle2 className="h-5 w-5 text-green-600" />
             <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
           </div>
-        ) : isPartnerBilling ? (
+        ) : isPartnerBilled ? (
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-3 text-indigo-800">
-            <Building2 className="h-5 w-5 text-indigo-600" />
-            <span className="font-medium text-sm">Facturation partenaire en attente.</span>
+            <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+            <span className="font-medium text-sm">Paiement géré par le partenaire (facturation mensuelle).</span>
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800">

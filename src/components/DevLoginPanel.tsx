@@ -22,10 +22,10 @@ const DEV_USERS: DevUser[] = [
     description: "Admin dashboard",
   },
   {
-    label: "Concierge",
+    label: "Équipe lieu",
     email: "concierge@oom.dev",
     password: "password",
-    description: "Vue concierge (hôtel)",
+    description: "Vue équipe lieu (hôtel)",
   },
   {
     label: "Therapist (PWA)",

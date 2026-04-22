@@ -14,6 +14,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   clientType: z.enum(['hotel', 'staycation', 'classpass', 'external']).default('external'),
   clientFirstName: z.string().min(1, t('errors.validation.firstNameRequired')),
   clientLastName: z.string().min(1, t('errors.validation.lastNameRequired')),
+  clientEmail: z.string().email(t('errors.validation.emailInvalid')).optional().or(z.literal('')), 
   phone: z.string().min(1, t('errors.validation.phoneRequired')),
   countryCode: z.string().default("+33"),
   roomNumber: z.string().default(""),
