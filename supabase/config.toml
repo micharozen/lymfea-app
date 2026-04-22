@@ -176,3 +176,6 @@ verify_jwt = false
 
 [functions.notify-therapist-arrived]
 verify_jwt = false
+
+[functions.send-slack-notification]
+verify_jwt = false
