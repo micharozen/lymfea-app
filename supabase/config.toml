@@ -169,11 +169,9 @@ verify_jwt = false
 
 [functions.check-expired-payment-links]
 verify_jwt = false
-schedule = "*/15 * * * *"
 
 [functions.send-payment-reminder]
 verify_jwt = false
-schedule = "*/30 * * * *"
 
 [functions.send-payment-link]
 verify_jwt = false

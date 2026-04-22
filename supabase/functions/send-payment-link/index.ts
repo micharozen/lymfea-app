@@ -2,8 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from 'https://esm.sh/resend@4.0.0';
-import { format } from "https://esm.sh/date-fns@3.6.0";
-import { fr, enUS } from "https://esm.sh/date-fns@3.6.0/locale";
 import { brand } from "../_shared/brand.ts";
 import {
   getPaymentLinkEmailSubject,
@@ -229,12 +227,14 @@ serve(async (req: Request) => {
       diffInHours <= 24 ? 'urgent' :
       'normal';
 
-    // On définit le format de l'heure demandé
-    const timeFormatted = format(expiresAt, "HH:mm");
-
-    const expiresAtText = language === 'fr'
-      ? `${format(expiresAt, "d MMMM", { locale: fr })} à ${timeFormatted}`
-      : `${format(expiresAt, "MMMM do", { locale: enUS })} at ${timeFormatted}`;
+    // Formatage de l'expiration dans le fuseau horaire du spa (Deno tourne en UTC)
+    const expiresAtText = (() => {
+      const tz = hotelTimezone;
+      const locale = language === 'fr' ? 'fr-FR' : 'en-US';
+      const datePart = new Intl.DateTimeFormat(locale, { timeZone: tz, day: 'numeric', month: 'long' }).format(expiresAt);
+      const timePart = new Intl.DateTimeFormat('fr-FR', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(expiresAt);
+      return language === 'fr' ? `${datePart} à ${timePart}` : `${datePart} at ${timePart}`;
+    })();
 
     console.log("[SEND-PAYMENT-LINK] Creating Stripe Payment Link");
 

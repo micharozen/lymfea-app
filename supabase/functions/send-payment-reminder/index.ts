@@ -2,8 +2,6 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
-import { format } from "https://esm.sh/date-fns@3.6.0";
-import { fr, enUS } from "https://esm.sh/date-fns@3.6.0/locale";
 import { getPaymentReminderEmailHtml, PaymentLinkTemplateData } from "../_shared/payment-link-templates.ts";
 
 serve(async (_req: Request) => {
@@ -55,9 +53,11 @@ serve(async (_req: Request) => {
 
       // Filter in JS — PostgREST join filters on related tables can silently include nulls
       if (!b || b.payment_status !== 'pending' || b.status === 'cancelled') continue;
-      if (!b.client_email) continue;
+      if (!b.client_email || !b.payment_link_url) continue;
 
-      const apptDate = new Date(`${b.booking_date}T${b.booking_time}`);
+      // booking_time est en heure locale du spa — on force l'interprétation UTC
+      // pour que diffHoursToAppt soit calculé depuis le même référentiel que now
+      const apptDate = new Date(`${b.booking_date}T${b.booking_time}Z`);
       const diffHoursToAppt = (apptDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
       // Appointment has already passed
@@ -85,13 +85,15 @@ serve(async (_req: Request) => {
 
       // Fetch hotel currency
       let hotelCurrency = 'eur';
+      let hotelTz = 'Europe/Paris';
       if (b.hotel_id) {
         const { data: hotel } = await supabase
           .from('hotels')
-          .select('currency')
+          .select('currency, timezone')
           .eq('id', b.hotel_id)
           .maybeSingle();
         if (hotel?.currency) hotelCurrency = hotel.currency.toLowerCase();
+        if (hotel?.timezone) hotelTz = hotel.timezone;
       }
 
       // Fetch booking treatments
@@ -108,9 +110,12 @@ serve(async (_req: Request) => {
 
       const lang = ((b.payment_link_language || 'fr') as 'fr' | 'en');
       const expiresAt = new Date(item.payment_link_expires_at);
-      const expiresAtText = lang === 'fr'
-        ? `${format(expiresAt, "d MMMM", { locale: fr })} à ${format(expiresAt, "HH:mm")}`
-        : `${format(expiresAt, "MMMM do", { locale: enUS })} at ${format(expiresAt, "HH:mm")}`;
+      const expiresAtText = (() => {
+        const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+        const datePart = new Intl.DateTimeFormat(locale, { timeZone: hotelTz, day: 'numeric', month: 'long' }).format(expiresAt);
+        const timePart = new Intl.DateTimeFormat('fr-FR', { timeZone: hotelTz, hour: '2-digit', minute: '2-digit', hour12: false }).format(expiresAt);
+        return lang === 'fr' ? `${datePart} à ${timePart}` : `${datePart} at ${timePart}`;
+      })();
 
       const bookingDateObj = new Date(b.booking_date);
       const formattedBookingDate = lang === 'fr'
@@ -127,7 +132,7 @@ serve(async (_req: Request) => {
         bookingNumber: item.booking_id,
         treatments,
         totalPrice: b.total_price,
-        paymentUrl: b.payment_link_url || '#',
+        paymentUrl: b.payment_link_url,
         currency: currencySymbol,
         expiresAtText,
         contactPhone: '',
