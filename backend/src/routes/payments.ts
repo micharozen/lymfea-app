@@ -3,6 +3,7 @@ import { authMiddleware } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
 import { stripe } from "../lib/stripe";
 import { sendEmail } from "../lib/email";
+import { isInBlockedSlot } from "../lib/blocked-slots";
 
 /**
  * Payment routes — authenticated (therapist or admin).
@@ -487,7 +488,7 @@ payments.post("/purchase-bundle", async (c) => {
           ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
 
-        const siteUrl = process.env.SITE_URL || 'https://lymfea.fr';
+        const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || '';
         const activateUrl = `${siteUrl}/portal/redeem`;
         const redemptionCode = giftBundle?.redemption_code ?? '';
 
@@ -532,7 +533,7 @@ payments.post("/purchase-bundle", async (c) => {
           ? new Date(cureBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
 
-        const siteUrl = process.env.SITE_URL || 'https://lymfea.fr';
+        const siteUrl = process.env.SITE_URL || process.env.FRONTEND_URL || '';
         const bookingUrl = `${siteUrl}/client/${hotelId}/treatments`;
 
         const result = await sendEmail({
