@@ -142,6 +142,11 @@
     "acceptTitle": "Accept this booking?",
     "acceptDesc": "Are you sure you want to accept this booking?",
     "confirmAccept": "Yes, accept",
+    "errors": {
+      "genderMismatch": "The client requested a therapist of a different gender. You can accept if no matching therapist is available.",
+      "alreadyTaken": "This booking has already been taken by another therapist.",
+      "fullyStaffed": "The team is already complete for this booking."
+    },
     "validateSlotTitle": "Confirm this slot?",
     "validateSlotDesc": "Are you sure you want to select the slot on {{date}} at {{time}}?",
     "confirmSlot": "Yes, confirm",

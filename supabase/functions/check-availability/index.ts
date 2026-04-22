@@ -146,7 +146,7 @@ serve(async (req) => {
       .eq('hotel_id', hotelId);
 
     if (therapistGender) {
-      therapistQuery = therapistQuery.eq('therapists.gender', therapistGender);
+      therapistQuery = therapistQuery.or(`gender.eq.${therapistGender},gender.is.null`, { referencedTable: 'therapists' });
     }
 
     const { data: therapists, error: therapistsError } = await therapistQuery;

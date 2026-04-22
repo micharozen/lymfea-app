@@ -310,20 +310,26 @@ const PwaBookingDetail = () => {
       const treatmentsPrice = treatments.reduce((s, t) => s + (t.treatment_menus?.price || 0), 0);
       const finalPrice = Math.max(booking.total_price || 0, treatmentsPrice);
 
-      const { data: updateData, error: updateError } = await supabase
-        .from('bookings')
-        .update({ therapist_id: tData.id, status: 'confirmed', total_price: finalPrice })
-        .eq('id', booking.id)
-        .select();
+      const { data: rpcData, error: rpcError } = await supabase.rpc('accept_booking', {
+        _booking_id: booking.id,
+        _hairdresser_id: tData.id,
+        _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
+        _total_price: finalPrice
+      });
 
-      if (updateError || !updateData || updateData.length === 0) {
-         const { error: rpcError } = await supabase.rpc('accept_booking', {
-           _booking_id: booking.id,
-           _hairdresser_id: tData.id,
-           _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
-           _total_price: finalPrice
-         });
-         if (rpcError) throw new Error(`Erreur RPC: ${rpcError.message}`);
+      if (rpcError) throw new Error(`Erreur RPC: ${rpcError.message}`);
+
+      if (rpcData && rpcData.success === false) {
+        if (rpcData.error === 'gender_mismatch') {
+          throw new Error(t('bookingDetail.errors.genderMismatch'));
+        }
+        if (rpcData.error === 'already_taken') {
+          throw new Error(t('bookingDetail.errors.alreadyTaken'));
+        }
+        if (rpcData.error === 'fully_staffed') {
+          throw new Error(t('bookingDetail.errors.fullyStaffed'));
+        }
+        throw new Error(rpcData.error || t('common:errors.generic'));
       }
 
       invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId: booking.id } }).catch(() => {});
@@ -385,11 +391,16 @@ const PwaBookingDetail = () => {
       const { error } = await supabase.rpc('decline_booking', {
         _booking_id: booking.id
       });
-      
+
       if (error) throw error;
-      
+
+      // Réévalue si le fallback genre doit se déclencher (notifie les thérapeutes
+      // du genre opposé si tous ceux du genre préféré viennent de décliner)
+      invokeEdgeFunction('trigger-new-booking-notifications', {
+        body: { bookingId: booking.id, notifyAll: true }
+      }).catch(() => {});
+
       toast.success("Réservation refusée.");
-      // On retourne au dashboard en forçant le rafraîchissement
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error: any) {
       toast.error(error.message || "Erreur lors du refus");

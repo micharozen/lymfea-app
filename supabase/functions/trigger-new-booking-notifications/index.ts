@@ -29,7 +29,7 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hotel_id, booking_date, booking_time, hotel_name")
+      .select("*, hotel_id, booking_date, booking_time, hotel_name, declined_by, preferred_therapist_gender")
       .eq("id", bookingId)
       .single();
 
@@ -58,7 +58,8 @@ serve(async (req) => {
           user_id,
           status,
           first_name,
-          last_name
+          last_name,
+          gender
         )
       `)
       .eq("hotel_id", booking.hotel_id);
@@ -95,7 +96,48 @@ serve(async (req) => {
       });
       console.log(`Notifying assigned therapist only`);
     } else {
-      console.log(`Notifying all ${eligibleTherapists.length} eligible therapists`);
+      // GENDER PREFERENCE FILTER
+      // If the client requested a specific gender, only notify matching therapists.
+      // Therapists with no gender set (NULL) are always included.
+      // Fallback to all genders only if every preferred-gender therapist has already declined.
+      const preferredGender: string | null = booking.preferred_therapist_gender ?? null;
+
+      if (preferredGender) {
+        const allVenueTherapists = therapists.filter(th => {
+          const t = th.therapists as any;
+          const statusLower = (t?.status || "").toLowerCase();
+          return t && (statusLower === "active" || statusLower === "actif");
+        });
+
+        const preferredGenderTherapists = allVenueTherapists.filter(th => {
+          const t = th.therapists as any;
+          return t.gender === null || (t.gender && t.gender.toLowerCase() === preferredGender.toLowerCase());
+        });
+
+        const allPreferredHaveDeclined = preferredGenderTherapists.length > 0 &&
+          preferredGenderTherapists.every(th => {
+            const t = th.therapists as any;
+            return (booking.declined_by || []).includes(t.id);
+          });
+
+        if (allPreferredHaveDeclined) {
+          // Fallback: notify non-preferred therapists who haven't declined yet
+          console.log(`[GENDER] All preferred-gender (${preferredGender}) therapists declined — falling back to others`);
+          eligibleTherapists = eligibleTherapists.filter(th => {
+            const t = th.therapists as any;
+            return t.gender !== null && t.gender.toLowerCase() !== preferredGender.toLowerCase();
+          });
+        } else {
+          // Normal: only notify preferred-gender (+ no gender set) therapists
+          console.log(`[GENDER] Filtering to ${preferredGender} therapists (+ unset gender)`);
+          eligibleTherapists = eligibleTherapists.filter(th => {
+            const t = th.therapists as any;
+            return t.gender === null || t.gender.toLowerCase() === preferredGender.toLowerCase();
+          });
+        }
+      }
+
+      console.log(`Notifying ${eligibleTherapists.length} eligible therapists`);
     }
 
     // Filter out therapists who are blocked/unavailable on the booking date

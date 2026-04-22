@@ -142,6 +142,11 @@
     "acceptTitle": "Accepter cette réservation ?",
     "acceptDesc": "Êtes-vous sûr de vouloir accepter cette réservation ?",
     "confirmAccept": "Oui, accepter",
+    "errors": {
+      "genderMismatch": "Le client a demandé un praticien d'un autre genre. Vous pourrez accepter si aucun praticien correspondant n'est disponible.",
+      "alreadyTaken": "Cette réservation a déjà été prise par un autre praticien.",
+      "fullyStaffed": "L'équipe est déjà complète pour cette réservation."
+    },
     "validateSlotTitle": "Confirmer ce créneau ?",
     "validateSlotDesc": "Êtes-vous sûr de vouloir sélectionner le créneau du {{date}} à {{time}} ?",
     "confirmSlot": "Oui, confirmer",
