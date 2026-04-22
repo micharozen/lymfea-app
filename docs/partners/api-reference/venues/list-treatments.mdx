@@ -1,0 +1,90 @@
+---
+title: "List treatments"
+api: "GET /v1/venues/{venue_id}/treatments"
+description: "List all bookable treatments of a venue."
+---
+
+Returns the treatment catalogue of a venue. Use this endpoint when you only
+need the catalogue (e.g. to refresh it on a schedule) without re-fetching
+venue metadata.
+
+## Path parameters
+
+<ParamField path="venue_id" type="string" required>
+  The venue id or slug.
+</ParamField>
+
+## Query parameters
+
+<ParamField query="category" type="string">
+  Keep only treatments in this category.
+</ParamField>
+
+<ParamField query="service_for" type="'women' | 'men' | 'all' | 'couple'">
+  Keep only treatments for this audience.
+</ParamField>
+
+<ParamField query="include_addons" type="boolean" default="false">
+  Include treatments flagged as add-ons (not bookable alone). By default they
+  are filtered out.
+</ParamField>
+
+## Response
+
+<ResponseField name="data" type="Treatment[]">
+  Array of [Treatment](/concepts/treatments) objects (with variants).
+</ResponseField>
+
+## Example
+
+<RequestExample>
+
+```bash curl
+curl "https://api-sandbox.lymfea.com/v1/venues/hot_lutetia_paris/treatments?category=massage" \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "data": [
+    {
+      "id": "trt_swedish_60",
+      "venue_id": "hot_lutetia_paris",
+      "name": "Massage suédois",
+      "name_en": "Swedish massage",
+      "category": "massage",
+      "service_for": "all",
+      "duration": 60,
+      "price": 12000,
+      "price_on_request": false,
+      "lead_time": 120,
+      "is_bestseller": true,
+      "is_addon": false,
+      "variants": [
+        {
+          "id": "var_swedish_30",
+          "label": "30 minutes",
+          "duration": 30,
+          "price": 7000,
+          "guest_count": 1,
+          "is_default": false
+        },
+        {
+          "id": "var_swedish_60",
+          "label": "60 minutes",
+          "duration": 60,
+          "price": 12000,
+          "guest_count": 1,
+          "is_default": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+</ResponseExample>
