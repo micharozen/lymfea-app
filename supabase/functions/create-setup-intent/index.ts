@@ -22,6 +22,7 @@ serve(async (req) => {
       hotelId,
       language,
       therapistGender,
+      draftBookingId,
       giftAmountUsage
     } = await req.json();
 
@@ -169,6 +170,7 @@ serve(async (req) => {
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
         language: language || 'fr',
         therapistGender: therapistGender || '',
+        draftBookingId: draftBookingId || '',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),

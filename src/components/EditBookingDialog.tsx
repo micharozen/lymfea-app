@@ -245,6 +245,17 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
   const isConcierge = userRole === "concierge";
   const canCancelBooking = isAdmin || isConcierge;
 
+  // Concierge restrictions: only the slot (date/time) and treatments can be modified.
+  // The slot is locked once the therapist has confirmed (or the booking is in a terminal state).
+  const SLOT_LOCKED_STATUSES = ["confirmed", "ongoing", "completed", "cancelled"];
+  const TREATMENTS_LOCKED_STATUSES = ["ongoing", "completed", "cancelled"];
+  const bookingStatus = booking?.status || "";
+  const conciergeCanEditSlot = !isConcierge || !SLOT_LOCKED_STATUSES.includes(bookingStatus);
+  const conciergeCanEditTreatments = !isConcierge || !TREATMENTS_LOCKED_STATUSES.includes(bookingStatus);
+  const slotDisabled = !conciergeCanEditSlot;
+  const clientFieldsDisabled = isConcierge;
+  const treatmentsDisabled = !conciergeCanEditTreatments;
+
   const isLateCancellation = useMemo(() => {
     if (!booking?.booking_date || !booking?.booking_time) return false;
     
@@ -854,19 +865,35 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       }
     }
 
+    // Concierges can only modify the slot (if not yet confirmed) and treatments (if not completed/ongoing/cancelled).
+    // Force all other fields back to the booking's original values as a safeguard.
+    const submittedDate = isConcierge && !conciergeCanEditSlot
+      ? (booking?.booking_date || "")
+      : (date ? format(date, "yyyy-MM-dd") : "");
+    const submittedTime = isConcierge && !conciergeCanEditSlot
+      ? (booking?.booking_time || "")
+      : time;
+    const submittedTreatments = isConcierge && !conciergeCanEditTreatments
+      ? (existingTreatments?.map(t => t.treatment_id) || [])
+      : cart.flatMap(item => Array(item.quantity).fill(item.treatmentId));
+
     updateMutation.mutate({
-      hotel_id: hotelId,
-      client_first_name: clientFirstName,
-      client_last_name: clientLastName,
-      phone: `${countryCode} ${phone}`,
-      room_number: roomNumber,
-      booking_date: date ? format(date, "yyyy-MM-dd") : "",
-      booking_time: time,
-      therapist_id: therapistId === "none" ? null : therapistId,
+      hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
+      client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
+      client_last_name: isConcierge ? (booking?.client_last_name || "") : clientLastName,
+      phone: isConcierge ? (booking?.phone || "") : `${countryCode} ${phone}`,
+      room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
+      booking_date: submittedDate,
+      booking_time: submittedTime,
+      therapist_id: isConcierge
+        ? (booking?.therapist_id || null)
+        : (therapistId === "none" ? null : therapistId),
       total_price: totalPrice,
-      treatments: cart.flatMap(item => Array(item.quantity).fill(item.treatmentId)),
+      treatments: submittedTreatments,
       status: status,
-      client_note: clientNote.trim() ? clientNote.trim() : null,
+      client_note: isConcierge
+        ? (booking?.client_note ?? null)
+        : (clientNote.trim() ? clientNote.trim() : null),
     });
   };
 
@@ -1319,10 +1346,20 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+              {isConcierge && (
+                <Alert className="py-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    {conciergeCanEditSlot
+                      ? "En tant que membre de l'équipe lieu, vous pouvez modifier uniquement le créneau et les prestations."
+                      : "Le créneau n'est plus modifiable (réservation confirmée par le thérapeute). Seules les prestations peuvent être ajustées."}
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="edit-hotel" className="text-xs">Hôtel *</Label>
-                  <Select value={hotelId} onValueChange={setHotelId}>
+                  <Select value={hotelId} onValueChange={setHotelId} disabled={clientFieldsDisabled}>
                     <SelectTrigger className="h-9">
                       <SelectValue placeholder="Sélectionner un hôtel" />
                     </SelectTrigger>
@@ -1344,6 +1381,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                       const newValue = value === "none" ? "" : value;
                       setTherapistId(newValue);
                     }}
+                    disabled={clientFieldsDisabled}
                   >
                     <SelectTrigger id="edit-therapist" className="h-9">
                       <SelectValue placeholder="Sélectionner un thérapeute" />
@@ -1385,10 +1423,11 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label htmlFor="edit-date" className="text-xs">Date *</Label>
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <Popover open={calendarOpen} onOpenChange={slotDisabled ? undefined : setCalendarOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
+                        disabled={slotDisabled}
                         className={cn(
                           "w-full h-9 justify-start text-left font-normal hover:bg-background hover:text-foreground",
                           !date && "text-muted-foreground"
@@ -1417,9 +1456,9 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                 <div className="space-y-1">
                   <Label className="text-xs">Heure *</Label>
                   <div className="flex gap-1 items-center">
-                    <Popover open={hourOpen} onOpenChange={setHourOpen}>
+                    <Popover open={hourOpen} onOpenChange={slotDisabled ? undefined : setHourOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
+                        <Button variant="outline" disabled={slotDisabled} className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
                           {time.split(':')[0] || "HH"}
                           <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
@@ -1448,9 +1487,9 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                       </PopoverContent>
                     </Popover>
                     <span className="flex items-center text-muted-foreground">:</span>
-                    <Popover open={minuteOpen} onOpenChange={setMinuteOpen}>
+                    <Popover open={minuteOpen} onOpenChange={slotDisabled ? undefined : setMinuteOpen}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
+                        <Button variant="outline" disabled={slotDisabled} className="h-9 w-[72px] justify-between font-normal hover:bg-background hover:text-foreground">
                           {time.split(':')[1] || "MM"}
                           <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                         </Button>
@@ -1495,6 +1534,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                     id="edit-firstName"
                     value={clientFirstName}
                     onChange={(e) => setClientFirstName(e.target.value)}
+                    disabled={clientFieldsDisabled}
                     className="h-9"
                   />
                 </div>
@@ -1505,6 +1545,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                     id="edit-lastName"
                     value={clientLastName}
                     onChange={(e) => setClientLastName(e.target.value)}
+                    disabled={clientFieldsDisabled}
                     className="h-9"
                   />
                 </div>
@@ -1522,6 +1563,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                     countryCode={countryCode}
                     setCountryCode={setCountryCode}
                     countries={countries}
+                    disabled={clientFieldsDisabled}
                   />
                 </div>
 
@@ -1530,6 +1572,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                   <Input
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
+                    disabled={clientFieldsDisabled}
                     className="h-9"
                     placeholder="1002"
                   />
@@ -1542,6 +1585,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                   id="edit-client-note"
                   value={clientNote}
                   onChange={(e) => setClientNote(e.target.value)}
+                  disabled={clientFieldsDisabled}
                   placeholder="Ajouter une note pour cette réservation…"
                   rows={3}
                 />
@@ -1566,6 +1610,14 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
             </TabsContent>
 
             <TabsContent value="prestations" className="flex-1 flex flex-col min-h-0 mt-0 px-6 pb-3 data-[state=inactive]:hidden max-h-[60vh]">
+              {isConcierge && treatmentsDisabled && (
+                <Alert className="py-2 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Les prestations ne sont plus modifiables pour cette réservation.
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="flex items-center gap-4 border-b border-border/50 shrink-0 mb-2">
                 {(["female", "male"] as const).map(f => (
                   <button
@@ -1635,7 +1687,8 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                                   <button
                                     type="button"
                                     onClick={() => decrementCart(treatment.id)}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                    disabled={treatmentsDisabled}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                   >
                                     <Minus className="h-2.5 w-2.5" />
                                   </button>
@@ -1643,7 +1696,8 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                                   <button
                                     type="button"
                                     onClick={() => incrementCart(treatment.id)}
-                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors"
+                                    disabled={treatmentsDisabled}
+                                    className="w-5 h-5 rounded-full border border-border/50 flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                   >
                                     <Plus className="h-2.5 w-2.5" />
                                   </button>
@@ -1652,7 +1706,8 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                                 <button
                                   type="button"
                                   onClick={() => addToCart(treatment.id)}
-                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors"
+                                  disabled={treatmentsDisabled}
+                                  className="shrink-0 bg-foreground text-background text-[9px] font-medium uppercase tracking-wide h-5 px-2.5 rounded-full hover:bg-foreground/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-foreground"
                                 >
                                   Ajouter
                                 </button>

@@ -273,7 +273,7 @@ serve(async (req) => {
         after_completion: {
           type: 'redirect',
           redirect: {
-            url: `${siteUrl}/booking/confirmation/${booking.id}?payment=success`,
+            url: `${siteUrl}/client/${booking.hotel_id}/confirmation/${booking.id}?payment=success`,
           },
         },
       });

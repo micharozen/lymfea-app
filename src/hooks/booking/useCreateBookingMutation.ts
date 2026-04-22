@@ -32,6 +32,7 @@ export interface CreateBookingPayload {
   hotelId: string;
   clientFirstName: string;
   clientLastName: string;
+  clientEmail?: string;
   phone: string;
   countryCode: string;
   roomNumber: string;
@@ -146,6 +147,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         hotel_name: hotel?.name || "",
         client_first_name: d.clientFirstName,
         client_last_name: d.clientLastName,
+        client_email: d.clientEmail || null,
         phone: normalizedPhone,
         room_number: d.roomNumber,
         client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
