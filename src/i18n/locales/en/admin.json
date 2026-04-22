@@ -57,6 +57,22 @@
     "noBookings": "No bookings",
     "filters": "Filters",
     "searchPlaceholder": "Search by client, hotel...",
+    "clientType": {
+      "label": "Client type",
+      "hotel": "Hotel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "External"
+    },
+    "payByVoucher": {
+      "label": "Paid by voucher (collected by venue)",
+      "helper": "The venue collected payment from the client. The service will be billed to the venue at month-end.",
+      "referenceLabel": "Voucher reference (optional)"
+    },
+    "payment": {
+      "paidByVoucher": "Paid by voucher — collected by venue",
+      "partnerBilled": "Billed to partner (month-end)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",

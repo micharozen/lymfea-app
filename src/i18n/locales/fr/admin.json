@@ -57,6 +57,22 @@
     "noBookings": "Aucune réservation",
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
+    "clientType": {
+      "label": "Type de client",
+      "hotel": "Hôtel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "Externe"
+    },
+    "payByVoucher": {
+      "label": "Payé par voucher (encaissé par le lieu)",
+      "helper": "Le lieu a encaissé le client. La prestation sera facturée au lieu en fin de mois.",
+      "referenceLabel": "Référence du voucher (optionnel)"
+    },
+    "payment": {
+      "paidByVoucher": "Payé par voucher — encaissé par le lieu",
+      "partnerBilled": "Facturé au partenaire (fin de mois)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",
