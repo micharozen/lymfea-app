@@ -15,6 +15,7 @@ import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
+import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
 const PAYMENT_TEXT_LABELS: Record<string, string> = {
@@ -23,6 +24,7 @@ const PAYMENT_TEXT_LABELS: Record<string, string> = {
   failed: "Échec",
   refunded: "Remboursé",
   charged_to_room: "Chambre",
+  pending_partner_billing: "Partenaire",
 };
 
 function getPaymentTextLabel(status: string | null | undefined): string {
@@ -158,16 +160,21 @@ export function BookingListView({
                 </TableCell>
                 <TableCell className="py-3 px-2 text-center">
                   {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
-                    <StatusBadge
-                      status={booking.payment_status || "pending"}
-                      type="payment"
-                      className={
-                        paymentAsText
-                          ? "text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
-                          : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
-                      }
-                      customLabel={paymentAsText ? getPaymentTextLabel(booking.payment_status) : undefined}
-                    />
+                    <div className="inline-flex items-center gap-1">
+                      <StatusBadge
+                        status={booking.payment_status || "pending"}
+                        type="payment"
+                        className={
+                          paymentAsText
+                            ? "text-[10px] px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                            : "text-base px-2 py-0.5 whitespace-nowrap inline-flex items-center justify-center"
+                        }
+                        customLabel={paymentAsText ? getPaymentTextLabel(booking.payment_status) : undefined}
+                      />
+                      {booking.payment_method === 'partner_billed' && (booking as any).client_type && (
+                        <ClientTypeBadge clientType={(booking as any).client_type} size="sm" />
+                      )}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2">

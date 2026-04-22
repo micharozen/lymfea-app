@@ -41,6 +41,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   failed: "Paiement échoué",
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
+  pending_partner_billing: "Facturation partenaire",
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
@@ -122,6 +123,7 @@ export default function BookingDetail() {
 
   // États logiques
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
+  const isPartnerBilling = booking.payment_status === 'pending_partner_billing';
   const isSigned = !!booking.signed_at; // Vérifie si la date de signature existe
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -250,6 +252,11 @@ export default function BookingDetail() {
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
             <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
+          </div>
+        ) : isPartnerBilling ? (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-3 text-indigo-800">
+            <Building2 className="h-5 w-5 text-indigo-600" />
+            <span className="font-medium text-sm">Facturation partenaire en attente.</span>
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800">

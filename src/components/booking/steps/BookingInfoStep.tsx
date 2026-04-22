@@ -57,6 +57,7 @@ interface BookingInfoStepProps {
   isSlotAvailable?: (date: Date | undefined, time: string, slotInterval: number) => boolean;
   isAvailabilityLoading?: (date: Date | undefined) => boolean;
   slotInterval?: number;
+  cartAvailableDays?: number[] | null;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -79,6 +80,7 @@ export function BookingInfoStep({
   isSlotAvailable,
   isAvailabilityLoading,
   slotInterval = 30,
+  cartAvailableDays,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
@@ -86,6 +88,17 @@ export function BookingInfoStep({
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
   const clientType = form.watch("clientType");
   const isHotelClient = clientType === "hotel";
+
+  const isDayUnavailableForCart = (date: Date) => {
+    if (!cartAvailableDays || cartAvailableDays.length === 0) return false;
+    return !cartAvailableDays.includes(date.getDay());
+  };
+
+  const handleUnavailableDayWarning = (date: Date) => {
+    if (isDayUnavailableForCart(date)) {
+      toast.warning("Ce soin n'est normalement pas disponible ce jour-là.");
+    }
+  };
 
   const handleRoomNumberBlur = useCallback(async (roomNumber: string) => {
     if (!pmsLookupEnabled || !roomNumber || roomNumber.length === 0) return;
@@ -340,9 +353,12 @@ export function BookingInfoStep({
                         selected={field.value}
                         onSelect={(selectedDate) => {
                           field.onChange(selectedDate);
+                          if (selectedDate) handleUnavailableDayWarning(selectedDate);
                           setCalendarOpen(false);
                         }}
                         disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                        modifiers={{ unavailable: isDayUnavailableForCart }}
+                        modifiersClassNames={{ unavailable: "line-through text-red-500" }}
                         initialFocus
                         className="pointer-events-auto"
                         locale={fr}
@@ -490,7 +506,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setSlot2CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot2CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />
@@ -588,7 +604,7 @@ export function BookingInfoStep({
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); setSlot3CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} initialFocus className="pointer-events-auto" locale={fr} />
+                        <Calendar mode="single" selected={field.value} onSelect={(d) => { field.onChange(d); if (d) handleUnavailableDayWarning(d); setSlot3CalendarOpen(false); }} disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))} modifiers={{ unavailable: isDayUnavailableForCart }} modifiersClassNames={{ unavailable: "line-through text-red-500" }} initialFocus className="pointer-events-auto" locale={fr} />
                       </PopoverContent>
                     </Popover>
                     <FormMessage className="text-xs" />

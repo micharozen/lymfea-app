@@ -2,7 +2,7 @@
 // All database values are now in English
 
 export type BookingStatus = 'pending' | 'confirmed' | 'ongoing' | 'completed' | 'cancelled' | 'noshow' | 'quote_pending' | 'waiting_approval' | 'alternative_proposed' | 'awaiting_hairdresser_selection';
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room';
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'charged_to_room' | 'pending_partner_billing';
 export type EntityStatus = 'active' | 'pending' | 'inactive' | 'maintenance';
 
 interface StatusConfig {
@@ -121,6 +121,12 @@ export const paymentStatusConfig: Record<PaymentStatus, StatusConfig> = {
     badgeClass: 'bg-blue-100 text-blue-700',
     cardClass: 'bg-blue-500 text-white',
     hexColor: '#3b82f6',
+  },
+  pending_partner_billing: {
+    label: '🏨⏳',
+    badgeClass: 'bg-indigo-100 text-indigo-700',
+    cardClass: 'bg-indigo-500 text-white',
+    hexColor: '#6366f1',
   },
 };
 
