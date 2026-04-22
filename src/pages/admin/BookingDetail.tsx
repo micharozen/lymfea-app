@@ -54,6 +54,16 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  room: "Facturé en chambre",
+  card: "Carte bancaire",
+  tap_to_pay: "Tap to Pay",
+  offert: "Offert",
+  gift_amount: "Carte cadeau",
+  voucher: "Payé par voucher — encaissé par le lieu",
+  partner_billed: "Facturé au partenaire (fin de mois)",
+};
+
 export default function BookingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();

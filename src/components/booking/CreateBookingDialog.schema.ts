@@ -28,6 +28,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   return true;
 }, { message: "Veuillez remplir la date et l'heure pour chaque créneau", path: ["slot2Date"] })
 .refine(data => {
+  // Room number required when clientType === 'hotel'
   if (data.clientType === 'hotel' && !data.roomNumber.trim()) return false;
   return true;
 }, { message: "Le numéro de chambre est requis pour un client hôtel", path: ["roomNumber"] });
