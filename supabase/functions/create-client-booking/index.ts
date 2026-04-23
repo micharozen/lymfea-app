@@ -647,8 +647,12 @@ try {
       isPriceOnRequest: t.price_on_request || false,
     })) || [];
 
-    // Send confirmation email
-    if (sanitizedClientData.email) {
+    // Send confirmation email — skip when booking is still pending (awaiting therapist assignment).
+    // Quote bookings (bookingStatus === 'quote_pending') still get the quote-requested template.
+    const shouldSendConfirmationEmail =
+      wasAutoValidated || bookingStatus === 'quote_pending';
+
+    if (sanitizedClientData.email && shouldSendConfirmationEmail) {
       try {
         const emailResponse = await fetch(
           `${Deno.env.get('SUPABASE_URL')}/functions/v1/send-booking-confirmation`,

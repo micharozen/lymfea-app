@@ -383,18 +383,28 @@ export default function Confirmation() {
   }
 
   const hotelName = ((booking as Record<string, unknown>)?.hotels as Record<string, unknown>)?.name as string || "Au sein de votre établissement";
+  const bookingStatus = (booking as Record<string, unknown>)?.status as string | undefined;
+  const paymentMethod = (booking as Record<string, unknown>)?.payment_method as string | undefined;
+  const isPending = bookingStatus === 'pending' || bookingStatus === 'pending_confirmation';
+  const isRoomCharge = paymentMethod === 'room';
+
+  const headerTitle = isPending ? t('confirmation.pendingTitle') : t('confirmation.title');
+  const headerMessage = isPending ? t('confirmation.pendingMessage') : t('confirmation.message');
+  const HeaderIcon = isPending ? Clock : CheckCircle;
+  const headerIconBg = isPending ? 'bg-amber-50' : 'bg-green-50';
+  const headerIconColor = isPending ? 'text-amber-600' : 'text-green-600';
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-10 h-10 text-green-600" strokeWidth={1.5} />
+          <div className={`w-20 h-20 ${headerIconBg} rounded-full flex items-center justify-center`}>
+            <HeaderIcon className={`w-10 h-10 ${headerIconColor}`} strokeWidth={1.5} />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{t('confirmation.title')}</h1>
-            <p className="text-gray-500 text-sm">{t('confirmation.message')}</p>
+            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{headerTitle}</h1>
+            <p className="text-gray-500 text-sm">{headerMessage}</p>
           </div>
         </div>
 
@@ -469,12 +479,20 @@ export default function Confirmation() {
           </div>
         )}
 
-        {!(booking as Record<string, unknown>)?.bundle_usage_id && (booking as Record<string, unknown>)?.payment_method === 'gift_amount' ? (
+        {!(booking as Record<string, unknown>)?.bundle_usage_id && paymentMethod === 'gift_amount' ? (
           <div className="flex items-start gap-3 p-4 bg-[#03bfac]/5 rounded-xl border border-[#03bfac]/20">
             <Gift className="w-5 h-5 text-[#03bfac] mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-900">{t('confirmation.giftCardPaymentTitle')}</p>
               <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.giftCardPaymentMessage')}</p>
+            </div>
+          </div>
+        ) : !(booking as Record<string, unknown>)?.bundle_usage_id && isRoomCharge ? (
+          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <MapPin className="w-5 h-5 text-gray-900 mt-0.5 flex-shrink-0" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-gray-900">{t('confirmation.roomChargeTitle')}</p>
+              <p className="text-xs text-gray-500 leading-relaxed">{t('confirmation.roomChargeMessage')}</p>
             </div>
           </div>
         ) : !(booking as Record<string, unknown>)?.bundle_usage_id && isPaymentSuccess ? (

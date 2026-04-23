@@ -203,6 +203,10 @@
   "confirmation": {
     "title": "Booking Confirmed",
     "message": "You will receive a confirmation email with all the details of your booking",
+    "pendingTitle": "Booking request received",
+    "pendingMessage": "Your request has been sent to the venue. You will receive a confirmation email as soon as it is accepted.",
+    "roomChargeTitle": "Charged to your room",
+    "roomChargeMessage": "The amount will be added to your room bill. No payment is required on site.",
     "backHome": "Back to Home",
     "quotePendingTitle": "Quote Request Sent",
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details.",
@@ -505,8 +509,16 @@
       "subtitle": "These treatments can be added right after your selection.",
       "checking": "Checking availability…",
       "none": "No add-on available for this slot.",
-      "skip": "Skip",
-      "confirm": "Add"
+      "skip": "No thanks",
+      "confirm": "Add",
+      "confirmEmpty": "Choose a treatment",
+      "confirmWithTotal": "Add · +{{total}}",
+      "badge": "Extend your escape",
+      "titleRich": "Your treatment ends at {{end}}",
+      "subtitleRich": "Add a treatment that flows right after — no need to rebook.",
+      "selectedCount": "{{count}} treatment selected",
+      "selectedCountPlural": "{{count}} treatments selected",
+      "extraDuration": "+{{min}} min total"
     }
   }
 }

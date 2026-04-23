@@ -63,7 +63,7 @@ serve(async (req) => {
 
     const templateVariables: Record<string, string> = {
       booking_number: String(booking.booking_id ?? ''),
-      booking_time: `${formattedDate} ${formattedTime}`.trim(),
+      booking_date: `${formattedDate} ${formattedTime}`.trim(),
       booking_url: bookingDetailsUrl,
       client_name: `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim(),
       client_phone: booking.phone ?? '',
