@@ -98,6 +98,7 @@
     "dayRestricted": "Unavailable",
     "pickDate": "Calendar",
     "continue": "CONTINUE",
+    "outOfHoursHint": "Out-of-hours surcharge +{{percent}}%",
     "morning": "Morning",
     "afternoon": "Afternoon",
     "evening": "Evening",
@@ -162,6 +163,7 @@
     "headline": "Complete your booking",
     "stepLabel": "STEP 3 OF 3",
     "orderSummary": "Order Summary",
+    "outOfHoursSurcharge": "Out-of-hours surcharge",
     "paymentMethod": "Payment Method",
     "addToRoom": "Add to Room",
     "addToRoomDesc": "Charge will be added to your room bill",
@@ -201,6 +203,10 @@
   "confirmation": {
     "title": "Booking Confirmed",
     "message": "You will receive a confirmation email with all the details of your booking",
+    "pendingTitle": "Booking request received",
+    "pendingMessage": "Your request has been sent to the venue. You will receive a confirmation email as soon as it is accepted.",
+    "roomChargeTitle": "Charged to your room",
+    "roomChargeMessage": "The amount will be added to your room bill. No payment is required on site.",
     "backHome": "Back to Home",
     "quotePendingTitle": "Quote Request Sent",
     "quotePendingMessage": "We will send you a quote very soon. You will receive an email with all the details.",
@@ -317,7 +323,9 @@
   "errors": {
     "slotTaken": "This slot has just been booked by another client. Please choose another time.",
     "blockedSlot": "This slot overlaps with an unavailable time range (e.g. lunch break).",
-    "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time."
+    "leadTimeViolation": "This slot is no longer available due to advance booking requirements. Please choose a later time.",
+    "leadTimeViolationHours": "Bookings must be made at least {{hours}}h in advance. Please choose another time.",
+    "leadTimeViolationMinutes": "Bookings must be made at least {{minutes}} minutes in advance. Please choose another time."
   },
   "bundle": {
     "detected": "You have an active treatment package",
@@ -501,8 +509,16 @@
       "subtitle": "These treatments can be added right after your selection.",
       "checking": "Checking availability…",
       "none": "No add-on available for this slot.",
-      "skip": "Skip",
-      "confirm": "Add"
+      "skip": "No thanks",
+      "confirm": "Add",
+      "confirmEmpty": "Choose a treatment",
+      "confirmWithTotal": "Add · +{{total}}",
+      "badge": "Extend your escape",
+      "titleRich": "Your treatment ends at {{end}}",
+      "subtitleRich": "Add a treatment that flows right after — no need to rebook.",
+      "selectedCount": "{{count}} treatment selected",
+      "selectedCountPlural": "{{count}} treatments selected",
+      "extraDuration": "+{{min}} min total"
     }
   }
 }

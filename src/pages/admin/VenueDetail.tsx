@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -72,6 +72,7 @@ const createFormSchema = (t: TFunction) => z.object({
   out_of_hours_surcharge_percent: z.string().default("0"),
   inter_venue_buffer_minutes: z.number().min(0).max(120).default(0),
   room_turnover_buffer_minutes: z.number().min(0).max(120).default(0),
+  min_booking_notice_minutes: z.number().min(0).max(10080).default(0),
   booking_hold_enabled: z.boolean().default(true),
   booking_hold_duration_minutes: z.coerce.number().int().min(1).max(15).default(5),
   offert: z.boolean().default(false),
@@ -99,6 +100,7 @@ const createFormSchema = (t: TFunction) => z.object({
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
@@ -106,7 +108,34 @@ export default function VenueDetail() {
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("configuration");
+
+  const validTabs = ["configuration", "planning", "catalog", "resources", "billing"] as const;
+  type TabValue = (typeof validTabs)[number];
+  const initialTab: TabValue = (() => {
+    const requested = searchParams.get("tab");
+    return (validTabs as readonly string[]).includes(requested ?? "")
+      ? (requested as TabValue)
+      : "configuration";
+  })();
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+
+  // Keep activeTab in sync if the URL ?tab=... changes externally.
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (requested && (validTabs as readonly string[]).includes(requested) && requested !== activeTab) {
+      setActiveTab(requested as TabValue);
+    }
+  }, [searchParams, activeTab]);
+
+  const handleTabChange = (next: string) => {
+    setActiveTab(next as TabValue);
+    if (next === "configuration") {
+      searchParams.delete("tab");
+    } else {
+      searchParams.set("tab", next);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
@@ -170,6 +199,7 @@ export default function VenueDetail() {
       out_of_hours_surcharge_percent: "0",
       inter_venue_buffer_minutes: 0,
       room_turnover_buffer_minutes: 0,
+      min_booking_notice_minutes: 0,
       booking_hold_enabled: true,
       booking_hold_duration_minutes: 5,
       offert: false,
@@ -222,6 +252,7 @@ export default function VenueDetail() {
           out_of_hours_surcharge_percent: hotel.out_of_hours_surcharge_percent?.toString() || "0",
           inter_venue_buffer_minutes: (hotel as any).inter_venue_buffer_minutes ?? 0,
           room_turnover_buffer_minutes: (hotel as any).room_turnover_buffer_minutes ?? 0,
+          min_booking_notice_minutes: (hotel as any).min_booking_notice_minutes ?? 0,
           booking_hold_enabled: (hotel as any).booking_hold_enabled ?? true,
           booking_hold_duration_minutes: (hotel as any).booking_hold_duration_minutes ?? 5,
           offert: hotel.offert || false,
@@ -451,6 +482,7 @@ export default function VenueDetail() {
         out_of_hours_surcharge_percent: parseFloat(values.out_of_hours_surcharge_percent) || 0,
         inter_venue_buffer_minutes: values.inter_venue_buffer_minutes ?? 0,
         room_turnover_buffer_minutes: values.room_turnover_buffer_minutes ?? 0,
+        min_booking_notice_minutes: values.min_booking_notice_minutes ?? 0,
         booking_hold_enabled: values.booking_hold_enabled,
         booking_hold_duration_minutes: values.booking_hold_duration_minutes,
         offert: values.offert,
@@ -679,7 +711,7 @@ export default function VenueDetail() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           {/* Tab bar — sticky below header */}
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">
@@ -724,6 +756,7 @@ export default function VenueDetail() {
                         handleCoverImageUpload={handleCoverImageUpload}
                         triggerHotelImageSelect={triggerHotelImageSelect}
                         triggerCoverImageSelect={triggerCoverImageSelect}
+                        onRequestEdit={() => setIsEditingState(true)}
                         deploymentState={deploymentState}
                         onDeploymentStateChange={setDeploymentState}
                         blockedSlots={blockedSlots}

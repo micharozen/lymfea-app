@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/command";
 import {
   ImageIcon,
+  Camera,
   Loader2,
   MapPin,
   Wallet,
@@ -113,6 +114,7 @@ interface VenueGeneralTabProps {
   handleCoverImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerHotelImageSelect: () => void;
   triggerCoverImageSelect: () => void;
+  onRequestEdit?: () => void;
   deploymentState: DeploymentScheduleState;
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
@@ -134,6 +136,7 @@ export function VenueGeneralTab({
   handleCoverImageUpload,
   triggerHotelImageSelect,
   triggerCoverImageSelect,
+  onRequestEdit,
   deploymentState,
   onDeploymentStateChange,
   blockedSlots,
@@ -308,8 +311,13 @@ export function VenueGeneralTab({
               {/* Venue photo */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerHotelImageSelect : undefined}
+                  className="group relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerHotelImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la photo"
                 >
                   {hotelImage ? (
                     <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
@@ -318,6 +326,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingHotel && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -337,8 +348,13 @@ export function VenueGeneralTab({
               {/* Cover image */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerCoverImageSelect : undefined}
+                  className="group relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerCoverImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la couverture"
                 >
                   {coverImage ? (
                     <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
@@ -347,6 +363,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingCover && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -980,6 +999,50 @@ export function VenueGeneralTab({
                 <FormMessage />
               </FormItem>
             )}
+          />
+
+          <FormField
+            control={form.control}
+            name="min_booking_notice_minutes"
+            render={({ field }) => {
+              const minutes = field.value ?? 0;
+              const hours = minutes === 0 ? '' : (minutes / 60).toString();
+              return (
+                <FormItem className="py-4">
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    {t('venue.minBookingNotice', 'Délai minimum avant réservation')}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-40">
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="168"
+                        value={hours}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            field.onChange(0);
+                          } else {
+                            const h = parseFloat(val);
+                            field.onChange(Number.isFinite(h) && h >= 0 ? Math.round(h * 60) : 0);
+                          }
+                        }}
+                        onBlur={field.onBlur}
+                        disabled={disabled}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">h</span>
+                    </div>
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    {t('venue.minBookingNoticeDesc', "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.")}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
 
         </CardContent>

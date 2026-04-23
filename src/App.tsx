@@ -11,6 +11,9 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { StagingBanner } from "@/components/StagingBanner";
+import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -46,7 +49,8 @@ const Orders = lazy(() => import("./pages/admin/Orders"));
 const Finance = lazy(() => import("./pages/admin/Finance"));
 const Transactions = lazy(() => import("./pages/admin/Transactions"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
-const Settings = lazy(() => import("./pages/admin/Settings"));
+const Admins = lazy(() => import("./pages/admin/Admins"));
+const AdminDetail = lazy(() => import("./pages/admin/AdminDetail"));
 const AdminProfile = lazy(() => import("./pages/admin/Profile"));
 const ScheduleAlerts = lazy(() => import("./pages/admin/ScheduleAlerts"));
 const SupportTickets = lazy(() => import("./pages/admin/SupportTickets"));
@@ -222,9 +226,11 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
+      <ViewModeProvider>
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -331,7 +337,8 @@ const App = () => {
             <Route path="/concierges" element={<Navigate to="/admin/concierges" replace />} />
             <Route path="/oom-products" element={<Navigate to="/admin/products" replace />} />
             <Route path="/oom-orders" element={<Navigate to="/admin/orders" replace />} />
-            <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/settings" element={<Navigate to="/admin/admins" replace />} />
+            <Route path="/admin/settings" element={<Navigate to="/admin/admins" replace />} />
             <Route path="/profile" element={<Navigate to="/admin/profile" replace />} />
             <Route path="/finance" element={<Navigate to="/admin/finance" replace />} />
             
@@ -464,6 +471,7 @@ const App = () => {
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">{brand.pwa.admin.shortName}</span>
                         </header>
+                        <VenueModeBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -502,7 +510,8 @@ const App = () => {
                               <Route path="/transactions" element={<Transactions />} />
                               <Route path="/analytics" element={<Analytics />} />
                               <Route path="/support" element={<SupportTickets />} />
-                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/admins" element={<Admins />} />
+                              <Route path="/admins/:id" element={<AdminDetail />} />
                               <Route path="/profile" element={<AdminProfile />} />
                               
                               <Route path="*" element={<NotFound />} />
@@ -521,6 +530,7 @@ const App = () => {
         </Suspense>
       </BrowserRouter>
       </TooltipProvider>
+      </ViewModeProvider>
       </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>

@@ -20,6 +20,7 @@ import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
+import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
@@ -105,6 +106,13 @@ export default function Payment() {
   const giftAmountRemainingAfter = isAmountBundle
     ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
+
+  // Out-of-hours surcharge (affichage — le serveur recalcule et fait foi)
+  const surcharge = computeOutOfHoursSurcharge(bookingDateTime?.time, total, hotel);
+  const surchargeUncovered = computeOutOfHoursSurcharge(bookingDateTime?.time, uncoveredTotal, hotel);
+  const totalWithSurcharge = total + surcharge.surchargeAmount;
+  const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
+  const fixedTotalWithSurcharge = fixedTotal + computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel).surchargeAmount;
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -571,6 +579,17 @@ export default function Payment() {
                 </div>
               </>
             )}
+
+            {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">
+                  {t('payment.outOfHoursSurcharge', 'Majoration hors horaires')} ({surcharge.surchargePercent}%)
+                </span>
+                <span className="font-medium text-amber-600">
+                  +{formatPrice(surcharge.surchargeAmount, items[0]?.currency || 'EUR')}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="h-px w-full bg-gray-100" />
@@ -589,15 +608,15 @@ export default function Payment() {
             <div className="text-right">
               {isAmountBundle && giftAmountAppliedEuros > 0 && (
                 <span className="text-sm line-through text-gray-400 mr-2">
-                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                  {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
               <span className="text-xl font-serif font-semibold text-gray-900">
                 {selectedBundle
-                  ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
+                  ? formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')
                   : isOffert
                     ? formatPrice(0, items[0]?.currency || 'EUR')
-                    : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
+                    : formatPrice(hasPriceOnRequest ? fixedTotalWithSurcharge : totalWithSurcharge, items[0]?.currency || 'EUR')
                 }
                 {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
               </span>
