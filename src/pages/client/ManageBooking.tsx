@@ -467,12 +467,11 @@ const ManageBooking = () => {
         {!isCancelled && !isCompleted && timeInfo && !timeInfo.isPast && (
           <div className="grid grid-cols-2 gap-2 pt-2">
             <Button
-              variant="destructive"
+              variant="ghost"
               size="sm"
-              className="h-9"
+              className="h-9 text-gray-400 hover:text-destructive hover:bg-transparent"
               onClick={handleCancelClick}
             >
-              <X className="w-3.5 h-3.5 mr-1.5" />
               Annuler
             </Button>
             <Button
