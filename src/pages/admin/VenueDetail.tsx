@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -99,6 +99,7 @@ const createFormSchema = (t: TFunction) => z.object({
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
 
@@ -106,7 +107,34 @@ export default function VenueDetail() {
   const [savedHotelId, setSavedHotelId] = useState<string | null>(id || null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("configuration");
+
+  const validTabs = ["configuration", "planning", "catalog", "resources", "billing"] as const;
+  type TabValue = (typeof validTabs)[number];
+  const initialTab: TabValue = (() => {
+    const requested = searchParams.get("tab");
+    return (validTabs as readonly string[]).includes(requested ?? "")
+      ? (requested as TabValue)
+      : "configuration";
+  })();
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
+
+  // Keep activeTab in sync if the URL ?tab=... changes externally.
+  useEffect(() => {
+    const requested = searchParams.get("tab");
+    if (requested && (validTabs as readonly string[]).includes(requested) && requested !== activeTab) {
+      setActiveTab(requested as TabValue);
+    }
+  }, [searchParams, activeTab]);
+
+  const handleTabChange = (next: string) => {
+    setActiveTab(next as TabValue);
+    if (next === "configuration") {
+      searchParams.delete("tab");
+    } else {
+      searchParams.set("tab", next);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [existingScheduleId, setExistingScheduleId] = useState<string | null>(null);
   const [blockedSlots, setBlockedSlots] = useState<BlockedSlot[]>([]);
@@ -679,7 +707,7 @@ export default function VenueDetail() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           {/* Tab bar — sticky below header */}
           <div className="px-4 md:px-6 pt-4 bg-background sticky top-[57px] z-[9]">
             <TabsList className="w-full justify-start overflow-x-auto bg-transparent rounded-none border-b p-0 h-auto">

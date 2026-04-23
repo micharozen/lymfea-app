@@ -11,6 +11,9 @@ import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { StagingBanner } from "@/components/StagingBanner";
+import { VenueModeBanner } from "@/components/admin/VenueModeBanner";
 import { brand, brandLogos } from "@/config/brand";
 import BookingDetail from "./pages/admin/BookingDetail";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
@@ -222,9 +225,11 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TimezoneProvider>
       <UserProvider>
+      <ViewModeProvider>
         <AuthLanguageSync />
         <TooltipProvider>
         <Sonner />
+        <StagingBanner />
         <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
@@ -464,6 +469,7 @@ const App = () => {
                           <SidebarTrigger className="mr-2" />
                           <span className="font-semibold">{brand.pwa.admin.shortName}</span>
                         </header>
+                        <VenueModeBanner />
                         <main className="flex-1 min-h-0 overflow-y-auto">
                           <Suspense fallback={
                             <div className="flex items-center justify-center h-full min-h-[50vh]">
@@ -521,6 +527,7 @@ const App = () => {
         </Suspense>
       </BrowserRouter>
       </TooltipProvider>
+      </ViewModeProvider>
       </UserProvider>
     </TimezoneProvider>
   </QueryClientProvider>

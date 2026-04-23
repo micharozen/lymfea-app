@@ -7,6 +7,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 
 import { useTranslation } from "react-i18next";
@@ -104,6 +105,14 @@ useEffect(() => {
     setTherapistFilter,
     filteredBookings,
   } = useBookingFilters(bookings);
+
+  // In venue_manager view, force-scope the venue filter to the impersonated venue.
+  const currentVenueId = useCurrentVenueId();
+  useEffect(() => {
+    if (currentVenueId && hotelFilter !== currentVenueId) {
+      setHotelFilter(currentVenueId);
+    }
+  }, [currentVenueId, hotelFilter, setHotelFilter]);
 
   // Amenity data
   const hasVenueFilter = hotelFilter && hotelFilter !== "all";

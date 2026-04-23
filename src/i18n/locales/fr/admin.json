@@ -1,4 +1,42 @@
 {
+  "welcome": {
+    "skip": "Passer",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "step1": {
+      "title": "Bienvenue sur Eïa",
+      "body": "Eïa centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app."
+    },
+    "step2": {
+      "title": "Trois zones essentielles",
+      "agenda": {
+        "title": "Planning",
+        "body": "Vue calendrier par lieu, salle et thérapeute. Créez et déplacez vos réservations."
+      },
+      "therapists": {
+        "title": "Thérapeutes & soins",
+        "body": "Ajoutez votre équipe, leurs spécialisations et leur planning."
+      },
+      "finance": {
+        "title": "Finance",
+        "body": "Suivez votre chiffre d'affaires, commissions thérapeutes et payouts."
+      },
+      "switcher": {
+        "title": "Astuce : mode Gestion du lieu",
+        "body": "Depuis la barre latérale, basculez vers la perspective d'un directeur de lieu en un clic."
+      }
+    },
+    "step3": {
+      "title": "Votre avis compte",
+      "body": "Vous testez Eïa : dites-nous tout. Vos retours guident la roadmap.",
+      "feedback": "Donner mon avis (5 min)",
+      "calendly": "Réserver un point visio (20 min)",
+      "trySwitcher": "Essayer le mode Gestion du lieu",
+      "pickVenue": "Choisissez un lieu :"
+    },
+    "reopen": "Revoir le guide d'introduction"
+  },
   "sidebar": {
     "home": "Accueil",
     "settings": "Paramètres & Accès",
@@ -8,7 +46,7 @@
     "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
-    "concierges": "Équipe lieu",
+    "concierges": "Gestion du lieu",
     "customers": "Clients",
     "products": "Produits {{brandName}}",
     "orders": "Commandes",
@@ -273,7 +311,7 @@
     "hotel": "Hôtel"
   },
   "concierges": {
-    "title": "Équipe lieu",
+    "title": "Gestion du lieu",
     "add": "Ajouter un membre",
     "edit": "Modifier le membre",
     "noConcierges": "Aucun membre",

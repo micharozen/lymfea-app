@@ -4,6 +4,11 @@ import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
+const RESEND_INVITE_ADMIN_TEMPLATE_ID = Deno.env.get(
+  "RESEND_INVITE_ADMIN_TEMPLATE_ID",
+) || "";
+const TALLY_URL = Deno.env.get("TALLY_URL") || "";
+const CALENDLY_URL = Deno.env.get("CALENDLY_URL") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +20,8 @@ interface InviteAdminRequest {
   email: string;
   firstName: string;
   lastName: string;
+  tallyUrl?: string;
+  calendlyUrl?: string;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -126,7 +133,8 @@ serve(async (req: Request): Promise<Response> => {
       return jsonResponse({ error: "forbidden" }, 403);
     }
 
-    const { email, firstName, lastName }: InviteAdminRequest = await req.json();
+    const { email, firstName, lastName, tallyUrl, calendlyUrl }: InviteAdminRequest =
+      await req.json();
 
     if (!email?.includes("@")) {
       return jsonResponse({ error: "invalid_email" }, 400);
@@ -254,17 +262,35 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send email with login credentials
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: brand.emails.from.default,
-        to: [email],
-        subject: `Bienvenue sur ${brand.name} — Vos identifiants`,
+    // Send email with login credentials.
+    // Prefer the Resend template (managed in Resend dashboard) if configured.
+    // Fall back to the inline HTML otherwise (so local/dev still works).
+    const effectiveTallyUrl = tallyUrl || TALLY_URL;
+    const effectiveCalendlyUrl = calendlyUrl || CALENDLY_URL;
+
+    const sharedPayload = {
+      from: brand.emails.from.default,
+      to: [email],
+      subject: `Bienvenue sur ${brand.name} — Vos identifiants`,
+    };
+
+    const resendBody = RESEND_INVITE_ADMIN_TEMPLATE_ID
+      ? {
+        ...sharedPayload,
+        template_id: RESEND_INVITE_ADMIN_TEMPLATE_ID,
+        data: {
+          firstName: firstName || "",
+          lastName: lastName || "",
+          email,
+          password: generatedPassword,
+          loginUrl,
+          tallyUrl: effectiveTallyUrl,
+          calendlyUrl: effectiveCalendlyUrl,
+          brandName: brand.name,
+        },
+      }
+      : {
+        ...sharedPayload,
         html: `
           <!DOCTYPE html>
           <html>
@@ -304,7 +330,15 @@ serve(async (req: Request): Promise<Response> => {
             </body>
           </html>
         `,
-      }),
+      };
+
+    const resendResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify(resendBody),
     });
 
     if (!resendResponse.ok) {

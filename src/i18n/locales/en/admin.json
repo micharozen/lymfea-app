@@ -1,4 +1,42 @@
 {
+  "welcome": {
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Done",
+    "step1": {
+      "title": "Welcome to Eïa",
+      "body": "Eïa brings your bookings, therapist scheduling and billing into a single workspace. This quick guide walks you through the key areas of the app."
+    },
+    "step2": {
+      "title": "Three essential areas",
+      "agenda": {
+        "title": "Schedule",
+        "body": "Calendar view by venue, room and therapist. Create and move bookings."
+      },
+      "therapists": {
+        "title": "Therapists & treatments",
+        "body": "Add your team, their specializations and their availability."
+      },
+      "finance": {
+        "title": "Finance",
+        "body": "Track your revenue, therapist commissions and payouts."
+      },
+      "switcher": {
+        "title": "Tip: Venue Management mode",
+        "body": "From the sidebar, switch to a venue manager perspective with one click."
+      }
+    },
+    "step3": {
+      "title": "Your feedback matters",
+      "body": "You're testing Eïa: tell us everything. Your input shapes the roadmap.",
+      "feedback": "Share feedback (5 min)",
+      "calendly": "Book a 20-min call",
+      "trySwitcher": "Try Venue Management mode",
+      "pickVenue": "Pick a venue:"
+    },
+    "reopen": "Replay the welcome guide"
+  },
   "sidebar": {
     "home": "Home",
     "settings": "Settings & Access",
@@ -8,7 +46,7 @@
     "hotels": "Venues",
     "treatments": "Treatment Menus",
     "boxes": "Boxes",
-    "concierges": "Venue Team",
+    "concierges": "Venue Management",
     "customers": "Customers",
     "products": "{{brandName}} Products",
     "orders": "Orders",
@@ -273,7 +311,7 @@
     "hotel": "Hotel"
   },
   "concierges": {
-    "title": "Venue Team",
+    "title": "Venue Management",
     "add": "Add team member",
     "edit": "Edit team member",
     "noConcierges": "No team members",

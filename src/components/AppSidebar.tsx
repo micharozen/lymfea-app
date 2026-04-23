@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { brand, brandLogos } from "@/config/brand";
 import { GlobalSearch } from "@/components/admin/GlobalSearch";
+import { ViewModeSwitcher } from "@/components/admin/ViewModeSwitcher";
+import { useViewMode } from "@/contexts/ViewModeContext";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -73,14 +75,14 @@ const adminPrimaryItems: MenuItem[] = [
 
 const adminSecondaryItems: MenuItem[] = [
   { title: "Salles de soin", url: "/admin/treatment-rooms", icon: DoorOpen },
-  { title: "Équipe lieu", url: "/admin/concierges", icon: UserCog },
+  { title: "Gestion du lieu", url: "/admin/concierges", icon: UserCog },
   { title: `Produits`, url: "/admin/products", icon: Package },
   { title: "Commandes", url: "/admin/orders", icon: Truck },
   { title: "Finance", url: "/admin/finance", icon: Wallet },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
 ];
 
-const conciergePrimaryItems: MenuItem[] = [
+const venueManagerPrimaryItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Planning", url: "/admin/bookings", icon: CalendarDays },
   { title: "Réservations", url: "/admin/all-bookings", icon: ListChecks },
@@ -120,7 +122,7 @@ export function AppSidebar() {
           .maybeSingle();
         
         if (roleData) {
-          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Équipe lieu' : roleData.role;
+          const roleLabel = roleData.role === 'admin' ? 'Admin' : roleData.role === 'concierge' ? 'Gestion du lieu' : roleData.role;
           setUserRole(roleLabel);
         }
 
@@ -225,9 +227,23 @@ export function AppSidebar() {
     navigate("/auth");
   };
 
+  const { mode: viewMode, venueId: viewVenueId } = useViewMode();
   const isAdmin = userRole === 'Admin';
-  const primaryItems = isAdmin ? adminPrimaryItems : conciergePrimaryItems;
-  const secondaryItems = isAdmin ? adminSecondaryItems : [];
+  const inVenueManagerView = isAdmin && viewMode === 'venue_manager';
+
+  const venueManagerItems: MenuItem[] = inVenueManagerView && viewVenueId
+    ? [
+        { title: 'Mon lieu', url: `/admin/places/${viewVenueId}`, icon: Building2 },
+        ...venueManagerPrimaryItems,
+      ]
+    : venueManagerPrimaryItems;
+
+  const primaryItems = inVenueManagerView
+    ? venueManagerItems
+    : isAdmin
+      ? adminPrimaryItems
+      : venueManagerPrimaryItems;
+  const secondaryItems = isAdmin && !inVenueManagerView ? adminSecondaryItems : [];
 
   const renderNavItem = (item: MenuItem) => {
     const isActive = location.pathname === item.url;
@@ -285,6 +301,19 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* View mode switcher -- admin in admin mode only */}
+        {isAdmin && !inVenueManagerView && (
+          <SidebarGroup className="py-0">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <ViewModeSwitcher />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Secondary navigation (collapsible "More") -- admin only */}
         {secondaryItems.length > 0 && (
