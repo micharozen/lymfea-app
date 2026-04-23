@@ -20,17 +20,28 @@ export async function sendSms(options: SendSmsOptions): Promise<SendSmsResult> {
   const messagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID");
   const fromNumber = options.from ?? Deno.env.get("TWILIO_FROM_NUMBER");
 
+  console.log("[send-sms] env check", {
+    hasAccountSid: !!accountSid,
+    hasAuthToken: !!authToken,
+    hasMessagingServiceSid: !!messagingServiceSid,
+    hasFromNumber: !!fromNumber,
+    isLocal: Deno.env.get("IS_LOCAL"),
+  });
+
   if (!accountSid || !authToken) {
+    console.error("[send-sms] Missing Twilio credentials");
     return { error: "Twilio credentials are not configured" };
   }
 
   if (!messagingServiceSid && !fromNumber) {
+    console.error("[send-sms] Missing sender config");
     return { error: "Neither TWILIO_MESSAGING_SERVICE_SID nor TWILIO_FROM_NUMBER is configured" };
   }
 
   const isLocal = Deno.env.get("IS_LOCAL") === "true";
   const localTestNumber = Deno.env.get("TWILIO_LOCAL_TEST_NUMBER");
   const to = isLocal && localTestNumber ? localTestNumber : options.to;
+  console.log("[send-sms] Sending to Twilio", { to, isLocal, usingMessagingService: !!messagingServiceSid });
 
   const form = new URLSearchParams();
   form.set("To", to);
@@ -56,10 +67,11 @@ export async function sendSms(options: SendSmsOptions): Promise<SendSmsResult> {
   );
 
   const data = await response.json();
+  console.log("[send-sms] Twilio response", { status: response.status, ok: response.ok, sid: data?.sid, code: data?.code });
 
   if (!response.ok) {
     const errorMsg = data?.message ?? JSON.stringify(data);
-    console.error("[send-sms] Twilio API error:", errorMsg);
+    console.error("[send-sms] Twilio API error:", errorMsg, "full:", data);
     return { error: errorMsg };
   }
 

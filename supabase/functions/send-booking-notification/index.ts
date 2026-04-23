@@ -8,12 +8,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+type NotificationType = "confirmation" | "reschedule" | "cancellation";
+
 interface SendBookingNotificationRequest {
   bookingId: string;
   language: "fr" | "en";
   channels: ("email" | "sms")[];
   clientEmail?: string;
   clientPhone?: string;
+  type?: NotificationType;
 }
 
 interface BookingTreatment {
@@ -108,17 +111,60 @@ function buildEmailHtml(params: {
 function buildSmsBody(params: {
   clientName: string;
   hotelName: string;
-  bookingId: number;
   dateLong: string;
   bookingTime: string;
   roomNumber: string | null;
+  clientType: string | null;
+  manageUrl: string;
+  rebookUrl: string;
   language: "fr" | "en";
+  type: NotificationType;
 }) {
-  const { clientName, hotelName, bookingId, dateLong, bookingTime, roomNumber, language } = params;
-  if (language === "fr") {
-    return `Bonjour ${clientName}, votre soin à ${hotelName} est confirmé le ${dateLong} à ${bookingTime}. Réservation #${bookingId}${roomNumber ? `, chambre ${roomNumber}` : ""}. Facturation à l'hôtel, aucun paiement à prévoir. À très vite !`;
+  const {
+    clientName,
+    hotelName,
+    dateLong,
+    bookingTime,
+    roomNumber,
+    clientType,
+    manageUrl,
+    rebookUrl,
+    language,
+    type,
+  } = params;
+
+  if (type === "reschedule") {
+    if (language === "fr") {
+      return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} a été modifié : ${dateLong} à ${bookingTime}.\n\nGérer ma réservation : ${manageUrl}\n\nÀ très vite !`;
+    }
+    return `Hello ${clientName},\n\nYour treatment at ${hotelName} has been rescheduled to ${dateLong} at ${bookingTime}.\n\nManage my booking: ${manageUrl}\n\nSee you soon!`;
   }
-  return `Hello ${clientName}, your treatment at ${hotelName} is confirmed on ${dateLong} at ${bookingTime}. Booking #${bookingId}${roomNumber ? `, room ${roomNumber}` : ""}. Billed to the hotel, no payment needed. See you soon!`;
+
+  if (type === "cancellation") {
+    if (language === "fr") {
+      return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} du ${dateLong} à ${bookingTime} a été annulé.\n\nRéserver à nouveau : ${rebookUrl}\n\nÀ très vite !`;
+    }
+    return `Hello ${clientName},\n\nYour treatment at ${hotelName} on ${dateLong} at ${bookingTime} has been cancelled.\n\nBook again: ${rebookUrl}\n\nSee you soon!`;
+  }
+
+  const isPartner = clientType === "staycation" || clientType === "classpass";
+  const isHotel = clientType === "hotel";
+
+  if (language === "fr") {
+    const paymentLine = isPartner
+      ? ""
+      : isHotel
+      ? `\n\nFacturation en chambre${roomNumber ? ` ${roomNumber}` : ""}.`
+      : "";
+    return `Bonjour ${clientName},\n\nVotre soin à ${hotelName} est confirmé le ${dateLong} à ${bookingTime}.${paymentLine}\n\nGérer ma réservation : ${manageUrl}\n\nÀ très vite !`;
+  }
+
+  const paymentLine = isPartner
+    ? ""
+    : isHotel
+    ? `\n\nCharged to your room${roomNumber ? ` ${roomNumber}` : ""}.`
+    : "";
+  return `Hello ${clientName},\n\nYour treatment at ${hotelName} is confirmed on ${dateLong} at ${bookingTime}.${paymentLine}\n\nManage my booking: ${manageUrl}\n\nSee you soon!`;
 }
 
 serve(async (req: Request) => {
@@ -127,8 +173,17 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("[send-booking-notification] Request received", { method: req.method });
     const body = (await req.json()) as SendBookingNotificationRequest;
     const { bookingId, language, channels } = body;
+    console.log("[send-booking-notification] Payload", {
+      bookingId,
+      language,
+      channels,
+      hasClientEmail: !!body.clientEmail,
+      hasClientPhone: !!body.clientPhone,
+      clientPhone: body.clientPhone,
+    });
 
     if (!bookingId || !language || !channels || channels.length === 0) {
       throw new Error("Missing required fields: bookingId, language and at least one channel");
@@ -150,7 +205,7 @@ serve(async (req: Request) => {
       .from("bookings")
       .select(
         `id, booking_id, client_first_name, client_last_name, client_email, phone,
-         booking_date, booking_time, room_number, total_price, hotel_id,
+         booking_date, booking_time, room_number, total_price, hotel_id, client_type,
          hotels(name, currency)`
       )
       .eq("id", bookingId)
@@ -211,19 +266,33 @@ serve(async (req: Request) => {
 
     if (channels.includes("sms")) {
       const to = body.clientPhone ?? booking.phone;
+      console.log("[send-booking-notification] SMS channel", {
+        to,
+        fromBody: !!body.clientPhone,
+        fromBooking: !body.clientPhone && !!booking.phone,
+      });
       if (!to) {
+        console.warn("[send-booking-notification] No phone number available");
         errors.push("No phone number for recipient");
       } else {
+        const siteUrl = Deno.env.get("SITE_URL") ?? "https://lymfea.fr";
+        const manageUrl = `${siteUrl}/booking/manage/${booking.id}`;
+        const rebookUrl = `${siteUrl}/client/${(booking as any).hotel_id}/treatments`;
         const smsBody = buildSmsBody({
           clientName,
           hotelName,
-          bookingId: booking.booking_id,
           dateLong,
           bookingTime: booking.booking_time.substring(0, 5),
           roomNumber: booking.room_number ?? null,
+          clientType: (booking as any).client_type ?? null,
+          manageUrl,
+          rebookUrl,
           language,
+          type: body.type ?? "confirmation",
         });
+        console.log("[send-booking-notification] Calling sendSms", { to, bodyLength: smsBody.length });
         const result = await sendSms({ to, body: smsBody });
+        console.log("[send-booking-notification] sendSms result", result);
         if (result.error) {
           errors.push(`SMS: ${result.error}`);
         } else {
@@ -231,6 +300,8 @@ serve(async (req: Request) => {
         }
       }
     }
+
+    console.log("[send-booking-notification] Done", { emailSent, smsSent, errors });
 
     return new Response(
       JSON.stringify({

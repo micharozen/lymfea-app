@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount } = await req.json();
+    const { hotelId, date, treatmentIds, therapistGender, requiredGuestCount: rawGuestCount, excludeBookingId } = await req.json();
     const requiredGuestCount = Math.max(1, rawGuestCount || 1);
 
     if (!hotelId || !date) {
@@ -270,12 +270,18 @@ serve(async (req) => {
     // Get all bookings for this hotel on this date (for trunk capacity check)
     // Exclude cancelled/terminated bookings
     // Include duration for overlap checking
-    const { data: allHotelBookings, error: allBookingsError } = await supabase
+    let hotelBookingsQuery = supabase
       .from('bookings')
       .select('booking_time, therapist_id, status, room_id, duration')
       .eq('booking_date', date)
       .eq('hotel_id', hotelId)
       .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+    if (excludeBookingId) {
+      hotelBookingsQuery = hotelBookingsQuery.neq('id', excludeBookingId);
+    }
+
+    const { data: allHotelBookings, error: allBookingsError } = await hotelBookingsQuery;
 
     if (allBookingsError) {
       console.error('Error fetching hotel bookings:', allBookingsError);
