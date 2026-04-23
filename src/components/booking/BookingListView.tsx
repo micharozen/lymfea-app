@@ -15,6 +15,7 @@ import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
+import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
 const PAYMENT_TEXT_LABELS: Record<string, string> = {

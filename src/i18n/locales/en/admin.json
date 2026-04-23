@@ -843,7 +843,8 @@
       "existingClient": "Existing client — fields pre-filled",
       "email": "Email",
       "emailHint": "needed for the payment link",
-      "room": "Room number"
+      "room": "Room number",
+      "clientType": "Client type"
     },
     "confirm": {
       "venue": "Venue",
@@ -852,18 +853,21 @@
       "treatments": "Services",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Create and send link"
+      "createAndSend": "Create and send link",
+      "createAndNotify": "Create and send confirmation"
     },
     "done": {
       "title": "Booking created",
-      "sendLink": "Send payment link"
+      "sendLink": "Send payment link",
+      "sendNotification": "Send confirmation"
     },
     "errors": {
       "selectVenue": "Select a venue",
       "selectTreatment": "Select at least one service",
       "selectSlot": "Select a date and time",
       "selectTherapist": "Select a therapist",
-      "fillClient": "Fill in client information"
+      "fillClient": "Fill in client information",
+      "roomRequired": "Room number required for hotel clients"
     }
   }
 }

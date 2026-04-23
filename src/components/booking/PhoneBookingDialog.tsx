@@ -48,6 +48,12 @@ import {
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
+import {
+  BOOKING_CLIENT_TYPES,
+  CLIENT_TYPE_META,
+  type BookingClientType,
+} from "@/lib/clientTypeMeta";
 import {
   Popover,
   PopoverContent,
@@ -114,6 +120,7 @@ export default function PhoneBookingDialog({
   const [phone, setPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [clientType, setClientType] = useState<BookingClientType>("external");
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
@@ -121,6 +128,7 @@ export default function PhoneBookingDialog({
     hotel_name: string;
   } | null>(null);
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   const { data: hotels } = useQuery({
     queryKey: ["phone-booking-hotels"],
@@ -207,7 +215,11 @@ export default function PhoneBookingDialog({
         hotel_name: data.hotel_name || "",
       });
       setStep("done");
-      setIsPaymentLinkDialogOpen(true);
+      if (clientType === "external") {
+        setIsPaymentLinkDialogOpen(true);
+      } else {
+        setIsNotificationDialogOpen(true);
+      }
     },
   });
 
@@ -222,6 +234,7 @@ export default function PhoneBookingDialog({
     setPhone("");
     setClientEmail("");
     setRoomNumber("");
+    setClientType("external");
     setCart([]);
     setCreatedBooking(null);
   };
@@ -251,6 +264,7 @@ export default function PhoneBookingDialog({
       phone: phone.trim(),
       countryCode,
       roomNumber: roomNumber.trim(),
+      clientType,
       clientNote: "",
       date: format(date, "yyyy-MM-dd"),
       time,
@@ -368,6 +382,8 @@ export default function PhoneBookingDialog({
                 setClientEmail={setClientEmail}
                 roomNumber={roomNumber}
                 setRoomNumber={setRoomNumber}
+                clientType={clientType}
+                setClientType={setClientType}
               />
             )}
 
@@ -398,7 +414,12 @@ export default function PhoneBookingDialog({
                 clientLastName={clientLastName}
                 totalPrice={totalPrice}
                 currency={selectedHotel?.currency || "EUR"}
-                onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                clientType={clientType}
+                onSendPaymentLink={() =>
+                  clientType === "external"
+                    ? setIsPaymentLinkDialogOpen(true)
+                    : setIsNotificationDialogOpen(true)
+                }
                 onClose={handleClose}
               />
             )}
@@ -471,6 +492,13 @@ export default function PhoneBookingDialog({
                         });
                         return;
                       }
+                      if (clientType === "hotel" && !roomNumber.trim()) {
+                        toast({
+                          title: t("phoneBooking.errors.roomRequired"),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
                       setStep("confirm");
                     }
                   }}
@@ -490,7 +518,9 @@ export default function PhoneBookingDialog({
                   ) : (
                     <Check className="h-4 w-4 mr-2" />
                   )}
-                  {t("phoneBooking.confirm.createAndSend")}
+                  {clientType === "external"
+                    ? t("phoneBooking.confirm.createAndSend")
+                    : t("phoneBooking.confirm.createAndNotify")}
                 </Button>
               )}
             </div>
@@ -525,6 +555,38 @@ export default function PhoneBookingDialog({
           }}
           onSuccess={() => {
             setIsPaymentLinkDialogOpen(false);
+            handleClose();
+          }}
+        />
+      )}
+
+      {createdBooking && (
+        <SendBookingNotificationDialog
+          open={isNotificationDialogOpen}
+          onOpenChange={setIsNotificationDialogOpen}
+          booking={{
+            id: createdBooking.id,
+            booking_id: createdBooking.booking_id,
+            client_first_name: clientFirstName,
+            client_last_name: clientLastName,
+            client_email: clientEmail || undefined,
+            phone: `${countryCode} ${phone}`,
+            room_number: roomNumber || undefined,
+            booking_date: date ? format(date, "yyyy-MM-dd") : "",
+            booking_time: time,
+            total_price: totalPrice,
+            hotel_name: createdBooking.hotel_name,
+            treatments: cartDetails.map((item) => {
+              const tr = item.treatment as { name?: string; price?: number | null } | undefined;
+              return {
+                name: tr?.name || "Service",
+                price: (tr?.price || 0) * item.quantity,
+              };
+            }),
+            currency: selectedHotel?.currency || "EUR",
+          }}
+          onSuccess={() => {
+            setIsNotificationDialogOpen(false);
             handleClose();
           }}
         />
@@ -955,6 +1017,8 @@ interface ClientStepProps {
   setClientEmail: (v: string) => void;
   roomNumber: string;
   setRoomNumber: (v: string) => void;
+  clientType: BookingClientType;
+  setClientType: (v: BookingClientType) => void;
 }
 
 interface CustomerResult {
@@ -979,6 +1043,8 @@ function ClientStep({
   setClientEmail,
   roomNumber,
   setRoomNumber,
+  clientType,
+  setClientType,
 }: ClientStepProps) {
   const [search, setSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -1128,15 +1194,51 @@ function ClientStep({
         />
       </div>
       <div>
+        <Label>{t("phoneBooking.client.clientType")}</Label>
+        <Select value={clientType} onValueChange={(v) => setClientType(v as BookingClientType)}>
+          <SelectTrigger className="mt-1">
+            <SelectValue>
+              <span className="flex items-center gap-2">
+                <img
+                  src={CLIENT_TYPE_META[clientType].logo}
+                  alt=""
+                  className="w-4 h-4 shrink-0"
+                />
+                <span>{t(CLIENT_TYPE_META[clientType].labelKey)}</span>
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {BOOKING_CLIENT_TYPES.map((ct) => (
+              <SelectItem key={ct} value={ct}>
+                <span className="flex items-center gap-2">
+                  <img
+                    src={CLIENT_TYPE_META[ct].logo}
+                    alt=""
+                    className="w-4 h-4 shrink-0"
+                  />
+                  <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <Label>
           {t("phoneBooking.client.room")}{" "}
-          <span className="text-muted-foreground text-xs">
-            ({t("phoneBooking.ui.optional")})
-          </span>
+          {clientType === "hotel" ? (
+            <span className="text-primary">*</span>
+          ) : (
+            <span className="text-muted-foreground text-xs">
+              ({t("phoneBooking.ui.optional")})
+            </span>
+          )}
         </Label>
         <Input
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
+          required={clientType === "hotel"}
         />
       </div>
     </div>
@@ -1250,6 +1352,7 @@ interface DoneStepProps {
   clientLastName: string;
   totalPrice: number;
   currency: string;
+  clientType: BookingClientType;
   onSendPaymentLink: () => void;
   onClose: () => void;
 }
@@ -1261,6 +1364,7 @@ function DoneStep({
   clientLastName,
   totalPrice,
   currency,
+  clientType,
   onSendPaymentLink,
   onClose,
 }: DoneStepProps) {
@@ -1285,7 +1389,9 @@ function DoneStep({
           className="bg-foreground text-background hover:bg-foreground/90"
         >
           <Send className="h-4 w-4 mr-2" />
-          {t("phoneBooking.done.sendLink")}
+          {clientType === "external"
+            ? t("phoneBooking.done.sendLink")
+            : t("phoneBooking.done.sendNotification")}
         </Button>
         <Button type="button" variant="outline" onClick={onClose}>
           {t("phoneBooking.ui.close")}

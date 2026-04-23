@@ -843,7 +843,8 @@
       "existingClient": "Client existant — champs préremplis",
       "email": "Email",
       "emailHint": "nécessaire pour le lien de paiement",
-      "room": "Numéro de chambre"
+      "room": "Numéro de chambre",
+      "clientType": "Type de client"
     },
     "confirm": {
       "venue": "Lieu",
@@ -852,18 +853,21 @@
       "treatments": "Soins",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Créer et envoyer le lien"
+      "createAndSend": "Créer et envoyer le lien",
+      "createAndNotify": "Créer et envoyer la confirmation"
     },
     "done": {
       "title": "Réservation créée",
-      "sendLink": "Envoyer lien de paiement"
+      "sendLink": "Envoyer lien de paiement",
+      "sendNotification": "Envoyer la confirmation"
     },
     "errors": {
       "selectVenue": "Sélectionnez un lieu",
       "selectTreatment": "Sélectionnez au moins un soin",
       "selectSlot": "Sélectionnez une date et un horaire",
       "selectTherapist": "Sélectionnez un thérapeute",
-      "fillClient": "Remplissez les informations client"
+      "fillClient": "Remplissez les informations client",
+      "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
     }
   }
 }
