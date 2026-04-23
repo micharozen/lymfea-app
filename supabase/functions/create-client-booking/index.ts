@@ -474,6 +474,21 @@ try {
             console.error('Failed to update booking payment to gift_amount:', updateError);
             bundleWarning = 'Gift amount applied but payment status update failed.';
           }
+
+          // Maintain the 1:1 invariant with booking_payment_infos — other
+          // payment flows (card, setup intent) create a row, voucher must too.
+          const { error: paymentInfoError } = await supabase
+            .from('booking_payment_infos')
+            .insert({
+              booking_id: bookingId,
+              customer_id: customerId,
+              estimated_price: totalPrice,
+              payment_status: 'charged',
+              payment_at: new Date().toISOString(),
+            });
+          if (paymentInfoError) {
+            console.error('Failed to insert booking_payment_infos for gift amount:', paymentInfoError);
+          }
         }
       } catch (giftError) {
         console.error('Unexpected error during gift amount usage:', giftError);
