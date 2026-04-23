@@ -344,7 +344,7 @@ export function AppSidebar() {
             <SidebarGroup className="py-1">
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {renderNavItem({ title: "Paramètres", url: "/admin/settings", icon: Settings })}
+                  {renderNavItem({ title: "Admins", url: "/admin/admins", icon: Settings })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>

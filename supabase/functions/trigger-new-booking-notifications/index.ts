@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
+
+const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -209,6 +213,86 @@ serve(async (req) => {
     }
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
+
+    // Send confirmation email to the client (Resend template)
+    try {
+      // Prefer customer record (created upstream by find_or_create_customer) over booking columns
+      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null } | null = null;
+      if ((booking as any).customer_id) {
+        const { data: customerRow } = await supabaseClient
+          .from('customers')
+          .select('email, phone, first_name, last_name')
+          .eq('id', (booking as any).customer_id)
+          .maybeSingle();
+        customer = customerRow ?? null;
+      }
+
+      const clientEmail = customer?.email
+        || (booking as any).client_email
+        || undefined;
+
+      if (clientEmail) {
+        const { data: bookingTreatments } = await supabaseClient
+          .from('booking_treatments')
+          .select('treatment_id, treatment_menus(name, price)')
+          .eq('booking_id', bookingId);
+
+        const treatmentsForEmail = bookingTreatments?.map(bt => {
+          const menu = bt.treatment_menus as any;
+          return { name: menu?.name || '', price: Number(menu?.price) || 0 };
+        }) || [];
+
+        const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        });
+        const formattedTime = booking.booking_time?.substring(0, 5) || '';
+
+        const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
+        const clientBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
+
+        const treatmentName = treatmentsForEmail.map(t => t.name).filter(Boolean).join(', ');
+        const treatmentPrice = treatmentsForEmail.reduce((sum, t) => sum + t.price, 0);
+
+        const firstName = customer?.first_name ?? booking.client_first_name ?? '';
+        const lastName = customer?.last_name ?? booking.client_last_name ?? '';
+        const clientName = `${firstName} ${lastName}`.trim();
+        const clientPhone = customer?.phone ?? (booking as any).phone ?? (booking as any).client_phone ?? '';
+
+        const templateVariables: Record<string, string> = {
+          booking_date: formattedDate,
+          booking_number: String(booking.booking_id ?? ''),
+          booking_time: formattedTime,
+          booking_url: clientBookingUrl,
+          client_name: clientName,
+          client_phone: clientPhone,
+          hotel_name: booking.hotel_name ?? '',
+          room_number: booking.room_number ? String(booking.room_number) : '',
+          therapist_name: booking.therapist_name ?? '',
+          total_price: `${booking.total_price ?? 0}€`,
+          treatment_name: treatmentName,
+          treatment_price: `${treatmentPrice}€`,
+        };
+
+        const clientEmailResult = await sendEmail({
+          to: clientEmail,
+          subject: `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+          templateId: CLIENT_NEW_BOOKING_TEMPLATE_ID,
+          templateVariables,
+        });
+
+        if (clientEmailResult.error) {
+          console.error('[trigger-new-booking-notifications] Client email error:', clientEmailResult.error);
+        } else {
+          console.log('[trigger-new-booking-notifications] Client email sent:', clientEmailResult.id);
+        }
+      } else {
+        console.log('[trigger-new-booking-notifications] No email on customer or booking, skipping client email');
+      }
+    } catch (emailError) {
+      console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);
+    }
 
     // Send Slack notification for new booking
     try {

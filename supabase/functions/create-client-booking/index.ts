@@ -152,7 +152,7 @@ try {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone, min_booking_notice_minutes')
       .eq('id', hotelId)
       .single();
 
@@ -230,25 +230,45 @@ try {
       );
     }
 
-    // TOCTOU: Check lead time server-side (for today's bookings only)
-    const maxLeadTime = Math.max(...(validTreatments?.map(t => t.lead_time || 0) || [0]));
+    // TOCTOU: Check lead time server-side.
+    // Effective lead time = max(venue min booking notice, max treatment lead_time).
+    // Applies across days, not only today (venue policies like "48h ahead").
+    const maxTreatmentLeadTime = Math.max(...(validTreatments?.map(t => t.lead_time || 0) || [0]));
+    const venueMinNotice = (hotel as any).min_booking_notice_minutes ?? 0;
+    const maxLeadTime = Math.max(maxTreatmentLeadTime, venueMinNotice);
     if (maxLeadTime > 0) {
       const now = new Date();
-      const bookingDateStr = bookingData.date;
-      const todayStr = now.toISOString().split('T')[0];
+      // Compute booking datetime in the venue timezone, then convert to UTC for comparison.
+      const venueTz = (hotel as any).timezone || 'UTC';
+      const [bYear, bMonth, bDay] = bookingData.date.split('-').map(Number);
+      const [bHour, bMinute] = bookingData.time.split(':').map(Number);
+      // Trick: format "now" in venue TZ to measure the TZ offset, then apply it.
+      const tzOffsetMs = (() => {
+        const localAsUtc = Date.UTC(bYear, bMonth - 1, bDay, bHour, bMinute, 0);
+        // Determine venue UTC offset at that instant using Intl.
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: venueTz,
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+        }).formatToParts(new Date(localAsUtc)).reduce<Record<string, string>>((acc, p) => {
+          if (p.type !== 'literal') acc[p.type] = p.value;
+          return acc;
+        }, {});
+        const asIfLocal = Date.UTC(
+          parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10),
+          parseInt(parts.hour, 10), parseInt(parts.minute, 10), parseInt(parts.second, 10)
+        );
+        return asIfLocal - localAsUtc;
+      })();
+      const bookingDateTimeMs = Date.UTC(bYear, bMonth - 1, bDay, bHour, bMinute, 0) - tzOffsetMs;
+      const minutesUntilBooking = Math.floor((bookingDateTimeMs - now.getTime()) / 60000);
 
-      if (bookingDateStr === todayStr) {
-        const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const minutesUntilBooking = bookingMinutes - nowMinutes;
-
-        if (minutesUntilBooking < maxLeadTime) {
-          console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime });
-          return new Response(
-            JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-          );
-        }
+      if (minutesUntilBooking < maxLeadTime) {
+        console.log('Rejected: lead time violation', { minutesUntilBooking, maxLeadTime, venueMinNotice, maxTreatmentLeadTime });
+        return new Response(
+          JSON.stringify({ success: false, error: 'LEAD_TIME_VIOLATION', minLeadTimeMinutes: maxLeadTime }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
       }
     }
 

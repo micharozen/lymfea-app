@@ -1,12 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const SITE_URL = (Deno.env.get("SITE_URL") || "").replace(/\/$/, "");
-const RESEND_INVITE_ADMIN_TEMPLATE_ID = Deno.env.get(
-  "RESEND_INVITE_ADMIN_TEMPLATE_ID",
-) || "";
+const RESEND_INVITE_ADMIN_TEMPLATE_ID =
+  Deno.env.get("RESEND_INVITE_ADMIN_TEMPLATE_ID") || "";
 const TALLY_URL = Deno.env.get("TALLY_URL") || "";
 const CALENDLY_URL = Deno.env.get("CALENDLY_URL") || "";
 
@@ -74,14 +73,6 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    if (!RESEND_API_KEY) {
-      console.error("Missing RESEND_API_KEY");
-      return jsonResponse(
-        { error: "missing_resend_api_key" },
-        500,
-      );
-    }
-
     // Verify authentication using the JWT token
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -262,93 +253,39 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send email with login credentials.
-    // Prefer the Resend template (managed in Resend dashboard) if configured.
-    // Fall back to the inline HTML otherwise (so local/dev still works).
     const effectiveTallyUrl = tallyUrl || TALLY_URL;
     const effectiveCalendlyUrl = calendlyUrl || CALENDLY_URL;
 
-    const sharedPayload = {
-      from: brand.emails.from.default,
-      to: [email],
-      subject: `Bienvenue sur ${brand.name} — Vos identifiants`,
-    };
-
-    const resendBody = RESEND_INVITE_ADMIN_TEMPLATE_ID
-      ? {
-        ...sharedPayload,
-        template_id: RESEND_INVITE_ADMIN_TEMPLATE_ID,
-        data: {
-          firstName: firstName || "",
-          lastName: lastName || "",
-          email,
-          password: generatedPassword,
-          loginUrl,
-          tallyUrl: effectiveTallyUrl,
-          calendlyUrl: effectiveCalendlyUrl,
-          brandName: brand.name,
-        },
-      }
-      : {
-        ...sharedPayload,
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Bienvenue sur ${brand.name}</title>
-            </head>
-            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
-              <div style="background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e5e5;">
-                <div style="background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%); padding: 26px; text-align: center;">
-                  <img src="${EMAIL_LOGO_URL}" alt="${brand.name}" width="120" style="display:block;margin:0 auto 10px auto;" />
-                  <p style="margin:0;color:#cccccc;font-size:13px;">Invitation administrateur</p>
-                </div>
-
-                <div style="padding: 28px; background: #ffffff;">
-                  <h2 style="margin: 0 0 10px 0; font-size: 18px;">Bonjour ${firstName || ""} ${lastName || ""},</h2>
-                  <p style="margin: 0 0 18px 0; color: #444;">Voici vos identifiants pour accéder au panel ${brand.name} :</p>
-
-                  <div style="background: #f8f9fa; padding: 18px; border-radius: 10px; border: 1px solid #e9ecef;">
-                    <p style="margin: 0 0 10px 0;"><strong>URL :</strong> <a href="${loginUrl}" style="color:#0b5ed7;">${loginUrl}</a></p>
-                    <p style="margin: 0 0 10px 0;"><strong>Email :</strong> ${email}</p>
-                    <p style="margin: 0;"><strong>Mot de passe :</strong> ${generatedPassword}</p>
-                  </div>
-
-                  <div style="text-align:center;margin:22px 0 8px 0;">
-                    <a href="${loginUrl}" style="background:#1a1a1a;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">Se connecter</a>
-                  </div>
-
-                  <p style="margin: 14px 0 0 0; font-size: 13px; color: #777;">Par sécurité, changez votre mot de passe après la première connexion.</p>
-                </div>
-
-                <div style="padding: 16px 22px; background:#f8f9fa; border-top: 1px solid #e5e5e5; text-align:center; color:#888; font-size: 12px;">
-                  © ${new Date().getFullYear()} ${brand.legal.companyName}
-                </div>
-              </div>
-            </body>
-          </html>
-        `,
-      };
-
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify(resendBody),
-    });
-
-    if (!resendResponse.ok) {
-      const errorText = await resendResponse.text();
-      console.error("Resend API error:", errorText);
-      return jsonResponse({ error: "resend_failed", details: errorText }, 502);
+    if (!RESEND_INVITE_ADMIN_TEMPLATE_ID) {
+      console.error("Missing RESEND_INVITE_ADMIN_TEMPLATE_ID");
+      return jsonResponse({ error: "missing_template_id" }, 500);
     }
 
-    const emailData = await resendResponse.json();
-    console.log("Invitation email sent:", emailData);
+    const emailResult = await sendEmail({
+      to: email,
+      subject: `Bienvenue sur ${brand.name} — Vos identifiants`,
+      templateId: RESEND_INVITE_ADMIN_TEMPLATE_ID,
+      templateVariables: {
+        first_name: firstName || "",
+        last_name: lastName || "",
+        login_email: email,
+        temporary_password: generatedPassword,
+        url: loginUrl,
+        tally_url: effectiveTallyUrl,
+        calendly_url: effectiveCalendlyUrl,
+        brand_name: brand.name,
+      },
+    });
+
+    if (emailResult.error) {
+      console.error("Resend API error:", emailResult.error);
+      return jsonResponse(
+        { error: "resend_failed", details: emailResult.error },
+        502,
+      );
+    }
+
+    console.log("Invitation email sent:", emailResult.id);
 
     return jsonResponse({ success: true });
   } catch (error: any) {

@@ -1001,6 +1001,50 @@ export function VenueGeneralTab({
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="min_booking_notice_minutes"
+            render={({ field }) => {
+              const minutes = field.value ?? 0;
+              const hours = minutes === 0 ? '' : (minutes / 60).toString();
+              return (
+                <FormItem className="py-4">
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    {t('venue.minBookingNotice', 'Délai minimum avant réservation')}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-40">
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="168"
+                        value={hours}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            field.onChange(0);
+                          } else {
+                            const h = parseFloat(val);
+                            field.onChange(Number.isFinite(h) && h >= 0 ? Math.round(h * 60) : 0);
+                          }
+                        }}
+                        onBlur={field.onBlur}
+                        disabled={disabled}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">h</span>
+                    </div>
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    {t('venue.minBookingNoticeDesc', "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.")}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
         </CardContent>
       </Card>
 

@@ -404,9 +404,14 @@ export function CheckoutPanel({
 
       const errorBody = error?.context?.body;
       let errorCode = '';
+      let errorPayload: any = null;
       if (typeof errorBody === 'string') {
-        try { errorCode = JSON.parse(errorBody)?.error || ''; } catch { /* ignore */ }
+        try {
+          errorPayload = JSON.parse(errorBody);
+          errorCode = errorPayload?.error || '';
+        } catch { /* ignore */ }
       } else if (errorBody?.error) {
+        errorPayload = errorBody;
         errorCode = errorBody.error;
       }
       if (!errorCode && error?.message) {
@@ -414,10 +419,22 @@ export function CheckoutPanel({
       }
 
       if (errorCode === 'SLOT_TAKEN' || errorCode === 'BLOCKED_SLOT' || errorCode === 'LEAD_TIME_VIOLATION') {
-        const messageKey = errorCode === 'SLOT_TAKEN' ? 'errors.slotTaken'
-          : errorCode === 'BLOCKED_SLOT' ? 'errors.blockedSlot'
-          : 'errors.leadTimeViolation';
-        toast.error(t(messageKey));
+        let message: string;
+        if (errorCode === 'SLOT_TAKEN') {
+          message = t('errors.slotTaken');
+        } else if (errorCode === 'BLOCKED_SLOT') {
+          message = t('errors.blockedSlot');
+        } else {
+          const minLeadMin = Number(errorPayload?.minLeadTimeMinutes) || 0;
+          if (minLeadMin >= 60 && minLeadMin % 60 === 0) {
+            message = t('errors.leadTimeViolationHours', { hours: minLeadMin / 60 });
+          } else if (minLeadMin > 0) {
+            message = t('errors.leadTimeViolationMinutes', { minutes: minLeadMin });
+          } else {
+            message = t('errors.leadTimeViolation');
+          }
+        }
+        toast.error(message);
         navigate(`/client/${slug}/schedule`, {
           state: { takenDate: bookingDateTime?.date, takenTime: bookingDateTime?.time },
         });

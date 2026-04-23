@@ -382,6 +382,8 @@
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "roomTurnoverBuffer": "Temps de remise en état",
     "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "minBookingNotice": "Délai minimum avant réservation",
+    "minBookingNoticeDesc": "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.",
     "bookingRules": {
       "tabLabel": "Règles de réservation",
       "holdSectionTitle": "Pré-réservation (hold)",

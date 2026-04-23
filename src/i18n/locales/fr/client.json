@@ -317,7 +317,9 @@
   "errors": {
     "slotTaken": "Ce créneau vient d'être réservé par un autre client. Veuillez choisir un autre horaire.",
     "blockedSlot": "Ce créneau chevauche une plage horaire indisponible (ex: pause déjeuner).",
-    "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire."
+    "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire.",
+    "leadTimeViolationHours": "Les réservations doivent être effectuées au moins {{hours}}h à l'avance. Veuillez choisir un autre horaire.",
+    "leadTimeViolationMinutes": "Les réservations doivent être effectuées au moins {{minutes}} minutes à l'avance. Veuillez choisir un autre horaire."
   },
 
   "bundle": {

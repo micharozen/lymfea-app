@@ -382,6 +382,8 @@
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "roomTurnoverBuffer": "Room turnover buffer",
     "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
+    "minBookingNotice": "Minimum booking notice",
+    "minBookingNoticeDesc": "Minimum delay between now and any bookable slot (e.g. 2h, 4h, 24h). Slots that are too soon are hidden from the client. 0 = no delay.",
     "bookingRules": {
       "tabLabel": "Booking rules",
       "holdSectionTitle": "Slot hold",

@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import { Resend } from "https://esm.sh/resend@4.0.0";
-import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
+import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
+
+const BOOKING_CONFIRMED_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -16,8 +18,6 @@ serve(async (req) => {
   }
 
   try {
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
-    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -51,150 +51,31 @@ serve(async (req) => {
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
       weekday: 'short',
       day: 'numeric',
-      month: 'short'
+      month: 'short',
     });
-
     const formattedTime = booking.booking_time?.substring(0, 5) || '';
 
-    const treatmentsHtml = treatments.map(t => 
-      `<span style="display:inline-block;background:#f3f4f6;padding:3px 8px;border-radius:4px;margin:2px;font-size:12px;">${t.name} ${t.price}€</span>`
-    ).join('');
-
-    const logoUrl = EMAIL_LOGO_URL;
-
-    // Deep link URL for booking details
     const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
     const bookingDetailsUrl = `${siteUrl}/admin/booking?bookingId=${bookingId}`;
 
-    // Compact admin/concierge email with CTA
-    const createEmailHtml = (recipientType: string) => `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
-              <span style="display:inline-block;background:#22c55e;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">✓ Confirmée</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:16px;">
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#dcfce7;border-radius:8px;margin-bottom:12px;">
-                <tr>
-                  <td style="padding:10px;text-align:center;">
-                    <span style="font-size:18px;font-weight:bold;color:#166534;">#${booking.booking_id}</span>
-                    <span style="margin:0 8px;color:#16a34a;">·</span>
-                    <span style="font-size:14px;color:#166534;">${formattedDate} à ${formattedTime}</span>
-                  </td>
-                </tr>
-              </table>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
-                <tr><td style="padding:5px 0;color:#6b7280;width:70px;">Client</td><td style="padding:5px 0;font-weight:500;">${booking.client_first_name} ${booking.client_last_name}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Tél</td><td style="padding:5px 0;">${booking.phone || '-'}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Hôtel</td><td style="padding:5px 0;">${booking.hotel_name || '-'}${booking.room_number ? ` · Ch.${booking.room_number}` : ''}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Thérapeute</td><td style="padding:5px 0;font-weight:600;">${booking.therapist_name || '-'}</td></tr>
-              </table>
-              
-              <div style="margin-bottom:12px;">${treatmentsHtml}</div>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
-                <tr>
-                  <td style="background:#f9fafb;padding:8px 12px;border-radius:6px;">
-                    <span style="font-size:12px;color:#6b7280;">Total</span>
-                    <span style="float:right;font-size:16px;font-weight:bold;">${booking.total_price || 0}€</span>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center">
-                    <a href="${bookingDetailsUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;">
-                      Voir les détails de la commande →
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">${brand.name}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `;
+    const treatmentName = treatments.map(t => t.name).join(', ');
+    const treatmentPrice = treatments.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
 
-    // Compact client email
-    const createClientEmailHtml = () => `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#fff;border-radius:12px;overflow:hidden;">
-          <tr>
-            <td style="background:#fff;padding:16px;text-align:center;border-bottom:1px solid #f0f0f0;">
-              <img src="${logoUrl}" alt="${brand.name}" style="height:50px;display:block;margin:0 auto 10px;" />
-              <span style="display:inline-block;background:#22c55e;color:#fff;padding:5px 14px;border-radius:14px;font-size:11px;font-weight:600;">✓ RDV Confirmé</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:16px;">
-              <p style="margin:0 0 8px;font-size:15px;">Bonjour ${booking.client_first_name},</p>
-              <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Votre thérapeute ${booking.therapist_name || ''} est confirmé pour votre rendez-vous.</p>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:8px;margin-bottom:12px;">
-                <tr>
-                  <td style="padding:12px;border-right:1px solid #e5e7eb;width:50%;">
-                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Date</p>
-                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${formattedDate}</p>
-                  </td>
-                  <td style="padding:12px;width:50%;">
-                    <p style="margin:0;font-size:10px;color:#6b7280;text-transform:uppercase;">Heure</p>
-                    <p style="margin:2px 0 0;font-size:14px;font-weight:600;">${formattedTime}</p>
-                  </td>
-                </tr>
-              </table>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;margin-bottom:12px;">
-                <tr><td style="padding:5px 0;color:#6b7280;width:70px;">Résa</td><td style="padding:5px 0;font-weight:500;">#${booking.booking_id}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Hôtel</td><td style="padding:5px 0;">${booking.hotel_name || '-'}${booking.room_number ? ` · Ch.${booking.room_number}` : ''}</td></tr>
-                <tr><td style="padding:5px 0;color:#6b7280;">Thérapeute</td><td style="padding:5px 0;font-weight:600;color:#22c55e;">${booking.therapist_name || '-'}</td></tr>
-              </table>
-              
-              <div style="margin-bottom:12px;">${treatmentsHtml}</div>
-              
-              <table width="100%" cellpadding="0" cellspacing="0" style="background:#000;border-radius:6px;">
-                <tr>
-                  <td style="padding:10px 12px;color:#fff;font-size:12px;">Total</td>
-                  <td style="padding:10px 12px;color:#fff;font-size:16px;font-weight:bold;text-align:right;">${booking.total_price || 0}€</td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:10px;text-align:center;background:#fafafa;font-size:11px;color:#9ca3af;">${brand.name} · ${brand.tagline}</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `;
+    const templateVariables: Record<string, string> = {
+      booking_number: String(booking.booking_id ?? ''),
+      booking_time: `${formattedDate} ${formattedTime}`.trim(),
+      booking_url: bookingDetailsUrl,
+      client_name: `${booking.client_first_name ?? ''} ${booking.client_last_name ?? ''}`.trim(),
+      client_phone: booking.phone ?? '',
+      hotel_name: booking.hotel_name ?? '',
+      room_number: booking.room_number ? String(booking.room_number) : '',
+      therapist_name: booking.therapist_name ?? '',
+      total_price: `${booking.total_price ?? 0}€`,
+      treatment_name: treatmentName,
+      treatment_price: `${treatmentPrice}€`,
+    };
+
+    const subject = `✅ #${booking.booking_id} confirmée · ${booking.therapist_name ?? ''}`;
 
     const emailsSent: string[] = [];
     const errors: string[] = [];
@@ -203,25 +84,24 @@ serve(async (req) => {
     const { data: admins } = await supabase
       .from('admins')
       .select('email, first_name, last_name')
-      .eq('status', 'Actif');
+      .or('status.eq.active,status.eq.Actif');
 
     if (admins && admins.length > 0) {
+      console.log('[notify-booking-confirmed] Sending to admins:', JSON.stringify(admins, null, 2));
       for (const admin of admins) {
-        try {
-          const { error: emailError } = await resend.emails.send({
-            from: brand.emails.from.default,
-            to: [admin.email],
-            subject: `✅ #${booking.booking_id} confirmée · ${booking.therapist_name}`,
-            html: createEmailHtml('admin'),
-          });
+        const { error: emailError } = await sendEmail({
+          to: admin.email,
+          subject,
+          templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
+          templateVariables,
+        });
 
-          if (emailError) {
-            errors.push(`admin:${admin.email}`);
-          } else {
-            emailsSent.push(`admin:${admin.email}`);
-          }
-        } catch (e) {
+        if (emailError) {
+          console.error('[notify-booking-confirmed] Error sending to admin:', admin.email, emailError);
           errors.push(`admin:${admin.email}`);
+        } else {
+          console.log('[notify-booking-confirmed] Email sent to admin:', admin.email);
+          emailsSent.push(`admin:${admin.email}`);
         }
         await delay(600);
       }
@@ -237,7 +117,7 @@ serve(async (req) => {
 
     if (conciergeHotels && conciergeHotels.length > 0) {
       const conciergeIds = conciergeHotels.map(ch => ch.concierge_id);
-      
+
       const { data: concierges } = await supabase
         .from('concierges')
         .select('email, first_name, last_name')
@@ -246,21 +126,17 @@ serve(async (req) => {
 
       if (concierges && concierges.length > 0) {
         for (const concierge of concierges) {
-          try {
-            const { error: emailError } = await resend.emails.send({
-              from: brand.emails.from.default,
-              to: [concierge.email],
-              subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name}`,
-              html: createEmailHtml('concierge'),
-            });
+          const { error: emailError } = await sendEmail({
+            to: concierge.email,
+            subject: `✅ #${booking.booking_id} confirmée · ${booking.hotel_name ?? ''}`,
+            templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
+            templateVariables,
+          });
 
-            if (emailError) {
-              errors.push(`concierge:${concierge.email}`);
-            } else {
-              emailsSent.push(`concierge:${concierge.email}`);
-            }
-          } catch (e) {
+          if (emailError) {
             errors.push(`concierge:${concierge.email}`);
+          } else {
+            emailsSent.push(`concierge:${concierge.email}`);
           }
           await delay(600);
         }
@@ -271,21 +147,17 @@ serve(async (req) => {
 
     // 3. Send to client
     if (booking.client_email) {
-      try {
-        const { error: emailError } = await resend.emails.send({
-          from: brand.emails.from.default,
-          to: [booking.client_email],
-          subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
-          html: createClientEmailHtml(),
-        });
+      const { error: emailError } = await sendEmail({
+        to: booking.client_email,
+        subject: `✅ Votre RDV est confirmé · ${formattedDate}`,
+        templateId: BOOKING_CONFIRMED_TEMPLATE_ID,
+        templateVariables,
+      });
 
-        if (emailError) {
-          errors.push(`client:${booking.client_email}`);
-        } else {
-          emailsSent.push(`client:${booking.client_email}`);
-        }
-      } catch (e) {
+      if (emailError) {
         errors.push(`client:${booking.client_email}`);
+      } else {
+        emailsSent.push(`client:${booking.client_email}`);
       }
     }
 
@@ -299,8 +171,6 @@ serve(async (req) => {
 
       if (therapist?.user_id) {
         try {
-          console.log('[notify-booking-confirmed] Sending push to therapist:', therapist.first_name);
-
           const { error: pushError } = await supabase.functions.invoke(
             'send-push-notification',
             {
@@ -320,10 +190,8 @@ serve(async (req) => {
           );
 
           if (pushError) {
-            console.error('[notify-booking-confirmed] Push error:', pushError);
             errors.push(`push:${therapist.first_name}`);
           } else {
-            console.log('[notify-booking-confirmed] ✅ Push sent to therapist');
             emailsSent.push(`push:${therapist.first_name}`);
           }
         } catch (e) {
@@ -343,7 +211,6 @@ serve(async (req) => {
       for (const admin of adminUsers) {
         if (!admin.user_id) continue;
 
-        // In-app notification
         try {
           await supabase.from('notifications').insert({
             user_id: admin.user_id,
@@ -355,7 +222,6 @@ serve(async (req) => {
           console.error(`[notify-booking-confirmed] Notification insert error for admin ${admin.first_name}:`, e);
         }
 
-        // Push notification
         try {
           await supabase.functions.invoke('send-push-notification', {
             body: {
@@ -371,7 +237,6 @@ serve(async (req) => {
               Authorization: `Bearer ${supabaseServiceKey}`,
             },
           });
-          console.log(`[notify-booking-confirmed] ✅ Push sent to admin: ${admin.first_name}`);
           emailsSent.push(`admin-push:${admin.first_name}`);
         } catch (e) {
           console.error(`[notify-booking-confirmed] Admin push error for ${admin.first_name}:`, e);
@@ -379,7 +244,7 @@ serve(async (req) => {
       }
     }
 
-    // 6. Send Slack notification for booking confirmed
+    // 6. Send Slack notification
     try {
       const treatmentNames = treatments.map(t => t.name);
 
@@ -401,11 +266,9 @@ serve(async (req) => {
           Authorization: `Bearer ${supabaseServiceKey}`,
         },
       });
-      console.log('[notify-booking-confirmed] ✅ Slack notification sent');
       emailsSent.push('slack');
     } catch (slackError) {
       console.error('[notify-booking-confirmed] Slack error:', slackError);
-      // Don't fail the whole request if Slack fails
     }
 
     console.log('[notify-booking-confirmed] Summary - Sent:', emailsSent.length, 'Errors:', errors.length);
