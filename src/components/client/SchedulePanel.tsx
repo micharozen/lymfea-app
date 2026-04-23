@@ -111,10 +111,10 @@ export function SchedulePanel({
       if (error) throw error;
       const hotel = data?.[0];
 
-      const openingMinutes = hotel?.opening_time
+      const baseOpeningMinutes = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
         : 10 * 60;
-      const closingMinutes = hotel?.closing_time
+      const baseClosingMinutes = hotel?.closing_time
         ? parseInt(hotel.closing_time.split(':')[0], 10) * 60 + parseInt(hotel.closing_time.split(':')[1] || '0', 10)
         : 20 * 60;
 
@@ -127,7 +127,25 @@ export function SchedulePanel({
       const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
       const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
-      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval, holdEnabled, holdDurationMinutes };
+      const allowOutOfHours = !!(hotel as { allow_out_of_hours_booking?: boolean } | undefined)?.allow_out_of_hours_booking;
+      const surchargePercent = Number((hotel as { out_of_hours_surcharge_percent?: number | string } | undefined)?.out_of_hours_surcharge_percent ?? 0) || 0;
+
+      // Widen generation window by ±2h when out-of-hours bookings are allowed
+      const openingMinutes = allowOutOfHours ? Math.max(0, baseOpeningMinutes - 120) : baseOpeningMinutes;
+      const closingMinutes = allowOutOfHours ? Math.min(24 * 60, baseClosingMinutes + 120) : baseClosingMinutes;
+
+      return {
+        openingMinutes,
+        closingMinutes,
+        baseOpeningMinutes,
+        baseClosingMinutes,
+        allowOutOfHours,
+        surchargePercent,
+        maxDaysAhead,
+        slotInterval,
+        holdEnabled,
+        holdDurationMinutes,
+      };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
@@ -262,10 +280,16 @@ export function SchedulePanel({
         timeLabel = `${hour12}:${minuteStr}${period}`;
       }
 
+      const slotMinutes = hour * 60 + minute;
+      const baseOpen = venueData?.baseOpeningMinutes ?? openingMinutes;
+      const baseClose = venueData?.baseClosingMinutes ?? closingMinutes;
+      const slotIsOutOfHours = !!venueData?.allowOutOfHours && (slotMinutes < baseOpen || slotMinutes >= baseClose);
+
       slots.push({
         value: time24,
         label: timeLabel,
         hour,
+        isOutOfHours: slotIsOutOfHours,
       });
     }
     return slots;
@@ -657,6 +681,7 @@ export function SchedulePanel({
             selectedTime={selectedTime}
             onSelectTime={handleTimeSelect}
             allTimeSlots={timeSlots}
+            surchargePercent={venueData?.surchargePercent ?? 0}
           />
         )}
       </div>

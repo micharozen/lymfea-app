@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { stripe } from "../_shared/stripe-client.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
+import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -82,7 +83,7 @@ serve(async (req) => {
     // Récupérer les infos de l'hôtel (Horaires, devises, etc.)
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('slug, currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -94,8 +95,8 @@ serve(async (req) => {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
     }
 
-    // Validation des horaires d'ouverture
-    if (hotel.opening_time && hotel.closing_time) {
+    // Validation des horaires d'ouverture — permissive si le lieu autorise les réservations hors horaires
+    if (hotel.opening_time && hotel.closing_time && !hotel.allow_out_of_hours_booking) {
       const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
       const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
       const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
@@ -103,6 +104,10 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: 'BLOCKED_SLOT' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
       }
     }
+
+    // Recalcul serveur de la majoration hors horaires (source de vérité)
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, verifiedTotalPrice, hotel);
+    const finalTotalPrice = surcharge.totalWithSurcharge;
 
     // Validation des slots bloqués (ex: Pause déjeuner de l'hôtel)
     if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
@@ -175,6 +180,10 @@ serve(async (req) => {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
         } : {}),
+        isOutOfHours: surcharge.isOutOfHours ? '1' : '0',
+        surchargeAmount: String(surcharge.surchargeAmount),
+        surchargePercent: String(surcharge.surchargePercent),
+        verifiedTotalPrice: String(finalTotalPrice),
       }
     });
 

@@ -424,3 +424,25 @@ All colors MUST be HSL.
   transform: translateY(0);
 }
 
+
+/* Cancelled booking pattern — diagonal stripes over muted grey */
+.bg-cancelled-stripes {
+  background-color: hsl(0 0% 96%);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    hsl(0 0% 88%) 0,
+    hsl(0 0% 88%) 4px,
+    transparent 4px,
+    transparent 10px
+  );
+}
+.dark .bg-cancelled-stripes {
+  background-color: hsl(0 0% 18%);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    hsl(0 0% 28%) 0,
+    hsl(0 0% 28%) 4px,
+    transparent 4px,
+    transparent 10px
+  );
+}

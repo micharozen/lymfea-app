@@ -127,7 +127,7 @@ useEffect(() => {
   const calendarEntries = hasVenueFilter
     ? buildCalendarEntries(venueAmenities, i18n.language)
     : [];
-  const showSidebar = calendarEntries.length > 1 && view === "calendar";
+  const showSidebar = view === "calendar";
 
   const handleCalendarToggle = (id: string, visible: boolean) => {
     setVisibleCalendars((prev) => ({ ...prev, [id]: visible }));
@@ -259,6 +259,8 @@ useEffect(() => {
                 onToggle={handleCalendarToggle}
                 onShowAll={handleShowAll}
                 onHideAll={handleHideAll}
+                hotels={hotels}
+                hotelFilter={hotelFilter}
               />
             )}
             <Button
@@ -306,6 +308,8 @@ useEffect(() => {
               onToggle={handleCalendarToggle}
               onShowAll={handleShowAll}
               onHideAll={handleHideAll}
+              hotels={hotels}
+              hotelFilter={hotelFilter}
             />
           )}
           <div className="flex-1 flex flex-col overflow-hidden">

@@ -61,7 +61,7 @@ serve(async (req) => {
     // Get hotel opening/closing hours and slot interval
     const { data: hotelData, error: hotelError } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone')
+      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone, allow_out_of_hours_booking')
       .eq('id', hotelId)
       .single();
 
@@ -70,14 +70,20 @@ serve(async (req) => {
     }
 
     // Parse full opening/closing times (HH:MM), defaulting to 06:00 and 23:00 if not set
-    const openingMinutes = hotelData?.opening_time
+    const baseOpeningMinutes = hotelData?.opening_time
       ? parseInt(hotelData.opening_time.split(':')[0], 10) * 60
         + parseInt(hotelData.opening_time.split(':')[1] || '0', 10)
       : 6 * 60;
-    const closingMinutes = hotelData?.closing_time
+    const baseClosingMinutes = hotelData?.closing_time
       ? parseInt(hotelData.closing_time.split(':')[0], 10) * 60
         + parseInt(hotelData.closing_time.split(':')[1] || '0', 10)
       : 23 * 60;
+
+    // If venue allows out-of-hours bookings, widen the generation window by ±2h
+    // so the client can pick an out-of-hours slot (with surcharge applied downstream).
+    const allowOutOfHours = !!hotelData?.allow_out_of_hours_booking;
+    const openingMinutes = allowOutOfHours ? Math.max(0, baseOpeningMinutes - 120) : baseOpeningMinutes;
+    const closingMinutes = allowOutOfHours ? Math.min(24 * 60, baseClosingMinutes + 120) : baseClosingMinutes;
 
     const slotInterval = hotelData?.slot_interval || 30;
     const roomTurnoverBuffer = hotelData?.room_turnover_buffer_minutes ?? 0;

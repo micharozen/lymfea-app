@@ -20,6 +20,7 @@ import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
+import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -113,6 +114,14 @@ export function CheckoutPanel({
   const giftAmountRemainingAfter = isAmountBundle
     ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
+
+  // Out-of-hours surcharge (display only — server is source of truth)
+  const surcharge = computeOutOfHoursSurcharge(bookingDateTime?.time, total, hotel);
+  const surchargeUncovered = computeOutOfHoursSurcharge(bookingDateTime?.time, uncoveredTotal, hotel);
+  const surchargeFixed = computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel);
+  const totalWithSurcharge = total + surcharge.surchargeAmount;
+  const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
+  const fixedTotalWithSurcharge = fixedTotal + surchargeFixed.surchargeAmount;
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -722,6 +731,17 @@ export function CheckoutPanel({
           </>
         )}
 
+        {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (
+          <div className="flex justify-between items-center text-sm pt-2">
+            <span className="text-gray-500">
+              {t('payment.outOfHoursSurcharge', 'Majoration hors horaires')} ({surcharge.surchargePercent}%)
+            </span>
+            <span className="font-medium text-amber-600">
+              +{formatPrice(surcharge.surchargeAmount, items[0]?.currency || 'EUR')}
+            </span>
+          </div>
+        )}
+
         {/* Total */}
         <div className="flex justify-between items-center pt-3 border-t border-gray-200">
           <div className="flex flex-col">
@@ -738,10 +758,10 @@ export function CheckoutPanel({
             <div className="text-right">
               {isAmountBundle && giftAmountAppliedEuros > 0 && (
                 <span className="text-sm line-through text-gray-400 mr-2">
-                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                  {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
-              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gold-600 text-lg font-serif">{formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
             </div>
           ) : isOffert ? (
             <span className="inline-flex items-baseline gap-1.5">
@@ -750,11 +770,11 @@ export function CheckoutPanel({
             </span>
           ) : hasPriceOnRequest ? (
             <div className="text-right">
-              <span className="text-gray-900 text-base font-light">{formatPrice(fixedTotal, items[0]?.currency || 'EUR')}</span>
+              <span className="text-gray-900 text-base font-light">{formatPrice(fixedTotalWithSurcharge, items[0]?.currency || 'EUR')}</span>
               <span className="text-amber-400 text-sm ml-2">{t('payment.plusQuote')}</span>
             </div>
           ) : (
-            <span className="text-gold-600 text-lg font-serif">{formatPrice(total, items[0]?.currency || 'EUR')}</span>
+            <span className="text-gold-600 text-lg font-serif">{formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}</span>
           )}
         </div>
       </div>

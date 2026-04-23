@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.81.1';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { isInBlockedSlot } from '../_shared/blocked-slots.ts';
+import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,7 +153,7 @@ try {
     // Get hotel info
     const { data: hotel, error: hotelError } = await supabase
       .from('hotels')
-      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone, min_booking_notice_minutes')
+      .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, pms_type, pms_auto_charge_room, opening_time, closing_time, timezone, min_booking_notice_minutes, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .single();
 
@@ -276,7 +277,10 @@ try {
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
     const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
-    const effectiveTotalPrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
+    const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
+    const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
     const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending'));
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
@@ -433,6 +437,18 @@ try {
     }
 
     console.log('Booking treatments ready');
+
+    // Persister les flags de majoration hors horaires sur la réservation
+    if (!isOffert && !hasPriceOnRequest && (surcharge.isOutOfHours || surcharge.surchargeAmount > 0)) {
+      const { error: surchargeErr } = await supabase
+        .from('bookings')
+        .update({
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
+      if (surchargeErr) console.error('Surcharge flags update failed (non-blocking):', surchargeErr);
+    }
 
     // --- Bundle handling ---
     let bundleWarning: string | null = null;
