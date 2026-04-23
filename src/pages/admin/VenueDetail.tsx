@@ -752,6 +752,7 @@ export default function VenueDetail() {
                         handleCoverImageUpload={handleCoverImageUpload}
                         triggerHotelImageSelect={triggerHotelImageSelect}
                         triggerCoverImageSelect={triggerCoverImageSelect}
+                        onRequestEdit={() => setIsEditingState(true)}
                         deploymentState={deploymentState}
                         onDeploymentStateChange={setDeploymentState}
                         blockedSlots={blockedSlots}

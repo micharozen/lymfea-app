@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/command";
 import {
   ImageIcon,
+  Camera,
   Loader2,
   MapPin,
   Wallet,
@@ -113,6 +114,7 @@ interface VenueGeneralTabProps {
   handleCoverImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerHotelImageSelect: () => void;
   triggerCoverImageSelect: () => void;
+  onRequestEdit?: () => void;
   deploymentState: DeploymentScheduleState;
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
@@ -134,6 +136,7 @@ export function VenueGeneralTab({
   handleCoverImageUpload,
   triggerHotelImageSelect,
   triggerCoverImageSelect,
+  onRequestEdit,
   deploymentState,
   onDeploymentStateChange,
   blockedSlots,
@@ -308,8 +311,13 @@ export function VenueGeneralTab({
               {/* Venue photo */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerHotelImageSelect : undefined}
+                  className="group relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerHotelImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la photo"
                 >
                   {hotelImage ? (
                     <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
@@ -318,6 +326,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingHotel && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -337,8 +348,13 @@ export function VenueGeneralTab({
               {/* Cover image */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerCoverImageSelect : undefined}
+                  className="group relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerCoverImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la couverture"
                 >
                   {coverImage ? (
                     <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
@@ -347,6 +363,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingCover && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
