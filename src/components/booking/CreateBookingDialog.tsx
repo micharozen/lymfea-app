@@ -139,7 +139,12 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const { data: treatments } = useQuery({
     queryKey: ["treatment_menus", hotelId],
     queryFn: async () => {
-      let q = supabase.from("treatment_menus").select("*").in("status", ["Actif", "active", "Active"]).order("sort_order", { ascending: true, nullsFirst: false }).order("name");
+      let q = supabase
+        .from("treatment_menus")
+        .select("*, treatment_variants(id, guest_count)")
+        .in("status", ["Actif", "active", "Active"])
+        .order("sort_order", { ascending: true, nullsFirst: false })
+        .order("name");
       if (hotelId) q = q.or(`hotel_id.eq.${hotelId},hotel_id.is.null`);
       const { data } = await q;
       return data || [];
@@ -151,6 +156,28 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
+
+  // Detect max guest_count across cart items to drive multi-therapist picker.
+  // A treatment with no variants defaults to 1 guest.
+  const requiredGuestCount = useMemo(() => {
+    if (!cartDetails.length) return 1;
+    return Math.max(
+      1,
+      ...cartDetails.map((item) => {
+        const t = item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined;
+        const variants = t?.treatment_variants ?? [];
+        return variants.length > 0 ? Math.max(...variants.map(v => v.guest_count ?? 1)) : 1;
+      })
+    );
+  }, [cartDetails]);
+
+  // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
+  const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
+
+  // Reset additional therapists when required count drops back to 1
+  useEffect(() => {
+    if (requiredGuestCount <= 1) setAdditionalTherapistIds([]);
+  }, [requiredGuestCount]);
 
   // Intersection of `available_days` for every cart item. A treatment with
   // `available_days = null` is unconstrained and doesn't shrink the set.
@@ -330,6 +357,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientType: values.clientType,
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
+      guestCount: requiredGuestCount,
+      ...(requiredGuestCount > 1 && additionalTherapistIds.length > 0
+        ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
+        : {}),
     });
   };
 
@@ -412,6 +443,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isAvailabilityLoading={isAvailabilityLoading}
                   slotInterval={venueSlotInterval}
                   cartAvailableDays={cartAvailableDays}
+                  requiredGuestCount={requiredGuestCount}
+                  additionalTherapistIds={additionalTherapistIds}
+                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />

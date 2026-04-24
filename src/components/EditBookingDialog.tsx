@@ -146,6 +146,7 @@ interface Booking {
   stripe_invoice_url?: string | null;
   signed_at?: string | null;
   client_note?: string | null;
+  guest_count?: number | null;
 }
 
 interface EditBookingDialogProps {
@@ -315,6 +316,30 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
           return statut === "active" || statut === "actif"; 
         })
         .sort((a: any, b: any) => a.first_name?.localeCompare(b.first_name)) || [];
+    },
+  });
+
+  const { data: acceptedTherapists } = useQuery({
+    queryKey: ["booking-therapists", booking?.id],
+    enabled: !!booking?.id && (booking?.guest_count ?? 1) > 1,
+    queryFn: async () => {
+      const { data: btData } = await supabase
+        .from("booking_therapists")
+        .select("therapist_id, status")
+        .eq("booking_id", booking!.id)
+        .eq("status", "accepted");
+
+      if (!btData || btData.length === 0) return [];
+
+      const { data: therapistData } = await supabase
+        .from("therapists")
+        .select("id, first_name, last_name")
+        .in("id", btData.map((bt) => bt.therapist_id));
+
+      return btData.map((bt) => ({
+        therapist_id: bt.therapist_id,
+        therapists: therapistData?.find((t) => t.id === bt.therapist_id) ?? null,
+      }));
     },
   });
 
@@ -1193,8 +1218,27 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
               })()}
 
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Thérapeute</p>
-                {booking?.therapist_name ? (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Thérapeute{(booking?.guest_count ?? 1) > 1 ? `s (${booking?.guest_count} requis)` : ""}
+                </p>
+                {(booking?.guest_count ?? 1) > 1 && acceptedTherapists && acceptedTherapists.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {acceptedTherapists.map((bt: any) => {
+                      const t = Array.isArray(bt.therapists) ? bt.therapists[0] : bt.therapists;
+                      return t ? (
+                        <div key={bt.therapist_id} className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <p className="font-medium text-sm">{t.first_name} {t.last_name}</p>
+                        </div>
+                      ) : null;
+                    })}
+                    {acceptedTherapists.length < (booking?.guest_count ?? 2) && (
+                      <p className="text-xs text-violet-600 mt-1">
+                        {acceptedTherapists.length}/{booking?.guest_count} thérapeutes ont accepté — en attente…
+                      </p>
+                    )}
+                  </div>
+                ) : booking?.therapist_name ? (
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground shrink-0" />
                     <p className="font-medium text-sm">{booking.therapist_name}</p>

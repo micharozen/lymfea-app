@@ -83,6 +83,8 @@ export default function Payment() {
     }
   }, [canProceedToStep, navigate, slug]);
 
+  const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
+
   const fixedItems = items.filter(item => !item.isPriceOnRequest);
   const variableItems = items.filter(item => item.isPriceOnRequest);
 
@@ -210,6 +212,7 @@ export default function Payment() {
               totalPrice: 0,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
+              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
             },
           });
 
@@ -298,6 +301,7 @@ export default function Payment() {
             totalPrice: 0,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
+            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           },
         });
 
@@ -379,6 +383,7 @@ export default function Payment() {
             totalPrice: fixedTotal,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
+            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           },
         });
 

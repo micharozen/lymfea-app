@@ -20,14 +20,15 @@ interface UseAvailableTherapistsForSlotParams {
 }
 
 const ACTIVE_STATUSES = ["Actif", "active", "Active"];
-const EXCLUDED_BOOKING_STATUSES = new Set([
+const EXCLUDED_BOOKING_STATUSES = [
   "Annulé",
   "cancelled",
   "canceled",
   "Terminé",
   "completed",
   "no_show",
-]);
+  "noshow"
+];
 
 function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -52,19 +53,20 @@ export function useAvailableTherapistsForSlot({
     queryFn: async (): Promise<AvailableTherapist[]> => {
       if (!hotelId || !dateStr || !time) return [];
 
-      // Fetch room turnover buffer for this venue
+      // 1. Récupérer le buffer de rotation des salles
       const { data: hotelSettings } = await supabase
         .from("hotels")
-        .select("room_turnover_buffer_minutes, inter_venue_buffer_minutes")
+        .select("room_turnover_buffer_minutes")
         .eq("id", hotelId)
         .single();
       const turnoverBuffer = hotelSettings?.room_turnover_buffer_minutes ?? 0;
-      const travelBuffer = hotelSettings?.inter_venue_buffer_minutes ?? 0;
 
+      // 2. Récupérer les praticiens du lieu
       const { data: links, error: linksError } = await supabase
         .from("therapist_venues")
         .select("therapist_id, therapists (id, first_name, last_name, profile_image, skills, status)")
         .eq("hotel_id", hotelId);
+
       if (linksError) throw linksError;
 
       type LinkRow = { therapists: AvailableTherapist | AvailableTherapist[] | null };
@@ -77,6 +79,7 @@ export function useAvailableTherapistsForSlot({
 
       if (venueTherapists.length === 0) return [];
 
+      // 3. Récupérer les réservations pour vérifier les chevauchements
       const { data: sameDayBookings, error: bookingsError } = await supabase
         .from("bookings")
         .select("therapist_id, booking_time, duration, status")
@@ -87,41 +90,33 @@ export function useAvailableTherapistsForSlot({
 
       const requestedStart = timeToMinutes(time);
       const requestedEnd = requestedStart + durationMinutes + turnoverBuffer;
-
       const busyTherapistIds = new Set<string>();
+      const isExcludedStatus = (status: string) => EXCLUDED_BOOKING_STATUSES.includes(status);
+
       (sameDayBookings || []).forEach((b) => {
-        if (!b.therapist_id) return;
-        if (EXCLUDED_BOOKING_STATUSES.has(b.status)) return;
+        if (!b.therapist_id || isExcludedStatus(b.status)) return;
         const bStart = timeToMinutes(b.booking_time);
         const bEnd = bStart + (b.duration || 60) + turnoverBuffer;
-        const overlaps = bStart < requestedEnd && bEnd > requestedStart;
-        if (overlaps) busyTherapistIds.add(b.therapist_id);
+        if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(b.therapist_id);
       });
 
-      // Cross-venue travel buffer: block therapists who have bookings at other venues
-      if (travelBuffer > 0) {
-        const therapistIds = venueTherapists.map((t) => t.id);
-        const { data: crossVenueBookings } = await supabase
-          .from("bookings")
-          .select("therapist_id, booking_time, duration, status")
-          .eq("booking_date", dateStr)
-          .neq("hotel_id", hotelId)
-          .in("therapist_id", therapistIds)
-          .not("status", "in", '("Annulé","Terminé","cancelled")');
+      // 4. Vérifier aussi la table booking_therapists (soins duo)
+      const { data: multipleBookings } = await supabase
+        .from("booking_therapists")
+        .select("therapist_id, bookings!inner(booking_time, duration, status, booking_date)")
+        .eq("bookings.booking_date", dateStr)
+        .eq("status", "accepted");
 
-        (crossVenueBookings || []).forEach((b) => {
-          if (!b.therapist_id || EXCLUDED_BOOKING_STATUSES.has(b.status)) return;
-          const bStart = timeToMinutes(b.booking_time);
-          const bEnd = bStart + (b.duration || 60);
-          if (requestedStart < bEnd + travelBuffer && requestedStart + durationMinutes > bStart - travelBuffer) {
-            busyTherapistIds.add(b.therapist_id);
-          }
-        });
-      }
+      (multipleBookings || []).forEach((bt: { therapist_id: string; bookings: { booking_time: string; duration: number | null; status: string } }) => {
+        if (isExcludedStatus(bt.bookings.status)) return;
+        const bStart = timeToMinutes(bt.bookings.booking_time);
+        const bEnd = bStart + (bt.bookings.duration || 60) + turnoverBuffer;
+        if (bStart < requestedEnd && bEnd > requestedStart) busyTherapistIds.add(bt.therapist_id);
+      });
 
       let filtered = venueTherapists.filter((t) => !busyTherapistIds.has(t.id));
 
-      // Filter by skills: only keep therapists whose skills cover all required treatment types
+      // 5. Filtre par compétences (case-insensitive)
       if (sortedTreatmentIds.length > 0) {
         const { data: treatmentRows } = await supabase
           .from("treatment_menus")
@@ -130,13 +125,13 @@ export function useAvailableTherapistsForSlot({
 
         const requiredTypes = new Set(
           (treatmentRows || [])
-            .map((r) => r.treatment_type)
+            .map((r) => r.treatment_type?.toLowerCase())
             .filter((t): t is string => !!t),
         );
 
         if (requiredTypes.size > 0) {
           filtered = filtered.filter((therapist) => {
-            const skills = therapist.skills || [];
+            const skills = (therapist.skills || []).map((s) => s.toLowerCase());
             return [...requiredTypes].every((type) => skills.includes(type));
           });
         }

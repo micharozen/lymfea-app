@@ -405,6 +405,7 @@ export function SchedulePanel({
             quantity: item.quantity,
           })),
           therapistGender: therapistGenderPreference || null,
+          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
         },
       });
 

@@ -114,6 +114,7 @@ export default function PhoneBookingDialog({
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState<string>("");
   const [therapistId, setTherapistId] = useState<string>("");
+  const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
   const [clientFirstName, setClientFirstName] = useState("");
   const [clientLastName, setClientLastName] = useState("");
   const [countryCode, setCountryCode] = useState("+33");
@@ -158,7 +159,7 @@ export default function PhoneBookingDialog({
     queryFn: async () => {
       let q = supabase
         .from("treatment_menus")
-        .select("*")
+        .select("*, treatment_variants(id, guest_count)")
         .in("status", ["Actif", "active", "Active"])
         .order("sort_order", { ascending: true, nullsFirst: false })
         .order("name");
@@ -192,6 +193,16 @@ export default function PhoneBookingDialog({
     () => generateDaySlots(openingTime, closingTime, slotInterval),
     [openingTime, closingTime, slotInterval],
   );
+
+  const requiredGuestCount = useMemo(() => {
+    if (!cartDetails.length) return 1;
+    return Math.max(1, ...cartDetails.flatMap((item) => {
+      const variants = (item.treatment as { treatment_variants?: { guest_count?: number }[] } | undefined)?.treatment_variants ?? [];
+      return variants.length > 0 ? variants.map((v) => v.guest_count ?? 1) : [1];
+    }));
+  }, [cartDetails]);
+
+  const isDuoBooking = requiredGuestCount > 1;
 
   const {
     data: availableTherapists = [],
@@ -229,6 +240,7 @@ export default function PhoneBookingDialog({
     setDate(undefined);
     setTime("");
     setTherapistId("");
+    setAdditionalTherapistIds([]);
     setClientFirstName("");
     setClientLastName("");
     setPhone("");
@@ -248,7 +260,7 @@ export default function PhoneBookingDialog({
     !!hotelId &&
     !!date &&
     !!time &&
-    !!therapistId &&
+    (isDuoBooking || !!therapistId) &&
     cart.length > 0 &&
     clientFirstName.trim().length > 0 &&
     clientLastName.trim().length > 0 &&
@@ -256,11 +268,15 @@ export default function PhoneBookingDialog({
 
   const handleSubmit = () => {
     if (!canSubmit || !date) return;
+    const allTherapistIds = [
+      ...(therapistId ? [therapistId] : []),
+      ...additionalTherapistIds.filter(Boolean),
+    ];
     mutation.mutate({
       hotelId,
       clientFirstName: clientFirstName.trim(),
       clientLastName: clientLastName.trim(),
-      clientEmail: clientEmail.trim() || undefined, // <-- L'EMAIL EST AJOUTÉ ICI !
+      clientEmail: clientEmail.trim() || undefined,
       phone: phone.trim(),
       countryCode,
       roomNumber: roomNumber.trim(),
@@ -268,7 +284,8 @@ export default function PhoneBookingDialog({
       clientNote: "",
       date: format(date, "yyyy-MM-dd"),
       time,
-      therapistId,
+      therapistId: therapistId || "",
+      ...(allTherapistIds.length > 1 ? { therapistIds: allTherapistIds } : {}),
       slot2Date: null,
       slot2Time: null,
       slot3Date: null,
@@ -279,6 +296,7 @@ export default function PhoneBookingDialog({
       isAdmin: true,
       isOutOfHours: false,
       surchargeAmount: 0,
+      guestCount: requiredGuestCount,
     });
   };
 
@@ -364,6 +382,9 @@ export default function PhoneBookingDialog({
                 isLoading={isTherapistsLoading}
                 therapistId={therapistId}
                 setTherapistId={setTherapistId}
+                requiredGuestCount={requiredGuestCount}
+                additionalTherapistIds={additionalTherapistIds}
+                onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
               />
             )}
 
@@ -397,7 +418,10 @@ export default function PhoneBookingDialog({
                 currency={selectedHotel?.currency || "EUR"}
                 date={date}
                 time={time}
-                therapist={availableTherapists.find((x) => x.id === therapistId)}
+                therapists={[therapistId, ...additionalTherapistIds]
+                  .filter(Boolean)
+                  .map((id) => availableTherapists.find((x) => x.id === id))
+                  .filter((x): x is AvailableTherapist => !!x)}
                 clientFirstName={clientFirstName}
                 clientLastName={clientLastName}
                 countryCode={countryCode}
@@ -472,7 +496,7 @@ export default function PhoneBookingDialog({
                       }
                       setStep("therapist");
                     } else if (step === "therapist") {
-                      if (!therapistId) {
+                      if (!therapistId && !isDuoBooking) {
                         toast({
                           title: t("phoneBooking.errors.selectTherapist"),
                           variant: "destructive",
@@ -844,6 +868,9 @@ interface TherapistStepProps {
   isLoading: boolean;
   therapistId: string;
   setTherapistId: (id: string) => void;
+  requiredGuestCount?: number;
+  additionalTherapistIds?: string[];
+  onAdditionalTherapistIdsChange?: (ids: string[]) => void;
 }
 
 function TherapistStep({
@@ -852,7 +879,12 @@ function TherapistStep({
   isLoading,
   therapistId,
   setTherapistId,
+  requiredGuestCount = 1,
+  additionalTherapistIds = [],
+  onAdditionalTherapistIdsChange,
 }: TherapistStepProps) {
+  const isDuo = requiredGuestCount > 1;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
@@ -861,60 +893,99 @@ function TherapistStep({
       </div>
     );
   }
-  if (therapists.length === 0) {
+
+  if (isDuo && therapists.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
+          Soin à plusieurs — {requiredGuestCount} praticiens requis. Une notification sera envoyée à tous les thérapeutes disponibles (mode broadcast).
+        </div>
+        <p className="text-xs text-muted-foreground text-center">Aucun thérapeute disponible pour ce créneau. Vous pouvez continuer, la demande sera diffusée.</p>
+      </div>
+    );
+  }
+
+  if (!isDuo && therapists.length === 0) {
     return (
       <div className="py-10 text-center text-sm text-muted-foreground">
         {t("phoneBooking.therapist.empty")}
       </div>
     );
   }
+
+  const TherapistList = ({ selectedId, onSelect, exclude = [] }: { selectedId: string; onSelect: (id: string) => void; exclude?: string[] }) => (
+    <ScrollArea className="h-[200px] pr-2">
+      <div className="space-y-2">
+        {therapists.filter(th => !exclude.includes(th.id) || th.id === selectedId).map((th) => {
+          const selected = selectedId === th.id;
+          return (
+            <button
+              key={th.id}
+              type="button"
+              onClick={() => onSelect(th.id)}
+              className={cn(
+                "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                selected ? "border-primary bg-primary/5" : "hover:bg-muted",
+              )}
+            >
+              <Avatar className="h-10 w-10">
+                {th.profile_image && <AvatarImage src={th.profile_image} alt={`${th.first_name} ${th.last_name}`} />}
+                <AvatarFallback>{getInitials(th.first_name, th.last_name)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{th.first_name} {th.last_name}</p>
+                {th.skills && th.skills.length > 0 && (
+                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    {th.skills.slice(0, 3).join(" · ")}
+                  </p>
+                )}
+              </div>
+              {selected && <Check className="h-4 w-4 text-primary" />}
+            </button>
+          );
+        })}
+      </div>
+    </ScrollArea>
+  );
+
+  if (isDuo) {
+    const selectedIds = [therapistId, ...additionalTherapistIds].filter(Boolean);
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
+          Soin à plusieurs — {requiredGuestCount} praticiens requis. Assignez-les manuellement ou laissez vide pour le mode broadcast.
+        </div>
+        {Array.from({ length: requiredGuestCount }).map((_, idx) => {
+          const currentId = idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
+          const otherIds = selectedIds.filter((_, i) => i !== idx);
+          return (
+            <div key={idx} className="space-y-1">
+              <Label className="text-xs">Praticien {idx + 1}</Label>
+              <TherapistList
+                selectedId={currentId}
+                onSelect={(id) => {
+                  if (idx === 0) {
+                    setTherapistId(id);
+                  } else {
+                    const next = [...additionalTherapistIds];
+                    next[idx - 1] = id;
+                    onAdditionalTherapistIdsChange?.(next);
+                  }
+                }}
+                exclude={otherIds}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <Label className="block mb-1">{t("phoneBooking.therapist.label")}</Label>
-      <ScrollArea className="h-[360px] pr-2">
-        <div className="space-y-2">
-          {therapists.map((th) => {
-            const selected = therapistId === th.id;
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => setTherapistId(th.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                  selected
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted",
-                )}
-              >
-                <Avatar className="h-12 w-12">
-                  {th.profile_image && (
-                    <AvatarImage
-                      src={th.profile_image}
-                      alt={`${th.first_name} ${th.last_name}`}
-                    />
-                  )}
-                  <AvatarFallback>
-                    {getInitials(th.first_name, th.last_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {th.first_name} {th.last_name}
-                  </p>
-                  {th.skills && th.skills.length > 0 && (
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {th.skills.slice(0, 3).join(" · ")}
-                    </p>
-                  )}
-                </div>
-                {selected && <Check className="h-4 w-4 text-primary" />}
-              </button>
-            );
-          })}
-        </div>
-      </ScrollArea>
+      <TherapistList selectedId={therapistId} onSelect={setTherapistId} />
     </div>
   );
 }
@@ -1258,7 +1329,7 @@ interface ConfirmStepProps {
   currency: string;
   date: Date | undefined;
   time: string;
-  therapist: AvailableTherapist | undefined;
+  therapists: AvailableTherapist[];
   clientFirstName: string;
   clientLastName: string;
   countryCode: string;
@@ -1275,7 +1346,7 @@ function ConfirmStep({
   currency,
   date,
   time,
-  therapist,
+  therapists,
   clientFirstName,
   clientLastName,
   countryCode,
@@ -1289,12 +1360,21 @@ function ConfirmStep({
         label={t("phoneBooking.confirm.when")}
         value={`${date ? format(date, "EEEE d MMMM yyyy", { locale: fr }) : ""} · ${time}`}
       />
-      <Row
-        label={t("phoneBooking.confirm.therapist")}
-        value={
-          therapist ? `${therapist.first_name} ${therapist.last_name}` : ""
-        }
-      />
+      {therapists.length <= 1 ? (
+        <Row
+          label={t("phoneBooking.confirm.therapist")}
+          value={therapists[0] ? `${therapists[0].first_name} ${therapists[0].last_name}` : ""}
+        />
+      ) : (
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground text-xs">{t("phoneBooking.confirm.therapist")}</span>
+          <div className="text-right space-y-0.5">
+            {therapists.map((th) => (
+              <div key={th.id}>{th.first_name} {th.last_name}</div>
+            ))}
+          </div>
+        </div>
+      )}
       <div>
         <p className="text-muted-foreground text-xs mb-1">
           {t("phoneBooking.confirm.treatments")}

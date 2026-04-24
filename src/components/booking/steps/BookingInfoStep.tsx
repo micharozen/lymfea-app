@@ -58,6 +58,9 @@ interface BookingInfoStepProps {
   isAvailabilityLoading?: (date: Date | undefined) => boolean;
   slotInterval?: number;
   cartAvailableDays?: number[] | null;
+  requiredGuestCount?: number;
+  additionalTherapistIds?: string[];
+  onAdditionalTherapistIdsChange?: (ids: string[]) => void;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -81,6 +84,9 @@ export function BookingInfoStep({
   isAvailabilityLoading,
   slotInterval = 30,
   cartAvailableDays,
+  requiredGuestCount = 1,
+  additionalTherapistIds = [],
+  onAdditionalTherapistIdsChange,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
@@ -127,6 +133,8 @@ export function BookingInfoStep({
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
   const [therapistOpen, setTherapistOpen] = useState(false);
+  // Additional therapist picker open states (index 0 = therapist 2)
+  const [additionalTherapistOpen, setAdditionalTherapistOpen] = useState<boolean[]>([]);
   const [slot2CalendarOpen, setSlot2CalendarOpen] = useState(false);
   const [slot2HourOpen, setSlot2HourOpen] = useState(false);
   const [slot2MinuteOpen, setSlot2MinuteOpen] = useState(false);
@@ -256,6 +264,72 @@ export function BookingInfoStep({
             }}
           />
         )}
+
+        {/* Additional therapist pickers for duo/multi-guest bookings */}
+        {isAdmin && requiredGuestCount > 1 && Array.from({ length: requiredGuestCount - 1 }).map((_, idx) => {
+          const pickerLabel = `Thérapeute ${idx + 2} *`;
+          const selectedId = additionalTherapistIds[idx] ?? '';
+          const selected = therapists?.find(t => t.id === selectedId);
+          const isOpen = additionalTherapistOpen[idx] ?? false;
+
+          const setOpen = (open: boolean) => {
+            setAdditionalTherapistOpen(prev => {
+              const next = [...prev];
+              next[idx] = open;
+              return next;
+            });
+          };
+
+          const handleSelect = (therapistId: string) => {
+            const next = [...additionalTherapistIds];
+            next[idx] = therapistId;
+            onAdditionalTherapistIdsChange?.(next);
+            setOpen(false);
+          };
+
+          return (
+            <div key={idx} className="space-y-1">
+              <p className="text-xs font-medium leading-none">{pickerLabel}</p>
+              <Popover open={isOpen} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isOpen}
+                    className={cn(
+                      "w-full h-9 justify-between font-normal hover:bg-background hover:text-foreground",
+                      !selectedId && "text-muted-foreground"
+                    )}
+                  >
+                    {selected ? `${selected.first_name} ${selected.last_name}` : "Sélectionner un thérapeute"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un thérapeute..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {therapists?.map(therapist => (
+                          <CommandItem
+                            key={therapist.id}
+                            value={`${therapist.first_name} ${therapist.last_name}`}
+                            onSelect={() => handleSelect(therapist.id)}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedId === therapist.id ? "opacity-100" : "opacity-0")} />
+                            {therapist.first_name} {therapist.last_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          );
+        })}
       </div>
 
       {/* Client type */}

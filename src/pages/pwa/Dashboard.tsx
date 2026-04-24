@@ -6,7 +6,7 @@ import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, CheckCircle2, ChevronRight, Clock, Euro, XCircle } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronRight, Clock, Euro, XCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -39,6 +39,8 @@ interface Booking {
   therapist_id: string | null;
   declined_by?: string[];
   payment_status?: string | null;
+  guest_count?: number; 
+  booking_therapists?: { status: string; therapist_id?: string }[];
   payment_method?: string | null;
   booking_treatments?: Array<{
     treatment_menus: {
@@ -84,7 +86,7 @@ const getPaymentStatusBadge = (paymentStatus: string | null | undefined, payment
       return { label: t('dashboard.paymentPaid'), className: 'bg-green-100 text-green-700' };
     case 'charged_to_room':
       return { label: t('dashboard.paymentRoom'), className: 'bg-blue-100 text-blue-700' };
-      case 'card_saved': // 💜 ON AJOUTE NOTRE NOUVEAU STATUT ICI
+      case 'card_saved': 
       return { label: 'Carte enregistrée', className: 'bg-purple-100 text-purple-700' };
     case 'pending':
       return { label: t('dashboard.paymentPending'), className: 'bg-yellow-100 text-yellow-700' };
@@ -326,6 +328,7 @@ const PwaDashboard = () => {
       .from("bookings")
       .select(`
         *,
+        booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
             name,
@@ -352,11 +355,12 @@ const PwaDashboard = () => {
 
     console.log('👤 My bookings:', myBookingsWithImages?.length || 0);
 
-    // 2. Get ONLY pending bookings (not assigned to anyone)
+    // 2. Get pending bookings (unassigned solos + duo bookings awaiting more therapists)
     let pendingQuery = supabase
       .from("bookings")
       .select(`
         *,
+        booking_therapists ( status, therapist_id ),
         booking_treatments (
           treatment_menus (
             name,
@@ -366,22 +370,27 @@ const PwaDashboard = () => {
         )
       `)
       .in("hotel_id", hotelIds)
-      .is("therapist_id", null)
       .in("status", ["pending", "awaiting_hairdresser_selection"]);
 
     const { data: pendingBookings, error: pendingError } = await pendingQuery;
 
-    // Filter pending bookings by therapist's treatment room assignments
-    // Only show bookings where room_id matches one of the therapist's rooms
+    // Filter pending bookings
     const filteredPendingBookings = pendingBookings?.filter(b => {
-      // Bookings awaiting therapist selection: show to all therapists at the hotel
-      if (b.status === "awaiting_hairdresser_selection") return true;
-      // If therapist has no room assignments, show bookings from their hotels (legacy behavior)
-      if (therapistRoomIds.length === 0) return true;
-      // If booking has no room, show it (legacy data)
-      if (!b.room_id) return true;
-      // Only show if booking's room matches therapist's room
-      return therapistRoomIds.includes(b.room_id);
+      // Duo bookings waiting for more therapists: show to all hotel therapists who haven't accepted yet
+      if (b.status === "awaiting_hairdresser_selection") {
+        const alreadyAccepted = (b.booking_therapists as { status: string; therapist_id?: string }[] | undefined)?.some(
+          bt => bt.therapist_id === therapistId && bt.status === 'accepted'
+        );
+        return !alreadyAccepted;
+      }
+      // Solo pending bookings: must be unassigned
+      if (b.status === "pending") {
+        if (b.therapist_id !== null) return false;
+        if (therapistRoomIds.length === 0) return true;
+        if (!b.room_id) return true;
+        return therapistRoomIds.includes(b.room_id);
+      }
+      return false;
     }) || [];
 
     console.log('🔍 Filtered pending bookings by room:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
@@ -511,25 +520,22 @@ const PwaDashboard = () => {
       });
 
       if (error) throw error;
-      // ... reste du code identique
 
-      if (error) throw error;
+      const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
 
-      const result = data as { success: boolean; error?: string } | null;
-      
       if (result && !result.success) {
         toast.error(t('dashboard.bookingAlreadyTaken'));
         fetchAllBookings(therapist.id);
         return;
       }
 
-      // Trigger email notifications to admins and concierges
-      try {
-        await invokeEdgeFunction('notify-booking-confirmed', {
-          body: { bookingId }
-        });
-      } catch (notifError) {
-        console.error("Email notification error (non-blocking):", notifError);
+      // Only send confirmation notification once all therapists have accepted
+      if (result?.data?.status === 'confirmed') {
+        try {
+          await invokeEdgeFunction('notify-booking-confirmed', { body: { bookingId } });
+        } catch (notifError) {
+          console.error("Email notification error (non-blocking):", notifError);
+        }
       }
 
       toast.success(t('dashboard.bookingAccepted'));
@@ -595,17 +601,24 @@ const PwaDashboard = () => {
 
 
   const getPendingRequests = () => {
-    const pending = allBookings.filter(b => {
-      const isStatusPending = b.status === "pending" || b.status === "awaiting_hairdresser_selection";
-      const isUnassigned = b.therapist_id === null;
-      
-      // Exclude bookings that this therapist has already declined
+    return allBookings.filter(b => {
       const hasDeclined = therapist && b.declined_by?.includes(therapist.id);
-      
-      return isStatusPending && isUnassigned && !hasDeclined;
+      if (hasDeclined) return false;
+
+      if (b.status === "awaiting_hairdresser_selection") {
+        // Duo booking: show unless current therapist already accepted
+        const alreadyAccepted = b.booking_therapists?.some(
+          bt => bt.therapist_id === therapist?.id && bt.status === 'accepted'
+        );
+        return !alreadyAccepted;
+      }
+
+      if (b.status === "pending") {
+        return b.therapist_id === null;
+      }
+
+      return false;
     });
-    
-    return pending;
   };
 
   const groupBookingsByDate = (bookings: Booking[]) => {
@@ -836,6 +849,15 @@ const PwaDashboard = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0">
                         <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
+                        
+                        {/* NOUVEAU BADGE SOIN DUO */}
+                        {(booking.guest_count || 1) > 1 && (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
+                            <Users className="w-2.5 h-2.5 mr-0.5" />
+                            {booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0}/{booking.guest_count}
+                          </Badge>
+                        )}
+                        
                         {booking.therapist_id && booking.status === "pending" && (
                           <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3">
                             {t('dashboard.toConfirm')}
@@ -947,6 +969,15 @@ const PwaDashboard = () => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <h3 className="font-semibold text-xs text-foreground truncate">{booking.hotel_name}</h3>
+                              
+                              {/* NOUVEAU BADGE SOIN DUO */}
+                              {(booking.guest_count || 1) > 1 && (
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 h-3 bg-blue-100 text-blue-700 border-blue-200 gap-0.5 flex-shrink-0 flex items-center">
+                                  <Users className="w-2.5 h-2.5 mr-0.5" />
+                                  {booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0}/{booking.guest_count}
+                                </Badge>
+                              )}
+
                               {booking.proposed_slots && (booking.proposed_slots.slot_2_date || booking.proposed_slots.slot_3_date) && (
                                 <Badge variant="secondary" className="text-[8px] px-1 py-0 h-3 bg-purple-100 text-purple-700 flex-shrink-0">
                                   {t('dashboard.slots', { count: [true, !!booking.proposed_slots.slot_2_date, !!booking.proposed_slots.slot_3_date].filter(Boolean).length })}

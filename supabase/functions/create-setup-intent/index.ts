@@ -15,6 +15,7 @@ serve(async (req) => {
   }
 
   try {
+    const payload = await req.json();
     const {
       bookingData,
       clientData,
@@ -24,63 +25,102 @@ serve(async (req) => {
       language,
       therapistGender,
       draftBookingId,
-      giftAmountUsage
-    } = await req.json();
+      giftAmountUsage,
+      guestCount
+      // On retire complètement clientTotalPrice pour des raisons de sécurité (Ne jamais truster le front pour les prix)
+    } = payload;
 
-    // 1. Validation de base des champs requis
     if (!bookingData || !clientData || !hotelId) {
       throw new Error("Missing required data");
     }
 
-    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
-      throw new Error("Missing required client information (including email)");
-    }
+    // Uniformisation des payloads
+    const safeTreatmentsPayload = treatmentsPayload || (treatmentIds || []).map((id: string) => ({ treatmentId: id }));
+    
+    const effectiveTreatmentIds = safeTreatmentsPayload
+      .map((t: any) => t.treatmentId || t.id)
+      .filter(Boolean);
 
-    // Support de l'ancienne et nouvelle méthode pour les traitements
-    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
-
-    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+    if (effectiveTreatmentIds.length === 0) {
       throw new Error("At least one treatment is required");
     }
 
     // =========================================================================
-    // 🚧 ÉTAPE A: VALIDATION SERVER-SIDE (Prix, Horaires, Slots)
+    // 🚧 ÉTAPE A: VALIDATION STRICTE SERVER-SIDE (Prix, Horaires, Slots)
     // =========================================================================
     
-    // Récupération des traitements depuis la DB pour éviter la fraude sur les prix
+    // 1. On fetch la base de soins (SANS jointure pour la fiabilité PostgREST)
     const { data: treatments, error: treatmentsError } = await supabaseAdmin
       .from('treatment_menus')
       .select('id, name, price, hotel_id, status, duration')
       .in('id', effectiveTreatmentIds);
 
     if (treatmentsError || !treatments || treatments.length === 0) {
-      throw new Error("Failed to fetch valid treatments");
+      throw new Error("Failed to fetch treatments from database. Your cart might contain outdated items.");
     }
 
-    // Vérifier que le traitement appartient bien à l'hôtel et est actif
+    // 2. Vérification que TOUS les soins demandés existent bien
+    const foundTreatmentIds = new Set(treatments.map(t => t.id));
+    const missingTreatments = effectiveTreatmentIds.filter((id: string) => !foundTreatmentIds.has(id));
+    
+    if (missingTreatments.length > 0) {
+      throw new Error(`Some treatments are no longer available in our catalog. Please refresh your cart.`);
+    }
+
+    // 3. Vérification de l'affiliation à l'hôtel et du statut Actif
+    const ACTIVE_STATUSES = ["Actif", "active", "Active"];
     const invalidTreatments = treatments.filter(t =>
-      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || !ACTIVE_STATUSES.includes(t.status)
     );
 
     if (invalidTreatments.length > 0) {
-      throw new Error("Some treatments are not available for this hotel");
+      throw new Error("Some selected treatments are currently inactive or unavailable for this venue.");
     }
 
-    // Calcul serveur des prix et durées
-    const rawTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
-    const totalDuration = treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+    // 4. Récupérer les variantes si présentes (Soins Duo, durée spéciale, etc.)
+    const variantIds = safeTreatmentsPayload.map((t: any) => t.variantId).filter(Boolean);
+    let variants: any[] = [];
+    
+    if (variantIds.length > 0) {
+      const { data: vData, error: vError } = await supabaseAdmin
+        .from('treatment_variants')
+        .select('id, price, duration')
+        .in('id', variantIds);
+      
+      if (vError) throw new Error("Failed to fetch treatment variants.");
+      variants = vData || [];
+    }
 
-    // Apply gift amount deduction if present
-    const giftDeductionEuros = giftAmountUsage?.amountCents
-      ? Math.round(giftAmountUsage.amountCents / 100)
-      : 0;
+    // 5. Calcul strict du prix et de la durée
+    let rawTotalPrice = 0;
+    let totalDuration = 0;
+
+    for (const tPayload of safeTreatmentsPayload) {
+      const baseTreatment = treatments.find(t => t.id === (tPayload.treatmentId || tPayload.id));
+      if (!baseTreatment) continue;
+
+      if (tPayload.variantId) {
+        const variant = variants.find(v => v.id === tPayload.variantId);
+        if (!variant) {
+          throw new Error("A requested treatment variant is no longer available.");
+        }
+        rawTotalPrice += (variant.price ?? baseTreatment.price ?? 0);
+        totalDuration += (variant.duration ?? baseTreatment.duration ?? 30);
+      } else {
+        rawTotalPrice += (baseTreatment.price ?? 0);
+        totalDuration += (baseTreatment.duration ?? 30);
+      }
+    }
+
+    // Application des bons cadeaux
+    const giftDeductionEuros = giftAmountUsage?.amountCents ? Math.round(giftAmountUsage.amountCents / 100) : 0;
     const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
 
     if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
-      throw new Error("Invalid total price calculated");
+      throw new Error(`Invalid total price calculated (Total was ${rawTotalPrice}€).`);
     }
 
-    // Récupérer les infos de l'hôtel (Horaires, devises, etc.)
+    // 6. Vérification des infos et règles de l'hôtel
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
       .select('slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
@@ -95,37 +135,24 @@ serve(async (req) => {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
     }
 
-    // Validation des horaires d'ouverture — permissive si le lieu autorise les réservations hors horaires
-    if (hotel.opening_time && hotel.closing_time && !hotel.allow_out_of_hours_booking) {
-      const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
-      const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
-      const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
-      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
-        return new Response(JSON.stringify({ error: 'BLOCKED_SLOT' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
-      }
-    }
-
-    // Recalcul serveur de la majoration hors horaires (source de vérité)
+    // 7. Calcul majoration de nuit et conflits d'agendas
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, verifiedTotalPrice, hotel);
     const finalTotalPrice = surcharge.totalWithSurcharge;
 
-    // Validation des slots bloqués (ex: Pause déjeuner de l'hôtel)
     if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return new Response(JSON.stringify({ error: 'BLOCKED_SLOT' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
     }
 
     // =========================================================================
-    // 👤 ÉTAPE B: GESTION DU CUSTOMER STRIPE ET UPSERT SUPABASE
+    // 👤 ÉTAPE B: GESTION CUSTOMER STRIPE ET UPSERT
     // =========================================================================
     
-    // 1. On cherche d'abord si l'email existe chez Stripe
     let stripeCustomerId: string;
     const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
     
     if (existingCustomers.data.length > 0) {
       stripeCustomerId = existingCustomers.data[0].id;
     } else {
-      // 2. Sinon, on crée un nouveau Customer Stripe
       const newCustomer = await stripe.customers.create({
         email: clientData.email,
         name: `${clientData.firstName} ${clientData.lastName}`,
@@ -134,11 +161,10 @@ serve(async (req) => {
       stripeCustomerId = newCustomer.id;
     }
 
-    // 3. On sauvegarde ce stripe_customer_id dans NOTRE base de données (basé sur le téléphone qui est UNIQUE)
     const { error: upsertError } = await supabaseAdmin
       .from('customers')
       .upsert({
-        phone: clientData.phone, // Clé de conflit
+        phone: clientData.phone,
         email: clientData.email,
         first_name: clientData.firstName,
         last_name: clientData.lastName,
@@ -150,12 +176,11 @@ serve(async (req) => {
     }
 
     // =========================================================================
-    // 💳 ÉTAPE C: CRÉATION DE LA SESSION CHECKOUT (Mode Setup)
+    // 💳 ÉTAPE C: SESSION CHECKOUT
     // =========================================================================
     
     const origin = req.headers.get("origin") || "http://localhost:5173";
 
-    // On crée une session Checkout en mode 'setup'
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: stripeCustomerId,
@@ -173,9 +198,11 @@ serve(async (req) => {
         roomNumber: clientData.roomNumber || '',
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        treatmentsPayload: JSON.stringify(safeTreatmentsPayload),
         language: language || 'fr',
         therapistGender: therapistGender || '',
         draftBookingId: draftBookingId || '',
+        guestCount: guestCount ? String(guestCount) : '1',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
@@ -188,14 +215,8 @@ serve(async (req) => {
     });
 
     return new Response(
-      JSON.stringify({ 
-        url: session.url,
-        sessionId: session.id 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      JSON.stringify({ url: session.url, sessionId: session.id }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
@@ -203,10 +224,7 @@ serve(async (req) => {
     console.error("[CREATE-SETUP-INTENT] Error:", errorMessage);
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

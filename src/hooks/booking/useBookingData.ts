@@ -18,6 +18,8 @@ export interface BookingWithTreatments extends BookingRow {
   treatmentsTotalDuration: number;
   treatmentsTotalPrice: number;
   treatments: Treatment[];
+  // Ajout pour que TypeScript connaisse la relation des soins duo
+  booking_therapists?: { status: string; therapist_id: string }[];
 }
 
 interface BookingTreatmentJoin {
@@ -47,16 +49,17 @@ export function useBookingData() {
     refetchOnWindowFocus: true,
     staleTime: 30000,
     queryFn: async () => {
-      const { data: bookingsData, error: bookingsError } = await supabase
+      // CORRECTION ICI : On fetch booking_therapists en même temps !
+      const { data: bookingsData, error: bookingsError } = await (supabase as any)
         .from("bookings")
-        .select("*")
+        .select("*, booking_therapists(status, therapist_id)")
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
       if (bookingsError) throw bookingsError;
 
       const bookingsWithDuration = await Promise.all(
-        (bookingsData || []).map(async (booking) => {
+        (bookingsData || []).map(async (booking: any) => {
           const { data: treatments } = await supabase
             .from("booking_treatments")
             .select(`
@@ -96,7 +99,8 @@ export function useBookingData() {
             treatmentsTotalDuration,
             treatmentsTotalPrice,
             treatments: treatmentsList,
-          };
+            booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
+          } as BookingWithTreatments;
         }),
       );
 

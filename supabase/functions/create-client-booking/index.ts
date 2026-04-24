@@ -65,6 +65,7 @@ const requestSchema = z.object({
   therapistGender: z.enum(['female', 'male']).optional(),
   bundleUsage: bundleUsageSchema.optional(),
   draftBookingId: z.string().uuid('Invalid draft booking ID').optional(),
+  guestCount: z.number().int().min(1).max(20).optional().default(1),
   giftAmountUsage: z.object({
     customerBundleId: z.string().uuid('Invalid customer bundle ID format'),
     amountCents: z.number().int().min(1, 'Amount must be positive'),
@@ -133,8 +134,12 @@ try {
       therapistGender,
       bundleUsage,
       draftBookingId,
+      guestCount,
       giftAmountUsage
     } = validationResult.data;
+
+    const effectiveGuestCount = Math.max(1, guestCount ?? 1);
+    const isDuoBooking = effectiveGuestCount > 1;
 
     console.log('Creating booking for hotel:', hotelId);
 
@@ -276,7 +281,13 @@ try {
     // Check if any treatment is price_on_request
     const hasPriceOnRequest = validTreatments?.some(t => t.price_on_request) || false;
     const isOffert = !!hotel.offert || !!hotel.company_offered;
-    const bookingStatus = (!isOffert && hasPriceOnRequest) ? 'quote_pending' : 'pending';
+    // Duo bookings go straight to awaiting_hairdresser_selection so the
+    // broadcast-accept flow (accept_booking RPC) handles therapist assignment.
+    const bookingStatus = (!isOffert && hasPriceOnRequest)
+      ? 'quote_pending'
+      : isDuoBooking
+        ? 'awaiting_hairdresser_selection'
+        : 'pending';
     // Recalcul serveur de la majoration hors horaires (source de vérité — ignore le totalPrice client)
     const basePrice = isOffert ? 0 : (hasPriceOnRequest ? 0 : totalPrice);
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
@@ -340,6 +351,7 @@ try {
           _treatment_ids: treatmentIds,
           _customer_id: customerId || null,
           _therapist_gender: therapistGender || null,
+          _guest_count: effectiveGuestCount,
         });
         if (fallbackError) {
           if (fallbackError.message?.includes('NO_TRUNK_AVAILABLE')) {
@@ -364,6 +376,7 @@ try {
             payment_status: effectivePaymentStatus,
             total_price: effectiveTotalPrice,
             customer_id: customerId || null,
+            guest_count: effectiveGuestCount,
           })
           .eq('id', draftBookingId);
 
@@ -410,6 +423,7 @@ try {
         _treatment_ids: treatmentIds,
         _customer_id: customerId || null,
         _therapist_gender: therapistGender || null,
+        _guest_count: effectiveGuestCount,
       });
 
       if (rpcError) {
@@ -560,7 +574,7 @@ try {
     let wasAutoValidated = false;
     let autoAssignedTherapist: { id: string; first_name: string; last_name: string } | null = null;
 
-    if (hotel.auto_validate_bookings && bookingStatus === 'pending') {
+    if (hotel.auto_validate_bookings && bookingStatus === 'pending' && !isDuoBooking) {
       console.log('Auto-validation enabled for hotel, checking for single therapist...');
 
       // Get active therapists assigned to this hotel (filtered by gender if preference set)
@@ -705,6 +719,22 @@ try {
         }
       } catch (quoteNotifError) {
         console.error('Error sending quote pending notification:', quoteNotifError);
+      }
+    } else if (isDuoBooking) {
+      // Duo booking: broadcast to ALL therapists — N must accept to confirm
+      try {
+        console.log(`Duo booking (guest_count=${effectiveGuestCount}): broadcasting to all therapists for booking:`, bookingId);
+        const duoNotifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
+        });
+        if (duoNotifResponse.error) {
+          console.error('Failed to broadcast duo notifications:', duoNotifResponse.error);
+        } else {
+          console.log('Duo broadcast sent:', duoNotifResponse.data);
+        }
+      } catch (duoNotifError) {
+        console.error('Error sending duo notifications:', duoNotifError);
       }
     } else if (wasAutoValidated) {
       // Auto-validated booking: send confirmation notifications (not new booking notifications)
