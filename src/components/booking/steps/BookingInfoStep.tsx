@@ -1,5 +1,9 @@
 import { useState, useCallback } from "react";
 import { UseFormReturn } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Search } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,6 +126,51 @@ export function BookingInfoStep({
       toast.info("Aucun client trouvé pour cette chambre");
     }
   }, [pmsLookupEnabled, lookupGuest, form]);
+
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const trimmedCustomerSearch = customerSearch.trim();
+  const isPhoneSearch = /^\+?\d[\d\s]{2,}$/.test(trimmedCustomerSearch);
+
+  const { data: customerResults = [], isFetching: isSearchingCustomers } = useQuery({
+    queryKey: ["create-booking-customer-search", trimmedCustomerSearch],
+    enabled: trimmedCustomerSearch.length >= 3 && !selectedCustomerId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      let q = supabase
+        .from("customers")
+        .select("id, first_name, last_name, phone, email")
+        .limit(5);
+      if (isPhoneSearch) {
+        const normalized = trimmedCustomerSearch.replace(/\s/g, "");
+        q = q.ilike("phone", `%${normalized}%`);
+      } else {
+        q = q.or(
+          `first_name.ilike.%${trimmedCustomerSearch}%,last_name.ilike.%${trimmedCustomerSearch}%`,
+        );
+      }
+      const { data } = await q;
+      return (data as Array<{ id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }>) || [];
+    },
+  });
+
+  const handleSelectCustomer = (c: { id: string; first_name: string | null; last_name: string | null; phone: string | null; email: string | null }) => {
+    setSelectedCustomerId(c.id);
+    if (c.first_name) form.setValue("clientFirstName", c.first_name);
+    if (c.last_name) form.setValue("clientLastName", c.last_name);
+    if (c.email) form.setValue("clientEmail", c.email);
+    if (c.phone) {
+      const sorted = [...countries].sort((a, b) => b.code.length - a.code.length);
+      const match = sorted.find((cc) => c.phone!.startsWith(cc.code));
+      if (match) {
+        form.setValue("countryCode", match.code);
+        form.setValue("phone", formatPhoneNumber(c.phone.slice(match.code.length).trim(), match.code));
+      } else {
+        form.setValue("phone", c.phone);
+      }
+    }
+    setCustomerSearch(`${c.first_name || ""} ${c.last_name || ""}`.trim());
+  };
 
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
@@ -729,6 +778,51 @@ export function BookingInfoStep({
           )}
         />
       )}
+
+      {/* Customer search (existing clients) */}
+      <div className="relative">
+        <Label className="flex items-center gap-1.5 mb-1 text-xs">
+          <Search className="h-3.5 w-3.5" />
+          Rechercher un client existant
+        </Label>
+        <Input
+          value={customerSearch}
+          onChange={(e) => {
+            setCustomerSearch(e.target.value);
+            setSelectedCustomerId(null);
+          }}
+          placeholder="Nom, prénom ou téléphone…"
+          className="h-9"
+        />
+        {trimmedCustomerSearch.length >= 3 && !selectedCustomerId && (
+          <div className="absolute z-10 left-0 right-0 mt-1 rounded-lg border bg-popover shadow-md">
+            {isSearchingCustomers ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Recherche…
+              </div>
+            ) : customerResults.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-muted-foreground">Aucun client trouvé</div>
+            ) : (
+              customerResults.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => handleSelectCustomer(c)}
+                  className="w-full flex flex-col items-start px-3 py-2 text-sm text-left hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg"
+                >
+                  <span className="font-medium">
+                    {[c.first_name, c.last_name].filter(Boolean).join(" ") || "—"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {[c.phone, c.email].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2">
         <FormField

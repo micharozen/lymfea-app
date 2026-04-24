@@ -80,7 +80,7 @@ serve(async (req) => {
       // Primary URL for notification click (OneSignal REST API uses 'url')
       url: clickUrl,
       // Include URL in data as backup for SDK click handler
-      data: { ...data, launchUrl: clickUrl, url: data?.url },
+      data: { ...data, launchUrl: clickUrl, url: clickUrl },
       // Target by external user ID (the Supabase user_id)
       include_aliases: {
         external_id: [userId]
