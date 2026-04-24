@@ -20,6 +20,7 @@ import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
+import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
@@ -105,6 +106,13 @@ export default function Payment() {
   const giftAmountRemainingAfter = isAmountBundle
     ? Math.round(((selectedBundle?.remainingAmountCents ?? 0) - (selectedBundle?.amountToUseCents ?? 0)) / 100)
     : 0;
+
+  // Out-of-hours surcharge (affichage — le serveur recalcule et fait foi)
+  const surcharge = computeOutOfHoursSurcharge(bookingDateTime?.time, total, hotel);
+  const surchargeUncovered = computeOutOfHoursSurcharge(bookingDateTime?.time, uncoveredTotal, hotel);
+  const totalWithSurcharge = total + surcharge.surchargeAmount;
+  const uncoveredTotalWithSurcharge = uncoveredTotal + surchargeUncovered.surchargeAmount;
+  const fixedTotalWithSurcharge = fixedTotal + computeOutOfHoursSurcharge(bookingDateTime?.time, fixedTotal, hotel).surchargeAmount;
 
   const handlePayment = async () => {
     if (!clientInfo) {
@@ -434,7 +442,7 @@ export default function Payment() {
       <div className="px-4 py-4 sm:px-6 sm:py-6 space-y-8 pb-32">
         
         {/* Titre élégant */}
-        <div className="animate-fade-in text-center space-y-1.5 mt-4">
+        <div className="text-center space-y-1.5 mt-4">
           <h3 className="text-xl font-serif text-gray-900">
             {isBundleOnlyPurchase
               ? t('payment.bundleTitle', 'Finaliser votre achat')
@@ -461,7 +469,7 @@ export default function Payment() {
 
         {/* Bundle active banner */}
         {selectedBundle && (
-          <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 animate-fade-in flex items-start gap-3">
+          <div className="bg-amber-50/80 border border-amber-200/60 rounded-2xl p-4 flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
               {isAmountBundle ? <Gift className="w-4 h-4 text-amber-700" /> : <Repeat className="w-4 h-4 text-amber-700" />}
             </div>
@@ -493,7 +501,7 @@ export default function Payment() {
         )}
 
         {/* Nouveau Récapitulatif Design Luxe */}
-        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="bg-white border border-gray-100 shadow-sm rounded-2xl p-5 space-y-4">
           {(hotel?.name || hotel?.address || hotel?.contact_phone) && (
             <div className="pb-3 border-b border-gray-100 space-y-1">
               {hotel?.name && (
@@ -571,6 +579,17 @@ export default function Payment() {
                 </div>
               </>
             )}
+
+            {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">
+                  {t('payment.outOfHoursSurcharge', 'Majoration hors horaires')} ({surcharge.surchargePercent}%)
+                </span>
+                <span className="font-medium text-amber-600">
+                  +{formatPrice(surcharge.surchargeAmount, items[0]?.currency || 'EUR')}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="h-px w-full bg-gray-100" />
@@ -589,15 +608,15 @@ export default function Payment() {
             <div className="text-right">
               {isAmountBundle && giftAmountAppliedEuros > 0 && (
                 <span className="text-sm line-through text-gray-400 mr-2">
-                  {formatPrice(total, items[0]?.currency || 'EUR')}
+                  {formatPrice(totalWithSurcharge, items[0]?.currency || 'EUR')}
                 </span>
               )}
               <span className="text-xl font-serif font-semibold text-gray-900">
                 {selectedBundle
-                  ? formatPrice(uncoveredTotal, items[0]?.currency || 'EUR')
+                  ? formatPrice(uncoveredTotalWithSurcharge, items[0]?.currency || 'EUR')
                   : isOffert
                     ? formatPrice(0, items[0]?.currency || 'EUR')
-                    : formatPrice(hasPriceOnRequest ? fixedTotal : total, items[0]?.currency || 'EUR')
+                    : formatPrice(hasPriceOnRequest ? fixedTotalWithSurcharge : totalWithSurcharge, items[0]?.currency || 'EUR')
                 }
                 {hasPriceOnRequest && !selectedBundle && <span className="text-xs text-amber-500 ml-1">+ Devis</span>}
               </span>
@@ -607,7 +626,7 @@ export default function Payment() {
 
         {/* Message de réassurance (Bouclier) */}
         {!isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && selectedMethod === 'card' && (
-          <div className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-4 rounded-xl animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <div className="flex items-start gap-3 bg-gray-50/80 border border-gray-100 p-4 rounded-xl">
             <ShieldCheck className="w-5 h-5 flex-shrink-0 text-gray-900 mt-0.5" />
             <p className="text-xs text-gray-500 leading-relaxed">
               {isBundleOnlyPurchase ? (
@@ -632,7 +651,7 @@ export default function Payment() {
 
         {/* Sélection du mode de garantie — hidden for bundle-only (card only) */}
         {!isBundleOnlyPurchase && !isOffert && !hasPriceOnRequest && !(selectedBundle && uncoveredTotal === 0) && (
-          <div className="space-y-3 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <div className="space-y-3">
             
             {/* Carte */}
             <button
@@ -693,6 +712,14 @@ export default function Payment() {
             )}
           </div>
         )}
+
+        {/* Politique d'annulation */}
+        <div className="pt-6 border-t border-gray-100">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            <span className="font-medium text-gray-700">{t('payment.cancellationPolicyTitle')}</span>{' '}
+            {t('payment.cancellationPolicyText')}
+          </p>
+        </div>
       </div>
 
       {/* Bouton Fixe en bas - Design "Classe" */}

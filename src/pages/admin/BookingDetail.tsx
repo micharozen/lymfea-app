@@ -19,6 +19,7 @@ import {
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
 import { BookingNotesSection } from "@/components/admin/details/BookingNotesSection";
+import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
@@ -27,6 +28,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
+import { useUser } from "@/contexts/UserContext";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import {
   computeTherapistEarnings,
@@ -40,6 +42,17 @@ const PAYMENT_LABELS: Record<string, string> = {
   failed: "Paiement échoué",
   refunded: "Remboursé",
   charged_to_room: "Facturé chambre",
+  pending_partner_billing: "Paiement partenaire",
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  room: "Facturé en chambre",
+  card: "Carte bancaire",
+  tap_to_pay: "Tap to Pay",
+  offert: "Offert",
+  gift_amount: "Carte cadeau",
+  voucher: "Payé par voucher — encaissé par le lieu",
+  partner_billed: "Facturé au partenaire (fin de mois)",
 };
 
 export default function BookingDetail() {
@@ -47,6 +60,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
 
   const { t } = useTranslation('admin');
+  const { isConcierge } = useUser();
 
   const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -111,6 +125,7 @@ export default function BookingDetail() {
 
   // États logiques
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
+  const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
   const isSigned = !!booking.signed_at; // Vérifie si la date de signature existe
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
@@ -168,12 +183,11 @@ export default function BookingDetail() {
 
         <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
           <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
-          {booking.room_number ? (
+          <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
+          {booking.room_number && (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              Client Hôtel — Ch. {booking.room_number}
+              Ch. {booking.room_number}
             </Badge>
-          ) : (
-            <Badge variant="outline" className="text-gray-500">Client Extérieur</Badge>
           )}
           <StatusBadge status={booking.status} type="booking" />
           <StatusBadge
@@ -191,7 +205,7 @@ export default function BookingDetail() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* BOUTON SIGNATURE */}
-          {isSigned ? (
+          {!isConcierge && (isSigned ? (
             <Button 
               variant="outline" 
               size="sm" 
@@ -209,14 +223,16 @@ export default function BookingDetail() {
             >
               <PenTool className="h-4 w-4 mr-2" /> Signature
             </Button>
-          )}
+          ))}
 
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
-            <Send className="h-4 w-4 mr-2" /> Paiement
-          </Button>
+          {!isConcierge && !isPartnerBilled && (
+            <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
+              <Send className="h-4 w-4 mr-2" /> Paiement
+            </Button>
+          )}
           <Button variant="default" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-2" /> Modifier
           </Button>
@@ -240,6 +256,11 @@ export default function BookingDetail() {
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
             <span className="font-medium text-sm">Le paiement a été réalisé avec succès.</span>
+          </div>
+        ) : isPartnerBilled ? (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center gap-3 text-indigo-800">
+            <CheckCircle2 className="h-5 w-5 text-indigo-600" />
+            <span className="font-medium text-sm">Paiement géré par le partenaire (facturation mensuelle).</span>
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800">
@@ -373,7 +394,12 @@ export default function BookingDetail() {
                 </div>
               )}
               <div className="mt-4 pt-4 border-t border-white/10 text-xs opacity-70">
-                Méthode : {booking.payment_method || "À définir"}
+                Méthode : {booking.payment_method ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method) : "À définir"}
+                {(booking as any).payment_reference && (
+                  <div className="mt-1 font-mono text-[10px] opacity-80">
+                    Réf. voucher : {(booking as any).payment_reference}
+                  </div>
+                )}
               </div>
             </section>
           </div>

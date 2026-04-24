@@ -923,19 +923,9 @@ export default function GuestInfo() {
                                   <div className="relative">
                                     <Input
                                       {...field}
-                                      onBlur={(e) => {
-                                        field.onBlur();
-                                        handleRoomNumberBlur(e.target.value);
-                                      }}
                                       placeholder="102"
                                       className={inputStyles}
                                     />
-                                    {isLookingUpGuest && (
-                                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gold-600" />
-                                    )}
-                                    {guestData?.found && !isLookingUpGuest && (
-                                      <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                                    )}
                                   </div>
                                 </FormControl>
                                 <FormMessage className="text-red-400 text-xs" />

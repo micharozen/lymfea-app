@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/command";
 import {
   ImageIcon,
+  Camera,
   Loader2,
   MapPin,
   Wallet,
@@ -64,6 +65,7 @@ import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
+import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
@@ -112,6 +114,7 @@ interface VenueGeneralTabProps {
   handleCoverImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   triggerHotelImageSelect: () => void;
   triggerCoverImageSelect: () => void;
+  onRequestEdit?: () => void;
   deploymentState: DeploymentScheduleState;
   onDeploymentStateChange: (state: DeploymentScheduleState) => void;
   blockedSlots: BlockedSlot[];
@@ -133,6 +136,7 @@ export function VenueGeneralTab({
   handleCoverImageUpload,
   triggerHotelImageSelect,
   triggerCoverImageSelect,
+  onRequestEdit,
   deploymentState,
   onDeploymentStateChange,
   blockedSlots,
@@ -238,11 +242,11 @@ export function VenueGeneralTab({
   return (
     <div className="space-y-6">
       {/* Card A: Identity */}
-      <Card className="border-l-4 border-l-gold-500">
+      <Card id="identity" className="scroll-mt-32">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-gold-600" />
                 Identité du lieu
               </CardTitle>
@@ -307,8 +311,13 @@ export function VenueGeneralTab({
               {/* Venue photo */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerHotelImageSelect : undefined}
+                  className="group relative h-20 w-20 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerHotelImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la photo"
                 >
                   {hotelImage ? (
                     <img src={hotelImage} className="h-full w-full object-cover" alt="Venue" />
@@ -317,6 +326,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingHotel && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -336,8 +348,13 @@ export function VenueGeneralTab({
               {/* Cover image */}
               <div className="space-y-1.5 text-center">
                 <div
-                  className={`relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors ${!disabled ? 'cursor-pointer hover:border-gold-500/50' : ''}`}
-                  onClick={!disabled ? triggerCoverImageSelect : undefined}
+                  className="group relative h-20 w-32 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/30 overflow-hidden transition-colors cursor-pointer hover:border-gold-500/50"
+                  onClick={() => {
+                    if (disabled) onRequestEdit?.();
+                    triggerCoverImageSelect();
+                  }}
+                  role="button"
+                  aria-label="Modifier la couverture"
                 >
                   {coverImage ? (
                     <img src={coverImage} className="h-full w-full object-cover" alt="Cover" />
@@ -346,6 +363,9 @@ export function VenueGeneralTab({
                       <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera className="h-5 w-5 text-white" />
+                  </div>
                   {uploadingCover && (
                     <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -537,9 +557,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card B: Localisation */}
-      <Card>
+      <Card id="location" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <MapPin className="h-4 w-4 text-blue-500" />
             Localisation
           </CardTitle>
@@ -678,9 +698,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card C: Finance */}
-      <Card>
+      <Card id="finance" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Wallet className="h-4 w-4 text-emerald-500" />
             Finance
           </CardTitle>
@@ -826,9 +846,9 @@ export function VenueGeneralTab({
       </Card>
 
       {/* Card D: Booking Settings */}
-      <Card>
+      <Card id="booking-settings" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Settings className="h-4 w-4 text-orange-500" />
             Paramètres de réservation
           </CardTitle>
@@ -981,13 +1001,59 @@ export function VenueGeneralTab({
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="min_booking_notice_minutes"
+            render={({ field }) => {
+              const minutes = field.value ?? 0;
+              const hours = minutes === 0 ? '' : (minutes / 60).toString();
+              return (
+                <FormItem className="py-4">
+                  <FormLabel className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    {t('venue.minBookingNotice', 'Délai minimum avant réservation')}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative w-40">
+                      <Input
+                        type="number"
+                        step="1"
+                        min="0"
+                        max="168"
+                        value={hours}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            field.onChange(0);
+                          } else {
+                            const h = parseFloat(val);
+                            field.onChange(Number.isFinite(h) && h >= 0 ? Math.round(h * 60) : 0);
+                          }
+                        }}
+                        onBlur={field.onBlur}
+                        disabled={disabled}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">h</span>
+                    </div>
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    {t('venue.minBookingNoticeDesc', "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.")}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+
         </CardContent>
       </Card>
 
+      <VenueBookingRulesTab form={form} disabled={disabled} />
+
       {/* Card E: Horaires & Disponibilité */}
-      <Card>
+      <Card id="schedule" className="scroll-mt-32">
         <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-500" />
             Horaires & Disponibilité
           </CardTitle>
@@ -1007,10 +1073,10 @@ export function VenueGeneralTab({
 
       {/* Card F: Équipe lieu (all venue types, when venue is saved) */}
       {hotelId && (
-        <Card>
+        <Card id="team" className="scroll-mt-32">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2">
                 <Users className="h-4 w-4 text-violet-500" />
                 Équipe lieu
               </CardTitle>
@@ -1061,13 +1127,13 @@ export function VenueGeneralTab({
         </Card>
       )}
 
-      {/* Card F: PMS Integration (hotel type only, when venue is saved) */}
+      {/* Card G: PMS Integration (hotel type only, when venue is saved) */}
       {hotelId && venueTypeValue === 'hotel' && (
         <>
-          <Card>
+          <Card id="pms" className="scroll-mt-32">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
                   <Plug className="h-4 w-4 text-cyan-500" />
                   Intégration PMS
                 </CardTitle>

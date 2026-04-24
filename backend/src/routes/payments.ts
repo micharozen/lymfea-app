@@ -4,6 +4,10 @@ import { supabaseAdmin } from "../lib/supabase";
 import { stripe } from "../lib/stripe";
 import { sendEmail } from "../lib/email";
 
+const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
+const BRAND_WEBSITE = 'https://lymfea.fr';
+import { isInBlockedSlot } from "../lib/blocked-slots";
+
 /**
  * Payment routes — authenticated (therapist or admin).
  *
@@ -312,7 +316,6 @@ payments.post("/purchase-bundle", async (c) => {
       throw new Error("Payment not completed");
     }
 
-    // Check this is a bundle purchase
     if (session.metadata?.type !== 'bundle_purchase') {
       throw new Error("Invalid session type");
     }
@@ -325,7 +328,6 @@ payments.post("/purchase-bundle", async (c) => {
       .limit(1);
 
     if (existingBundles && existingBundles.length > 0) {
-      // Already processed — return existing bundle IDs
       const { data: allBundles } = await supabaseAdmin
         .from('customer_treatment_bundles')
         .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
@@ -479,7 +481,7 @@ payments.post("/purchase-bundle", async (c) => {
       .single();
     const venueName = venue?.name || '';
     const venueSlug = venue?.slug || hotelId;
-    const logoUrl = venue?.image || 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
+    const logoUrl = venue?.image || EMAIL_LOGO_URL;
 
     // --- Send gift card email to recipient via Resend template ---
     const isGift = isGiftMeta === 'true';
@@ -496,27 +498,28 @@ payments.post("/purchase-bundle", async (c) => {
           ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
 
-        const siteUrl = process.env.SITE_URL || 'https://lymfea.fr';
-        const activateUrl = `${siteUrl}/portal/redeem`;
-        const redemptionCode = giftBundle?.redemption_code ?? '';
+        const activateUrl = `https://apptest.eiaspa.fr/portal/redeem?token=${encodeURIComponent(giftBundle?.redemption_code ?? '')}`;
+
+        const templateVars = {
+          logo_url: logoUrl,
+          recipient_name: recipientName || '',
+          recipient_email: recipientEmail,
+          venue_name: venueName,
+          bundle_title: bundleName,
+          value_display: valueDisplay,
+          expiry_date: expiryDate,
+          activate_url: activateUrl,
+          sender_name: senderName || firstName || '',
+          gift_message: giftMessage || '',
+          redemption_code: '',
+        };
+        console.log('[PURCHASE-BUNDLE] Gift email template variables:', JSON.stringify(templateVars, null, 2));
 
         const result = await sendEmail({
           to: recipientEmail,
           subject: `You've received a gift card — ${venueName}`,
           templateId: '1b1674f1-5145-4bb5-8fce-b8b9f2c405ac',
-          templateVariables: {
-            logo_url: logoUrl,
-            recipient_name: recipientName || '',
-            recipient_email: recipientEmail,
-            venue_name: venueName,
-            bundle_title: bundleName,
-            value_display: valueDisplay,
-            expiry_date: expiryDate,
-            activate_url: activateUrl,
-            sender_name: senderName || firstName || '',
-            gift_message: giftMessage || '',
-            redemption_code: redemptionCode,
-          },
+          templateVariables: templateVars,
         });
 
         if (result.error) {
@@ -541,7 +544,7 @@ payments.post("/purchase-bundle", async (c) => {
           ? new Date(cureBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
 
-        const siteUrl = process.env.SITE_URL || 'https://lymfea.fr';
+        const siteUrl = process.env.SITE_URL || BRAND_WEBSITE;
         const bookingUrl = `${siteUrl}/client/${venueSlug}/treatments`;
 
         const result = await sendEmail({
@@ -606,8 +609,8 @@ payments.post("/confirm-setup", async (c) => {
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
-    const totalDuration = (treatments || []).reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
 
     const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
 

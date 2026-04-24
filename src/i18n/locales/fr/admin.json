@@ -1,4 +1,42 @@
 {
+  "welcome": {
+    "skip": "Passer",
+    "back": "Retour",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "step1": {
+      "title": "Bienvenue sur Eïa",
+      "body": "Eïa centralise vos réservations, votre planning thérapeutes et votre billing en un seul endroit. Ce guide rapide vous présente les zones clés de l'app."
+    },
+    "step2": {
+      "title": "Trois zones essentielles",
+      "agenda": {
+        "title": "Planning",
+        "body": "Vue calendrier par lieu, salle et thérapeute. Créez et déplacez vos réservations."
+      },
+      "therapists": {
+        "title": "Thérapeutes & soins",
+        "body": "Ajoutez votre équipe, leurs spécialisations et leur planning."
+      },
+      "finance": {
+        "title": "Finance",
+        "body": "Suivez votre chiffre d'affaires, commissions thérapeutes et payouts."
+      },
+      "switcher": {
+        "title": "Astuce : mode Gestion du lieu",
+        "body": "Depuis la barre latérale, basculez vers la perspective d'un directeur de lieu en un clic."
+      }
+    },
+    "step3": {
+      "title": "Votre avis compte",
+      "body": "Vous testez Eïa : dites-nous tout. Vos retours guident la roadmap.",
+      "feedback": "Donner mon avis (5 min)",
+      "calendly": "Réserver un point visio (20 min)",
+      "trySwitcher": "Essayer le mode Gestion du lieu",
+      "pickVenue": "Choisissez un lieu :"
+    },
+    "reopen": "Revoir le guide d'introduction"
+  },
   "sidebar": {
     "home": "Accueil",
     "settings": "Paramètres & Accès",
@@ -8,7 +46,7 @@
     "hotels": "Lieux",
     "treatments": "Menus des Soins",
     "boxes": "Boxes",
-    "concierges": "Équipe lieu",
+    "concierges": "Gestion du lieu",
     "customers": "Clients",
     "products": "Produits {{brandName}}",
     "orders": "Commandes",
@@ -57,6 +95,22 @@
     "noBookings": "Aucune réservation",
     "filters": "Filtres",
     "searchPlaceholder": "Rechercher par client, hôtel...",
+    "clientType": {
+      "label": "Type de client",
+      "hotel": "Hôtel",
+      "staycation": "Staycation",
+      "classpass": "ClassPass",
+      "external": "Externe"
+    },
+    "payByVoucher": {
+      "label": "Payé par voucher (encaissé par le lieu)",
+      "helper": "Le lieu a encaissé le client. La prestation sera facturée au lieu en fin de mois.",
+      "referenceLabel": "Référence du voucher (optionnel)"
+    },
+    "payment": {
+      "paidByVoucher": "Payé par voucher — encaissé par le lieu",
+      "partnerBilled": "Facturé au partenaire (fin de mois)"
+    },
     "columns": {
       "id": "ID",
       "client": "Client",
@@ -257,7 +311,7 @@
     "hotel": "Hôtel"
   },
   "concierges": {
-    "title": "Équipe lieu",
+    "title": "Gestion du lieu",
     "add": "Ajouter un membre",
     "edit": "Modifier le membre",
     "noConcierges": "Aucun membre",
@@ -328,6 +382,8 @@
     "interVenueBufferDesc": "Buffer ajouté avant et après chaque prestation quand le thérapeute vient d'un autre lieu. 0 = pas de buffer.",
     "roomTurnoverBuffer": "Temps de remise en état",
     "roomTurnoverBufferDesc": "Temps ajouté après chaque soin pour la remise en état de la salle. Bloque la salle et le thérapeute. 0 = pas de buffer.",
+    "minBookingNotice": "Délai minimum avant réservation",
+    "minBookingNoticeDesc": "Délai minimum entre maintenant et l'heure d'un créneau réservable (ex. 2h, 4h, 24h). Les créneaux trop proches sont masqués côté client. 0 = pas de délai.",
     "bookingRules": {
       "tabLabel": "Règles de réservation",
       "holdSectionTitle": "Pré-réservation (hold)",
@@ -814,7 +870,9 @@
     "therapist": {
       "label": "Thérapeutes disponibles",
       "loading": "Recherche des thérapeutes disponibles...",
-      "empty": "Aucun thérapeute disponible pour ce créneau"
+      "empty": "Aucun thérapeute disponible pour ce créneau",
+      "broadcastTitle": "Ne pas sélectionner (broadcast)",
+      "broadcastDesc": "Proposer à tous les thérapeutes disponibles"
     },
     "client": {
       "firstName": "Prénom",
@@ -827,7 +885,8 @@
       "existingClient": "Client existant — champs préremplis",
       "email": "Email",
       "emailHint": "nécessaire pour le lien de paiement",
-      "room": "Numéro de chambre"
+      "room": "Numéro de chambre",
+      "clientType": "Type de client"
     },
     "confirm": {
       "venue": "Lieu",
@@ -836,18 +895,21 @@
       "treatments": "Soins",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Créer et envoyer le lien"
+      "createAndSend": "Créer et envoyer le lien",
+      "createAndNotify": "Créer et envoyer la confirmation"
     },
     "done": {
       "title": "Réservation créée",
-      "sendLink": "Envoyer lien de paiement"
+      "sendLink": "Envoyer lien de paiement",
+      "sendNotification": "Envoyer la confirmation"
     },
     "errors": {
       "selectVenue": "Sélectionnez un lieu",
       "selectTreatment": "Sélectionnez au moins un soin",
       "selectSlot": "Sélectionnez une date et un horaire",
       "selectTherapist": "Sélectionnez un thérapeute",
-      "fillClient": "Remplissez les informations client"
+      "fillClient": "Remplissez les informations client",
+      "roomRequired": "Numéro de chambre obligatoire pour un client hôtel"
     }
   }
 }

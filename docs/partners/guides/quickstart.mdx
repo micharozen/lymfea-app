@@ -1,0 +1,144 @@
+---
+title: "Quickstart"
+description: "Build a full booking flow against the Eïa sandbox in 5 minutes."
+---
+
+This guide walks through a full integration end-to-end:
+
+1. Authenticate with your sandbox API key.
+2. Discover available venues.
+3. Fetch real-time availability.
+4. Create a booking.
+5. Poll for the booking status.
+
+## Prerequisites
+
+- A sandbox API key provisioned by the Eïa team (`lyf_sandbox_sk_...`).
+- Node.js 20+ (examples below use `fetch`, available natively).
+
+Export your key once for the whole session:
+
+```bash
+export LYMFEA_API_KEY="lyf_sandbox_sk_..."
+export LYMFEA_BASE="https://api-sandbox.lymfea.com/v1"
+```
+
+## 1. List the venues you have access to
+
+```bash
+curl "$LYMFEA_BASE/venues?country=FR&type=hotel" \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+Pick a venue and keep its `id` for the next steps. Cache this list — venue
+metadata changes rarely.
+
+## 2. Fetch real-time availability
+
+Ask for the next 7 days of bookable slots for a specific treatment:
+
+```bash
+curl "$LYMFEA_BASE/availability\
+?venue_id=hot_lutetia_paris\
+&treatment_id=trt_swedish_60\
+&from=2026-05-12&to=2026-05-18\
+&guests=1" \
+  -H "Authorization: Bearer $LYMFEA_API_KEY"
+```
+
+Each slot comes with a `start_at` in UTC and the `variant_id` it matches.
+Present these to your user in the venue's local timezone (returned on the
+Venue object).
+
+## 3. Create a booking
+
+Once the user picks a slot, send it back to Eïa:
+
+```javascript
+const booking = await fetch(`${process.env.LYMFEA_BASE}/bookings`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${process.env.LYMFEA_API_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    venue_id: "hot_lutetia_paris",
+    treatment_id: "trt_swedish_60",
+    variant_id: "var_swedish_60",
+    start_at: "2026-05-12T12:00:00Z",
+    guest_count: 1,
+    guest: {
+      first_name: "Marie",
+      last_name: "Durand",
+      email: "marie@example.com",
+      phone: "+33612345678",
+      language: "fr",
+    },
+    external_reference: `YOUR_APP-${yourInternalId}`,
+    price_paid: { amount: 12000, currency: "EUR" },
+  }),
+}).then(async (r) => {
+  if (!r.ok) throw await r.json();
+  return (await r.json()).data;
+});
+```
+
+Handle the two most common failure modes:
+
+<Warning>
+  - **`409 SLOT_TAKEN`** — the slot was taken between steps 2 and 3. Re-query
+    `GET /v1/availability` and propose an alternative to your user.
+  - **`422 LEAD_TIME_NOT_MET`** — the chosen slot is too close to "now" for
+    that treatment. Filter slots client-side using the treatment's
+    `lead_time` field.
+</Warning>
+
+## 4. Poll for status
+
+Most bookings come back `confirmed` immediately. For venues that broadcast
+to their therapist pool, the booking starts as `awaiting_therapist` and is
+updated within 1–10 minutes. Poll no more often than every 30s:
+
+```javascript
+async function waitForConfirmation(id) {
+  for (let i = 0; i < 20; i++) {
+    const res = await fetch(`${process.env.LYMFEA_BASE}/bookings/${id}`, {
+      headers: { Authorization: `Bearer ${process.env.LYMFEA_API_KEY}` },
+    });
+    const { data } = await res.json();
+    if (data.status === "confirmed") return data;
+    if (data.status === "cancelled") throw new Error("Booking cancelled");
+    await new Promise((r) => setTimeout(r, 30_000));
+  }
+  throw new Error("Timed out waiting for confirmation");
+}
+```
+
+<Tip>
+  Webhook-based notifications (`booking.confirmed`, `booking.cancelled`) are
+  on the v1.1 roadmap. In the meantime, polling is the only option.
+</Tip>
+
+## 5. Cancel a booking (optional)
+
+```bash
+curl -X POST "$LYMFEA_BASE/bookings/$BOOKING_ID/cancel" \
+  -H "Authorization: Bearer $LYMFEA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "reason": "Customer rescheduled", "cancelled_by": "customer" }'
+```
+
+The response includes the cancellation fee (if any), per the venue's policy.
+
+## You're done 🎉
+
+Next steps:
+
+<CardGroup cols={2}>
+  <Card title="Error handling" icon="triangle-exclamation" href="/errors">
+    Learn the full error catalogue and retry strategy.
+  </Card>
+  <Card title="Rate limits" icon="gauge" href="/rate-limits">
+    Understand quotas and caching best practices.
+  </Card>
+</CardGroup>

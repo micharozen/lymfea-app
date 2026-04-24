@@ -11,6 +11,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   slot2Time: z.string().optional(),
   slot3Date: z.date().optional(),
   slot3Time: z.string().optional(),
+  clientType: z.enum(['hotel', 'staycation', 'classpass', 'external']).default('external'),
   clientFirstName: z.string().min(1, t('errors.validation.firstNameRequired')),
   clientLastName: z.string().min(1, t('errors.validation.lastNameRequired')),
   clientEmail: z.string().email(t('errors.validation.emailInvalid')).optional().or(z.literal('')), 
@@ -18,12 +19,19 @@ export const createFormSchema = (t: TFunction) => z.object({
   countryCode: z.string().default("+33"),
   roomNumber: z.string().default(""),
   clientNote: z.string().default(""),
+  payByVoucher: z.boolean().default(false),
+  voucherReference: z.string().default(""),
 }).refine(data => {
   // If slot 2 is partially filled, both date and time are required
   if ((data.slot2Date && !data.slot2Time) || (!data.slot2Date && data.slot2Time)) return false;
   if ((data.slot3Date && !data.slot3Time) || (!data.slot3Date && data.slot3Time)) return false;
   return true;
-}, { message: "Veuillez remplir la date et l'heure pour chaque créneau", path: ["slot2Date"] });
+}, { message: "Veuillez remplir la date et l'heure pour chaque créneau", path: ["slot2Date"] })
+.refine(data => {
+  // Room number required when clientType === 'hotel'
+  if (data.clientType === 'hotel' && !data.roomNumber.trim()) return false;
+  return true;
+}, { message: "Le numéro de chambre est requis pour un client hôtel", path: ["roomNumber"] });
 
 export type BookingFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 

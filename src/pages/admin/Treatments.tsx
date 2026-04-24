@@ -84,6 +84,7 @@ export default function TreatmentMenus() {
   }, []);
 
   const isAdmin = userRole === "admin";
+  const isConcierge = userRole === "concierge";
 
   const { data: menus, refetch, isLoading } = useQuery({
     queryKey: ["treatment-menus"],
@@ -146,7 +147,7 @@ export default function TreatmentMenus() {
   // Control overflow when pagination is needed
   useOverflowControl(!isLoading && needsPagination);
 
-  const columnCount = isAdmin ? 9 : 8;
+  const columnCount = isAdmin ? 9 : isConcierge ? 6 : 8;
 
   const categories = Array.from(
     new Set(menus?.map((menu) => menu.category).filter(Boolean))
@@ -260,19 +261,21 @@ export default function TreatmentMenus() {
               />
             </div>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrer par catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les catégories</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {!isConcierge && (
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrer par catégorie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes les catégories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             {isAdmin && (
               <Select value={hotelFilter} onValueChange={setHotelFilter}>
@@ -368,10 +371,14 @@ export default function TreatmentMenus() {
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[70px]">Delai</TableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate text-center w-[90px]">Spécialité</TableHead>
-                      <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
-                        Categorie
-                      </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      {!isConcierge && (
+                        <SortableTableHead column="category" sortDirection={getSortDirection("category")} onSort={toggleSort} align="center" className="w-[90px]">
+                          Categorie
+                        </SortableTableHead>
+                      )}
+                      {!isConcierge && (
+                        <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate w-[140px]">Hotel</TableHead>
+                      )}
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort} align="center" className="w-[70px]">
                         Statut
                       </SortableTableHead>
@@ -396,8 +403,11 @@ export default function TreatmentMenus() {
                         return (
                           <TableRow
                             key={menu.id}
-                            className="cursor-pointer hover:bg-muted/50 transition-colors h-10 max-h-10"
-                            onClick={() => navigate(`/admin/treatments/${menu.id}`)}
+                            className={cn(
+                              "h-10 max-h-10 transition-colors",
+                              isConcierge ? "" : "cursor-pointer hover:bg-muted/50"
+                            )}
+                            onClick={isConcierge ? undefined : () => navigate(`/admin/treatments/${menu.id}`)}
                           >
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                               <div className="flex items-center gap-2 whitespace-nowrap">
@@ -431,12 +441,16 @@ export default function TreatmentMenus() {
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <span className="truncate block text-foreground text-xs">{menu.treatment_type ? getSpecialtyLabel(menu.treatment_type, i18n.language) : "—"}</span>
                             </TableCell>
-                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
-                              <span className="truncate block text-foreground">{menu.category}</span>
-                            </TableCell>
-                            <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                              <HotelCell hotel={hotel} />
-                            </TableCell>
+                            {!isConcierge && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
+                                <span className="truncate block text-foreground">{menu.category}</span>
+                              </TableCell>
+                            )}
+                            {!isConcierge && (
+                              <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
+                                <HotelCell hotel={hotel} />
+                              </TableCell>
+                            )}
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <Badge
                                 variant={menu.status === "active" ? "default" : "secondary"}
