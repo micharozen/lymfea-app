@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>Prestation acceptée</title>
+</head>
+<body style="margin:0;padding:0;background-color:#FBF7F2;color:#2C2622;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#FBF7F2;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+
+        <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" style="width:600px;max-width:600px;background-color:#FFFFFF;border:1px solid #E8DFD2;border-radius:4px;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding:36px 48px 0;">
+              <span style="display:inline-block;font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1;letter-spacing:0.02em;color:#2C2622;font-style:italic;">Eïa</span>
+            </td>
+          </tr>
+
+          <!-- Confirmed pill -->
+          <tr>
+            <td align="center" style="padding:18px 48px 0;">
+              <span style="display:inline-block;background-color:#7A8F6B;color:#FFFFFF;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;font-weight:500;padding:10px 22px;border-radius:999px;">✓ Confirmée</span>
+            </td>
+          </tr>
+
+          <!-- Title -->
+          <tr>
+            <td align="center" style="padding:24px 48px 0;">
+              <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:400;color:#2C2622;line-height:1.2;letter-spacing:-0.01em;">
+                Une prestation vient d'être <em style="color:#C96A43;">acceptée</em>.
+              </h1>
+              <p style="margin:14px auto 0;max-width:420px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.7;color:#8C827B;">
+                Un thérapeute a pris en charge la réservation. Voici le récapitulatif.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Booking ref bar -->
+          <tr>
+            <td style="padding:28px 48px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#EAF1E4;border:1px solid #CFDFC3;border-radius:4px;">
+                <tr>
+                  <td style="padding:18px 24px;font-family:Georgia,'Times New Roman',serif;font-size:22px;color:#3F5A2E;font-weight:500;">
+                    #{{{booking_number}}}
+                  </td>
+                  <td align="right" style="padding:18px 24px;font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#3F5A2E;letter-spacing:0.06em;">
+                    {{{booking_date}}} · {{{booking_time}}}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Details -->
+          <tr>
+            <td style="padding:20px 48px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td width="38%" style="padding:14px 0;border-bottom:1px solid #EFE7DA;vertical-align:top;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#8C827B;">Client</div>
+                  </td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #EFE7DA;">
+                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#2C2622;">{{{client_name}}}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 0;border-bottom:1px solid #EFE7DA;vertical-align:top;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#8C827B;">Téléphone</div>
+                  </td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #EFE7DA;">
+                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#2C2622;">{{{client_phone}}}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 0;border-bottom:1px solid #EFE7DA;vertical-align:top;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#8C827B;">Hôtel</div>
+                  </td>
+                  <td align="right" style="padding:14px 0;border-bottom:1px solid #EFE7DA;">
+                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#2C2622;">{{{hotel_name}}} · Ch.{{{room_number}}}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:14px 0;vertical-align:top;">
+                    <div style="font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#8C827B;">Thérapeute</div>
+                  </td>
+                  <td align="right" style="padding:14px 0;">
+                    <div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:#2C2622;">{{{therapist_name}}}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Treatment tag -->
+          <tr>
+            <td style="padding:24px 48px 0;">
+              <span style="display:inline-block;background-color:#F8F3EC;border:1px solid #E8DFD2;border-radius:4px;padding:10px 16px;font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#2C2622;font-weight:500;">
+                {{{treatment_name}}} &nbsp;·&nbsp; {{{treatment_price}}} €
+              </span>
+            </td>
+          </tr>
+
+          <!-- Total -->
+          <tr>
+            <td style="padding:16px 48px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F6F1EA;border:1px solid #EFE7DA;border-radius:4px;">
+                <tr>
+                  <td style="padding:18px 24px;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8C827B;">Total</td>
+                  <td align="right" style="padding:18px 24px;font-family:Georgia,'Times New Roman',serif;font-size:26px;color:#2C2622;font-weight:500;">{{{total_price}}} €</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td align="center" style="padding:28px 48px 0;">
+              <a href="{{{booking_url}}}" style="display:inline-block;background-color:#2C2622;color:#FFFFFF;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;font-weight:500;padding:18px 36px;text-decoration:none;border-radius:2px;">Voir les détails de la commande &nbsp;→</a>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 48px 0;">
+              <div style="height:1px;background:#EFE7DA;width:100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Legal -->
+          <tr>
+            <td align="center" style="padding:28px 48px 32px;font-family:Helvetica,Arial,sans-serif;font-size:9px;letter-spacing:0.28em;color:#8C827B;text-transform:uppercase;line-height:1.8;">
+              EÏA SAS · 38 rue de Grenelle, 75007 Paris · SIREN 900 979 592
+            </td>
+          </tr>
+
+        </table>
+
+        <div style="text-align:center;padding:20px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;color:#8C827B;text-transform:uppercase;">
+          Eïa · Awaken Your Senses · <span style="color:#8C827B;">lymfea.fr</span>
+        </div>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

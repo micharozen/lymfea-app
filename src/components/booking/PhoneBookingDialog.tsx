@@ -48,7 +48,6 @@ import {
   type AvailableTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import {
   BOOKING_CLIENT_TYPES,
@@ -128,7 +127,6 @@ export default function PhoneBookingDialog({
     booking_id: number;
     hotel_name: string;
   } | null>(null);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   const { data: hotels } = useQuery({
@@ -216,9 +214,7 @@ export default function PhoneBookingDialog({
         hotel_name: data.hotel_name || "",
       });
       setStep("done");
-      if (clientType === "external") {
-        setIsPaymentLinkDialogOpen(true);
-      } else {
+      if (clientType !== "external") {
         setIsNotificationDialogOpen(true);
       }
     },
@@ -445,11 +441,7 @@ export default function PhoneBookingDialog({
                 totalPrice={totalPrice}
                 currency={selectedHotel?.currency || "EUR"}
                 clientType={clientType}
-                onSendPaymentLink={() =>
-                  clientType === "external"
-                    ? setIsPaymentLinkDialogOpen(true)
-                    : setIsNotificationDialogOpen(true)
-                }
+                onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                 onClose={handleClose}
               />
             )}
@@ -557,38 +549,6 @@ export default function PhoneBookingDialog({
           )}
         </DialogContent>
       </Dialog>
-
-      {createdBooking && (
-        <SendPaymentLinkDialog
-          open={isPaymentLinkDialogOpen}
-          onOpenChange={setIsPaymentLinkDialogOpen}
-          booking={{
-            id: createdBooking.id,
-            booking_id: createdBooking.booking_id,
-            client_first_name: clientFirstName,
-            client_last_name: clientLastName,
-            client_email: clientEmail || undefined,
-            phone: `${countryCode} ${phone}`,
-            room_number: roomNumber || undefined,
-            booking_date: date ? format(date, "yyyy-MM-dd") : "",
-            booking_time: time,
-            total_price: totalPrice,
-            hotel_name: createdBooking.hotel_name,
-            treatments: cartDetails.map((item) => {
-              const tr = item.treatment as { name?: string; price?: number | null } | undefined;
-              return {
-                name: tr?.name || "Service",
-                price: (tr?.price || 0) * item.quantity,
-              };
-            }),
-            currency: selectedHotel?.currency || "EUR",
-          }}
-          onSuccess={() => {
-            setIsPaymentLinkDialogOpen(false);
-            handleClose();
-          }}
-        />
-      )}
 
       {createdBooking && (
         <SendBookingNotificationDialog
