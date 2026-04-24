@@ -14,7 +14,7 @@ export function useBrand(): BrandConfig {
 }
 
 // Logo imports — Vite requires static import paths for SVGs in src/assets/
-import brandLogo from '@/assets/brand-logo.svg';
+import brandLogo from '@/assets/21.png';
 import brandMonogram from '@/assets/brand-monogram.svg';
 import brandMonogramWhite from '@/assets/brand-monogram-white.svg';
 import brandMonogramBlack from '@/assets/brand-monogram-black.svg';

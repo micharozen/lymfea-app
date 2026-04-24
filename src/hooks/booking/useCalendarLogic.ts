@@ -6,7 +6,7 @@ import type { BookingWithTreatments } from "./useBookingData";
 export const CALENDAR_CONSTANTS = {
   START_HOUR: 7,
   END_HOUR: 24,
-  HOUR_HEIGHT: 48,
+  HOUR_HEIGHT: 72,
 } as const;
 
 interface UseCalendarLogicOptions {
