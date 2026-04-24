@@ -121,7 +121,7 @@ serve(async (req) => {
     if (treatmentIds && treatmentIds.length > 0) {
       const { data: treatments, error: treatmentsError } = await supabase
         .from('treatment_menus')
-        .select('lead_time, category')
+        .select('lead_time, treatment_type')
         .in('id', treatmentIds);
 
       if (treatmentsError) {
@@ -129,9 +129,9 @@ serve(async (req) => {
       } else if (treatments && treatments.length > 0) {
         maxTreatmentLeadTime = Math.max(...treatments.map(t => t.lead_time || 0));
         console.log(`Maximum lead_time from selected treatments: ${maxTreatmentLeadTime} minutes`);
-        // Build set of required categories from selected treatments
+        // Build set of required skills (treatment_type matches therapists.skills slugs)
         treatments.forEach((t: any) => {
-          if (t.category) requiredCategories.add(t.category);
+          if (t.treatment_type) requiredCategories.add(t.treatment_type);
         });
       }
     }
