@@ -160,12 +160,6 @@ export function BookingCalendarView({
     return `${format(currentWeekStart, "d MMM", { locale: fr })} - ${format(endDate, "d MMM yyyy", { locale: fr })}`;
   }, [currentWeekStart, dayCount]);
 
-  // Venues for legend (show when 2+ venues)
-  const venuesWithBookings = useMemo(() => {
-    if (!hotels || hotels.length <= 1) return [];
-    return hotels;
-  }, [hotels]);
-
   const gridTemplateColumns = `60px repeat(${dayCount}, 1fr)`;
   const gridTemplateColumnsMd = `80px repeat(${dayCount}, 1fr)`;
 
@@ -207,22 +201,6 @@ export function BookingCalendarView({
         </Popover>
 
       </div>
-
-      {/* Venue legend */}
-      {venuesWithBookings.length > 1 && (
-        <div className="flex flex-wrap items-center gap-3 mb-1 px-1 flex-shrink-0">
-          <span className="text-xs text-muted-foreground font-medium">Lieux :</span>
-          {venuesWithBookings.map((hotel) => (
-            <div key={hotel.id} className="flex items-center gap-1.5">
-              <div
-                className="w-3 h-3 rounded-sm flex-shrink-0"
-                style={{ backgroundColor: hotel.calendar_color || '#3b82f6' }}
-              />
-              <span className="text-xs text-muted-foreground">{hotel.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Calendar grid */}
       <div className="w-full -mx-2 md:mx-0 px-2 md:px-0 flex-1 flex flex-col min-h-0">
@@ -634,10 +612,20 @@ function BookingCard({
           }}
         >
           <div className="p-1 h-full flex flex-col relative">
-            {/* Top row: time + therapist badge */}
-            <div className="flex items-start justify-between gap-0.5">
-              <div className="font-bold text-[11px] leading-tight">
-                {booking.booking_time?.substring(0, 5)}
+            {/* Top row: time (+ inline client on short cards) + therapist badge */}
+            <div className="flex items-start justify-between gap-1">
+              <div className="flex items-baseline gap-1 min-w-0 flex-1">
+                <span className="font-bold text-[11px] leading-tight flex-shrink-0">
+                  {booking.booking_time?.substring(0, 5)}
+                </span>
+                {height < 44 && (booking.client_first_name || booking.client_last_name) && (
+                  <span
+                    className="truncate text-[9px] opacity-90 font-medium leading-tight min-w-0"
+                    title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
+                  >
+                    {booking.client_first_name} {booking.client_last_name}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 {/* Out-of-hours indicator */}
@@ -677,15 +665,27 @@ function BookingCard({
                 )}
               </div>
             </div>
-            {/* Client name (if card is tall enough) */}
-            {height >= 32 && (
-              <div className="truncate text-[8px] opacity-80 font-medium">
+            {/* Client name on its own line when card is tall enough */}
+            {height >= 44 && (
+              <div
+                className="truncate text-[9px] opacity-90 font-medium leading-tight"
+                title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
+              >
                 {booking.client_first_name} {booking.client_last_name}
               </div>
             )}
-            {/* Duration (if card is tall enough) */}
-            {height >= 48 && (
-              <div className="text-[7px] opacity-60">{durationFormatted}</div>
+            {/* Treatments */}
+            {height >= 58 && treatments.length > 0 && (
+              <div
+                className="truncate text-[8px] opacity-70 leading-tight"
+                title={treatments.map((t) => t.name).join(", ")}
+              >
+                {treatments.map((t) => t.name).join(", ")}
+              </div>
+            )}
+            {/* Duration */}
+            {height >= 72 && (
+              <div className="text-[7px] opacity-60 mt-auto">{durationFormatted}</div>
             )}
           </div>
         </div>

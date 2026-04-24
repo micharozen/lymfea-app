@@ -98,6 +98,7 @@
     "dayRestricted": "Indisponible",
     "pickDate": "Calendrier",
     "continue": "CONTINUER",
+    "outOfHoursHint": "Majoration hors horaires +{{percent}}%",
     "morning": "Matin",
     "afternoon": "Après-midi",
     "evening": "Soir",
@@ -162,6 +163,9 @@
     "headline": "Finalisez votre réservation",
     "stepLabel": "ÉTAPE 3 SUR 3",
     "orderSummary": "Récapitulatif",
+    "outOfHoursSurcharge": "Majoration hors horaires",
+    "cancellationPolicyTitle": "Politique d'annulation et modification :",
+    "cancellationPolicyText": "Pour toute annulation effectuée moins de 24 heures avant, 100% du soin sera facturé. Les modifications de rendez-vous dans ce délai seront possibles sous réserve de disponibilité.",
     "paymentMethod": "Mode de paiement",
     "addToRoom": "Ajouter à la chambre",
     "addToRoomDesc": "Ajouté à votre note de chambre",
@@ -201,6 +205,10 @@
   "confirmation": {
     "title": "Réservation confirmée",
     "message": "Vous recevrez un email de confirmation avec tous les détails de votre réservation",
+    "pendingTitle": "Demande de réservation envoyée",
+    "pendingMessage": "Votre demande a été transmise à l'établissement. Vous recevrez un email de confirmation dès qu'elle sera acceptée.",
+    "roomChargeTitle": "Facturé sur votre chambre",
+    "roomChargeMessage": "Le montant sera ajouté à la note de votre chambre. Aucun règlement n'est à effectuer sur place.",
     "backHome": "Retour à l'accueil",
     "quotePendingTitle": "Demande de devis envoyée",
     "quotePendingMessage": "Nous vous enverrons un devis très rapidement. Vous recevrez un email avec tous les détails.",
@@ -216,7 +224,22 @@
     "onSitePaymentTitle": "Règlement sur place",
     "onSitePaymentMessage": "Votre empreinte bancaire a bien été validée pour garantir le rendez-vous. <strong>Aucun montant n'a été débité aujourd'hui.</strong> Le paiement s'effectuera à la fin de votre soin.",
     "paidOnlineTitle": "Paiement reçu",
-    "paidOnlineMessage": "Votre paiement a bien été enregistré. Aucun règlement supplémentaire ne sera demandé le jour de votre soin."
+    "paidOnlineMessage": "Votre paiement a bien été enregistré. Aucun règlement supplémentaire ne sera demandé le jour de votre soin.",
+    "eyebrowPending": "Demande reçue",
+    "eyebrowConfirmed": "Réservation confirmée",
+    "thanks": "Merci, {{name}}.",
+    "thanksAnonymous": "Merci.",
+    "pendingPill": "En attente de confirmation",
+    "confirmedPill": "Confirmée",
+    "yourRequest": "Votre demande",
+    "date": "Date",
+    "treatment": "Soin",
+    "nextSteps": "Et maintenant ?",
+    "step1": "Un thérapeute disponible examine votre demande.",
+    "step2": "Dès qu'elle est acceptée, vous recevez un email de confirmation avec tous les détails.",
+    "step3": "Cela prend en général quelques minutes.",
+    "legal": "EÏA SAS · 38 rue de Grenelle, 75007 Paris · SIREN 900 979 592",
+    "tagline": "Eïa · Awaken Your Senses · lymfea.fr"
   },
   "paymentConfirmation": {
     "label": "Confirmation de paiement",
@@ -317,7 +340,9 @@
   "errors": {
     "slotTaken": "Ce créneau vient d'être réservé par un autre client. Veuillez choisir un autre horaire.",
     "blockedSlot": "Ce créneau chevauche une plage horaire indisponible (ex: pause déjeuner).",
-    "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire."
+    "leadTimeViolation": "Ce créneau n'est plus disponible en raison du délai de réservation requis. Veuillez choisir un autre horaire.",
+    "leadTimeViolationHours": "Les réservations doivent être effectuées au moins {{hours}}h à l'avance. Veuillez choisir un autre horaire.",
+    "leadTimeViolationMinutes": "Les réservations doivent être effectuées au moins {{minutes}} minutes à l'avance. Veuillez choisir un autre horaire."
   },
 
   "bundle": {
@@ -502,8 +527,16 @@
       "subtitle": "Ces soins peuvent s'enchaîner directement après votre sélection.",
       "checking": "Vérification des disponibilités…",
       "none": "Aucun add-on disponible pour ce créneau.",
-      "skip": "Passer",
-      "confirm": "Ajouter"
+      "skip": "Non merci",
+      "confirm": "Ajouter",
+      "confirmEmpty": "Choisir un soin",
+      "confirmWithTotal": "Ajouter · +{{total}}",
+      "badge": "Prolongez votre parenthèse",
+      "titleRich": "Votre soin se termine à {{end}}",
+      "subtitleRich": "Ajoutez un soin qui s'enchaîne immédiatement — sans reprendre rendez-vous.",
+      "selectedCount": "{{count}} soin sélectionné",
+      "selectedCountPlural": "{{count}} soins sélectionnés",
+      "extraDuration": "+{{min}} min au total"
     }
   }
 }

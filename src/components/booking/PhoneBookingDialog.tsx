@@ -35,6 +35,7 @@ import {
   Send,
   Sparkles,
   UserCheck,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +48,12 @@ import {
   type AvailableTherapist,
 } from "@/hooks/booking/useAvailableTherapistsForSlot";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
+import {
+  BOOKING_CLIENT_TYPES,
+  CLIENT_TYPE_META,
+  type BookingClientType,
+} from "@/lib/clientTypeMeta";
 import {
   Popover,
   PopoverContent,
@@ -114,13 +120,14 @@ export default function PhoneBookingDialog({
   const [phone, setPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [clientType, setClientType] = useState<BookingClientType>("external");
 
   const [createdBooking, setCreatedBooking] = useState<{
     id: string;
     booking_id: number;
     hotel_name: string;
   } | null>(null);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
 
   const { data: hotels } = useQuery({
     queryKey: ["phone-booking-hotels"],
@@ -207,7 +214,9 @@ export default function PhoneBookingDialog({
         hotel_name: data.hotel_name || "",
       });
       setStep("done");
-      setIsPaymentLinkDialogOpen(true);
+      if (clientType !== "external") {
+        setIsNotificationDialogOpen(true);
+      }
     },
   });
 
@@ -217,11 +226,13 @@ export default function PhoneBookingDialog({
     setDate(undefined);
     setTime("");
     setTherapistId("");
+    setTherapistChoiceMade(false);
     setClientFirstName("");
     setClientLastName("");
     setPhone("");
     setClientEmail("");
     setRoomNumber("");
+    setClientType("external");
     setCart([]);
     setCreatedBooking(null);
   };
@@ -231,11 +242,13 @@ export default function PhoneBookingDialog({
     onOpenChange(false);
   };
 
+  const [therapistChoiceMade, setTherapistChoiceMade] = useState(false);
+
   const canSubmit =
     !!hotelId &&
     !!date &&
     !!time &&
-    !!therapistId &&
+    therapistChoiceMade &&
     cart.length > 0 &&
     clientFirstName.trim().length > 0 &&
     clientLastName.trim().length > 0 &&
@@ -251,6 +264,7 @@ export default function PhoneBookingDialog({
       phone: phone.trim(),
       countryCode,
       roomNumber: roomNumber.trim(),
+      clientType,
       clientNote: "",
       date: format(date, "yyyy-MM-dd"),
       time,
@@ -284,16 +298,32 @@ export default function PhoneBookingDialog({
               {t("phoneBooking.title")}
             </DialogTitle>
             {step !== "done" && (
-              <div className="flex items-center gap-1.5 pt-2">
-                {STEPS.map((s, i) => (
-                  <div
-                    key={s.key}
-                    className={cn(
-                      "h-1 flex-1 rounded-full transition-colors",
-                      i <= stepIndex ? "bg-primary" : "bg-muted",
-                    )}
-                  />
-                ))}
+              <div className="pt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  {STEPS.map((s, i) => (
+                    <div
+                      key={s.key}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-colors",
+                        i <= stepIndex ? "bg-primary" : "bg-muted",
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-medium">
+                  {STEPS.map((s, i) => (
+                    <span
+                      key={s.key}
+                      className={cn(
+                        "flex-1 truncate",
+                        i === 0 ? "text-left" : i === STEPS.length - 1 ? "text-right" : "text-center",
+                        i === stepIndex ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {t(s.labelKey)}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </DialogHeader>
@@ -308,6 +338,7 @@ export default function PhoneBookingDialog({
                   setHotelId(id);
                   setCart([]);
                   setTherapistId("");
+                  setTherapistChoiceMade(false);
                 }}
                 isConcierge={isConcierge}
                 treatments={treatments || []}
@@ -350,6 +381,15 @@ export default function PhoneBookingDialog({
                 isLoading={isTherapistsLoading}
                 therapistId={therapistId}
                 setTherapistId={setTherapistId}
+                broadcast={therapistChoiceMade && !therapistId}
+                onPickBroadcast={() => {
+                  setTherapistId("");
+                  setTherapistChoiceMade(true);
+                }}
+                onPickTherapist={(id) => {
+                  setTherapistId(id);
+                  setTherapistChoiceMade(true);
+                }}
               />
             )}
 
@@ -368,6 +408,8 @@ export default function PhoneBookingDialog({
                 setClientEmail={setClientEmail}
                 roomNumber={roomNumber}
                 setRoomNumber={setRoomNumber}
+                clientType={clientType}
+                setClientType={setClientType}
               />
             )}
 
@@ -398,7 +440,8 @@ export default function PhoneBookingDialog({
                 clientLastName={clientLastName}
                 totalPrice={totalPrice}
                 currency={selectedHotel?.currency || "EUR"}
-                onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                clientType={clientType}
+                onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                 onClose={handleClose}
               />
             )}
@@ -451,7 +494,7 @@ export default function PhoneBookingDialog({
                       }
                       setStep("therapist");
                     } else if (step === "therapist") {
-                      if (!therapistId) {
+                      if (!therapistChoiceMade) {
                         toast({
                           title: t("phoneBooking.errors.selectTherapist"),
                           variant: "destructive",
@@ -467,6 +510,13 @@ export default function PhoneBookingDialog({
                       ) {
                         toast({
                           title: t("phoneBooking.errors.fillClient"),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      if (clientType === "hotel" && !roomNumber.trim()) {
+                        toast({
+                          title: t("phoneBooking.errors.roomRequired"),
                           variant: "destructive",
                         });
                         return;
@@ -490,7 +540,9 @@ export default function PhoneBookingDialog({
                   ) : (
                     <Check className="h-4 w-4 mr-2" />
                   )}
-                  {t("phoneBooking.confirm.createAndSend")}
+                  {clientType === "external"
+                    ? t("phoneBooking.confirm.createAndSend")
+                    : t("phoneBooking.confirm.createAndNotify")}
                 </Button>
               )}
             </div>
@@ -499,9 +551,9 @@ export default function PhoneBookingDialog({
       </Dialog>
 
       {createdBooking && (
-        <SendPaymentLinkDialog
-          open={isPaymentLinkDialogOpen}
-          onOpenChange={setIsPaymentLinkDialogOpen}
+        <SendBookingNotificationDialog
+          open={isNotificationDialogOpen}
+          onOpenChange={setIsNotificationDialogOpen}
           booking={{
             id: createdBooking.id,
             booking_id: createdBooking.booking_id,
@@ -524,7 +576,7 @@ export default function PhoneBookingDialog({
             currency: selectedHotel?.currency || "EUR",
           }}
           onSuccess={() => {
-            setIsPaymentLinkDialogOpen(false);
+            setIsNotificationDialogOpen(false);
             handleClose();
           }}
         />
@@ -782,6 +834,15 @@ interface TherapistStepProps {
   isLoading: boolean;
   therapistId: string;
   setTherapistId: (id: string) => void;
+  broadcast: boolean;
+  onPickBroadcast: () => void;
+  onPickTherapist: (id: string) => void;
+}
+
+function genderLabel(gender: string | null | undefined): string | null {
+  if (gender === "female") return "F";
+  if (gender === "male") return "H";
+  return null;
 }
 
 function TherapistStep({
@@ -789,7 +850,9 @@ function TherapistStep({
   therapists,
   isLoading,
   therapistId,
-  setTherapistId,
+  broadcast,
+  onPickBroadcast,
+  onPickTherapist,
 }: TherapistStepProps) {
   if (isLoading) {
     return (
@@ -799,58 +862,83 @@ function TherapistStep({
       </div>
     );
   }
-  if (therapists.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        {t("phoneBooking.therapist.empty")}
-      </div>
-    );
-  }
   return (
     <div className="space-y-2">
       <Label className="block mb-1">{t("phoneBooking.therapist.label")}</Label>
       <ScrollArea className="h-[360px] pr-2">
         <div className="space-y-2">
-          {therapists.map((th) => {
-            const selected = therapistId === th.id;
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => setTherapistId(th.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                  selected
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted",
-                )}
-              >
-                <Avatar className="h-12 w-12">
-                  {th.profile_image && (
-                    <AvatarImage
-                      src={th.profile_image}
-                      alt={`${th.first_name} ${th.last_name}`}
-                    />
+          <button
+            type="button"
+            onClick={onPickBroadcast}
+            className={cn(
+              "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+              broadcast ? "border-primary bg-primary/5" : "hover:bg-muted",
+            )}
+          >
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">
+                {t("phoneBooking.therapist.broadcastTitle")}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {t("phoneBooking.therapist.broadcastDesc")}
+              </p>
+            </div>
+            {broadcast && <Check className="h-4 w-4 text-primary" />}
+          </button>
+
+          {therapists.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              {t("phoneBooking.therapist.empty")}
+            </div>
+          ) : (
+            therapists.map((th) => {
+              const selected = therapistId === th.id;
+              const g = genderLabel(th.gender);
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => onPickTherapist(th.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                    selected ? "border-primary bg-primary/5" : "hover:bg-muted",
                   )}
-                  <AvatarFallback>
-                    {getInitials(th.first_name, th.last_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {th.first_name} {th.last_name}
-                  </p>
-                  {th.skills && th.skills.length > 0 && (
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {th.skills.slice(0, 3).join(" · ")}
+                >
+                  <Avatar className="h-12 w-12">
+                    {th.profile_image && (
+                      <AvatarImage
+                        src={th.profile_image}
+                        alt={`${th.first_name} ${th.last_name}`}
+                      />
+                    )}
+                    <AvatarFallback>
+                      {getInitials(th.first_name, th.last_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                      <span className="truncate">{th.first_name} {th.last_name}</span>
+                      {g && (
+                        <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                          {g}
+                        </span>
+                      )}
                     </p>
-                  )}
-                </div>
-                {selected && <Check className="h-4 w-4 text-primary" />}
-              </button>
-            );
-          })}
+                    {th.skills && th.skills.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {th.skills.slice(0, 3).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  {selected && <Check className="h-4 w-4 text-primary" />}
+                </button>
+              );
+            })
+          )}
         </div>
       </ScrollArea>
     </div>
@@ -955,6 +1043,8 @@ interface ClientStepProps {
   setClientEmail: (v: string) => void;
   roomNumber: string;
   setRoomNumber: (v: string) => void;
+  clientType: BookingClientType;
+  setClientType: (v: BookingClientType) => void;
 }
 
 interface CustomerResult {
@@ -979,6 +1069,8 @@ function ClientStep({
   setClientEmail,
   roomNumber,
   setRoomNumber,
+  clientType,
+  setClientType,
 }: ClientStepProps) {
   const [search, setSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -1128,15 +1220,51 @@ function ClientStep({
         />
       </div>
       <div>
+        <Label>{t("phoneBooking.client.clientType")}</Label>
+        <Select value={clientType} onValueChange={(v) => setClientType(v as BookingClientType)}>
+          <SelectTrigger className="mt-1">
+            <SelectValue>
+              <span className="flex items-center gap-2">
+                <img
+                  src={CLIENT_TYPE_META[clientType].logo}
+                  alt=""
+                  className="w-4 h-4 shrink-0"
+                />
+                <span>{t(CLIENT_TYPE_META[clientType].labelKey)}</span>
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {BOOKING_CLIENT_TYPES.map((ct) => (
+              <SelectItem key={ct} value={ct}>
+                <span className="flex items-center gap-2">
+                  <img
+                    src={CLIENT_TYPE_META[ct].logo}
+                    alt=""
+                    className="w-4 h-4 shrink-0"
+                  />
+                  <span>{t(CLIENT_TYPE_META[ct].labelKey)}</span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
         <Label>
           {t("phoneBooking.client.room")}{" "}
-          <span className="text-muted-foreground text-xs">
-            ({t("phoneBooking.ui.optional")})
-          </span>
+          {clientType === "hotel" ? (
+            <span className="text-primary">*</span>
+          ) : (
+            <span className="text-muted-foreground text-xs">
+              ({t("phoneBooking.ui.optional")})
+            </span>
+          )}
         </Label>
         <Input
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
+          required={clientType === "hotel"}
         />
       </div>
     </div>
@@ -1250,6 +1378,7 @@ interface DoneStepProps {
   clientLastName: string;
   totalPrice: number;
   currency: string;
+  clientType: BookingClientType;
   onSendPaymentLink: () => void;
   onClose: () => void;
 }
@@ -1261,6 +1390,7 @@ function DoneStep({
   clientLastName,
   totalPrice,
   currency,
+  clientType,
   onSendPaymentLink,
   onClose,
 }: DoneStepProps) {
@@ -1285,7 +1415,9 @@ function DoneStep({
           className="bg-foreground text-background hover:bg-foreground/90"
         >
           <Send className="h-4 w-4 mr-2" />
-          {t("phoneBooking.done.sendLink")}
+          {clientType === "external"
+            ? t("phoneBooking.done.sendLink")
+            : t("phoneBooking.done.sendNotification")}
         </Button>
         <Button type="button" variant="outline" onClick={onClose}>
           {t("phoneBooking.ui.close")}

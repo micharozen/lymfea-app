@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import TimePeriodSelector from '@/components/client/TimePeriodSelector';
 import { ClientSpinner } from '@/components/client/ClientSpinner';
 import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
+import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
 import { Calendar } from '@/components/ui/calendar';
@@ -80,6 +81,35 @@ export function SchedulePanel({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isAddonDrawerOpen, setIsAddonDrawerOpen] = useState(false);
   const [pendingContinueTime, setPendingContinueTime] = useState<string | null>(null);
+  const [addonCheckArmed, setAddonCheckArmed] = useState(false);
+
+  const baseItems = useMemo(
+    () => items.filter((i) => !i.isAddon && !i.isBundle),
+    [items],
+  );
+
+  const totalBaseDuration = useMemo(
+    () => baseItems.reduce((sum, i) => sum + (i.duration || 0) * (i.quantity || 1), 0),
+    [baseItems],
+  );
+
+  const formatBaseEndTime = (time: string): string => {
+    if (!time) return '';
+    const [h, m] = time.split(':').map(Number);
+    const total = (h || 0) * 60 + (m || 0) + totalBaseDuration;
+    const eh = Math.floor(total / 60);
+    const em = total % 60;
+    return `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`;
+  };
+
+  const { feasibleAddons, isChecking: isCheckingAddons, isReady: addonsReady } =
+    useFeasibleAddons({
+      hotelId,
+      date: selectedDate,
+      time: pendingContinueTime ?? '',
+      baseItems,
+      enabled: addonCheckArmed && !!pendingContinueTime,
+    });
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -111,10 +141,10 @@ export function SchedulePanel({
       if (error) throw error;
       const hotel = data?.[0];
 
-      const openingMinutes = hotel?.opening_time
+      const baseOpeningMinutes = hotel?.opening_time
         ? parseInt(hotel.opening_time.split(':')[0], 10) * 60 + parseInt(hotel.opening_time.split(':')[1] || '0', 10)
         : 10 * 60;
-      const closingMinutes = hotel?.closing_time
+      const baseClosingMinutes = hotel?.closing_time
         ? parseInt(hotel.closing_time.split(':')[0], 10) * 60 + parseInt(hotel.closing_time.split(':')[1] || '0', 10)
         : 20 * 60;
 
@@ -127,7 +157,25 @@ export function SchedulePanel({
       const holdEnabled = (hotel as { booking_hold_enabled?: boolean } | undefined)?.booking_hold_enabled ?? true;
       const holdDurationMinutes = (hotel as { booking_hold_duration_minutes?: number } | undefined)?.booking_hold_duration_minutes ?? 5;
 
-      return { openingMinutes, closingMinutes, maxDaysAhead, slotInterval, holdEnabled, holdDurationMinutes };
+      const allowOutOfHours = !!(hotel as { allow_out_of_hours_booking?: boolean } | undefined)?.allow_out_of_hours_booking;
+      const surchargePercent = Number((hotel as { out_of_hours_surcharge_percent?: number | string } | undefined)?.out_of_hours_surcharge_percent ?? 0) || 0;
+
+      // Widen generation window by ±2h when out-of-hours bookings are allowed
+      const openingMinutes = allowOutOfHours ? Math.max(0, baseOpeningMinutes - 120) : baseOpeningMinutes;
+      const closingMinutes = allowOutOfHours ? Math.min(24 * 60, baseClosingMinutes + 120) : baseClosingMinutes;
+
+      return {
+        openingMinutes,
+        closingMinutes,
+        baseOpeningMinutes,
+        baseClosingMinutes,
+        allowOutOfHours,
+        surchargePercent,
+        maxDaysAhead,
+        slotInterval,
+        holdEnabled,
+        holdDurationMinutes,
+      };
     },
     enabled: !!hotelId,
     staleTime: 30 * 60 * 1000,
@@ -262,10 +310,16 @@ export function SchedulePanel({
         timeLabel = `${hour12}:${minuteStr}${period}`;
       }
 
+      const slotMinutes = hour * 60 + minute;
+      const baseOpen = venueData?.baseOpeningMinutes ?? openingMinutes;
+      const baseClose = venueData?.baseClosingMinutes ?? closingMinutes;
+      const slotIsOutOfHours = !!venueData?.allowOutOfHours && (slotMinutes < baseOpen || slotMinutes >= baseClose);
+
       slots.push({
         value: time24,
         label: timeLabel,
         hour,
+        isOutOfHours: slotIsOutOfHours,
       });
     }
     return slots;
@@ -373,15 +427,27 @@ export function SchedulePanel({
     }
   };
 
-  const baseItemsHaveAddons = items.some((i) => !i.isAddon && !i.isBundle);
-
   const proceedAfterAddons = (time: string) => {
     setIsAddonDrawerOpen(false);
+    setAddonCheckArmed(false);
     setUrlDateTime(selectedDate, time);
     setTimeout(async () => {
       await executeHoldAndContinue(selectedDate, time);
     }, 300);
   };
+
+  // When the addon-feasibility check resolves, either show the drawer (if
+  // anything is actually bookable) or continue straight through. This keeps the
+  // drawer from flashing on "no availability".
+  useEffect(() => {
+    if (!addonCheckArmed || !addonsReady || !pendingContinueTime) return;
+    if (feasibleAddons.length > 0) {
+      setIsAddonDrawerOpen(true);
+    } else {
+      proceedAfterAddons(pendingContinueTime);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonCheckArmed, addonsReady, feasibleAddons.length, pendingContinueTime]);
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
@@ -409,16 +475,17 @@ export function SchedulePanel({
       return;
     }
 
-    if (baseItemsHaveAddons) {
+    if (baseItems.length > 0) {
       setPendingContinueTime(selectedTime);
-      setIsAddonDrawerOpen(true);
+      setAddonCheckArmed(true);
+      // Drawer (or fallthrough) is handled by the effect watching addonsReady.
       return;
     }
 
     executeHoldAndContinue(selectedDate, selectedTime);
   };
 
-  const isBusy = loadingAvailability || isHolding;
+  const isBusy = loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
 
   return (
     <div className={cn(
@@ -657,6 +724,7 @@ export function SchedulePanel({
             selectedTime={selectedTime}
             onSelectTime={handleTimeSelect}
             allTimeSlots={timeSlots}
+            surchargePercent={venueData?.surchargePercent ?? 0}
           />
         )}
       </div>
@@ -715,11 +783,13 @@ export function SchedulePanel({
         open={isAddonDrawerOpen}
         onOpenChange={(open) => {
           setIsAddonDrawerOpen(open);
-          if (!open) setPendingContinueTime(null);
+          if (!open) {
+            setPendingContinueTime(null);
+            setAddonCheckArmed(false);
+          }
         }}
-        hotelId={hotelId}
-        date={selectedDate}
-        time={pendingContinueTime ?? selectedTime}
+        feasibleAddons={feasibleAddons}
+        baseEndTime={formatBaseEndTime(pendingContinueTime ?? selectedTime)}
         onContinue={() => {
           if (pendingContinueTime) {
             proceedAfterAddons(pendingContinueTime);

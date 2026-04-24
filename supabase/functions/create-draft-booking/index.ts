@@ -42,28 +42,30 @@ serve(async (req: Request) => {
     let totalPrice = 0;
     let totalDuration = 0;
 
+    const variantIds = treatments
+      .filter((t: any) => t.variantId)
+      .map((t: any) => t.variantId);
+    const menuIds = treatments
+      .filter((t: any) => !t.variantId)
+      .map((t: any) => t.id);
+
+    const [variantsRes, menusRes] = await Promise.all([
+      variantIds.length
+        ? supabase.from('treatment_variants').select('id, price, duration').in('id', variantIds)
+        : Promise.resolve({ data: [] as any[] }),
+      menuIds.length
+        ? supabase.from('treatment_menus').select('id, price, duration').in('id', menuIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const variantMap = new Map((variantsRes.data ?? []).map((v: any) => [v.id, v]));
+    const menuMap = new Map((menusRes.data ?? []).map((m: any) => [m.id, m]));
+
     for (const item of treatments) {
-      if (item.variantId) {
-        const { data: variant } = await supabase
-          .from('treatment_variants')
-          .select('price, duration')
-          .eq('id', item.variantId)
-          .single();
-        if (variant) {
-          totalPrice += (variant.price || 0) * item.quantity;
-          totalDuration += variant.duration * item.quantity;
-        }
-      } else {
-        const { data: treatment } = await supabase
-          .from('treatment_menus')
-          .select('price, duration')
-          .eq('id', item.id)
-          .single();
-        if (treatment) {
-          totalPrice += (treatment.price || 0) * item.quantity;
-          totalDuration += (treatment.duration || 0) * item.quantity;
-        }
-      }
+      const row: any = item.variantId ? variantMap.get(item.variantId) : menuMap.get(item.id);
+      if (!row) continue;
+      totalPrice += (row.price || 0) * item.quantity;
+      totalDuration += (row.duration || 0) * item.quantity;
     }
 
     const { data: newBookingId, error: rpcError } = await supabase.rpc('reserve_trunk_atomically', {
@@ -95,13 +97,13 @@ serve(async (req: Request) => {
       .update({ hold_expires_at: holdExpiresAt })
       .eq('id', newBookingId);
 
-    for (const item of treatments) {
-      await supabase.from('booking_treatments').insert({
+    await supabase.from('booking_treatments').insert(
+      treatments.map((item: any) => ({
         booking_id: newBookingId,
         treatment_id: item.id,
-        variant_id: item.variantId || null
-      });
-    }
+        variant_id: item.variantId || null,
+      }))
+    );
 
     return new Response(
       JSON.stringify({ success: true, bookingId: newBookingId, holdExpiresAt, holdDurationMinutes: holdMinutes }),

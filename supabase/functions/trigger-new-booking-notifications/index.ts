@@ -1,5 +1,26 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { brand } from "../_shared/brand.ts";
+import { sendEmail } from "../_shared/send-email.ts";
+
+const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794";
+const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR = "3edb6ede-b627-4727-9eaa-f8fdf845975b";
+const EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN = "6ba59c67-04e3-412e-9a84-246aaa7dc570";
+
+function calculateExpirationDate(bookingDate: Date, now: Date): Date {
+  const diffInHours = (bookingDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+  if (diffInHours > 48) return new Date(bookingDate.getTime() - 24 * 60 * 60 * 1000);
+  if (diffInHours > 24) return new Date(bookingDate.getTime() - 6 * 60 * 60 * 1000);
+  if (diffInHours > 6) return new Date(bookingDate.getTime() - 3 * 60 * 60 * 1000);
+  if (diffInHours > 2) {
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    const oneHourBeforeAppt = new Date(bookingDate.getTime() - 1 * 60 * 60 * 1000);
+    return twoHoursLater < oneHourBeforeAppt ? twoHoursLater : oneHourBeforeAppt;
+  }
+  return new Date(now.getTime() + 1 * 60 * 60 * 1000);
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +50,7 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hotel_id, booking_date, booking_time, hotel_name")
+      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type")
       .eq("id", bookingId)
       .single();
 
@@ -123,20 +144,21 @@ serve(async (req) => {
 
     // Build notification body with proposed slots if available
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('fr-FR');
+    const formatTime = (timeStr: string) => (timeStr ?? '').slice(0, 5);
     let notificationBody: string;
 
     const hasMultipleSlots = proposedSlots && (proposedSlots.slot_2_date || proposedSlots.slot_3_date);
 
     if (hasMultipleSlots) {
-      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name}\nCréneau 1: ${formatDate(proposedSlots.slot_1_date)} à ${proposedSlots.slot_1_time}`;
+      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name}\nCréneau 1: ${formatDate(proposedSlots.slot_1_date)} à ${formatTime(proposedSlots.slot_1_time)}`;
       if (proposedSlots.slot_2_date) {
-        notificationBody += `\nCréneau 2: ${formatDate(proposedSlots.slot_2_date)} à ${proposedSlots.slot_2_time}`;
+        notificationBody += `\nCréneau 2: ${formatDate(proposedSlots.slot_2_date)} à ${formatTime(proposedSlots.slot_2_time)}`;
       }
       if (proposedSlots.slot_3_date) {
-        notificationBody += `\nCréneau 3: ${formatDate(proposedSlots.slot_3_date)} à ${proposedSlots.slot_3_time}`;
+        notificationBody += `\nCréneau 3: ${formatDate(proposedSlots.slot_3_date)} à ${formatTime(proposedSlots.slot_3_time)}`;
       }
     } else {
-      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formatDate(booking.booking_date)} à ${booking.booking_time}`;
+      notificationBody = `Réservation #${booking.booking_id} à ${booking.hotel_name} le ${formatDate(booking.booking_date)} à ${formatTime(booking.booking_time)}`;
     }
 
     // Send push notifications to each therapist (with DB deduplication)
@@ -209,6 +231,224 @@ serve(async (req) => {
     }
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
+
+    // Send confirmation email to the client (Resend template)
+    try {
+      // Prefer customer record (created upstream by find_or_create_customer) over booking columns
+      let customer: { email?: string | null; phone?: string | null; first_name?: string | null; last_name?: string | null } | null = null;
+      if ((booking as any).customer_id) {
+        const { data: customerRow } = await supabaseClient
+          .from('customers')
+          .select('email, phone, first_name, last_name')
+          .eq('id', (booking as any).customer_id)
+          .maybeSingle();
+        customer = customerRow ?? null;
+      }
+
+      // Prefer the email captured on the booking itself (it reflects the
+      // latest value typed by the operator in the FAB, which may override a
+      // stale address on the customer record).
+      const clientEmail = (booking as any).client_email
+        || customer?.email
+        || undefined;
+
+      if (clientEmail) {
+        const { data: bookingTreatments } = await supabaseClient
+          .from('booking_treatments')
+          .select('treatment_id, treatment_menus(name, price, duration)')
+          .eq('booking_id', bookingId);
+
+        const treatmentsForEmail = bookingTreatments?.map(bt => {
+          const menu = bt.treatment_menus as any;
+          return {
+            name: menu?.name || '',
+            price: Number(menu?.price) || 0,
+            duration: Number(menu?.duration) || 0,
+          };
+        }) || [];
+
+        const formattedDate = new Date(booking.booking_date).toLocaleDateString('fr-FR', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        });
+        const formattedTime = booking.booking_time?.substring(0, 5) || '';
+
+        const siteUrl = Deno.env.get('SITE_URL') || `https://${brand.appDomain}`;
+        const clientBookingUrl = `${siteUrl}/booking/manage/${bookingId}`;
+
+        const treatmentName = treatmentsForEmail.map(t => t.name).filter(Boolean).join(', ');
+        const treatmentPrice = treatmentsForEmail.reduce((sum, t) => sum + t.price, 0);
+        const treatmentDuration = treatmentsForEmail.reduce((sum, t) => sum + t.duration, 0);
+
+        const firstName = customer?.first_name ?? booking.client_first_name ?? '';
+        const lastName = customer?.last_name ?? booking.client_last_name ?? '';
+        const clientName = `${firstName} ${lastName}`.trim();
+        const clientPhone = customer?.phone ?? (booking as any).phone ?? (booking as any).client_phone ?? '';
+
+        const isExternal = (booking as any).client_type === 'external';
+        const isPending = booking.status === 'pending';
+
+        if (isExternal) {
+          // External clients: create a Stripe payment link and send the
+          // payment-required email template instead of the standard confirmation.
+          const language: 'fr' | 'en' = ((customer as any)?.language === 'en') ? 'en' : 'fr';
+
+          const { data: hotelRow } = await supabaseClient
+            .from('hotels')
+            .select('currency')
+            .eq('id', booking.hotel_id)
+            .maybeSingle();
+          const currency = ((hotelRow as any)?.currency || 'eur').toLowerCase();
+          const currencySymbol = currency === 'eur' ? '€' : currency.toUpperCase();
+
+          const totalPrice = Number(booking.total_price ?? treatmentPrice) || 0;
+
+          const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+            apiVersion: '2025-08-27.basil',
+          });
+
+          const paymentLink = await stripe.paymentLinks.create({
+            line_items: [{
+              price_data: {
+                currency,
+                product_data: {
+                  name: language === 'fr'
+                    ? `Prestations bien-être ${brand.name}`
+                    : `${brand.name} Wellness Services`,
+                  ...(treatmentName ? { description: treatmentName } : {}),
+                },
+                unit_amount: Math.round(totalPrice * 100),
+              },
+              quantity: 1,
+            }],
+            metadata: {
+              booking_id: booking.id,
+              booking_number: String(booking.booking_id),
+              hotel_id: booking.hotel_id,
+              source: 'payment_link',
+            },
+            after_completion: {
+              type: 'redirect',
+              redirect: {
+                url: `${siteUrl}/client/${booking.hotel_id}/confirmation/${booking.id}?payment=success`,
+              },
+            },
+          });
+
+          const paymentUrl = `${paymentLink.url}?prefilled_email=${encodeURIComponent(clientEmail)}`;
+
+          const now = new Date();
+          const apptDate = new Date(`${booking.booking_date}T${booking.booking_time}`);
+          const expiresAt = calculateExpirationDate(apptDate, now);
+          const expiryLocale = language === 'fr' ? 'fr-FR' : 'en-US';
+          const expiryDateText = `${expiresAt.toLocaleDateString(expiryLocale, {
+            day: 'numeric', month: 'long',
+          })} ${language === 'fr' ? 'à' : 'at'} ${expiresAt.toLocaleTimeString(expiryLocale, {
+            hour: '2-digit', minute: '2-digit',
+          })}`;
+
+          const introText = language === 'fr'
+            ? `Bonjour ${firstName}, merci pour votre réservation. Pour la confirmer, veuillez procéder au paiement.`
+            : `Hello ${firstName}, thank you for your booking. To confirm it, please complete the payment.`;
+
+          const templateVariables: Record<string, string> = {
+            booking_date: formattedDate,
+            booking_number: String(booking.booking_id ?? ''),
+            booking_time: formattedTime,
+            expiry_date: expiryDateText,
+            intro_text: introText,
+            payment_url: paymentUrl,
+            total_price: `${totalPrice}${currencySymbol}`,
+            treatment_duration: `${treatmentDuration} min`,
+            treatment_name: treatmentName,
+            treatment_price: `${treatmentPrice}${currencySymbol}`,
+          };
+
+          const templateId = language === 'fr'
+            ? EXTERNAL_CLIENT_PAYMENT_TEMPLATE_FR
+            : EXTERNAL_CLIENT_PAYMENT_TEMPLATE_EN;
+
+          const subject = language === 'fr'
+            ? `Réservation #${booking.booking_id} · Paiement requis`
+            : `Booking #${booking.booking_id} · Payment required`;
+
+          const clientEmailResult = await sendEmail({
+            to: clientEmail,
+            subject,
+            templateId,
+            templateVariables,
+          });
+
+          if (clientEmailResult.error) {
+            console.error('[trigger-new-booking-notifications] External client email error:', clientEmailResult.error);
+          } else {
+            console.log('[trigger-new-booking-notifications] External client payment email sent:', clientEmailResult.id);
+
+            await supabaseClient
+              .from('bookings')
+              .update({
+                payment_link_url: paymentLink.url,
+                payment_link_sent_at: new Date().toISOString(),
+                payment_link_channels: ['email'],
+                payment_link_language: language,
+              })
+              .eq('id', bookingId);
+
+            await supabaseClient
+              .from('booking_payment_infos')
+              .upsert({
+                booking_id: bookingId,
+                payment_link_stripe_id: paymentLink.id,
+                payment_link_expires_at: expiresAt.toISOString(),
+              }, { onConflict: 'booking_id' });
+          }
+        } else {
+          const templateVariables: Record<string, string> = isPending
+            ? {
+                booking_date: formattedDate,
+                booking_time: formattedTime,
+                first_name: firstName,
+                hotel_name: booking.hotel_name ?? '',
+                room_number: booking.room_number ? String(booking.room_number) : '',
+                treatment_name: treatmentName,
+              }
+            : {
+                booking_date: formattedDate,
+                booking_number: String(booking.booking_id ?? ''),
+                booking_time: formattedTime,
+                booking_url: clientBookingUrl,
+                client_name: clientName,
+                client_phone: clientPhone,
+                hotel_name: booking.hotel_name ?? '',
+                room_number: booking.room_number ? String(booking.room_number) : '',
+                therapist_name: booking.therapist_name ?? '',
+                total_price: `${booking.total_price ?? 0}€`,
+                treatment_name: treatmentName,
+                treatment_price: `${treatmentPrice}€`,
+              };
+
+          const clientEmailResult = await sendEmail({
+            to: clientEmail,
+            subject: isPending
+              ? `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+              : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+            templateId: isPending ? CLIENT_PENDING_BOOKING_TEMPLATE_ID : CLIENT_NEW_BOOKING_TEMPLATE_ID,
+            templateVariables,
+          });
+
+          if (clientEmailResult.error) {
+            console.error('[trigger-new-booking-notifications] Client email error:', clientEmailResult.error);
+          } else {
+            console.log('[trigger-new-booking-notifications] Client email sent:', clientEmailResult.id);
+          }
+        }
+      } else {
+        console.log('[trigger-new-booking-notifications] No email on customer or booking, skipping client email');
+      }
+    } catch (emailError) {
+      console.error('[trigger-new-booking-notifications] Error sending client email:', emailError);
+    }
 
     // Send Slack notification for new booking
     try {

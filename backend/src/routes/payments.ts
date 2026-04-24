@@ -431,14 +431,15 @@ payments.post("/bundle", async (c) => {
 
     // --- Create Stripe Checkout Session (payment mode) ---
     const origin = c.req.header("origin") || "http://localhost:5173";
+    const venueSlug = (hotel as any).slug ?? hotelId;
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
       line_items: lineItems,
-      success_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/payment`,
+      success_url: `${origin}/client/${venueSlug}/confirmation/bundle?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${venueSlug}/payment`,
       metadata: {
         type: 'bundle_purchase',
         hotelId,
@@ -578,18 +579,18 @@ payments.post("/purchase-bundle", async (c) => {
           customerBundleId = data;
         } else {
           // gift_treatments or gift_amount → use create_customer_gift_card
-          const isGift = isGiftMeta === 'true';
+          const isGiftVal = isGiftMeta === 'true';
           const { data, error: createError } = await supabaseAdmin.rpc('create_customer_gift_card', {
             _bundle_id: item.bundleId,
             _purchaser_customer_id: customerId,
             _hotel_id: hotelId,
-            _is_gift: isGift,
-            _gift_delivery_mode: isGift ? (giftDeliveryMode || 'email') : null,
-            _sender_name: isGift ? (senderName || null) : null,
-            _sender_email: isGift ? (senderEmail || null) : null,
-            _recipient_name: isGift ? (recipientName || null) : null,
-            _recipient_email: isGift ? (recipientEmail || null) : null,
-            _gift_message: isGift ? (giftMessage || null) : null,
+            _is_gift: isGiftVal,
+            _gift_delivery_mode: isGiftVal ? (giftDeliveryMode || 'email') : null,
+            _sender_name: isGiftVal ? (senderName || null) : null,
+            _sender_email: isGiftVal ? (senderEmail || null) : null,
+            _recipient_name: isGiftVal ? (recipientName || null) : null,
+            _recipient_email: isGiftVal ? (recipientEmail || null) : null,
+            _gift_message: isGiftVal ? (giftMessage || null) : null,
             _payment_reference: paymentRef,
           });
 
@@ -616,7 +617,7 @@ payments.post("/purchase-bundle", async (c) => {
     const bundleDetailIds = createdBundles.map(b => b.id);
     const { data: bundleDetails } = await supabaseAdmin
       .from('customer_treatment_bundles')
-      .select('id, bundle_id, total_sessions, expires_at, treatment_bundles(name, name_en)')
+      .select('id, bundle_id, total_sessions, total_amount_cents, expires_at, redemption_code, is_gift, gift_delivery_mode, recipient_name, treatment_bundles(name, name_en, bundle_type, amount_cents)')
       .in('id', bundleDetailIds);
 
     // --- Send confirmation email only for cure bundles (not gift cards) ---
@@ -656,7 +657,7 @@ payments.post("/purchase-bundle", async (c) => {
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
         // Build template variables from the first gift bundle
-        const giftBundle = bundleDetails?.find((b: any) => b.is_gift);
+        const giftBundle = bundleDetails?.[0];
         const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
         const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;

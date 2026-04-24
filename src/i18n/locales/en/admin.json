@@ -1,4 +1,42 @@
 {
+  "welcome": {
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Done",
+    "step1": {
+      "title": "Welcome to Eïa",
+      "body": "Eïa brings your bookings, therapist scheduling and billing into a single workspace. This quick guide walks you through the key areas of the app."
+    },
+    "step2": {
+      "title": "Three essential areas",
+      "agenda": {
+        "title": "Schedule",
+        "body": "Calendar view by venue, room and therapist. Create and move bookings."
+      },
+      "therapists": {
+        "title": "Therapists & treatments",
+        "body": "Add your team, their specializations and their availability."
+      },
+      "finance": {
+        "title": "Finance",
+        "body": "Track your revenue, therapist commissions and payouts."
+      },
+      "switcher": {
+        "title": "Tip: Venue Management mode",
+        "body": "From the sidebar, switch to a venue manager perspective with one click."
+      }
+    },
+    "step3": {
+      "title": "Your feedback matters",
+      "body": "You're testing Eïa: tell us everything. Your input shapes the roadmap.",
+      "feedback": "Share feedback (5 min)",
+      "calendly": "Book a 20-min call",
+      "trySwitcher": "Try Venue Management mode",
+      "pickVenue": "Pick a venue:"
+    },
+    "reopen": "Replay the welcome guide"
+  },
   "sidebar": {
     "home": "Home",
     "settings": "Settings & Access",
@@ -8,7 +46,7 @@
     "hotels": "Venues",
     "treatments": "Treatment Menus",
     "boxes": "Boxes",
-    "concierges": "Venue Team",
+    "concierges": "Venue Management",
     "customers": "Customers",
     "products": "{{brandName}} Products",
     "orders": "Orders",
@@ -273,7 +311,7 @@
     "hotel": "Hotel"
   },
   "concierges": {
-    "title": "Venue Team",
+    "title": "Venue Management",
     "add": "Add team member",
     "edit": "Edit team member",
     "noConcierges": "No team members",
@@ -344,6 +382,8 @@
     "interVenueBufferDesc": "Buffer added before and after each booking when the therapist comes from another venue. 0 = no buffer.",
     "roomTurnoverBuffer": "Room turnover buffer",
     "roomTurnoverBufferDesc": "Time added after each treatment for room cleanup. Blocks the room and therapist. 0 = no buffer.",
+    "minBookingNotice": "Minimum booking notice",
+    "minBookingNoticeDesc": "Minimum delay between now and any bookable slot (e.g. 2h, 4h, 24h). Slots that are too soon are hidden from the client. 0 = no delay.",
     "bookingRules": {
       "tabLabel": "Booking rules",
       "holdSectionTitle": "Slot hold",
@@ -830,7 +870,9 @@
     "therapist": {
       "label": "Available therapists",
       "loading": "Looking for available therapists...",
-      "empty": "No therapist available for this slot"
+      "empty": "No therapist available for this slot",
+      "broadcastTitle": "Don't select (broadcast)",
+      "broadcastDesc": "Offer the slot to all available therapists"
     },
     "client": {
       "firstName": "First name",
@@ -843,7 +885,8 @@
       "existingClient": "Existing client — fields pre-filled",
       "email": "Email",
       "emailHint": "needed for the payment link",
-      "room": "Room number"
+      "room": "Room number",
+      "clientType": "Client type"
     },
     "confirm": {
       "venue": "Venue",
@@ -852,18 +895,21 @@
       "treatments": "Services",
       "total": "Total",
       "client": "Client",
-      "createAndSend": "Create and send link"
+      "createAndSend": "Create and send link",
+      "createAndNotify": "Create and send confirmation"
     },
     "done": {
       "title": "Booking created",
-      "sendLink": "Send payment link"
+      "sendLink": "Send payment link",
+      "sendNotification": "Send confirmation"
     },
     "errors": {
       "selectVenue": "Select a venue",
       "selectTreatment": "Select at least one service",
       "selectSlot": "Select a date and time",
       "selectTherapist": "Select a therapist",
-      "fillClient": "Fill in client information"
+      "fillClient": "Fill in client information",
+      "roomRequired": "Room number required for hotel clients"
     }
   }
 }

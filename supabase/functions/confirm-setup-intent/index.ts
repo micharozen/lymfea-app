@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { stripe } from "../_shared/stripe-client.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { computeOutOfHoursSurcharge } from '../_shared/surcharge.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,10 +40,18 @@ serve(async (req) => {
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
+    const basePrice = (treatments || []).reduce((sum, t) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
-    
-    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+
+    const { data: hotel } = await supabaseAdmin
+      .from('hotels')
+      .select('name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .eq('id', meta.hotelId)
+      .maybeSingle();
+
+    // Recalcul serveur de la majoration hors horaires
+    const surcharge = computeOutOfHoursSurcharge(meta.bookingTime || '', basePrice, hotel || {});
+    const verifiedPrice = surcharge.totalWithSurcharge;
 
     // 🌟 CORRECTION CRUCIALE : GESTION DU CLIENT STRIPE 🌟
     // On récupère le client Stripe de la session et on le lie dans notre table Supabase 'customers'
@@ -141,6 +150,14 @@ serve(async (req) => {
         if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
         bookingId = meta.draftBookingId;
         console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+
+        await supabaseAdmin
+          .from('bookings')
+          .update({
+            is_out_of_hours: surcharge.isOutOfHours,
+            surcharge_amount: surcharge.surchargeAmount,
+          })
+          .eq('id', bookingId);
       }
     } else {
       // No hold — standard atomic reserve
@@ -173,7 +190,14 @@ serve(async (req) => {
       if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
 
       bookingId = newBookingId;
-      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
     }
 
     if (!bookingId) {

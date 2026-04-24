@@ -21,7 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
+import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
 import { formatPrice } from "@/lib/formatPrice";
@@ -94,7 +94,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
+  const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
 
@@ -149,6 +149,21 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
+
+  // Intersection of `available_days` for every cart item. A treatment with
+  // `available_days = null` is unconstrained and doesn't shrink the set.
+  // When the set is non-null, BookingInfoStep draws those weekdays as
+  // struck-through / clickable (with a warning toast).
+  const cartAvailableDays = useMemo<number[] | null>(() => {
+    if (!cartDetails.length) return null;
+    const sets = cartDetails
+      .map((i) => (i.treatment as { available_days?: number[] | null } | undefined)?.available_days)
+      .filter((days): days is number[] => Array.isArray(days) && days.length > 0);
+    if (sets.length === 0) return null;
+    return sets.reduce<number[]>((acc, days) =>
+      acc.length === 0 ? [...days] : acc.filter((d) => days.includes(d)),
+    []);
+  }, [cartDetails]);
 
   // Venue amenities for "include amenity access" option
   const { amenities: venueAmenities } = useVenueAmenities(hotelId || "");
@@ -206,7 +221,17 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           booking_id: data.booking_id,
           hotel_name: data.hotel_name || '',
         });
-        setActiveTab("payment");
+        // Partner-billed clients (hotel/staycation/classpass) and voucher
+        // payments don't need a Stripe link — open the confirmation dialog
+        // (email + SMS) instead of routing to the payment tab.
+        const ct = form.getValues("clientType");
+        const byVoucher = form.getValues("payByVoucher");
+        const skipStripe = ct !== "external" || byVoucher;
+        if (skipStripe || isConcierge) {
+          setIsNotificationDialogOpen(true);
+        } else {
+          setActiveTab("payment");
+        }
       } else {
         handleClose();
       }
@@ -359,6 +384,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+            hidePayment={isConcierge}
           />
         </DialogHeader>
 
@@ -384,6 +410,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isSlotAvailable={isSlotAvailable}
                   isAvailabilityLoading={isAvailabilityLoading}
                   slotInterval={venueSlotInterval}
+                  cartAvailableDays={cartAvailableDays}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />
@@ -434,7 +461,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     clientLastName={clientLastName}
                     finalPrice={finalPriceWithSurcharge}
                     currency={selectedHotel?.currency || 'EUR'}
-                    onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                    clientType={clientType}
+                    onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                     onClose={handleClose}
                   />
                 )}
@@ -446,15 +474,17 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     </Dialog>
 
     {createdBooking && (
-      <SendPaymentLinkDialog
-        open={isPaymentLinkDialogOpen}
-        onOpenChange={setIsPaymentLinkDialogOpen}
+      <SendBookingNotificationDialog
+        open={isNotificationDialogOpen}
+        onOpenChange={(open) => {
+          setIsNotificationDialogOpen(open);
+          if (!open) handleClose();
+        }}
         booking={{
           id: createdBooking.id,
           booking_id: createdBooking.booking_id,
           client_first_name: clientFirstName,
           client_last_name: clientLastName,
-          client_email: clientEmail || undefined,
           phone: `${countryCode} ${phone}`,
           room_number: roomNumber || undefined,
           booking_date: date ? format(date, "yyyy-MM-dd") : "",
@@ -468,7 +498,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           currency: selectedHotel?.currency || 'EUR',
         }}
         onSuccess={() => {
-          setIsPaymentLinkDialogOpen(false);
+          setIsNotificationDialogOpen(false);
           handleClose();
         }}
       />

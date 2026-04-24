@@ -61,7 +61,7 @@ export function TherapistGeneralTab({
 
   return (
     <div className="space-y-6">
-      <Card className="border-l-4 border-l-gold-500">
+      <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-4">
             <div>

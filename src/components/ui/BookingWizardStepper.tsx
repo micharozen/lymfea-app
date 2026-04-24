@@ -3,15 +3,17 @@ import { cn } from "@/lib/utils";
 
 interface BookingWizardStepperProps {
   currentStep: 1 | 2 | 3;
+  hidePayment?: boolean;
 }
 
-const STEPS = [
+const ALL_STEPS = [
   { id: 1, label: "Informations" },
   { id: 2, label: "Prestations" },
   { id: 3, label: "Paiement" },
 ];
 
-export function BookingWizardStepper({ currentStep }: BookingWizardStepperProps) {
+export function BookingWizardStepper({ currentStep, hidePayment }: BookingWizardStepperProps) {
+  const STEPS = hidePayment ? ALL_STEPS.slice(0, 2) : ALL_STEPS;
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {STEPS.map((step, index) => {

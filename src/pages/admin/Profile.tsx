@@ -1,4 +1,4 @@
-import { User, Globe } from "lucide-react";
+import { User, Globe, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,9 +8,13 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useAdminWelcome } from "@/hooks/useAdminWelcome";
+import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
 
 export default function Profile() {
   const { t } = useTranslation('pwa');
+  const { t: tAdmin } = useTranslation('admin');
+  const welcome = useAdminWelcome();
   const [isEditing, setIsEditing] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [firstName, setFirstName] = useState("");
@@ -322,7 +326,7 @@ export default function Profile() {
                   >
                     Annuler
                   </Button>
-                  <Button 
+                  <Button
                     onClick={handleSave}
                   >
                     Enregistrer les modifications
@@ -332,7 +336,27 @@ export default function Profile() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border border-border bg-card mt-4">
+          <CardContent className="p-4 md:p-6 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.75} />
+              <div>
+                <p className="text-sm font-medium">
+                  {tAdmin('welcome.reopen', "Revoir le guide d'introduction")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {tAdmin('welcome.step1.body', '')}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={welcome.reopen}>
+              {tAdmin('welcome.reopen', "Revoir le guide")}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
+      <WelcomeDialog open={welcome.shouldShow} onClose={welcome.dismiss} />
     </div>
   );
 }

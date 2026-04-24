@@ -70,7 +70,7 @@ serve(async (req) => {
     // Hotel config
     const { data: hotelData } = await supabase
       .from('hotels')
-      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes')
+      .select('opening_time, closing_time, slot_interval, inter_venue_buffer_minutes, room_turnover_buffer_minutes, min_booking_notice_minutes, timezone')
       .eq('id', hotelId)
       .single();
 
@@ -83,6 +83,7 @@ serve(async (req) => {
     const slotInterval = hotelData?.slot_interval || 30;
     const roomTurnoverBuffer = hotelData?.room_turnover_buffer_minutes ?? 0;
     const travelBuffer = hotelData?.inter_venue_buffer_minutes ?? 0;
+    const minBookingNotice = hotelData?.min_booking_notice_minutes ?? 0;
 
     // Rooms
     const { data: treatmentRooms } = await supabase
@@ -181,9 +182,28 @@ serve(async (req) => {
       );
     }
 
+    // All date/time comparisons are in VENUE timezone (dates in allDates and
+    // slot strings are venue-local).
+    const venueTz = hotelData?.timezone || 'UTC';
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const partsAt = (d: Date) => new Intl.DateTimeFormat('en-CA', {
+      timeZone: venueTz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d).reduce<Record<string, string>>((acc, p) => {
+      if (p.type !== 'literal') acc[p.type] = p.value;
+      return acc;
+    }, {});
+
+    const nowParts = partsAt(now);
+    const todayStr = `${nowParts.year}-${nowParts.month}-${nowParts.day}`;
+    const nowMinutes = parseInt(nowParts.hour, 10) * 60 + parseInt(nowParts.minute, 10);
+
+    const earliestBookable = new Date(now.getTime() + minBookingNotice * 60 * 1000);
+    const eParts = partsAt(earliestBookable);
+    const earliestBookableDateStr = `${eParts.year}-${eParts.month}-${eParts.day}`;
+    const earliestBookableMinutes = parseInt(eParts.hour, 10) * 60 + parseInt(eParts.minute, 10);
 
     const isSlotInBlockedRange = (slot: string, dow: number): boolean => {
       if (!blockedSlots || blockedSlots.length === 0) return false;
@@ -201,6 +221,9 @@ serve(async (req) => {
 
     for (const date of allDates) {
       if (!deployedSet.has(date)) continue;
+
+      // Venue min booking notice: skip whole day if before the earliest bookable day.
+      if (minBookingNotice > 0 && date < earliestBookableDateStr) continue;
 
       const dow = new Date(date + 'T00:00:00').getDay();
       const bookings = bookingsByDate.get(date) || [];
@@ -222,6 +245,12 @@ serve(async (req) => {
 
         if (date === todayStr) {
           if (timeToMinutes(slot) <= nowMinutes) return false;
+        }
+
+        // Venue min booking notice: filter slots on the earliest bookable day
+        // whose time is before now + minBookingNotice.
+        if (minBookingNotice > 0 && date === earliestBookableDateStr) {
+          if (timeToMinutes(slot) < earliestBookableMinutes) return false;
         }
 
         const slotMinutes = timeToMinutes(slot);

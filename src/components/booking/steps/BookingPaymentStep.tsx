@@ -14,6 +14,7 @@ interface BookingPaymentStepProps {
   clientLastName: string;
   finalPrice: number;
   currency: string;
+  clientType: string;
   onSendPaymentLink: () => void;
   onClose: () => void;
 }
@@ -25,6 +26,7 @@ export function BookingPaymentStep({
   clientLastName,
   finalPrice,
   currency,
+  clientType,
   onSendPaymentLink,
   onClose,
 }: BookingPaymentStepProps) {
@@ -48,7 +50,7 @@ export function BookingPaymentStep({
       </div>
 
       <div className="flex flex-col gap-2 w-full max-w-xs">
-        {isAdmin && (
+        {isAdmin && clientType === "external" && (
           <Button
             type="button"
             onClick={onSendPaymentLink}
