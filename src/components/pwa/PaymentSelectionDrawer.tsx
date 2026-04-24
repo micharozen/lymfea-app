@@ -373,6 +373,13 @@ export const PaymentSelectionDrawer = ({
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Smartphone className="w-5 h-5 text-primary" /></div>
                   <div className="text-left flex-1 min-w-0"><p className="text-sm font-semibold">{t('payment.tapToPay')}</p><p className="text-[11px] text-muted-foreground">{t('payment.tapToPayDescription')}</p></div>
                 </button>
+
+                <div className="pt-4 mt-4 border-t border-border">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <span className="font-medium text-foreground">{t('payment.cancellationPolicyTitle')}</span>{' '}
+                    {t('payment.cancellationPolicyText')}
+                  </p>
+                </div>
               </div>
             )}
 

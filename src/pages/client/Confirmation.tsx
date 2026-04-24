@@ -146,9 +146,36 @@ export default function Confirmation() {
         : t('confirmation.message', 'Finalisation de votre réservation...');
 
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="w-10 h-10 animate-spin text-gray-400" />
-        <p className="text-sm text-gray-500 font-medium">{loadingText}</p>
+      <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center justify-center px-6 py-10">
+        <div className="w-full max-w-[440px] flex flex-col items-center text-center">
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
+
+          <div className="mt-10 relative h-16 w-16 flex items-center justify-center">
+            <span className="absolute inset-0 rounded-full border border-[#E8DFD2]" />
+            <span className="absolute inset-0 rounded-full border-2 border-transparent border-t-[#C96A43] animate-spin" style={{ animationDuration: '1.2s' }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#C96A43]" />
+          </div>
+
+          <div className="mt-10 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+            {t('confirmation.eyebrowPending', 'Un instant')}
+          </div>
+
+          <h1 className="mt-4 font-serif text-[26px] sm:text-[32px] font-normal leading-[1.2] tracking-[-0.01em] text-[#2C2622]">
+            {loadingText}
+          </h1>
+
+          <p className="mt-4 text-[14px] leading-[1.7] text-[#8C827B]">
+            {currentLanguage === 'fr'
+              ? 'Merci de ne pas fermer cette page — vous serez redirigé·e automatiquement.'
+              : 'Please keep this page open — you will be redirected automatically.'}
+          </p>
+
+          <div className="mt-10 h-px w-16 bg-[#EFE7DA]" />
+
+          <div className="mt-6 text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
+            {t('confirmation.tagline', 'Eïa · Awaken Your Senses')}
+          </div>
+        </div>
       </div>
     );
   }
@@ -388,71 +415,106 @@ export default function Confirmation() {
   const isPending = bookingStatus === 'pending' || bookingStatus === 'pending_confirmation';
   const isRoomCharge = paymentMethod === 'room';
 
-  const headerTitle = isPending ? t('confirmation.pendingTitle') : t('confirmation.title');
+  const bookingRecord = booking as Record<string, unknown>;
+  const firstName = (bookingRecord?.client_first_name as string) || '';
+  const bookingDate = bookingRecord?.booking_date as string | undefined;
+  const bookingTime = bookingRecord?.booking_time as string | undefined;
+  const roomNumber = bookingRecord?.room_number as string | undefined;
+
+  const eyebrow = isPending ? t('confirmation.eyebrowPending') : t('confirmation.eyebrowConfirmed');
+  const pillLabel = isPending ? t('confirmation.pendingPill') : t('confirmation.confirmedPill');
   const headerMessage = isPending ? t('confirmation.pendingMessage') : t('confirmation.message');
-  const HeaderIcon = isPending ? Clock : CheckCircle;
-  const headerIconBg = isPending ? 'bg-amber-50' : 'bg-green-50';
-  const headerIconColor = isPending ? 'text-amber-600' : 'text-green-600';
+  const venueLine = roomNumber ? `${hotelName} · ${t('confirmation.room')}.${roomNumber}` : hotelName;
+  const dateLabel = bookingDate
+    ? format(new Date(bookingDate), 'd MMMM yyyy', { locale: dateLocale })
+    : '—';
+  const timeLabel = bookingTime ? bookingTime.substring(0, 5) : t('confirmation.timeToConfirm');
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 pb-20">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="min-h-screen bg-[#FBF7F2] text-[#2C2622] flex flex-col items-center px-4 py-8 sm:py-10">
+      <div className="w-full max-w-[600px] bg-white border border-[#E8DFD2] rounded-sm animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className={`w-20 h-20 ${headerIconBg} rounded-full flex items-center justify-center`}>
-            <HeaderIcon className={`w-10 h-10 ${headerIconColor}`} strokeWidth={1.5} />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-serif text-gray-900">{headerTitle}</h1>
-            <p className="text-gray-500 text-sm">{headerMessage}</p>
+        {/* Header */}
+        <div className="px-6 sm:px-12 pt-8 sm:pt-9 text-center">
+          <span className="font-serif italic text-[32px] leading-none tracking-[0.02em] text-[#2C2622]">Eïa</span>
+          <div className="mt-4 text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium">
+            {eyebrow}
           </div>
         </div>
 
-        <div className="bg-[#FAFAFA] rounded-xl p-5 border border-gray-100 space-y-4">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-            {t('confirmation.yourService')}
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Calendar className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('confirmation.treatments')}</p>
-                <p className="text-sm text-gray-500">{treatmentNames}</p>
-                {(booking as Record<string, unknown>)?.booking_date && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {format(new Date((booking as Record<string, unknown>)?.booking_date as string), 'd MMMM yyyy', { locale: dateLocale })}
-                  </p>
-                )}
-              </div>
-            </div>
+        {/* Title */}
+        <div className="px-6 sm:px-12 pt-7 text-center">
+          <h1 className="font-serif text-[28px] sm:text-[36px] font-normal leading-[1.15] tracking-[-0.01em] text-[#2C2622]">
+            {firstName ? (
+              <>
+                {currentLanguage === 'fr' ? 'Merci,' : 'Thank you,'}{' '}
+                <em className="italic text-[#C96A43]">{firstName}</em>.
+              </>
+            ) : (
+              t('confirmation.thanksAnonymous')
+            )}
+          </h1>
+          <p className="mt-4 mx-auto max-w-[440px] text-[15px] leading-[1.7] text-[#8C827B]">
+            {headerMessage}
+          </p>
+        </div>
 
-            <div className="flex items-start gap-3">
-              <Clock className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('confirmation.time')}</p>
-                <p className="text-sm text-gray-500">
-                  {(booking as Record<string, unknown>)?.booking_time
-                    ? ((booking as Record<string, unknown>)?.booking_time as string).substring(0, 5)
-                    : t('confirmation.timeToConfirm')}
-                </p>
-              </div>
-            </div>
+        {/* Status pill */}
+        <div className="px-6 sm:px-12 pt-5 text-center">
+          <span className={`inline-block text-[11px] tracking-[0.22em] uppercase font-medium px-5 py-2.5 rounded-full ${
+            isPending ? 'bg-[#F3E2D6] text-[#A8542F]' : 'bg-green-50 text-green-700'
+          }`}>
+            {pillLabel}
+          </span>
+        </div>
 
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-gray-400 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">{t('confirmation.venue')}</p>
-                <p className="text-sm text-gray-500">{hotelName}</p>
-                {(booking as Record<string, unknown>)?.room_number && (
-                  <p className="text-sm text-gray-500 mt-0.5">{t('confirmation.room')} : {(booking as Record<string, unknown>)?.room_number as string}</p>
-                )}
-              </div>
+        {/* Booking summary */}
+        <div className="px-6 sm:px-12 pt-7">
+          <div className="bg-[#F8F3EC] border border-[#E8DFD2] rounded-sm px-5 sm:px-6 py-5">
+            <div className="text-[10px] tracking-[0.28em] uppercase text-[#C96A43] font-medium pb-2">
+              {t('confirmation.yourRequest')}
             </div>
+            <dl className="divide-y divide-[#EFE7DA]">
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.date')}</dt>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right">{dateLabel}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.time')}</dt>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-[#C96A43] text-right">{timeLabel}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.venue')}</dt>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{venueLine}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-[10px] tracking-[0.22em] uppercase text-[#8C827B] shrink-0">{t('confirmation.treatment')}</dt>
+                <dd className="font-serif text-[15px] sm:text-[16px] text-[#2C2622] text-right break-words">{treatmentNames}</dd>
+              </div>
+            </dl>
           </div>
         </div>
 
+        {/* What happens next (pending only) */}
+        {isPending && (
+          <div className="px-6 sm:px-12 pt-7">
+            <div className="text-[10px] tracking-[0.28em] uppercase text-[#8C827B] font-medium mb-3.5">
+              {t('confirmation.nextSteps')}
+            </div>
+            <ol className="space-y-3">
+              {[t('confirmation.step1'), t('confirmation.step2'), t('confirmation.step3')].map((step, i) => (
+                <li key={i} className="flex items-start gap-3.5">
+                  <span className="font-serif italic text-[13px] text-[#C96A43] pt-0.5 w-6 shrink-0">0{i + 1}</span>
+                  <span className="text-[13px] leading-[1.6] text-[#2C2622]">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        <div className="px-6 sm:px-12 pt-6 space-y-4">
         {(booking as Record<string, unknown>)?.bundle_usage_id && (
-          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
+          <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-sm border border-amber-200">
             <Repeat className="w-5 h-5 text-amber-700 mt-0.5 flex-shrink-0" />
             <div className="space-y-1">
               <p className="text-sm font-medium text-amber-900">{t('bundle.sessionUsed')}</p>
@@ -514,11 +576,25 @@ export default function Confirmation() {
         )}
 
         <div className="pt-2">
-          <Button onClick={handleReturnHome} className="w-full h-14 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-base font-medium shadow-md transition-all active:scale-[0.98]">
+          <Button onClick={handleReturnHome} className="w-full h-12 bg-[#2C2622] hover:bg-[#2C2622]/90 text-white rounded-sm text-sm font-medium tracking-wide transition-all active:scale-[0.98]">
             {t('confirmation.backHome')}
           </Button>
         </div>
+        </div>
 
+        {/* Divider */}
+        <div className="px-6 sm:px-12 pt-8">
+          <div className="h-px bg-[#EFE7DA]" />
+        </div>
+
+        {/* Legal */}
+        <div className="px-6 sm:px-12 py-7 text-center text-[9px] tracking-[0.28em] uppercase text-[#8C827B] leading-[1.8]">
+          {t('confirmation.legal')}
+        </div>
+      </div>
+
+      <div className="pt-5 text-center text-[10px] tracking-[0.22em] uppercase text-[#8C827B]">
+        {t('confirmation.tagline')}
       </div>
     </div>
   );
