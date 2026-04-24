@@ -595,7 +595,7 @@ function BookingCard({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
+            "absolute rounded text-sm cursor-pointer overflow-hidden z-10 border-l-4 group",
             getCalendarCardColor(booking.status, booking.payment_status)
           )}
           style={{
@@ -615,12 +615,12 @@ function BookingCard({
             {/* Top row: time (+ inline client on short cards) + therapist badge */}
             <div className="flex items-start justify-between gap-1">
               <div className="flex items-baseline gap-1 min-w-0 flex-1">
-                <span className="font-bold text-[11px] leading-tight flex-shrink-0">
+                <span className="font-bold text-[13px] leading-tight flex-shrink-0">
                   {booking.booking_time?.substring(0, 5)}
                 </span>
-                {height < 44 && (booking.client_first_name || booking.client_last_name) && (
+                {height < 56 && (booking.client_first_name || booking.client_last_name) && (
                   <span
-                    className="truncate text-[9px] opacity-90 font-medium leading-tight min-w-0"
+                    className="truncate text-[11px] opacity-90 font-medium leading-tight min-w-0"
                     title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
                   >
                     {booking.client_first_name} {booking.client_last_name}
@@ -666,26 +666,26 @@ function BookingCard({
               </div>
             </div>
             {/* Client name on its own line when card is tall enough */}
-            {height >= 44 && (
+            {height >= 56 && (
               <div
-                className="truncate text-[9px] opacity-90 font-medium leading-tight"
+                className="truncate text-[11px] opacity-90 font-medium leading-tight"
                 title={`${booking.client_first_name ?? ""} ${booking.client_last_name ?? ""}`.trim()}
               >
                 {booking.client_first_name} {booking.client_last_name}
               </div>
             )}
             {/* Treatments */}
-            {height >= 58 && treatments.length > 0 && (
+            {height >= 76 && treatments.length > 0 && (
               <div
-                className="truncate text-[8px] opacity-70 leading-tight"
+                className="truncate text-[10px] opacity-70 leading-tight"
                 title={treatments.map((t) => t.name).join(", ")}
               >
                 {treatments.map((t) => t.name).join(", ")}
               </div>
             )}
             {/* Duration */}
-            {height >= 72 && (
-              <div className="text-[7px] opacity-60 mt-auto">{durationFormatted}</div>
+            {height >= 96 && (
+              <div className="text-[10px] opacity-60 mt-auto">{durationFormatted}</div>
             )}
           </div>
         </div>
@@ -823,7 +823,7 @@ function AmenityBookingCard({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "absolute rounded text-xs cursor-pointer overflow-hidden z-10 border-l-4 group",
+            "absolute rounded text-sm cursor-pointer overflow-hidden z-10 border-l-4 group",
             "bg-opacity-20 hover:bg-opacity-30 transition-colors"
           )}
           style={{
