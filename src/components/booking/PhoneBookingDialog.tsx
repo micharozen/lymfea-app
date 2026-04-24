@@ -35,6 +35,7 @@ import {
   Send,
   Sparkles,
   UserCheck,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -229,6 +230,7 @@ export default function PhoneBookingDialog({
     setDate(undefined);
     setTime("");
     setTherapistId("");
+    setTherapistChoiceMade(false);
     setClientFirstName("");
     setClientLastName("");
     setPhone("");
@@ -244,11 +246,13 @@ export default function PhoneBookingDialog({
     onOpenChange(false);
   };
 
+  const [therapistChoiceMade, setTherapistChoiceMade] = useState(false);
+
   const canSubmit =
     !!hotelId &&
     !!date &&
     !!time &&
-    !!therapistId &&
+    therapistChoiceMade &&
     cart.length > 0 &&
     clientFirstName.trim().length > 0 &&
     clientLastName.trim().length > 0 &&
@@ -298,16 +302,32 @@ export default function PhoneBookingDialog({
               {t("phoneBooking.title")}
             </DialogTitle>
             {step !== "done" && (
-              <div className="flex items-center gap-1.5 pt-2">
-                {STEPS.map((s, i) => (
-                  <div
-                    key={s.key}
-                    className={cn(
-                      "h-1 flex-1 rounded-full transition-colors",
-                      i <= stepIndex ? "bg-primary" : "bg-muted",
-                    )}
-                  />
-                ))}
+              <div className="pt-2 space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  {STEPS.map((s, i) => (
+                    <div
+                      key={s.key}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-colors",
+                        i <= stepIndex ? "bg-primary" : "bg-muted",
+                      )}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-[10px] font-medium">
+                  {STEPS.map((s, i) => (
+                    <span
+                      key={s.key}
+                      className={cn(
+                        "flex-1 truncate",
+                        i === 0 ? "text-left" : i === STEPS.length - 1 ? "text-right" : "text-center",
+                        i === stepIndex ? "text-primary" : "text-muted-foreground",
+                      )}
+                    >
+                      {t(s.labelKey)}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
           </DialogHeader>
@@ -322,6 +342,7 @@ export default function PhoneBookingDialog({
                   setHotelId(id);
                   setCart([]);
                   setTherapistId("");
+                  setTherapistChoiceMade(false);
                 }}
                 isConcierge={isConcierge}
                 treatments={treatments || []}
@@ -364,6 +385,15 @@ export default function PhoneBookingDialog({
                 isLoading={isTherapistsLoading}
                 therapistId={therapistId}
                 setTherapistId={setTherapistId}
+                broadcast={therapistChoiceMade && !therapistId}
+                onPickBroadcast={() => {
+                  setTherapistId("");
+                  setTherapistChoiceMade(true);
+                }}
+                onPickTherapist={(id) => {
+                  setTherapistId(id);
+                  setTherapistChoiceMade(true);
+                }}
               />
             )}
 
@@ -472,7 +502,7 @@ export default function PhoneBookingDialog({
                       }
                       setStep("therapist");
                     } else if (step === "therapist") {
-                      if (!therapistId) {
+                      if (!therapistChoiceMade) {
                         toast({
                           title: t("phoneBooking.errors.selectTherapist"),
                           variant: "destructive",
@@ -844,6 +874,15 @@ interface TherapistStepProps {
   isLoading: boolean;
   therapistId: string;
   setTherapistId: (id: string) => void;
+  broadcast: boolean;
+  onPickBroadcast: () => void;
+  onPickTherapist: (id: string) => void;
+}
+
+function genderLabel(gender: string | null | undefined): string | null {
+  if (gender === "female") return "F";
+  if (gender === "male") return "H";
+  return null;
 }
 
 function TherapistStep({
@@ -851,7 +890,9 @@ function TherapistStep({
   therapists,
   isLoading,
   therapistId,
-  setTherapistId,
+  broadcast,
+  onPickBroadcast,
+  onPickTherapist,
 }: TherapistStepProps) {
   if (isLoading) {
     return (
@@ -861,58 +902,83 @@ function TherapistStep({
       </div>
     );
   }
-  if (therapists.length === 0) {
-    return (
-      <div className="py-10 text-center text-sm text-muted-foreground">
-        {t("phoneBooking.therapist.empty")}
-      </div>
-    );
-  }
   return (
     <div className="space-y-2">
       <Label className="block mb-1">{t("phoneBooking.therapist.label")}</Label>
       <ScrollArea className="h-[360px] pr-2">
         <div className="space-y-2">
-          {therapists.map((th) => {
-            const selected = therapistId === th.id;
-            return (
-              <button
-                key={th.id}
-                type="button"
-                onClick={() => setTherapistId(th.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
-                  selected
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-muted",
-                )}
-              >
-                <Avatar className="h-12 w-12">
-                  {th.profile_image && (
-                    <AvatarImage
-                      src={th.profile_image}
-                      alt={`${th.first_name} ${th.last_name}`}
-                    />
+          <button
+            type="button"
+            onClick={onPickBroadcast}
+            className={cn(
+              "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+              broadcast ? "border-primary bg-primary/5" : "hover:bg-muted",
+            )}
+          >
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm truncate">
+                {t("phoneBooking.therapist.broadcastTitle")}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {t("phoneBooking.therapist.broadcastDesc")}
+              </p>
+            </div>
+            {broadcast && <Check className="h-4 w-4 text-primary" />}
+          </button>
+
+          {therapists.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              {t("phoneBooking.therapist.empty")}
+            </div>
+          ) : (
+            therapists.map((th) => {
+              const selected = therapistId === th.id;
+              const g = genderLabel(th.gender);
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => onPickTherapist(th.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                    selected ? "border-primary bg-primary/5" : "hover:bg-muted",
                   )}
-                  <AvatarFallback>
-                    {getInitials(th.first_name, th.last_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {th.first_name} {th.last_name}
-                  </p>
-                  {th.skills && th.skills.length > 0 && (
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      {th.skills.slice(0, 3).join(" · ")}
+                >
+                  <Avatar className="h-12 w-12">
+                    {th.profile_image && (
+                      <AvatarImage
+                        src={th.profile_image}
+                        alt={`${th.first_name} ${th.last_name}`}
+                      />
+                    )}
+                    <AvatarFallback>
+                      {getInitials(th.first_name, th.last_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate flex items-center gap-1.5">
+                      <span className="truncate">{th.first_name} {th.last_name}</span>
+                      {g && (
+                        <span className="shrink-0 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                          {g}
+                        </span>
+                      )}
                     </p>
-                  )}
-                </div>
-                {selected && <Check className="h-4 w-4 text-primary" />}
-              </button>
-            );
-          })}
+                    {th.skills && th.skills.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {th.skills.slice(0, 3).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  {selected && <Check className="h-4 w-4 text-primary" />}
+                </button>
+              );
+            })
+          )}
         </div>
       </ScrollArea>
     </div>

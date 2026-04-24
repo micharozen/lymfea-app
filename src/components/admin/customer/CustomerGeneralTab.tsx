@@ -29,7 +29,7 @@ export function CustomerGeneralTab({ form, disabled }: CustomerGeneralTabProps) 
 
   return (
     <div className="space-y-6">
-      <Card className="border-l-4 border-l-gold-500">
+      <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <User className="h-4 w-4 text-gold-600" />

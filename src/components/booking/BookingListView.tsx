@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
@@ -67,6 +68,7 @@ export function BookingListView({
   onPageChange,
   paymentAsText = false,
 }: BookingListViewProps) {
+  const navigate = useNavigate();
   const handleInvoiceClick = async (
     e: React.MouseEvent,
     booking: BookingWithTreatments,
@@ -102,7 +104,7 @@ export function BookingListView({
             <col className="w-[10%]" />
             <col className="w-[10%]" />
             <col className="w-[6%]" />
-            <col className="w-[10%]" />
+            {!isConcierge && <col className="w-[10%]" />}
             <col className="w-[10%]" />
             <col className="w-[5%]" />
           </colgroup>
@@ -117,7 +119,9 @@ export function BookingListView({
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Client</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Prestations</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Total</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+              {!isConcierge && (
+                <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
+              )}
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
             </TableRow>
@@ -173,7 +177,25 @@ export function BookingListView({
                   )}
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2 truncate">
-                  <span className="block leading-none truncate">{booking.client_first_name} {booking.client_last_name}</span>
+                  {(() => {
+                    const firstInitial = booking.client_first_name ? `${booking.client_first_name.charAt(0).toUpperCase()}.` : "";
+                    const label = [firstInitial, booking.client_last_name].filter(Boolean).join(" ");
+                    const customerId = (booking as any).customer_id as string | undefined;
+                    return customerId ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/admin/customers/${customerId}`);
+                        }}
+                        className="block leading-none truncate text-left hover:underline hover:text-primary"
+                      >
+                        {label}
+                      </button>
+                    ) : (
+                      <span className="block leading-none truncate">{label}</span>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   <span className="block leading-snug truncate">
@@ -190,9 +212,11 @@ export function BookingListView({
                     )}
                   </span>
                 </TableCell>
-                <TableCell className="text-foreground py-3 px-2 truncate">
-                  <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
-                </TableCell>
+                {!isConcierge && (
+                  <TableCell className="text-foreground py-3 px-2 truncate">
+                    <HotelCell hotel={getHotelInfo(booking.hotel_id)} />
+                  </TableCell>
+                )}
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
                 </TableCell>

@@ -4,6 +4,7 @@ import { brand } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 
 const CLIENT_NEW_BOOKING_TEMPLATE_ID = "e2a8e114-bdfa-46bb-9868-8681a416f016";
+const CLIENT_PENDING_BOOKING_TEMPLATE_ID = "c5378102-92c7-48de-834c-db17da702794";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -227,8 +228,11 @@ serve(async (req) => {
         customer = customerRow ?? null;
       }
 
-      const clientEmail = customer?.email
-        || (booking as any).client_email
+      // Prefer the email captured on the booking itself (it reflects the
+      // latest value typed by the operator in the FAB, which may override a
+      // stale address on the customer record).
+      const clientEmail = (booking as any).client_email
+        || customer?.email
         || undefined;
 
       if (clientEmail) {
@@ -260,25 +264,38 @@ serve(async (req) => {
         const clientName = `${firstName} ${lastName}`.trim();
         const clientPhone = customer?.phone ?? (booking as any).phone ?? (booking as any).client_phone ?? '';
 
-        const templateVariables: Record<string, string> = {
-          booking_date: formattedDate,
-          booking_number: String(booking.booking_id ?? ''),
-          booking_time: formattedTime,
-          booking_url: clientBookingUrl,
-          client_name: clientName,
-          client_phone: clientPhone,
-          hotel_name: booking.hotel_name ?? '',
-          room_number: booking.room_number ? String(booking.room_number) : '',
-          therapist_name: booking.therapist_name ?? '',
-          total_price: `${booking.total_price ?? 0}€`,
-          treatment_name: treatmentName,
-          treatment_price: `${treatmentPrice}€`,
-        };
+        const isPending = booking.status === 'pending';
+
+        const templateVariables: Record<string, string> = isPending
+          ? {
+              booking_date: formattedDate,
+              booking_time: formattedTime,
+              first_name: firstName,
+              hotel_name: booking.hotel_name ?? '',
+              room_number: booking.room_number ? String(booking.room_number) : '',
+              treatment_name: treatmentName,
+            }
+          : {
+              booking_date: formattedDate,
+              booking_number: String(booking.booking_id ?? ''),
+              booking_time: formattedTime,
+              booking_url: clientBookingUrl,
+              client_name: clientName,
+              client_phone: clientPhone,
+              hotel_name: booking.hotel_name ?? '',
+              room_number: booking.room_number ? String(booking.room_number) : '',
+              therapist_name: booking.therapist_name ?? '',
+              total_price: `${booking.total_price ?? 0}€`,
+              treatment_name: treatmentName,
+              treatment_price: `${treatmentPrice}€`,
+            };
 
         const clientEmailResult = await sendEmail({
           to: clientEmail,
-          subject: `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
-          templateId: CLIENT_NEW_BOOKING_TEMPLATE_ID,
+          subject: isPending
+            ? `Demande de réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`
+            : `Réservation #${booking.booking_id} · ${booking.hotel_name ?? ''}`,
+          templateId: isPending ? CLIENT_PENDING_BOOKING_TEMPLATE_ID : CLIENT_NEW_BOOKING_TEMPLATE_ID,
           templateVariables,
         });
 

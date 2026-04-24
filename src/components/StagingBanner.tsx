@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 
 const STAGING_HOSTNAMES = ["apptest.eiaspa.fr"];
@@ -9,7 +10,14 @@ function isStagingEnvironment(): boolean {
 }
 
 export function StagingBanner() {
-  if (!isStagingEnvironment()) return null;
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isStagingEnvironment() || !visible) return null;
 
   return (
     <div

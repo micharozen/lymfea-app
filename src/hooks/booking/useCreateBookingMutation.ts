@@ -79,8 +79,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       let finalTherapistName = therapist ? `${therapist.first_name} ${therapist.last_name}` : null;
 
       if (d.isAdmin) {
-        // Admin: therapist is required, immediate confirmation
-        status = "confirmed";
+        // Admin: if a therapist was selected, confirm immediately.
+        // If no therapist (broadcast), wait for a therapist to accept.
+        status = finalTherapistId ? "confirmed" : "pending";
       } else {
         // Concierge: no therapist, awaiting therapist selection
         status = "awaiting_hairdresser_selection";
@@ -140,6 +141,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         _phone: normalizedPhone,
         _first_name: d.clientFirstName,
         _last_name: d.clientLastName,
+        _email: d.clientEmail?.trim() || null,
       });
 
       const { data: booking, error } = await supabase.from("bookings").insert({
