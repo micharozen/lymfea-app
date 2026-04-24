@@ -49,7 +49,7 @@ export function CustomerNotesTab({
 
   return (
     <div className="space-y-6">
-      <Card className="border-l-4 border-l-gold-500">
+      <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Heart className="h-4 w-4 text-gold-600" />
@@ -94,7 +94,7 @@ export function CustomerNotesTab({
         </CardContent>
       </Card>
 
-      <Card className="border-l-4 border-l-gold-500">
+      <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <HeartPulse className="h-4 w-4 text-gold-600" />

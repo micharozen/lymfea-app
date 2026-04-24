@@ -229,7 +229,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
         const skipStripe = ct !== "external" || byVoucher;
-        if (skipStripe) {
+        if (skipStripe || isConcierge) {
           setIsNotificationDialogOpen(true);
         } else {
           setActiveTab("payment");
@@ -386,6 +386,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+            hidePayment={isConcierge}
           />
         </DialogHeader>
 
