@@ -3,6 +3,8 @@ import { authMiddleware } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
 import { stripe } from "../lib/stripe";
 import { sendEmail } from "../lib/email";
+import { computeOutOfHoursSurcharge } from "../lib/surcharge";
+import Stripe from "stripe";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
@@ -586,9 +588,11 @@ payments.post("/confirm-setup", async (c) => {
   try {
     const { sessionId } = await c.req.json();
 
+    // 1. Récupération de la session et des metadata
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
     const meta = session.metadata || {};
 
+    // On regarde dans booking_payment_infos si la session existe déjà
     const { data: existingPaymentInfo } = await supabaseAdmin
       .from('booking_payment_infos')
       .select('booking_id')
@@ -604,12 +608,23 @@ payments.post("/confirm-setup", async (c) => {
 
     const treatmentIds = JSON.parse(meta.treatmentIds || "[]");
 
+    // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const basePrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
 
-    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+    const { data: hotel } = await supabaseAdmin
+      .from('hotels')
+      .select('name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .eq('id', meta.hotelId)
+      .maybeSingle();
 
+    // Recalcul serveur de la majoration hors horaires
+    const surcharge = computeOutOfHoursSurcharge(meta.bookingTime || '', basePrice, hotel || {});
+    const verifiedPrice = surcharge.totalWithSurcharge;
+
+    // GESTION DU CLIENT STRIPE
+    // On récupère le client Stripe de la session et on le lie dans notre table Supabase 'customers'
     let customerId = null;
     const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
 
@@ -622,10 +637,12 @@ payments.post("/confirm-setup", async (c) => {
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
+        // On met à jour son ID Stripe si on ne l'avait pas
         if (stripeCustomerId) {
           await supabaseAdmin.from('customers').update({ stripe_customer_id: stripeCustomerId }).eq('id', customerId);
         }
       } else {
+        // On crée le client s'il n'existe pas
         const { data: newCustomer } = await supabaseAdmin
           .from('customers')
           .insert({
@@ -641,31 +658,116 @@ payments.post("/confirm-setup", async (c) => {
       }
     }
 
-    const { data: bookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
-      _booking_date: meta.bookingDate,
-      _booking_time: meta.bookingTime,
-      _client_email: meta.clientEmail || null,
-      _client_first_name: meta.firstName,
-      _client_last_name: meta.lastName,
-      _client_note: meta.note || null,
-      _customer_id: customerId,
-      _duration: totalDuration,
-      _hotel_id: meta.hotelId,
-      _hotel_name: hotel?.name || 'Hotel',
-      _language: meta.language || 'fr',
-      _payment_method: 'card',
-      _payment_status: 'pending',
-      _phone: meta.phone,
-      _room_number: meta.roomNumber || null,
-      _status: 'pending',
-      _therapist_gender: meta.therapistGender || null,
-      _total_price: verifiedPrice,
-      _treatment_ids: treatmentIds
-    });
+    // 3. Création/mise à jour de la réservation
+    let bookingId: string;
 
-    if (rpcError) {
-      console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
-      throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+    if (meta.draftBookingId) {
+      // The slot is already held — update the draft booking with real client data
+      const { data: draftBooking, error: draftFetchError } = await supabaseAdmin
+        .from('bookings')
+        .select('id')
+        .eq('id', meta.draftBookingId)
+        .eq('hotel_id', meta.hotelId)
+        .eq('status', 'awaiting_payment')
+        .single();
+
+      if (draftFetchError || !draftBooking) {
+        console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
+        // Fall through to atomic reserve
+        const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+          _booking_date: meta.bookingDate,
+          _booking_time: meta.bookingTime,
+          _client_email: meta.clientEmail || null,
+          _client_first_name: meta.firstName,
+          _client_last_name: meta.lastName,
+          _client_note: meta.note || null,
+          _customer_id: customerId,
+          _duration: totalDuration,
+          _hotel_id: meta.hotelId,
+          _hotel_name: hotel?.name || 'Hotel',
+          _language: meta.language || 'fr',
+          _payment_method: 'card',
+          _payment_status: 'pending',
+          _phone: meta.phone,
+          _room_number: meta.roomNumber || null,
+          _status: 'pending',
+          _therapist_gender: meta.therapistGender || null,
+          _total_price: verifiedPrice,
+          _treatment_ids: treatmentIds
+        });
+        if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
+        if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+        bookingId = fallbackId;
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from('bookings')
+          .update({
+            client_first_name: meta.firstName,
+            client_last_name: meta.lastName,
+            client_email: meta.clientEmail || null,
+            phone: meta.phone,
+            room_number: meta.roomNumber || null,
+            client_note: meta.note || null,
+            status: 'pending',
+            payment_method: 'card',
+            payment_status: 'pending',
+            total_price: verifiedPrice,
+            customer_id: customerId,
+            therapist_id: null,
+          })
+          .eq('id', meta.draftBookingId);
+
+        if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
+        bookingId = meta.draftBookingId;
+        console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+
+        await supabaseAdmin
+          .from('bookings')
+          .update({
+            is_out_of_hours: surcharge.isOutOfHours,
+            surcharge_amount: surcharge.surchargeAmount,
+          })
+          .eq('id', bookingId);
+      }
+    } else {
+      // No hold — standard atomic reserve
+      const { data: newBookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+        _booking_date: meta.bookingDate,
+        _booking_time: meta.bookingTime,
+        _client_email: meta.clientEmail || null,
+        _client_first_name: meta.firstName,
+        _client_last_name: meta.lastName,
+        _client_note: meta.note || null,
+        _customer_id: customerId,
+        _duration: totalDuration,
+        _hotel_id: meta.hotelId,
+        _hotel_name: hotel?.name || 'Hotel',
+        _language: meta.language || 'fr',
+        _payment_method: 'card',
+        _payment_status: 'pending',
+        _phone: meta.phone,
+        _room_number: meta.roomNumber || null,
+        _status: 'pending',
+        _therapist_gender: meta.therapistGender || null,
+        _total_price: verifiedPrice,
+        _treatment_ids: treatmentIds
+      });
+
+      if (rpcError) {
+        console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
+        throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
+      }
+      if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+
+      bookingId = newBookingId;
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
     }
 
     if (!bookingId) {
@@ -674,22 +776,36 @@ payments.post("/confirm-setup", async (c) => {
 
     await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
 
+    // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
     if (treatmentIds && treatmentIds.length > 0) {
+      if (meta.draftBookingId) {
+        await supabaseAdmin
+          .from('booking_treatments')
+          .delete()
+          .eq('booking_id', bookingId);
+      }
+
       const treatmentInserts = treatmentIds.map((id: string) => ({
         booking_id: bookingId,
         treatment_id: id,
+        variant_id: null,
       }));
-      const { error: treatmentsError } = await supabaseAdmin
-        .from('booking_treatments')
-        .insert(treatmentInserts);
-      if (treatmentsError) {
-        console.error("[CONFIRM-SETUP] Erreur lors de l'ajout des soins :", treatmentsError);
+
+      if (treatmentInserts.length > 0) {
+        const { error: treatmentsError } = await supabaseAdmin
+          .from('booking_treatments')
+          .insert(treatmentInserts);
+
+        if (treatmentsError) {
+          console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
+        }
       }
     }
 
-    const setupIntent = session.setup_intent as import("stripe").Stripe.SetupIntent;
-    const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.id;
-    const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as import("stripe").Stripe.PaymentMethod)?.card : null;
+    // 4. Sauvegarde de la carte dans la nouvelle table
+    const setupIntent = session.setup_intent as Stripe.SetupIntent;
+    const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
+    const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card : null;
 
     if (paymentMethodId && setupIntent) {
       await supabaseAdmin.from('booking_payment_infos').insert({
@@ -757,6 +873,7 @@ payments.post("/setup-intent", async (c) => {
       hotelId,
       language,
       therapistGender,
+      draftBookingId,
       giftAmountUsage,
     } = await c.req.json();
 
@@ -805,7 +922,7 @@ payments.post("/setup-intent", async (c) => {
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -817,7 +934,7 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
     }
 
-    if (hotel.opening_time && hotel.closing_time) {
+    if (hotel.opening_time && hotel.closing_time && !hotel.allow_out_of_hours_booking) {
       const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
       const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
       const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
@@ -825,6 +942,9 @@ payments.post("/setup-intent", async (c) => {
         return c.json({ error: 'BLOCKED_SLOT' }, 400);
       }
     }
+
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, verifiedTotalPrice, hotel);
+    const finalTotalPrice = surcharge.totalWithSurcharge;
 
     if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return c.json({ error: 'BLOCKED_SLOT' }, 400);
@@ -864,8 +984,8 @@ payments.post("/setup-intent", async (c) => {
       mode: 'setup',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
-      success_url: `${origin}/client/${hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/client/${hotelId}/payment`,
+      success_url: `${origin}/client/${hotel.slug ?? hotelId}/confirmation/setup?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/client/${hotel.slug ?? hotelId}/payment`,
       metadata: {
         hotelId: hotelId,
         bookingDate: bookingData.date,
@@ -879,10 +999,15 @@ payments.post("/setup-intent", async (c) => {
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
         language: language || 'fr',
         therapistGender: therapistGender || '',
+        draftBookingId: draftBookingId || '',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
         } : {}),
+        isOutOfHours: surcharge.isOutOfHours ? '1' : '0',
+        surchargeAmount: String(surcharge.surchargeAmount),
+        surchargePercent: String(surcharge.surchargePercent),
+        verifiedTotalPrice: String(finalTotalPrice),
       },
     });
 
@@ -890,6 +1015,172 @@ payments.post("/setup-intent", async (c) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[CREATE-SETUP-INTENT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+payments.post("/checkout-success", async (c) => {
+  try {
+    console.log("[CHECKOUT-SUCCESS] Processing checkout success");
+
+    const { sessionId } = await c.req.json();
+
+    if (!sessionId) {
+      throw new Error("Missing session ID");
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== 'paid') {
+      throw new Error("Payment not completed");
+    }
+
+    console.log("[CHECKOUT-SUCCESS] Payment confirmed for session:", sessionId);
+
+    const metadata = session.metadata;
+    const treatments = JSON.parse(metadata?.treatments || '[]');
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from('hotels')
+      .select('name')
+      .eq('id', metadata?.hotel_id)
+      .maybeSingle();
+
+    if (hotelError) {
+      console.error("[CHECKOUT-SUCCESS] Hotel fetch error:", hotelError);
+    }
+
+    const { data: rooms } = await supabaseAdmin
+      .from('treatment_rooms')
+      .select('id')
+      .eq('hotel_id', metadata?.hotel_id)
+      .eq('status', 'active');
+
+    let roomId = null;
+    if (rooms && rooms.length > 0) {
+      const { data: bookingsWithRooms } = await supabaseAdmin
+        .from('bookings')
+        .select('room_id')
+        .eq('hotel_id', metadata?.hotel_id)
+        .eq('booking_date', metadata?.booking_date)
+        .eq('booking_time', metadata?.booking_time)
+        .not('room_id', 'is', null)
+        .not('status', 'in', '("Annulé","Terminé","cancelled")');
+
+      const usedRoomIds = new Set(bookingsWithRooms?.map(b => b.room_id) || []);
+
+      for (const room of rooms) {
+        if (!usedRoomIds.has(room.id)) {
+          roomId = room.id;
+          break;
+        }
+      }
+    }
+    console.log("[CHECKOUT-SUCCESS] Assigned treatment room:", roomId);
+
+    const { data: booking, error: bookingError } = await supabaseAdmin
+      .from('bookings')
+      .insert({
+        hotel_id: metadata?.hotel_id,
+        hotel_name: hotel?.name,
+        client_first_name: metadata?.client_first_name,
+        client_last_name: metadata?.client_last_name,
+        client_email: metadata?.client_email,
+        phone: metadata?.client_phone,
+        room_number: metadata?.room_number || null,
+        client_note: metadata?.client_note || null,
+        booking_date: metadata?.booking_date,
+        booking_time: metadata?.booking_time,
+        status: 'pending',
+        payment_method: 'card',
+        payment_status: 'paid',
+        total_price: parseFloat(metadata?.total_price || '0'),
+        room_id: roomId,
+      })
+      .select()
+      .single();
+
+    if (bookingError) {
+      console.error("[CHECKOUT-SUCCESS] Booking creation error:", bookingError);
+      throw bookingError;
+    }
+
+    console.log("[CHECKOUT-SUCCESS] Booking created:", booking.id);
+
+    for (const treatment of treatments) {
+      const { error: treatmentError } = await supabaseAdmin
+        .from('booking_treatments')
+        .insert({
+          booking_id: booking.id,
+          treatment_id: treatment.id,
+        });
+
+      if (treatmentError) {
+        console.error("[CHECKOUT-SUCCESS] Treatment insert error:", treatmentError);
+      }
+    }
+
+    const { data: treatmentDetails } = await supabaseAdmin
+      .from('treatment_menus')
+      .select('name, price')
+      .in('id', treatments.map((t: any) => t.id));
+
+    const treatmentNames = treatmentDetails?.map(t => `${t.name} - ${t.price}€`) || [];
+
+    try {
+      // TODO: replace with direct import once send-booking-confirmation is migrated
+      await supabaseAdmin.functions.invoke('send-booking-confirmation', {
+        body: {
+          email: metadata?.client_email,
+          bookingNumber: booking.booking_id.toString(),
+          clientName: `${metadata?.client_first_name} ${metadata?.client_last_name}`,
+          hotelName: hotel?.name,
+          roomNumber: metadata?.room_number,
+          bookingDate: metadata?.booking_date,
+          bookingTime: metadata?.booking_time,
+          treatments: treatmentNames,
+          totalPrice: parseFloat(metadata?.total_price || '0'),
+          currency: 'EUR',
+        },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Confirmation email sent");
+    } catch (emailError) {
+      console.error("[CHECKOUT-SUCCESS] Email error:", emailError);
+    }
+
+    try {
+      // TODO: replace with direct import once notify-admin-new-booking is migrated
+      await supabaseAdmin.functions.invoke('notify-admin-new-booking', {
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Admin notification sent");
+    } catch (adminError) {
+      console.error("[CHECKOUT-SUCCESS] Admin notification error:", adminError);
+    }
+
+    try {
+      // TODO: replace with direct import once trigger-new-booking-notifications is migrated
+      await supabaseAdmin.functions.invoke('trigger-new-booking-notifications', {
+        body: { bookingId: booking.id },
+        headers: {
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+      });
+      console.log("[CHECKOUT-SUCCESS] Push notifications sent");
+    } catch (pushError) {
+      console.error("[CHECKOUT-SUCCESS] Push notification error:", pushError);
+    }
+
+    return c.json({ success: true, bookingId: booking.booking_id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CHECKOUT-SUCCESS] Error:", errorMessage);
     return c.json({ error: errorMessage }, 500);
   }
 });
