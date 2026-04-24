@@ -168,7 +168,7 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-22T03:13:11.974Z",
+      "migratedAt": "2026-04-21T03:12:41.500Z",
       "sourceHash": "c8b6dcaa266e5184"
     },
     {
@@ -180,7 +180,7 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-22T03:14:43.961Z",
+      "migratedAt": "2026-04-21T03:14:19.120Z",
       "sourceHash": "8f7d74a1dd239458"
     },
     {
@@ -192,30 +192,31 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-22T03:16:25.799Z",
+      "migratedAt": "2026-04-23T03:14:10.362Z",
       "sourceHash": "ec73890d192fdea9"
     },
     {
       "name": "create-setup-intent",
-      "status": "outdated",
+      "status": "migrated",
       "route": "/payments/setup-intent",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-19T03:15:25.680Z",
-      "sourceHash": "49391696423399c0"
+      "migratedAt": "2026-04-23T03:14:40.731Z",
+      "sourceHash": "4fa1246c516111c1"
     },
     {
       "name": "handle-checkout-success",
-      "status": "pending",
+      "status": "failed",
       "route": "/payments/checkout-success",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": false,
-      "deps": []
+      "deps": [],
+      "error": "Claude Code returned non-zero exit code"
     },
     {
       "name": "mark-tap-to-pay-paid",
