@@ -192,8 +192,8 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-23T03:14:10.362Z",
-      "sourceHash": "ec73890d192fdea9"
+      "migratedAt": "2026-04-26T03:14:50.763Z",
+      "sourceHash": "0eed441b50b9bd95"
     },
     {
       "name": "create-setup-intent",
@@ -204,8 +204,8 @@
       "group": "payments",
       "auth": true,
       "deps": [],
-      "migratedAt": "2026-04-23T03:14:40.731Z",
-      "sourceHash": "4fa1246c516111c1"
+      "migratedAt": "2026-04-26T03:15:54.644Z",
+      "sourceHash": "150c8f572d16e65c"
     },
     {
       "name": "handle-checkout-success",
@@ -220,13 +220,14 @@
     },
     {
       "name": "mark-tap-to-pay-paid",
-      "status": "pending",
+      "status": "failed",
       "route": "/payments/tap-to-pay",
       "target": "src/routes/payments.ts",
       "priority": 2,
       "group": "payments",
       "auth": true,
-      "deps": []
+      "deps": [],
+      "error": "Claude Code returned non-zero exit code"
     },
     {
       "name": "validate-booking-slot",
