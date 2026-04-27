@@ -8,7 +8,7 @@ import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,7 @@ const createFormSchema = (t: TFunction) => z.object({
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
@@ -515,6 +516,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(newId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
 
         // Redirect to edit mode
@@ -539,6 +541,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(targetId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
         setIsEditingState(false);
       }

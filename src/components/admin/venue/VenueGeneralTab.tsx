@@ -58,6 +58,7 @@ import {
   Check,
   Palette,
   Clock,
+  Sparkles,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -66,6 +67,7 @@ import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
+import { VenueAmenitiesTab } from "./VenueAmenitiesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
@@ -1127,7 +1129,23 @@ export function VenueGeneralTab({
         </Card>
       )}
 
-      {/* Card G: PMS Integration (hotel type only, when venue is saved) */}
+      {/* Card G: Commodités (when venue is saved) */}
+      {hotelId && (
+        <Card id="amenities" className="scroll-mt-32">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              Commodités
+            </CardTitle>
+            <CardDescription>Piscine, hammam, sauna et autres équipements disponibles à la réservation</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <VenueAmenitiesTab hotelId={hotelId} venueType={venueTypeValue} />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Card H: PMS Integration (hotel type only, when venue is saved) */}
       {hotelId && venueTypeValue === 'hotel' && (
         <>
           <Card id="pms" className="scroll-mt-32">

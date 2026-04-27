@@ -546,7 +546,7 @@ function AmenityConfig({ amenity, venueType, locale, onUpdate }: AmenityConfigPr
           disabled={!isDirty}
           onClick={handleSave}
         >
-          Modifier
+          Enregistrer
         </Button>
       </div>
     </div>
