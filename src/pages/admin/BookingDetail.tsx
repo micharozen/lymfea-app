@@ -242,9 +242,14 @@ export default function BookingDetail() {
         <div className="flex flex-1 items-center gap-3 justify-center flex-wrap min-w-0">
           <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">Réservation #{booking.booking_id}</h1>
           <ClientTypeBadge clientType={(booking as any).client_type || (booking.room_number ? "hotel" : "external")} />
-          {booking.room_number && (
+          {booking.room_number ? (
             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
               Ch. {booking.room_number}
+            </Badge>
+          ) : (booking as any).client_type === "hotel" && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Chambre à renseigner
             </Badge>
           )}
           <StatusBadge status={booking.status} type="booking" />

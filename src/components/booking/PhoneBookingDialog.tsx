@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -123,6 +124,7 @@ export default function PhoneBookingDialog({
   const [phone, setPhone] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [roomNumber, setRoomNumber] = useState("");
+  const [roomNumberLater, setRoomNumberLater] = useState(false);
   const [clientType, setClientType] = useState<BookingClientType>("external");
 
   const [createdBooking, setCreatedBooking] = useState<{
@@ -244,6 +246,7 @@ export default function PhoneBookingDialog({
     setPhone("");
     setClientEmail("");
     setRoomNumber("");
+    setRoomNumberLater(false);
     setClientType("external");
     setCart([]);
     setCreatedBooking(null);
@@ -440,6 +443,8 @@ export default function PhoneBookingDialog({
                 setClientEmail={setClientEmail}
                 roomNumber={roomNumber}
                 setRoomNumber={setRoomNumber}
+                roomNumberLater={roomNumberLater}
+                setRoomNumberLater={setRoomNumberLater}
                 clientType={clientType}
                 setClientType={setClientType}
               />
@@ -549,7 +554,7 @@ export default function PhoneBookingDialog({
                         });
                         return;
                       }
-                      if (clientType === "hotel" && !roomNumber.trim()) {
+                      if (clientType === "hotel" && !roomNumberLater && !roomNumber.trim()) {
                         toast({
                           title: t("phoneBooking.errors.roomRequired"),
                           variant: "destructive",
@@ -1139,6 +1144,8 @@ interface ClientStepProps {
   setClientEmail: (v: string) => void;
   roomNumber: string;
   setRoomNumber: (v: string) => void;
+  roomNumberLater: boolean;
+  setRoomNumberLater: (v: boolean) => void;
   clientType: BookingClientType;
   setClientType: (v: BookingClientType) => void;
 }
@@ -1165,6 +1172,8 @@ function ClientStep({
   setClientEmail,
   roomNumber,
   setRoomNumber,
+  roomNumberLater,
+  setRoomNumberLater,
   clientType,
   setClientType,
 }: ClientStepProps) {
@@ -1348,7 +1357,7 @@ function ClientStep({
       <div>
         <Label>
           {t("phoneBooking.client.room")}{" "}
-          {clientType === "hotel" ? (
+          {clientType === "hotel" && !roomNumberLater ? (
             <span className="text-primary">*</span>
           ) : (
             <span className="text-muted-foreground text-xs">
@@ -1359,8 +1368,23 @@ function ClientStep({
         <Input
           value={roomNumber}
           onChange={(e) => setRoomNumber(e.target.value)}
-          required={clientType === "hotel"}
+          disabled={clientType === "hotel" && roomNumberLater}
+          placeholder={clientType === "hotel" && roomNumberLater ? "À renseigner plus tard" : undefined}
+          required={clientType === "hotel" && !roomNumberLater}
         />
+        {clientType === "hotel" && (
+          <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={roomNumberLater}
+              onCheckedChange={(v) => {
+                const checked = v === true;
+                setRoomNumberLater(checked);
+                if (checked) setRoomNumber("");
+              }}
+            />
+            Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+          </label>
+        )}
       </div>
     </div>
   );

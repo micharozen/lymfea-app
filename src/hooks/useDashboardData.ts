@@ -21,6 +21,8 @@ interface BookingRow {
   therapist_name: string | null;
   room_id: string | null;
   duration: number | null;
+  client_type: string | null;
+  room_number: string | null;
   booking_treatments: { treatment_menus: { name: string } | null }[];
 }
 
@@ -91,6 +93,7 @@ export interface DashboardStats {
   totalBookings: number;
   todayBookings: number;
   pendingPayment: number;
+  missingRoomNumber: number;
   cancellationRate: number;
   averageBasket: string;
   salesTrend: number;
@@ -142,7 +145,7 @@ export function useDashboardData(
           supabase
             .from("bookings")
             .select(
-              "id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration"
+              "id, booking_date, booking_time, total_price, hotel_id, hotel_name, status, payment_status, therapist_id, therapist_name, room_id, duration, client_type, room_number"
             )
             .order("booking_date", { ascending: true }),
           supabase
@@ -264,6 +267,16 @@ export function useDashboardData(
       (b) => b.payment_status === "pending"
     ).length;
 
+    // Hotel bookings (today or future, not cancelled) without a room number assigned
+    const missingRoomNumber = bookings.filter((b) => {
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      if (!matchHotel) return false;
+      if (b.client_type !== "hotel") return false;
+      if (b.status === "cancelled") return false;
+      if (b.room_number && b.room_number.trim() !== "") return false;
+      return b.booking_date >= todayStr;
+    }).length;
+
     const cancelled = filteredBookings.filter((b) => b.status === "cancelled").length;
     const cancellationRate = totalBookings > 0 ? Math.round((cancelled / totalBookings) * 100) : 0;
 
@@ -280,6 +293,7 @@ export function useDashboardData(
       totalBookings,
       todayBookings,
       pendingPayment,
+      missingRoomNumber,
       cancellationRate,
       averageBasket,
       salesTrend,

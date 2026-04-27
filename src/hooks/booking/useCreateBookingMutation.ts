@@ -163,7 +163,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         client_last_name: d.clientLastName,
         client_email: d.clientEmail || null,
         phone: normalizedPhone,
-        room_number: d.roomNumber,
+        room_number: d.roomNumber?.trim() ? d.roomNumber.trim() : null,
         client_note: d.clientNote?.trim() ? d.clientNote.trim() : null,
         booking_date: d.date,
         booking_time: d.time,

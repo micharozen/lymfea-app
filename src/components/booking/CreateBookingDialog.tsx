@@ -59,6 +59,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      roomNumberLater: false,
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
@@ -85,6 +86,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   useEffect(() => {
     if (clientType !== "hotel" && roomNumber) {
       form.setValue("roomNumber", "");
+    }
+    if (clientType !== "hotel" && form.getValues("roomNumberLater")) {
+      form.setValue("roomNumberLater", false);
     }
     if (clientType !== "hotel" && clientType !== "external" && payByVoucher) {
       form.setValue("payByVoucher", false);
@@ -402,6 +406,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       phone: "",
       countryCode: "+33",
       roomNumber: "",
+      roomNumberLater: false,
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
