@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -114,6 +115,7 @@ export function VenueWizardDialog({
 }: VenueWizardDialogProps) {
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
+  const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [savedHotelId, setSavedHotelId] = useState<string | null>(null);
@@ -444,6 +446,7 @@ export function VenueWizardDialog({
       // Save blocked slots
       await saveBlockedSlots(newHotelId);
 
+      queryClient.invalidateQueries({ queryKey: ["hotels"] });
       toast.success("Lieu créé. Vous pouvez maintenant gérer les catégories.");
       setCurrentStep(3);
     } catch (error: any) {
@@ -461,6 +464,7 @@ export function VenueWizardDialog({
   const handleSubmit = async () => {
     // If we're in add mode and already saved the hotel (in step 3), just close
     if (mode === 'add' && savedHotelId) {
+      queryClient.invalidateQueries({ queryKey: ["hotels"] });
       toast.success("Lieu créé avec succès");
       onSuccess();
       onOpenChange(false);
@@ -531,6 +535,7 @@ export function VenueWizardDialog({
         // Save blocked slots
         await saveBlockedSlots(newHotelId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
       } else {
         // Update existing hotel
@@ -585,6 +590,7 @@ export function VenueWizardDialog({
         // Save blocked slots
         await saveBlockedSlots(hotelId!);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
       }
 

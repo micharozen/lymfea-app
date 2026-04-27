@@ -30,6 +30,8 @@ interface HotelRow {
   id: string;
   name: string;
   currency: string | null;
+  opening_time: string | null;
+  closing_time: string | null;
 }
 
 interface RoomRow {
@@ -74,6 +76,15 @@ export interface ChartPoint {
   sales: number;
 }
 
+export interface HourlyOccupancyPoint {
+  hour: string;
+  hourIndex: number;
+  used: number;
+  total: number;
+  rate: number;
+  outOfHours: boolean;
+}
+
 export interface ForecastPoint {
   day: string;
   confirmed: number;
@@ -106,6 +117,8 @@ export interface DashboardData {
   stats: DashboardStats;
   alerts: AlertsData;
   roomOccupancy: OccupancyData;
+  roomOccupancyHourly: HourlyOccupancyPoint[];
+  roomOccupancyHourlyMeta: { openingHour: number; closingHour: number };
   activeTherapists: OccupancyData;
   salesChartData: ChartPoint[];
   statusDistribution: StatusSlice[];
@@ -150,7 +163,7 @@ export function useDashboardData(
             .order("booking_date", { ascending: true }),
           supabase
             .from("hotels")
-            .select("id, name, currency")
+            .select("id, name, currency, opening_time, closing_time")
             .order("created_at", { ascending: false }),
           supabase
             .from("treatment_rooms")
@@ -339,6 +352,80 @@ export function useDashboardData(
     return { used: usedRoomIds.size, total: totalRooms };
   }, [bookings, rooms, selectedHotel]);
 
+  // ── Hourly room occupancy (today) ─────────────────────────────────
+
+  const { roomOccupancyHourly, roomOccupancyHourlyMeta } = useMemo(() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+
+    const scopedHotels =
+      selectedHotel === "all" ? hotels : hotels.filter((h) => h.id === selectedHotel);
+
+    const parseHour = (t: string | null | undefined, fallback: number): number => {
+      if (!t) return fallback;
+      const [h, m] = t.split(":").map((n) => parseInt(n, 10));
+      if (Number.isNaN(h)) return fallback;
+      return h + (Number.isNaN(m) ? 0 : m / 60);
+    };
+
+    const openings = scopedHotels
+      .map((h) => parseHour(h.opening_time, NaN))
+      .filter((n) => !Number.isNaN(n));
+    const closings = scopedHotels
+      .map((h) => parseHour(h.closing_time, NaN))
+      .filter((n) => !Number.isNaN(n));
+
+    const openingHourRaw = openings.length > 0 ? Math.min(...openings) : 9;
+    const closingHourRaw = closings.length > 0 ? Math.max(...closings) : 20;
+    const openingHour = Math.floor(openingHourRaw);
+    const closingHour = Math.ceil(closingHourRaw);
+
+    const startHour = Math.max(0, openingHour - 2);
+    const endHour = Math.min(24, closingHour + 2);
+
+    const totalRooms =
+      selectedHotel === "all"
+        ? rooms.length
+        : rooms.filter((r) => r.hotel_id === selectedHotel).length;
+
+    const todaysBookings = bookings.filter((b) => {
+      const matchDate = b.booking_date === todayStr;
+      const matchHotel = selectedHotel === "all" || b.hotel_id === selectedHotel;
+      const hasRoom = !!b.room_id;
+      const activeStatus = ["pending", "confirmed", "ongoing", "completed"].includes(b.status);
+      return matchDate && matchHotel && hasRoom && activeStatus;
+    });
+
+    const points: HourlyOccupancyPoint[] = [];
+    for (let h = startHour; h < endHour; h++) {
+      const slotStart = h;
+      const slotEnd = h + 1;
+      const usedRoomIds = new Set<string>();
+      todaysBookings.forEach((b) => {
+        const [bh, bm] = (b.booking_time || "0:0").split(":").map((n) => parseInt(n, 10));
+        const bookingStart = (Number.isNaN(bh) ? 0 : bh) + (Number.isNaN(bm) ? 0 : bm) / 60;
+        const durationHours = (b.duration ?? 60) / 60;
+        const bookingEnd = bookingStart + durationHours;
+        if (bookingStart < slotEnd && bookingEnd > slotStart && b.room_id) {
+          usedRoomIds.add(b.room_id);
+        }
+      });
+      const used = usedRoomIds.size;
+      points.push({
+        hour: `${String(h).padStart(2, "0")}h`,
+        hourIndex: h,
+        used,
+        total: totalRooms,
+        rate: totalRooms > 0 ? Math.round((used / totalRooms) * 100) : 0,
+        outOfHours: h < openingHour || h >= closingHour,
+      });
+    }
+
+    return {
+      roomOccupancyHourly: points,
+      roomOccupancyHourlyMeta: { openingHour, closingHour },
+    };
+  }, [bookings, rooms, hotels, selectedHotel]);
+
   // ── Active therapists today ───────────────────────────────────────
 
   const activeTherapists = useMemo<OccupancyData>(() => {
@@ -521,6 +608,8 @@ export function useDashboardData(
     stats,
     alerts,
     roomOccupancy,
+    roomOccupancyHourly,
+    roomOccupancyHourlyMeta,
     activeTherapists,
     salesChartData,
     statusDistribution,

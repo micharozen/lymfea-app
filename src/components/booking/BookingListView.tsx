@@ -1,6 +1,5 @@
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import {
   Table,
@@ -16,7 +15,6 @@ import { TablePagination } from "@/components/table/TablePagination";
 import { formatPrice } from "@/lib/formatPrice";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HotelCell } from "@/components/table/EntityCell";
-import { ClientTypeBadge } from "@/components/booking/ClientTypeBadge";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
 
 const PAYMENT_TEXT_LABELS: Record<string, string> = {
@@ -69,6 +67,7 @@ export function BookingListView({
   paymentAsText = false,
 }: BookingListViewProps) {
   const navigate = useNavigate();
+
   const handleInvoiceClick = async (
     e: React.MouseEvent,
     booking: BookingWithTreatments,
@@ -90,23 +89,194 @@ export function BookingListView({
     }
   };
 
+  const renderInvoiceButton = (booking: BookingWithTreatments) => {
+    if (booking.status === 'quote_pending' || booking.status === 'waiting_approval') return null;
+
+    const isCompleted =
+      booking.status === "completed" ||
+      booking.payment_status === "paid" ||
+      booking.payment_status === "charged_to_room";
+    const isRoomPayment = booking.payment_method === "room";
+    const hasStripeInvoice = !!booking.stripe_invoice_url;
+
+    if (isAdmin && isCompleted) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
+                onClick={(e) => handleInvoiceClick(e, booking, isRoomPayment)}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>{hasStripeInvoice ? "Facture" : "Bon"}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {hasStripeInvoice ? "Voir la Facture Stripe" : "Télécharger le Bon de Prestation"}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    if (isConcierge && isCompleted && isRoomPayment) {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
+                onClick={(e) => handleInvoiceClick(e, booking, true)}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                <span>Bon</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Télécharger le Bon de Prestation</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="h-full flex flex-col min-w-0">
-      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
-        <Table className="text-xs w-full min-w-[1100px] table-fixed">
+      {/* ── Mobile card view (<md) ─────────────────────────── */}
+      <div className="flex flex-col md:hidden flex-1 overflow-y-auto divide-y divide-border">
+        {paginatedBookings.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-8">Aucune réservation trouvée</p>
+        )}
+        {paginatedBookings.map((booking) => {
+          const hotel = getHotelInfo(booking.hotel_id);
+          const firstInitial = booking.client_first_name
+            ? `${booking.client_first_name.charAt(0).toUpperCase()}.`
+            : "";
+          const clientLabel = [firstInitial, booking.client_last_name].filter(Boolean).join(" ");
+          const customerId = (booking as any).customer_id as string | undefined;
+
+          return (
+            <div
+              key={booking.id}
+              className="p-3 cursor-pointer hover:bg-muted/40 transition-colors active:bg-muted/60"
+              onClick={() => onBookingClick(booking)}
+            >
+              {/* Top row: booking id + date + total */}
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-semibold text-primary text-sm shrink-0">
+                    #{booking.booking_id}
+                  </span>
+                  {(booking as any).bundle_usage_id && (
+                    <Package className="h-3 w-3 text-amber-600 shrink-0" title="Séance cure" />
+                  )}
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {format(new Date(booking.booking_date), "dd/MM/yyyy")} · {booking.booking_time.substring(0, 5)}
+                  </span>
+                  {booking.totalDuration && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {booking.totalDuration} min
+                    </span>
+                  )}
+                </div>
+                <span className="font-medium text-sm shrink-0 flex items-center gap-1">
+                  {formatPrice(booking.total_price, hotel?.currency || "EUR")}
+                  {booking.is_out_of_hours && (
+                    <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
+                  )}
+                </span>
+              </div>
+
+              {/* Status badges */}
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                <StatusBadge
+                  status={booking.status}
+                  type="booking"
+                  className="text-[10px] px-2 py-0.5 whitespace-nowrap"
+                />
+                {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
+                  <StatusBadge
+                    status={booking.payment_status || "pending"}
+                    type="payment"
+                    className="text-[10px] px-2 py-0.5 whitespace-nowrap"
+                    customLabel={getPaymentTextLabel(booking.payment_status)}
+                  />
+                )}
+                {(booking as any).guest_count > 1 &&
+                  ["awaiting_hairdresser_selection", "pending"].includes(booking.status) && (
+                    <span
+                      className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
+                      title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}
+                    >
+                      <Users className="h-2.5 w-2.5" />
+                      {(booking as any).booking_therapists?.filter((bt: any) => bt.status === "accepted").length || 0}/{(booking as any).guest_count}
+                    </span>
+                  )}
+                {(booking as any).guest_count > 1 && booking.status === "confirmed" && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
+                    <Users className="h-2.5 w-2.5" /> Duo
+                  </span>
+                )}
+              </div>
+
+              {/* Bottom row: client info + invoice button */}
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0 text-xs text-foreground space-y-0.5">
+                  {customerId ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/admin/customers/${customerId}`);
+                      }}
+                      className="font-medium hover:underline hover:text-primary truncate block text-left"
+                    >
+                      {clientLabel}
+                    </button>
+                  ) : (
+                    <span className="font-medium truncate block">{clientLabel}</span>
+                  )}
+                  <span className="text-muted-foreground truncate block">
+                    {booking.treatments.length > 0
+                      ? booking.treatments.map((t) => t.name).join(", ")
+                      : "-"}
+                  </span>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    {booking.therapist_name && (
+                      <span className="truncate">{booking.therapist_name}</span>
+                    )}
+                    {!isConcierge && hotel && (
+                      <span className="truncate">{hotel.name}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  {renderInvoiceButton(booking)}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop table view (≥md) ────────────────────────── */}
+      <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden bg-card flex-col">
+        <Table className="text-xs w-full min-w-[960px] table-fixed">
           <colgroup>
-            <col className="w-[7%]" />
-            <col className="w-[8%]" />
-            <col className="w-[5%]" />
-            <col className="w-[5%]" />
-            <col className="w-[8%]" />
-            <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
             <col className="w-[6%]" />
-            {!isConcierge && <col className="w-[10%]" />}
-            <col className="w-[10%]" />
+            <col className="w-[8%]" />
             <col className="w-[5%]" />
+            <col className="w-[5%]" />
+            <col className="w-[9%]" />
+            <col className="w-[10%]" />
+            <col className="w-[9%]" />
+            <col className="w-[13%]" />
+            <col className="w-[6%]" />
+            {!isConcierge && <col className="w-[9%]" />}
+            <col className="w-[9%]" />
+            <col className="w-[7%]" />
           </colgroup>
           <TableHeader>
             <TableRow className="border-b h-8 bg-muted/20">
@@ -123,7 +293,9 @@ export function BookingListView({
                 <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Hôtel</TableHead>
               )}
               <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Thérapeute</TableHead>
-              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center">Facture</TableHead>
+              <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 text-center sticky right-0 bg-card border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)]">
+                Facture
+              </TableHead>
             </TableRow>
           </TableHeader>
 
@@ -131,7 +303,7 @@ export function BookingListView({
             {paginatedBookings.map((booking) => (
               <TableRow
                 key={booking.id}
-                className="cursor-pointer border-b hover:bg-muted/50 transition-colors"
+                className="cursor-pointer border-b hover:bg-muted/50 transition-colors group"
                 onClick={() => onBookingClick(booking)}
               >
                 <TableCell className="font-medium text-primary py-3 px-2">
@@ -153,18 +325,22 @@ export function BookingListView({
                 </TableCell>
                 <TableCell className="py-3 px-2">
                   <div className="flex flex-col gap-0.5 items-start">
-                    <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
-                    
-
-                   {/* LE BADGE DE RATIO DUO EST ICI 👇 */}
-{(booking as any).guest_count > 1 && ['awaiting_hairdresser_selection', 'pending'].includes(booking.status) && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium" title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}>
-                        <Users className="h-2.5 w-2.5" />
-                        {(booking as any).booking_therapists?.filter((bt: any) => bt.status === 'accepted').length || 0}/{(booking as any).guest_count}
-                      </span>
-                    )}
-                    {/* Variante pour quand c'est validé (optionnelle mais plus propre visuellement) */}
-                    {(booking as any).guest_count > 1 && booking.status === 'confirmed' && (
+                    <StatusBadge
+                      status={booking.status}
+                      type="booking"
+                      className="text-[10px] px-2 py-0.5 whitespace-nowrap"
+                    />
+                    {(booking as any).guest_count > 1 &&
+                      ["awaiting_hairdresser_selection", "pending"].includes(booking.status) && (
+                        <span
+                          className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium"
+                          title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}
+                        >
+                          <Users className="h-2.5 w-2.5" />
+                          {(booking as any).booking_therapists?.filter((bt: any) => bt.status === "accepted").length || 0}/{(booking as any).guest_count}
+                        </span>
+                      )}
+                    {(booking as any).guest_count > 1 && booking.status === "confirmed" && (
                       <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
                         <Users className="h-2.5 w-2.5" /> Duo
                       </span>
@@ -172,7 +348,7 @@ export function BookingListView({
                   </div>
                 </TableCell>
                 <TableCell className="py-3 px-2 text-center overflow-hidden">
-                  {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (
+                  {booking.status !== "quote_pending" && booking.status !== "waiting_approval" && (
                     <StatusBadge
                       status={booking.payment_status || "pending"}
                       type="payment"
@@ -187,7 +363,9 @@ export function BookingListView({
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   {(() => {
-                    const firstInitial = booking.client_first_name ? `${booking.client_first_name.charAt(0).toUpperCase()}.` : "";
+                    const firstInitial = booking.client_first_name
+                      ? `${booking.client_first_name.charAt(0).toUpperCase()}.`
+                      : "";
                     const label = [firstInitial, booking.client_last_name].filter(Boolean).join(" ");
                     const customerId = (booking as any).customer_id as string | undefined;
                     return customerId ? (
@@ -209,13 +387,13 @@ export function BookingListView({
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   <span className="block leading-snug truncate">
                     {booking.treatments.length > 0
-                      ? booking.treatments.map(t => t.name).join(", ")
+                      ? booking.treatments.map((t) => t.name).join(", ")
                       : "-"}
                   </span>
                 </TableCell>
                 <TableCell className="text-foreground py-3 px-2">
                   <span className="leading-none flex items-center gap-1">
-                    {formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || 'EUR')}
+                    {formatPrice(booking.total_price, getHotelInfo(booking.hotel_id)?.currency || "EUR")}
                     {booking.is_out_of_hours && (
                       <Clock className="h-3 w-3 text-amber-500 shrink-0" title="Hors horaires" />
                     )}
@@ -229,58 +407,8 @@ export function BookingListView({
                 <TableCell className="text-foreground py-3 px-2 truncate">
                   <span className="block leading-none truncate">{booking.therapist_name || "-"}</span>
                 </TableCell>
-                <TableCell className="py-3 px-2 text-center">
-                  {booking.status !== 'quote_pending' && booking.status !== 'waiting_approval' && (() => {
-                    const isCompleted = booking.status === "completed" || booking.payment_status === "paid" || booking.payment_status === "charged_to_room";
-                    const isRoomPayment = booking.payment_method === "room";
-                    const hasStripeInvoice = !!booking.stripe_invoice_url;
-
-                    if (isAdmin && isCompleted) {
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
-                                onClick={(e) => handleInvoiceClick(e, booking, isRoomPayment)}
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                <span>{hasStripeInvoice ? "Facture" : "Bon"}</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {hasStripeInvoice
-                                ? "Voir la Facture Stripe"
-                                : "Télécharger le Bon de Prestation"}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }
-
-                    if (isConcierge && isCompleted && isRoomPayment) {
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                className="inline-flex items-center justify-center gap-1.5 w-20 py-1 text-xs font-medium rounded-md border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary/40 transition-all"
-                                onClick={(e) => handleInvoiceClick(e, booking, true)}
-                              >
-                                <FileText className="h-3.5 w-3.5" />
-                                <span>Bon</span>
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Télécharger le Bon de Prestation
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }
-
-                    return null;
-                  })()}
+                <TableCell className="py-3 px-2 text-center sticky right-0 bg-card border-l shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.08)] group-hover:bg-muted/50 transition-colors">
+                  {renderInvoiceButton(booking)}
                 </TableCell>
               </TableRow>
             ))}

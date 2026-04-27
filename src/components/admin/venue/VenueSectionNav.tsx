@@ -9,6 +9,7 @@ import {
   Clock,
   Users,
   Plug,
+  Sparkles,
 } from "lucide-react";
 
 export interface SectionDef {
@@ -26,6 +27,7 @@ export const VENUE_CONFIG_SECTIONS: SectionDef[] = [
   { id: "booking-rules", label: "Pré-réservation", icon: Timer },
   { id: "schedule", label: "Horaires", icon: Clock },
   { id: "team", label: "Équipe", icon: Users },
+  { id: "amenities", label: "Commodités", icon: Sparkles },
   { id: "pms", label: "PMS", icon: Plug },
 ];
 
