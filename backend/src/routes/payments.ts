@@ -3,6 +3,8 @@ import { authMiddleware } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
 import { stripe } from "../lib/stripe";
 import { sendEmail } from "../lib/email";
+import { computeOutOfHoursSurcharge } from "../lib/surcharge";
+import { computeTherapistEarnings } from "../lib/therapist-earnings";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
@@ -776,10 +778,18 @@ payments.post("/confirm-setup", async (c) => {
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const basePrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
 
-    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+    const { data: hotel } = await supabaseAdmin
+      .from('hotels')
+      .select('name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .eq('id', meta.hotelId)
+      .maybeSingle();
+
+    // Recalcul serveur de la majoration hors horaires
+    const surcharge = computeOutOfHoursSurcharge(meta.bookingTime || '', basePrice, hotel || {});
+    const verifiedPrice = surcharge.totalWithSurcharge;
 
     let customerId = null;
     const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
@@ -873,6 +883,14 @@ payments.post("/confirm-setup", async (c) => {
         if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
         bookingId = meta.draftBookingId;
         console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+
+        await supabaseAdmin
+          .from('bookings')
+          .update({
+            is_out_of_hours: surcharge.isOutOfHours,
+            surcharge_amount: surcharge.surchargeAmount,
+          })
+          .eq('id', bookingId);
       }
     } else {
       // No hold — standard atomic reserve
@@ -905,7 +923,14 @@ payments.post("/confirm-setup", async (c) => {
       if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
 
       bookingId = newBookingId;
-      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
     }
 
     if (!bookingId) {
@@ -966,41 +991,6 @@ payments.post("/confirm-setup", async (c) => {
   }
 });
 
-function timeToMinutes(time: string): number {
-  const parts = time.split(':');
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-}
-
-async function isInBlockedSlot(
-  hotelId: string,
-  bookingDate: string,
-  bookingTime: string,
-  durationMinutes: number
-): Promise<boolean> {
-  const { data: blockedSlots, error } = await supabaseAdmin
-    .from('venue_blocked_slots')
-    .select('start_time, end_time, days_of_week')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true);
-
-  if (error || !blockedSlots || blockedSlots.length === 0) {
-    return false;
-  }
-
-  const dayOfWeek = new Date(bookingDate + 'T00:00:00').getDay();
-  const bookingStartMinutes = timeToMinutes(bookingTime);
-  const bookingEndMinutes = bookingStartMinutes + durationMinutes;
-
-  return blockedSlots.some((block: any) => {
-    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
-      return false;
-    }
-    const blockStartMinutes = timeToMinutes(block.start_time);
-    const blockEndMinutes = timeToMinutes(block.end_time);
-    return bookingStartMinutes < blockEndMinutes && bookingEndMinutes > blockStartMinutes;
-  });
-}
-
 payments.post("/setup-intent", async (c) => {
   try {
     const {
@@ -1060,7 +1050,7 @@ payments.post("/setup-intent", async (c) => {
 
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('slug, currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -1072,7 +1062,7 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
     }
 
-    if (hotel.opening_time && hotel.closing_time) {
+    if (hotel.opening_time && hotel.closing_time && !hotel.allow_out_of_hours_booking) {
       const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
       const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
       const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
@@ -1081,7 +1071,10 @@ payments.post("/setup-intent", async (c) => {
       }
     }
 
-    if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, verifiedTotalPrice, hotel);
+    const finalTotalPrice = surcharge.totalWithSurcharge;
+
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return c.json({ error: 'BLOCKED_SLOT' }, 400);
     }
 
@@ -1139,6 +1132,10 @@ payments.post("/setup-intent", async (c) => {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
         } : {}),
+        isOutOfHours: surcharge.isOutOfHours ? '1' : '0',
+        surchargeAmount: String(surcharge.surchargeAmount),
+        surchargePercent: String(surcharge.surchargePercent),
+        verifiedTotalPrice: String(finalTotalPrice),
       },
     });
 
