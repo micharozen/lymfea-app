@@ -161,15 +161,27 @@ serve(async (req) => {
       }
     }
 
-    // 4. Send push notification to assigned therapist
-    if (booking.therapist_id) {
-      const { data: therapist } = await supabase
+    // 4. Send push notification to all accepted therapists (primary + duo secondary)
+    const { data: acceptedTherapists } = await supabase
+      .from('booking_therapists')
+      .select('therapist_id')
+      .eq('booking_id', bookingId)
+      .eq('status', 'accepted');
+
+    const therapistIds = (acceptedTherapists || []).map(bt => bt.therapist_id);
+    // Fallback to primary therapist_id if bridge table is empty (solo booking pre-migration)
+    if (therapistIds.length === 0 && booking.therapist_id) {
+      therapistIds.push(booking.therapist_id);
+    }
+
+    if (therapistIds.length > 0) {
+      const { data: therapistUsers } = await supabase
         .from('therapists')
         .select('user_id, first_name')
-        .eq('id', booking.therapist_id)
-        .single();
+        .in('id', therapistIds);
 
-      if (therapist?.user_id) {
+      for (const therapist of therapistUsers || []) {
+        if (!therapist.user_id) continue;
         try {
           const { error: pushError } = await supabase.functions.invoke(
             'send-push-notification',
@@ -188,7 +200,6 @@ serve(async (req) => {
               },
             }
           );
-
           if (pushError) {
             errors.push(`push:${therapist.first_name}`);
           } else {

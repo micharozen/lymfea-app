@@ -66,11 +66,11 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
   const fetchBookings = useCallback(async () => {
     try {
       // 1. Récupérer les IDs de réservation depuis la table de liaison (Soins Duo)
-// 1. Récupérer les IDs de réservation depuis la table de liaison (Soins Duo)
       const { data: btData } = await (supabase as any)
         .from('booking_therapists')
         .select('booking_id')
-        .eq('therapist_id', therapistId);
+        .eq('therapist_id', therapistId)
+        .eq('status', 'accepted');
 
       const myBookingIds = (btData as any[])?.map(bt => bt.booking_id) || [];
 

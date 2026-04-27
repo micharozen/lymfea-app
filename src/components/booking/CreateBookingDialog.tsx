@@ -173,11 +173,20 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
+  const [duoMode, setDuoMode] = useState<"assign" | "broadcast">("broadcast");
 
-  // Reset additional therapists when required count drops back to 1
+  // Reset duo state when required count drops back to 1
   useEffect(() => {
-    if (requiredGuestCount <= 1) setAdditionalTherapistIds([]);
+    if (requiredGuestCount <= 1) {
+      setAdditionalTherapistIds([]);
+      setDuoMode("broadcast");
+    }
   }, [requiredGuestCount]);
+
+  const handleDuoModeChange = (mode: "assign" | "broadcast") => {
+    setDuoMode(mode);
+    if (mode === "broadcast") setAdditionalTherapistIds([]);
+  };
 
   // Intersection of `available_days` for every cart item. A treatment with
   // `available_days = null` is unconstrained and doesn't shrink the set.
@@ -358,7 +367,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
       guestCount: requiredGuestCount,
-      ...(requiredGuestCount > 1 && additionalTherapistIds.length > 0
+      ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
         : {}),
     });
@@ -410,7 +419,11 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   return (
     <>
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleRequestClose(); }}>
-      <DialogContent className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden" onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}>
+      <DialogContent
+        className="max-h-[92vh] max-w-xl p-0 gap-0 flex flex-col overflow-hidden"
+        onPointerDownOutside={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (hasUnsavedChanges()) e.preventDefault(); }}
+      >
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
             Nouvelle réservation
@@ -484,6 +497,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
+                  requiredGuestCount={requiredGuestCount}
+                  duoMode={duoMode}
+                  onDuoModeChange={handleDuoModeChange}
+                  additionalTherapistIds={additionalTherapistIds}
+                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
+                  therapists={therapists}
+                  primaryTherapistId={form.watch("therapistId")}
                 />
             </TabsContent>
 

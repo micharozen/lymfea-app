@@ -14,12 +14,14 @@ interface BookingNotificationFormProps {
   booking: BookingData;
   onSuccess?: () => void;
   onSkip?: () => void;
+  hideTitle?: boolean;
 }
 
 export function BookingNotificationForm({
   booking,
   onSuccess,
   onSkip,
+  hideTitle = false,
 }: BookingNotificationFormProps) {
   const [language, setLanguage] = useState<"fr" | "en">("fr");
   const [sendEmail, setSendEmail] = useState(true);
@@ -169,10 +171,12 @@ See you soon!`;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Send className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">Envoyer la confirmation</h3>
-      </div>
+      {!hideTitle && (
+        <div className="flex items-center gap-2">
+          <Send className="h-5 w-5" />
+          <h3 className="text-lg font-semibold">Envoyer la confirmation</h3>
+        </div>
+      )}
 
       <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800">
         Facturation partenaire — aucun lien de paiement ne sera envoyé au client.

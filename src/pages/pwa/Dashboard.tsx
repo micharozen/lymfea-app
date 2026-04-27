@@ -123,7 +123,6 @@ const PwaDashboard = () => {
     const shouldForceRefresh = location.state?.forceRefresh;
 
     if (shouldForceRefresh) {
-      console.log('🔄 Force refresh requested, clearing cache...');
       queryClient.removeQueries({ queryKey: ["myBookings", therapist.id] });
       queryClient.removeQueries({ queryKey: ["pendingBookings", therapist.id] });
       // Clear navigation state
@@ -137,7 +136,6 @@ const PwaDashboard = () => {
     const cachedPendingBookings = queryClient.getQueryData<any[]>(["pendingBookings", therapist.id]);
 
     if (cachedMyBookings || cachedPendingBookings) {
-      console.log('📦 Using cached bookings data');
       const allData = [...(cachedMyBookings || []), ...(cachedPendingBookings || [])];
       const uniqueData = Array.from(new Map(allData.map((b: any) => [b.id, b])).values());
       const sortedData = uniqueData.sort((a: any, b: any) => {
@@ -150,7 +148,6 @@ const PwaDashboard = () => {
     }
 
     // Always fetch fresh data in background
-    console.log('🔄 Fetching bookings in background...');
     fetchAllBookings(therapist.id);
   }, [therapist, location.state?.forceRefresh]);
 
@@ -158,8 +155,6 @@ const PwaDashboard = () => {
   useEffect(() => {
     if (!therapist) return;
 
-    console.log('🎧 Setting up realtime listener...');
-    
     const channel = supabase
       .channel('bookings-updates')
       .on(
@@ -170,43 +165,43 @@ const PwaDashboard = () => {
           table: 'bookings'
         },
         (payload) => {
-          console.log('🔄 UPDATE received:', payload);
           const newData = payload.new as any;
           const oldData = payload.old as any;
           
-          // Cas 1: Reservation assigned to another therapist - remove immediately
-          if (newData.therapist_id !== null &&
-              newData.therapist_id !== therapist.id &&
-              (newData.status === 'pending' || newData.status === 'confirmed' || newData.status === 'awaiting_hairdresser_selection')) {
-            console.log('⚡ Booking #' + newData.booking_id + ' taken by another therapist, removing');
-            setAllBookings(prev => prev.filter(b => b.id !== newData.id));
-            
-            if (oldData.therapist_id === null) {
-              toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
-            }
-            return;
-          }
-          
-          // Cas 2: Unassigned booking but status changed (declined, cancelled, etc.) - remove
-          if (newData.therapist_id === null && newData.status !== 'pending' && newData.status !== 'awaiting_hairdresser_selection') {
-            console.log('⚡ Booking #' + newData.booking_id + ' status changed to ' + newData.status + ', removing');
-            setAllBookings(prev => prev.filter(b => b.id !== newData.id));
-            return;
-          }
-          
-          // Cas 3: My booking confirmed - update in the list
-          if (newData.therapist_id === therapist.id) {
-            console.log('✅ My booking #' + newData.booking_id + ' updated');
-            setAllBookings(prev => {
-              const index = prev.findIndex(b => b.id === newData.id);
-              if (index !== -1) {
-                const updated = [...prev];
-                updated[index] = { ...updated[index], ...newData };
-                return updated;
+          setAllBookings(prev => {
+            const idx = prev.findIndex(b => b.id === newData.id);
+
+            // Solo pending taken by another therapist → toast
+            if (idx !== -1 &&
+                oldData.therapist_id === null &&
+                newData.therapist_id !== null &&
+                newData.therapist_id !== therapist.id &&
+                newData.status !== 'awaiting_hairdresser_selection') {
+              const isSecondary = prev[idx].booking_therapists?.some(
+                (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
+              );
+              if (!isSecondary) {
+                toast.info(t('dashboard.bookingTakenByOther', { id: newData.booking_id }));
               }
-              return prev;
-            });
-          }
+            }
+
+            // Booking not in our list → ignore
+            if (idx === -1) return prev;
+
+            // Cancelled/noshow and we're not involved → remove
+            if (newData.status === 'cancelled' || newData.status === 'noshow') {
+              const isInvolved = newData.therapist_id === therapist.id ||
+                prev[idx].booking_therapists?.some(
+                  (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
+                );
+              if (!isInvolved) return prev.filter(b => b.id !== newData.id);
+            }
+
+            // Update in place — getFilteredBookings handles visibility
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...newData };
+            return updated;
+          });
         }
       )
       .on(
@@ -216,17 +211,41 @@ const PwaDashboard = () => {
           schema: 'public',
           table: 'bookings'
         },
-        (payload) => {
-          console.log('➕ INSERT received:', payload);
+        (_payload) => {
           fetchAllBookings(therapist.id);
         }
       )
-      .subscribe((status) => {
-        console.log('📡 Realtime status:', status);
-      });
+      // Mise à jour du compteur duo en temps réel :
+      // Quand A accepte, un INSERT dans booking_therapists se produit.
+      // Sans cet écouteur, B voit 0/2 jusqu'au prochain fetch complet
+      // car le realtime bookings UPDATE ne transporte pas les relations.
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'booking_therapists'
+        },
+        (payload) => {
+          const newBt = payload.new as { booking_id: string; therapist_id: string; status: string };
+          if (newBt.status !== 'accepted') return;
+          setAllBookings(prev => {
+            const idx = prev.findIndex(b => b.id === newBt.booking_id);
+            if (idx === -1) return prev;
+            const existingBts = prev[idx].booking_therapists || [];
+            if (existingBts.some(bt => bt.therapist_id === newBt.therapist_id)) return prev;
+            const updated = [...prev];
+            updated[idx] = {
+              ...updated[idx],
+              booking_therapists: [...existingBts, { status: newBt.status, therapist_id: newBt.therapist_id }],
+            };
+            return updated;
+          });
+        }
+      )
+      .subscribe();
 
     return () => {
-      console.log('🔌 Cleanup realtime');
       supabase.removeChannel(channel);
     };
   }, [therapist]);
@@ -248,7 +267,6 @@ const PwaDashboard = () => {
       const cachedData = queryClient.getQueryData<any>(["therapist", user.id]);
 
       if (cachedData) {
-        console.log("📦 Using cached therapist data");
         setTherapist(cachedData);
         setLoading(false);
         return;
@@ -279,7 +297,7 @@ const PwaDashboard = () => {
   };
 
   const fetchAllBookings = async (therapistId: string, forceRefresh = false) => {
-    console.log('🔄 Fetching bookings for therapist:', therapistId, 'forceRefresh:', forceRefresh);
+
 
     // Clear cache when force refreshing
     if (forceRefresh) {
@@ -300,7 +318,6 @@ const PwaDashboard = () => {
     }
 
     const hotelIds = affiliatedHotels.map(h => h.hotel_id);
-    console.log('🏨 Hotel IDs:', hotelIds);
 
     // Fetch therapist's treatment room assignments
     const { data: therapistData } = await supabase
@@ -313,7 +330,6 @@ const PwaDashboard = () => {
     const therapistRoomIds: string[] = therapistData?.trunks
       ? therapistData.trunks.split(',').map((t: string) => t.trim()).filter(Boolean)
       : [];
-    console.log('🚪 Therapist room IDs:', therapistRoomIds);
 
     // Fetch hotel images and currency separately (no FK relationship)
     const { data: hotelData } = await supabase
@@ -340,23 +356,56 @@ const PwaDashboard = () => {
       .eq("therapist_id", therapistId)
       .in("hotel_id", hotelIds);
 
-    // Add hotel images to bookings
-    const myBookingsWithImages = myBookings?.map(b => ({
-      ...b,
-      hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
-    })) || [];
-
+    let myBookingsWithImages: Booking[] = [];
     if (myError) {
-      console.error('❌ Error fetching my bookings:', myError);
+      console.error('Error fetching my bookings:', myError);
     } else {
-      // Cache my bookings
+      myBookingsWithImages = (myBookings || []).map(b => ({
+        ...b,
+        hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
+      }));
+
+      // Fetch duo bookings where this therapist is secondary (in booking_therapists but not primary)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: btData } = await (supabase as any)
+        .from("booking_therapists")
+        .select("booking_id")
+        .eq("therapist_id", therapistId)
+        .eq("status", "accepted");
+
+      const primaryIds = new Set((myBookings || []).map(b => b.id));
+      const secondaryBookingIds = ((btData as { booking_id: string }[]) || [])
+        .map((bt) => bt.booking_id)
+        .filter((id) => !primaryIds.has(id));
+
+      if (secondaryBookingIds.length > 0) {
+        const { data: secondaryBookings } = await supabase
+          .from("bookings")
+          .select(`
+            *,
+            booking_therapists ( status, therapist_id ),
+            booking_treatments (
+              treatment_menus (
+                name,
+                price,
+                duration
+              )
+            )
+          `)
+          .in("id", secondaryBookingIds);
+
+        const secondaryWithImages = (secondaryBookings || []).map(b => ({
+          ...b,
+          hotels: hotelDataMap.get(b.hotel_id) || { image: null, currency: null }
+        }));
+        myBookingsWithImages = [...myBookingsWithImages, ...secondaryWithImages];
+      }
+
       queryClient.setQueryData(["myBookings", therapistId], myBookingsWithImages);
     }
 
-    console.log('👤 My bookings:', myBookingsWithImages?.length || 0);
-
     // 2. Get pending bookings (unassigned solos + duo bookings awaiting more therapists)
-    let pendingQuery = supabase
+    const pendingQuery = supabase
       .from("bookings")
       .select(`
         *,
@@ -393,7 +442,6 @@ const PwaDashboard = () => {
       return false;
     }) || [];
 
-    console.log('🔍 Filtered pending bookings by room:', filteredPendingBookings.length, 'of', pendingBookings?.length || 0);
 
     // Fetch proposed slots for awaiting_hairdresser_selection bookings
     const awaitingBookingIds = filteredPendingBookings
@@ -426,7 +474,6 @@ const PwaDashboard = () => {
       queryClient.setQueryData(["pendingBookings", therapistId], pendingBookingsWithImages);
     }
 
-    console.log('⏳ Pending bookings:', pendingBookingsWithImages?.length || 0);
 
     // Only return if BOTH queries failed
     if (myError && pendingError) {
@@ -445,7 +492,6 @@ const PwaDashboard = () => {
       return a.booking_time.localeCompare(b.booking_time);
     });
 
-    console.log('✅ Total bookings loaded:', sortedData.length);
     setAllBookings(sortedData);
     setLoading(false);
   };
@@ -484,8 +530,13 @@ const PwaDashboard = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      // Check if booking is assigned to this therapist
-      const isAssignedToMe = therapist && booking.therapist_id === therapist.id;
+      // Check if booking is assigned to this therapist (primary or secondary on a duo)
+      const isAssignedToMe = therapist && (
+        booking.therapist_id === therapist.id ||
+        booking.booking_therapists?.some(
+          (bt) => bt.therapist_id === therapist.id && bt.status === 'accepted'
+        )
+      );
       
       // Active statuses that block a slot (must be visible in "upcoming")
       const activeStatuses = ["confirmed", "ongoing"];
@@ -646,7 +697,10 @@ const PwaDashboard = () => {
     const todayBookings = allBookings.filter(
       (b) =>
         b.booking_date === todayStr &&
-        b.therapist_id === therapist?.id &&
+        (b.therapist_id === therapist?.id ||
+          b.booking_therapists?.some(
+            (bt) => bt.therapist_id === therapist?.id && bt.status === 'accepted'
+          )) &&
         b.status !== "cancelled" &&
         b.status !== "noshow"
     );

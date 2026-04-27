@@ -254,7 +254,13 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
       try {
         if (d.isAdmin) {
-          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
+          if (guestCount > 1 && allTherapistIds.length < guestCount) {
+            // Duo broadcast mode : le 2ème thérapeute n'est pas encore assigné,
+            // on diffuse à tous les thérapeutes de l'hôtel comme en mode concierge.
+            await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
+          } else {
+            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
+          }
         } else {
           await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
         }

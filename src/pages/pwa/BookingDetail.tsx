@@ -194,11 +194,22 @@ const PwaBookingDetail = () => {
       if (bookingError) throw bookingError;
 
       const { data: hotelData } = await supabase.from("hotels").select("*").eq("id", bookingData.hotel_id).single();
-      
-      let rates = { hr: null, r45: null, r60: null, r90: null };
-      if (bookingData.therapist_id) {
-        const { data: tData } = await supabase.from("therapists").select("hourly_rate, rate_45, rate_60, rate_90").eq("id", bookingData.therapist_id).single();
-        rates = { hr: tData?.hourly_rate, r45: tData?.rate_45, r60: tData?.rate_60, r90: tData?.rate_90 };
+
+      // Toujours charger les taux du thérapeute CONNECTÉ (pas du thérapeute primaire).
+      // Pour un soin duo, chaque thérapeute doit voir ses propres revenus.
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      let rates = { hr: null as number | null, r45: null as number | null, r60: null as number | null, r90: null as number | null };
+      let myTherapistId: string | null = null;
+      if (authUser) {
+        const { data: myT } = await supabase
+          .from("therapists")
+          .select("id, hourly_rate, rate_45, rate_60, rate_90")
+          .eq("user_id", authUser.id)
+          .single();
+        if (myT) {
+          myTherapistId = myT.id;
+          rates = { hr: myT.hourly_rate, r45: myT.rate_45, r60: myT.rate_60, r90: myT.rate_90 };
+        }
       }
 
       const infosStatus = Array.isArray(bookingData.booking_payment_infos) 
@@ -239,13 +250,9 @@ const PwaBookingDetail = () => {
         .eq("booking_id", id)
         .eq("status", "accepted");
       setAcceptedTherapistCount(btData?.length ?? 0);
-
-      // Check if the current user's therapist has already accepted
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        const { data: myT } = await supabase.from("therapists").select("id").eq("user_id", authUser.id).single();
-        setHasAlreadyAccepted(myT ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myT.id) ?? false) : false);
-      }
+      setHasAlreadyAccepted(
+        myTherapistId ? (btData?.some((bt) => (bt as { therapist_id: string }).therapist_id === myTherapistId) ?? false) : false
+      );
 
       // Fetch bundle info if booking has a bundle_usage_id
       const bundleUsageId = (bookingData as any).bundle_usage_id;
@@ -517,14 +524,20 @@ const PwaBookingDetail = () => {
   const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
   const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
-  const estimatedEarnings = computeTherapistEarnings(
-    {
-      rate_45: booking.therapist_rate_45 ?? null,
-      rate_60: booking.therapist_rate_60 ?? null,
-      rate_90: booking.therapist_rate_90 ?? null,
-    },
-    totalDuration,
-  ) ?? 0;
+  // Mode taux fixes (global_therapist_commission = false) : chaque thérapeute
+  // gagne son propre taux pour sa durée de travail, indépendamment du prix total.
+  // Mode commission % (global_therapist_commission = true) : chaque thérapeute
+  // gagne son % sur sa part du total (total / guest_count pour les duos).
+  const estimatedEarnings = (() => {
+    if (booking.global_therapist_commission === false) {
+      return computeTherapistEarnings(
+        { rate_45: booking.therapist_rate_45 ?? null, rate_60: booking.therapist_rate_60 ?? null, rate_90: booking.therapist_rate_90 ?? null },
+        totalDuration,
+      ) ?? 0;
+    }
+    const pricePerTherapist = totalPrice / Math.max(booking.guest_count || 1, 1);
+    return Math.round(pricePerTherapist * ((booking.therapist_commission || 70) / 100) * 100) / 100;
+  })();
 
   return (
     <div className="flex flex-1 flex-col bg-background h-full overflow-hidden">
@@ -751,10 +764,13 @@ const PwaBookingDetail = () => {
             <div className="flex items-center justify-between p-3 bg-blue-50/50 border border-blue-100 rounded-xl mb-4">
               <div className="flex items-center gap-2 text-blue-700">
                 <Users className="w-4 h-4" />
-                <span className="font-medium text-sm">Soin pour {booking.guest_count} personnes</span>
+                <span className="font-medium text-sm">{t('bookingDetail.duoService', { count: booking.guest_count })}</span>
               </div>
               <Badge variant="outline" className="bg-white text-blue-700 border-blue-200 shadow-sm">
-                {booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0}/{booking.guest_count} acceptés
+                {t('bookingDetail.duoAccepted', {
+                  accepted: booking.booking_therapists?.filter(bt => bt.status === 'accepted').length || 0,
+                  total: booking.guest_count,
+                })}
               </Badge>
             </div>
           )}
@@ -777,7 +793,7 @@ const PwaBookingDetail = () => {
           <div className="mb-3 rounded-xl bg-violet-50 border border-violet-200 px-3 py-2 flex items-center gap-2">
             <Hourglass className="w-4 h-4 text-violet-600 shrink-0" />
             <span className="text-xs font-medium text-violet-800">
-              {acceptedTherapistCount}/{booking.guest_count ?? 2} thérapeute{(booking.guest_count ?? 2) > 1 ? "s" : ""} ont rejoint le soin
+              {t('bookingDetail.duoTherapistsJoined', { accepted: acceptedTherapistCount, total: booking.guest_count ?? 2 })}
             </span>
           </div>
         )}
@@ -786,12 +802,12 @@ const PwaBookingDetail = () => {
           <div className="flex gap-2">
             <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
             <button onClick={handleAcceptBooking} disabled={updating} className="flex-1 bg-primary text-white rounded-full font-bold">
-              {booking.status === "awaiting_hairdresser_selection" ? "Rejoindre le soin" : "Accepter"}
+              {booking.status === "awaiting_hairdresser_selection" ? t('bookingDetail.duoJoin') : t('dashboard.accept')}
             </button>
           </div>
         ) : booking.status === "awaiting_hairdresser_selection" && hasAlreadyAccepted ? (
           <div className="w-full rounded-full border border-violet-300 bg-violet-50 py-3 text-center">
-            <span className="text-sm font-medium text-violet-700">En attente d'un autre thérapeute…</span>
+            <span className="text-sm font-medium text-violet-700">{t('bookingDetail.duoWaiting')}</span>
           </div>
         ) : (
           <div>

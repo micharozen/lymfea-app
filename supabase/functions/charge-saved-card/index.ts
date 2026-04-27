@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { stripe } from "../_shared/stripe-client.ts";
 import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
@@ -11,9 +12,52 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { bookingId, finalAmount } = await req.json();
+    const rawText = await req.text();
+    if (!rawText) throw new Error("Corps de la requête vide.");
+    const { bookingId, finalAmount } = JSON.parse(rawText);
 
-    // POINT 4 : Utilisation de maybeSingle() au lieu de single() pour éviter le crash 406
+    if (!bookingId || typeof finalAmount !== 'number' || finalAmount <= 0) {
+      throw new Error("Paramètres invalides.");
+    }
+
+    // Vérification d'identité : seul le thérapeute assigné peut débiter
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Non autorisé.");
+
+    const supabaseUser = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user } } = await supabaseUser.auth.getUser();
+    if (!user) throw new Error("Non autorisé.");
+
+    const { data: callerTherapist } = await supabaseAdmin
+      .from("therapists")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!callerTherapist) throw new Error("Non autorisé.");
+
+    // Vérifier que l'appelant est bien assigné à ce booking (primaire ou duo)
+    const { data: bookingCheck } = await supabaseAdmin
+      .from("bookings")
+      .select("therapist_id, status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (!bookingCheck) throw new Error("Réservation introuvable.");
+
+    if (bookingCheck.therapist_id !== callerTherapist.id) {
+      const { data: btRow } = await supabaseAdmin
+        .from("booking_therapists")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("therapist_id", callerTherapist.id)
+        .eq("status", "accepted")
+        .maybeSingle();
+      if (!btRow) throw new Error("Non autorisé : vous n'êtes pas assigné à ce soin.");
+    }
+
     const { data: paymentInfo, error: fetchError } = await supabaseAdmin
       .from("booking_payment_infos")
       .select("*, customers(stripe_customer_id)")
@@ -63,7 +107,7 @@ serve(async (req) => {
       .update({ payment_status: "paid" })
       .eq("id", bookingId);
 
-    return new Response(JSON.stringify({ success: true, paymentIntent }), {
+    return new Response(JSON.stringify({ success: true, paymentIntentId: paymentIntent.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
