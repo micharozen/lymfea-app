@@ -86,15 +86,20 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       let finalTherapistId = primaryTherapist ? primaryTherapist.id : null;
       let finalTherapistName = primaryTherapist ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}` : null;
 
-      // Logique de statut : Confirmé uniquement si l'équipe est au complet pour les admins
+      // Logique de statut :
+      // - confirmed : équipe complète
+      // - awaiting_hairdresser_selection : équipe partielle (duo)
+      // - pending : aucun thérapeute (broadcast)
       if (d.isAdmin) {
         if (allTherapistIds.length >= guestCount) {
           status = "confirmed";
+        } else if (allTherapistIds.length === 0) {
+          status = "pending";
         } else {
           status = "awaiting_hairdresser_selection";
         }
       } else {
-        status = "awaiting_hairdresser_selection";
+        status = "pending";
         finalTherapistId = null;
         finalTherapistName = null;
       }
