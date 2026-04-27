@@ -40,7 +40,7 @@ export interface CreateBookingPayload {
   date: string;
   time: string;
   therapistId: string;
-  therapistIds?: string[];  // For multi-person bookings (admin selects N therapists)
+  therapistIds?: string[];
   slot2Date: string | null;
   slot2Time: string | null;
   slot3Date: string | null;
@@ -71,28 +71,43 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
   return useMutation({
     mutationFn: async (d: CreateBookingPayload) => {
       const hotel = hotels?.find(h => h.id === d.hotelId);
-      const therapist = therapists?.find(h => h.id === d.therapistId);
+      const guestCount = d.guestCount ?? 1;
 
-      // Determine status and therapist based on role
+      // Consolidation de tous les praticiens sélectionnés
+      const allTherapistIds = d.therapistIds?.length
+        ? d.therapistIds
+        : d.therapistId ? [d.therapistId] : [];
+
+      const primaryTherapist = allTherapistIds.length > 0 
+        ? therapists?.find(h => h.id === allTherapistIds[0]) 
+        : null;
+
       let status: string;
-      let finalTherapistId = d.therapistId || null;
-      let finalTherapistName = therapist ? `${therapist.first_name} ${therapist.last_name}` : null;
+      let finalTherapistId = primaryTherapist ? primaryTherapist.id : null;
+      let finalTherapistName = primaryTherapist ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}` : null;
 
+      // Logique de statut :
+      // - confirmed : équipe complète
+      // - awaiting_hairdresser_selection : équipe partielle (duo)
+      // - pending : aucun thérapeute (broadcast)
       if (d.isAdmin) {
-        // Admin: if a therapist was selected, confirm immediately.
-        // If no therapist (broadcast), wait for a therapist to accept.
-        status = finalTherapistId ? "confirmed" : "pending";
+        if (allTherapistIds.length >= guestCount) {
+          status = "confirmed";
+        } else if (allTherapistIds.length === 0) {
+          status = "pending";
+        } else {
+          status = "awaiting_hairdresser_selection";
+        }
       } else {
-        // Concierge: no therapist, awaiting therapist selection
-        status = "awaiting_hairdresser_selection";
+        status = "pending";
         finalTherapistId = null;
         finalTherapistName = null;
       }
 
-      // Resolve payment_method + payment_status from clientType + voucher flag
       const clientType: BookingClientType = d.clientType ?? "external";
       let paymentMethod: string | null = null;
       let paymentStatus: string | null = null;
+      
       if (d.payByVoucher && (clientType === "hotel" || clientType === "external")) {
         paymentMethod = "voucher";
         paymentStatus = "paid";
@@ -103,11 +118,9 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         paymentMethod = "partner_billed";
         paymentStatus = "pending_partner_billing";
       } else {
-        // external + no voucher: payment_method stays null (set after Stripe payment), status pending
         paymentStatus = "pending";
       }
 
-      // Auto-assign treatment room from hotel
       let roomId: string | null = null;
       const { data: treatmentRooms } = await supabase
         .from("treatment_rooms")
@@ -135,7 +148,6 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
       }
 
-      // Find or create customer by phone
       const normalizedPhone = `${d.countryCode}${d.phone}`.replace(/\s/g, '');
       const { data: customerId } = await supabase.rpc('find_or_create_customer', {
         _phone: normalizedPhone,
@@ -165,7 +177,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         room_id: roomId,
         duration: d.totalDuration,
         customer_id: customerId || null,
-        guest_count: d.guestCount ?? 1,
+        guest_count: guestCount,
         client_type: clientType,
         payment_method: paymentMethod,
         payment_status: paymentStatus,
@@ -190,26 +202,22 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         if (te) throw te;
       }
 
-      // Create booking_therapists bridge table entries
-      if (d.isAdmin && booking) {
-        const allTherapistIds = d.therapistIds?.length
-          ? d.therapistIds
-          : finalTherapistId ? [finalTherapistId] : [];
-
-        if (allTherapistIds.length > 0) {
-          const { error: btError } = await supabase.from("booking_therapists").insert(
-            allTherapistIds.map((tid: string) => ({
-              booking_id: booking.id,
-              therapist_id: tid,
-              status: "accepted",
-              assigned_at: new Date().toISOString(),
-            }))
-          );
-          if (btError) console.error("Error creating booking_therapists:", btError);
+      // VRAIE CORRECTION : On s'assure que si l'insert échoue, on le voit !
+      if (d.isAdmin && booking && allTherapistIds.length > 0) {
+        const { error: btError } = await supabase.from("booking_therapists" as any).insert(
+          allTherapistIds.map((tid: string) => ({
+            booking_id: booking.id,
+            therapist_id: tid,
+            status: "accepted",
+            assigned_at: new Date().toISOString(),
+          }))
+        );
+        if (btError) {
+          console.error("DB Error creating booking_therapists:", btError);
+          throw new Error(`Erreur lors de l'assignation des praticiens: ${btError.message}`);
         }
       }
 
-      // Create linked amenity bookings if any
       if (d.amenityAccess && d.amenityAccess.length > 0 && booking) {
         for (const amenity of d.amenityAccess) {
           const [h, m] = d.time.split(":").map(Number);
@@ -237,7 +245,6 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         }
       }
 
-      // Concierge: create proposed slots record
       if (!d.isAdmin && booking) {
         const { error: slotError } = await supabase.from("booking_proposed_slots").insert({
           booking_id: booking.id,
@@ -253,10 +260,14 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
 
       try {
         if (d.isAdmin) {
-          // Admin: notify the assigned therapist only
-          await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
+          if (guestCount > 1 && allTherapistIds.length < guestCount) {
+            // Duo broadcast mode : le 2ème thérapeute n'est pas encore assigné,
+            // on diffuse à tous les thérapeutes de l'hôtel comme en mode concierge.
+            await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
+          } else {
+            await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id } });
+          }
         } else {
-          // Concierge: smart dispatch to top-ranked therapists
           await invokeEdgeFunction('dispatch-booking-therapist', { body: { bookingId: booking.id } });
         }
       } catch {}
@@ -271,8 +282,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       onSuccess(data);
     },
-    onError: () => {
-      toast({ title: "Erreur", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
     },
   });
 }

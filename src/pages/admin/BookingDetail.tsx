@@ -73,7 +73,9 @@ export default function BookingDetail() {
     remainingSessions: number;
     totalSessions: number;
   } | null>(null);
-  const [therapistRates, setTherapistRates] = useState<TherapistRates | null>(null);
+  const [therapistRatesMap, setTherapistRatesMap] = useState<Record<string, TherapistRates>>({});
+  const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
+  const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
 
   const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
   const isLoading = !bookings; 
@@ -103,22 +105,74 @@ export default function BookingDetail() {
       });
   }, [booking?.id]);
 
-  // Fetch therapist rates for earnings estimation
+  // Fetch all accepted therapists for duo bookings
   useEffect(() => {
-    const therapistId = booking?.therapist_id;
-    if (!therapistId) {
-      setTherapistRates(null);
+    const guestCount = (booking as any)?.guest_count ?? 1;
+    if (!booking?.id || guestCount <= 1) {
+      setAcceptedTherapists([]);
       return;
     }
+    (async () => {
+      const { data: btData } = await supabase
+        .from("booking_therapists")
+        .select("therapist_id")
+        .eq("booking_id", booking.id)
+        .eq("status", "accepted");
+      if (!btData || btData.length === 0) { setAcceptedTherapists([]); return; }
+      const { data: tData } = await supabase
+        .from("therapists")
+        .select("id, first_name, last_name")
+        .in("id", btData.map((bt) => bt.therapist_id));
+      setAcceptedTherapists(tData || []);
+    })();
+  }, [booking?.id, (booking as any)?.guest_count]);
+
+  // Fetch hotel commission settings for earnings calculation
+  useEffect(() => {
+    if (!booking?.hotel_id) { setHotelCommission(null); return; }
     supabase
-      .from("therapists")
-      .select("rate_45, rate_60, rate_90")
-      .eq("id", therapistId)
+      .from("hotels")
+      .select("therapist_commission, global_therapist_commission")
+      .eq("id", booking.hotel_id)
       .single()
       .then(({ data }) => {
-        setTherapistRates(data ?? null);
+        if (data) setHotelCommission({
+          therapist_commission: (data as any).therapist_commission ?? 70,
+          global_therapist_commission: (data as any).global_therapist_commission !== false,
+        });
       });
-  }, [booking?.therapist_id]);
+  }, [booking?.hotel_id]);
+
+  // Fetch therapist rates for earnings estimation (all accepted therapists for duo, primary for solo)
+  useEffect(() => {
+    const guestCount = (booking as any)?.guest_count ?? 1;
+    if (guestCount > 1) {
+      if (acceptedTherapists.length === 0) { setTherapistRatesMap({}); return; }
+      supabase
+        .from("therapists")
+        .select("id, rate_45, rate_60, rate_90")
+        .in("id", acceptedTherapists.map((t) => t.id))
+        .then(({ data }) => {
+          const map: Record<string, TherapistRates> = {};
+          (data || []).forEach((t: any) => {
+            map[t.id] = { rate_45: t.rate_45, rate_60: t.rate_60, rate_90: t.rate_90 };
+          });
+          setTherapistRatesMap(map);
+        });
+    } else {
+      const therapistId = booking?.therapist_id;
+      if (!therapistId) { setTherapistRatesMap({}); return; }
+      supabase
+        .from("therapists")
+        .select("id, rate_45, rate_60, rate_90")
+        .eq("id", therapistId)
+        .single()
+        .then(({ data }) => {
+          if (data) setTherapistRatesMap({ [data.id]: { rate_45: data.rate_45, rate_60: data.rate_60, rate_90: data.rate_90 } });
+          else setTherapistRatesMap({});
+        });
+    }
+  }, [booking?.therapist_id, booking?.id, (booking as any)?.guest_count, acceptedTherapists]);
 
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
@@ -136,9 +190,13 @@ export default function BookingDetail() {
     : booking.treatmentsTotalPrice;
 
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
-  const therapistEarnings = computeTherapistEarnings(therapistRates, totalDuration);
-  const ratesComplete = hasCompleteRates(therapistRates);
-  const showEarnings = !!booking.therapist_id && therapistRates !== null;
+  const guestCount = (booking as any)?.guest_count ?? 1;
+  const isDuo = guestCount > 1;
+  // Solo path (unchanged behaviour for non-duo bookings)
+  const soloRates = !isDuo && booking.therapist_id ? (therapistRatesMap[booking.therapist_id] ?? null) : null;
+  const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
+  const ratesComplete = hasCompleteRates(soloRates);
+  const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
   const paymentLabel = PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending;
 
   // Fonction pour enregistrer la signature depuis l'admin
@@ -329,24 +387,54 @@ export default function BookingDetail() {
                 <HandHeart className="h-4 w-4" /> Soins & Praticien
               </h3>
               
-              {/* ENCART THERAPEUTE (Cliquable) */}
-              <div 
-                onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
-                className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                    {booking.therapist_name?.charAt(0) || "?"}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Thérapeute assigné</p>
-                    <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
-                  </div>
+              {/* ENCART THERAPEUTE(S) */}
+              {(booking as any).guest_count > 1 ? (
+                <div className="mb-4 space-y-2">
+                  <p className="text-xs text-gray-500">
+                    Thérapeutes assignés ({acceptedTherapists.length}/{(booking as any).guest_count})
+                  </p>
+                  {acceptedTherapists.length > 0 ? acceptedTherapists.map((therapist) => (
+                    <div
+                      key={therapist.id}
+                      onClick={() => navigate(`/admin/therapists/${therapist.id}`)}
+                      className="p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent cursor-pointer hover:bg-muted/50 hover:border-primary/40 group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                          {therapist.first_name?.charAt(0) || "?"}
+                        </div>
+                        <p className="font-semibold text-sm">{therapist.first_name} {therapist.last_name}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                    </div>
+                  )) : (
+                    <p className="text-sm text-muted-foreground">Aucun thérapeute n'a encore rejoint ce soin</p>
+                  )}
+                  {acceptedTherapists.length > 0 && acceptedTherapists.length < ((booking as any).guest_count ?? 2) && (
+                    <p className="text-xs text-violet-600">
+                      En attente de {(booking as any).guest_count - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
+                    </p>
+                  )}
                 </div>
-                {booking.therapist_id && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
-                )}
-              </div>
+              ) : (
+                <div
+                  onClick={() => booking.therapist_id && navigate(`/admin/therapists/${booking.therapist_id}`)}
+                  className={`mb-4 p-3 bg-muted/30 rounded-lg flex items-center justify-between transition-all duration-200 border border-transparent ${booking.therapist_id ? 'cursor-pointer hover:bg-muted/50 hover:border-primary/40 group' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                      {booking.therapist_name?.charAt(0) || "?"}
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Thérapeute assigné</p>
+                      <p className="font-semibold text-sm">{booking.therapist_name || "Non assigné"}</p>
+                    </div>
+                  </div>
+                  {booking.therapist_id && (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-[-10px] group-hover:translate-x-0" />
+                  )}
+                </div>
+              )}
               
               {/* LISTE DES SOINS */}
               <div className="space-y-3">
@@ -383,6 +471,8 @@ export default function BookingDetail() {
             <section className="bg-gray-900 text-white rounded-xl p-6 shadow-lg">
               <p className="text-xs opacity-70 uppercase mb-1">Montant Total</p>
               <p className="text-3xl font-bold">{formatPrice(displayPrice, currency)}</p>
+
+              {/* Gains — soin solo */}
               {showEarnings && (
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs opacity-70 uppercase mb-1">Gain thérapeute</p>
@@ -393,6 +483,46 @@ export default function BookingDetail() {
                   )}
                 </div>
               )}
+
+              {/* Gains — soin duo : répartition par thérapeute */}
+              {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs opacity-70 uppercase mb-2">Répartition des gains</p>
+                  {acceptedTherapists.map((therapist) => {
+                    let earnings: number | null;
+                    if (!hotelCommission.global_therapist_commission) {
+                      earnings = computeTherapistEarnings(therapistRatesMap[therapist.id] ?? null, totalDuration);
+                    } else {
+                      const pricePerTherapist = displayPrice / guestCount;
+                      earnings = Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
+                    }
+                    return (
+                      <div key={therapist.id} className="flex justify-between items-center mb-1.5">
+                        <p className="text-xs opacity-80">{therapist.first_name} {therapist.last_name}</p>
+                        {earnings != null ? (
+                          <p className="text-sm font-semibold">{formatPrice(earnings, currency)}</p>
+                        ) : (
+                          <p className="text-xs text-amber-300">Tarifs incomplets</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {hotelCommission.global_therapist_commission && (() => {
+                    const totalTherapistEarnings = acceptedTherapists.reduce((sum) => {
+                      const pricePerTherapist = displayPrice / guestCount;
+                      return sum + Math.round(pricePerTherapist * (hotelCommission.therapist_commission / 100) * 100) / 100;
+                    }, 0);
+                    const hotelShare = Math.round((displayPrice - totalTherapistEarnings) * 100) / 100;
+                    return (
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10">
+                        <p className="text-xs opacity-60">Part établissement</p>
+                        <p className="text-sm font-semibold opacity-80">{formatPrice(hotelShare, currency)}</p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               <div className="mt-4 pt-4 border-t border-white/10 text-xs opacity-70">
                 Méthode : {booking.payment_method ? (PAYMENT_METHOD_LABELS[booking.payment_method] || booking.payment_method) : "À définir"}
                 {(booking as any).payment_reference && (

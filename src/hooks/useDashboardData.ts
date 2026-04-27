@@ -45,7 +45,6 @@ interface AssignmentRow {
 }
 
 export interface AlertsData {
-  pendingConfirmation: number;
   unassigned: number;
   failedPayments: number;
 }
@@ -297,11 +296,8 @@ export function useDashboardData(
       : bookings.filter((b) => b.hotel_id === selectedHotel);
 
     return {
-      pendingConfirmation: relevant.filter(
-        (b) => b.status === "pending" && b.booking_date >= todayStr
-      ).length,
       unassigned: relevant.filter(
-        (b) => b.status === "awaiting_hairdresser_selection"
+        (b) => b.status === "pending" && b.booking_date >= todayStr
       ).length,
       failedPayments: relevant.filter(
         (b) => b.payment_status === "failed"

@@ -17,11 +17,13 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { hotelId, bookingData, treatments, therapistGender } = await req.json();
+    const { hotelId, bookingData, treatments, therapistGender, guestCount } = await req.json();
 
     if (!hotelId || !bookingData || !treatments || treatments.length === 0) {
       throw new Error("Données manquantes pour créer le brouillon");
     }
+
+    const effectiveGuestCount = Math.max(1, guestCount ?? 1);
 
     const { data: hotelData } = await supabase
       .from('hotels')
@@ -86,7 +88,8 @@ serve(async (req: Request) => {
       _payment_status: 'pending',
       _client_note: '',
       _therapist_gender: therapistGender || null,
-      _treatment_ids: treatments.map((t: any) => t.id)
+      _treatment_ids: treatments.map((t: any) => t.id),
+      _guest_count: effectiveGuestCount,
     });
 
     if (rpcError) throw rpcError;
@@ -94,7 +97,7 @@ serve(async (req: Request) => {
 
     await supabase
       .from('bookings')
-      .update({ hold_expires_at: holdExpiresAt })
+      .update({ hold_expires_at: holdExpiresAt, guest_count: effectiveGuestCount })
       .eq('id', newBookingId);
 
     await supabase.from('booking_treatments').insert(

@@ -163,7 +163,12 @@
     "arrived": "Je suis arrivé(e)",
     "arrivedAt": "Arrivé(e) à {{time}}",
     "arrivedSuccess": "Arrivée signalée",
-    "roomNumber": "Chambre {{number}}"
+    "roomNumber": "Chambre {{number}}",
+    "duoService": "Soin pour {{count}} personnes",
+    "duoAccepted": "{{accepted}}/{{total}} acceptés",
+    "duoTherapistsJoined": "{{accepted}}/{{total}} thérapeute(s) ont rejoint le soin",
+    "duoJoin": "Rejoindre le soin",
+    "duoWaiting": "En attente d'un autre thérapeute…"
   },
   "hotels": {
     "title": "Mes Hôtels",

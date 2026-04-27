@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -63,12 +65,28 @@ export function TherapistBookingsTab({ therapistId }: TherapistBookingsTabProps)
 
   const fetchBookings = useCallback(async () => {
     try {
+      // 1. Récupérer les IDs de réservation depuis la table de liaison (Soins Duo)
+      const { data: btData } = await (supabase as any)
+        .from('booking_therapists')
+        .select('booking_id')
+        .eq('therapist_id', therapistId)
+        .eq('status', 'accepted');
+
+      const myBookingIds = (btData as any[])?.map(bt => bt.booking_id) || [];
+
+      // 2. Préparer la requête principale
       let query = supabase
         .from("bookings")
         .select("id, booking_id, booking_date, booking_time, client_first_name, client_last_name, hotel_name, status, total_price")
-        .eq("therapist_id", therapistId)
         .order("booking_date", { ascending: false })
         .order("booking_time", { ascending: false });
+
+      // 3. Appliquer le filtre : Soit Praticien Principal, soit dans la table de liaison
+      if (myBookingIds.length > 0) {
+        query = query.or(`therapist_id.eq.${therapistId},id.in.(${myBookingIds.join(',')})`);
+      } else {
+        query = query.eq("therapist_id", therapistId);
+      }
 
       if (statusFilter !== "all") {
         query = query.eq("status", statusFilter);

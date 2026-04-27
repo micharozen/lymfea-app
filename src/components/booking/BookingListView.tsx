@@ -152,12 +152,21 @@ export function BookingListView({
                   <span className="block leading-none">{booking.totalDuration ? `${booking.totalDuration} min` : "-"}</span>
                 </TableCell>
                 <TableCell className="py-3 px-2">
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-col gap-0.5 items-start">
                     <StatusBadge status={booking.status} type="booking" className="text-[10px] px-2 py-0.5 whitespace-nowrap" />
-                    {(booking as any).guest_count > 1 && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap" title={`${(booking as any).guest_count} personnes`}>
+                    
+
+                   {/* LE BADGE DE RATIO DUO EST ICI 👇 */}
+{(booking as any).guest_count > 1 && ['awaiting_hairdresser_selection', 'pending'].includes(booking.status) && (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap font-medium" title={`Soin duo — ${(booking as any).guest_count} praticiens nécessaires`}>
                         <Users className="h-2.5 w-2.5" />
-                        {(booking as any).guest_count}
+                        {(booking as any).booking_therapists?.filter((bt: any) => bt.status === 'accepted').length || 0}/{(booking as any).guest_count}
+                      </span>
+                    )}
+                    {/* Variante pour quand c'est validé (optionnelle mais plus propre visuellement) */}
+                    {(booking as any).guest_count > 1 && booking.status === 'confirmed' && (
+                      <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 whitespace-nowrap font-medium">
+                        <Users className="h-2.5 w-2.5" /> Duo
                       </span>
                     )}
                   </div>
