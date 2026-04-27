@@ -28,7 +28,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { HotelQRCode } from "@/components/HotelQRCode";
-import { ConciergesCell, TreatmentRoomsCell } from "@/components/table/EntityCell";
+import { getAmenityLabel, getAmenityIcon } from "@/lib/amenityTypes";
+import { useTranslation } from "react-i18next";
 import { TablePagination } from "@/components/table/TablePagination";
 import { TableSkeleton } from "@/components/table/TableSkeleton";
 import { TableEmptyState } from "@/components/table/TableEmptyState";
@@ -58,6 +59,8 @@ interface TreatmentRoom {
 interface HotelStats {
   bookingsCount: number;
   totalSales: number;
+  therapistsCount: number;
+  amenities: string[];
 }
 
 interface DeploymentSchedule {
@@ -95,6 +98,8 @@ interface Hotel {
 
 export default function Hotels() {
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
+  const locale = i18n.language?.startsWith("fr") ? "fr" : "en";
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [filteredHotels, setFilteredHotels] = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,10 +120,10 @@ export default function Hotels() {
     return sortItems(filteredHotels, (hotel, column) => {
       switch (column) {
         case "name": return hotel.name;
-        case "city": return hotel.city;
         case "status": return hotel.status;
         case "sales": return hotel.stats?.totalSales || 0;
-        case "bookings": return hotel.stats?.bookingsCount || 0;
+        case "rooms": return hotel.treatment_rooms?.length || 0;
+        case "therapists": return hotel.stats?.therapistsCount || 0;
         default: return null;
       }
     });
@@ -189,12 +194,35 @@ export default function Hotels() {
 
       if (roomsError) throw roomsError;
 
-      // Fetch bookings stats per hotel (completed bookings only for sales)
+      // Fetch bookings for the current month (sales = completed + confirmed)
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const monthStart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`;
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const monthEnd = `${nextMonth.getFullYear()}-${pad(nextMonth.getMonth() + 1)}-01`;
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
-        .select("hotel_id, total_price, status");
+        .select("hotel_id, total_price, status, booking_date")
+        .gte("booking_date", monthStart)
+        .lt("booking_date", monthEnd);
 
       if (bookingsError) throw bookingsError;
+
+      // Fetch active therapists linked to venues
+      const { data: therapistVenuesData, error: tvError } = await supabase
+        .from("therapist_venues")
+        .select("hotel_id, therapists!inner(id, status)")
+        .eq("therapists.status", "active");
+
+      if (tvError) throw tvError;
+
+      // Fetch enabled amenities per venue
+      const { data: amenitiesData, error: amenitiesError } = await supabase
+        .from("venue_amenities")
+        .select("hotel_id, type, is_enabled")
+        .eq("is_enabled", true);
+
+      if (amenitiesError) throw amenitiesError;
 
       // Fetch deployment schedules
       const { data: schedulesData, error: schedulesError } = await supabase
@@ -216,16 +244,30 @@ export default function Hotels() {
       });
 
       // Calculate stats per hotel
+      const makeEmpty = (): HotelStats => ({
+        bookingsCount: 0,
+        totalSales: 0,
+        therapistsCount: 0,
+        amenities: [],
+      });
       const hotelStats: Record<string, HotelStats> = {};
+      const ensure = (id: string) => {
+        if (!hotelStats[id]) hotelStats[id] = makeEmpty();
+        return hotelStats[id];
+      };
       (bookingsData || []).forEach((booking) => {
-        if (!hotelStats[booking.hotel_id]) {
-          hotelStats[booking.hotel_id] = { bookingsCount: 0, totalSales: 0 };
+        const s = ensure(booking.hotel_id);
+        s.bookingsCount += 1;
+        if ((booking.status === "completed" || booking.status === "confirmed") && booking.total_price) {
+          s.totalSales += Number(booking.total_price);
         }
-        hotelStats[booking.hotel_id].bookingsCount += 1;
-        // Only count completed bookings for sales
-        if (booking.status === "completed" && booking.total_price) {
-          hotelStats[booking.hotel_id].totalSales += Number(booking.total_price);
-        }
+      });
+      (therapistVenuesData || []).forEach((row: any) => {
+        ensure(row.hotel_id).therapistsCount += 1;
+      });
+      (amenitiesData || []).forEach((row: any) => {
+        const s = ensure(row.hotel_id);
+        if (!s.amenities.includes(row.type)) s.amenities.push(row.type);
       });
 
       // Map concierges, treatment rooms and stats to hotels
@@ -250,7 +292,7 @@ export default function Hotels() {
           ...hotel,
           concierges: hotelConcierges,
           treatment_rooms: hotelRooms,
-          stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0 },
+          stats: hotelStats[hotel.id] || { bookingsCount: 0, totalSales: 0, therapistsCount: 0, amenities: [] },
           deployment_schedule: hotelSchedules[hotel.id],
         };
       });
@@ -304,7 +346,7 @@ export default function Hotels() {
     }
   };
 
-  const columnCount = isAdmin ? 10 : 9;
+  const columnCount = isAdmin ? 9 : 8;
 
   return (
     <div className={cn("bg-background flex flex-col", needsPagination ? "h-screen overflow-hidden" : "min-h-0")}>
@@ -404,15 +446,14 @@ export default function Hotels() {
               <div className="overflow-x-auto h-full">
                 <Table className="text-sm w-full table-fixed min-w-[800px]">
                   <colgroup>
-                    <col className="w-[18%]" />
+                    <col className="w-[20%]" />
                     <col className="w-[10%]" />
-                    <col className="w-[14%]" />
-                    <col className="w-[10%]" />
-                    <col className="w-[12%]" />
                     <col className="w-[8%]" />
                     <col className="w-[10%]" />
-                    <col className="w-[5%]" />
-                    <col className="w-[6%]" />
+                    <col className="w-[18%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[7%]" />
                     {isAdmin && <col className="w-[7%]" />}
                   </colgroup>
                   <TableHeader>
@@ -421,19 +462,18 @@ export default function Hotels() {
                         Lieu
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Type</TableHead>
-                      <SortableTableHead column="city" sortDirection={getSortDirection("city")} onSort={toggleSort}>
-                        Localisation
+                      <SortableTableHead column="rooms" sortDirection={getSortDirection("rooms")} onSort={toggleSort} align="right">
+                        Salles
                       </SortableTableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Équipe lieu</TableHead>
-                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Salles</TableHead>
+                      <SortableTableHead column="therapists" sortDirection={getSortDirection("therapists")} onSort={toggleSort} align="right">
+                        Thérapeutes
+                      </SortableTableHead>
+                      <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">Commodités</TableHead>
                       <SortableTableHead column="status" sortDirection={getSortDirection("status")} onSort={toggleSort}>
                         Statut
                       </SortableTableHead>
                       <SortableTableHead column="sales" sortDirection={getSortDirection("sales")} onSort={toggleSort} align="right">
-                        Ventes
-                      </SortableTableHead>
-                      <SortableTableHead column="bookings" sortDirection={getSortDirection("bookings")} onSort={toggleSort} align="right">
-                        Res.
+                        Ventes (mois)
                       </SortableTableHead>
                       <TableHead className="font-medium text-muted-foreground text-xs py-1.5 px-2 truncate">QR</TableHead>
                       {isAdmin && (
@@ -489,16 +529,33 @@ export default function Hotels() {
                               {hotel.venue_type === "hotel" ? "Hotel" : hotel.venue_type === "coworking" ? "Coworking" : hotel.venue_type === "enterprise" ? "Entreprise" : "-"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <span className="truncate block text-foreground">
-                              {hotel.city}{hotel.country ? `, ${hotel.country}` : ''}
-                            </span>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
+                            <span className="truncate block text-foreground">{hotel.treatment_rooms?.length || 0}</span>
+                          </TableCell>
+                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
+                            <span className="truncate block text-foreground">{hotel.stats?.therapistsCount || 0}</span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <ConciergesCell concierges={hotel.concierges || []} />
-                          </TableCell>
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                            <TreatmentRoomsCell rooms={hotel.treatment_rooms || []} />
+                            {hotel.stats?.amenities?.length ? (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {hotel.stats.amenities.map((type) => {
+                                  const Icon = getAmenityIcon(type);
+                                  return (
+                                    <Badge
+                                      key={type}
+                                      variant="outline"
+                                      className="text-[10px] px-1.5 py-0.5 gap-1 whitespace-nowrap"
+                                      title={getAmenityLabel(type, locale)}
+                                    >
+                                      {Icon && <Icon className="h-3 w-3" />}
+                                      <span className="truncate">{getAmenityLabel(type, locale)}</span>
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <Badge
@@ -514,9 +571,6 @@ export default function Hotels() {
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
                             <span className="truncate block text-foreground font-medium">{formatPrice(hotel.stats?.totalSales || 0, hotel.currency)}</span>
-                          </TableCell>
-                          <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-right">
-                            <span className="truncate block text-foreground">{hotel.stats?.bookingsCount || 0}</span>
                           </TableCell>
                           <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
                             <div className="flex items-center gap-1">

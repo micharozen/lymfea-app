@@ -870,7 +870,9 @@
     "therapist": {
       "label": "Available therapists",
       "loading": "Looking for available therapists...",
-      "empty": "No therapist available for this slot"
+      "empty": "No therapist available for this slot",
+      "broadcastTitle": "Don't select (broadcast)",
+      "broadcastDesc": "Offer the slot to all available therapists"
     },
     "client": {
       "firstName": "First name",

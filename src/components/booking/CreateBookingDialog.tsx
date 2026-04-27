@@ -21,7 +21,6 @@ import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
-import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
 import { BookingWizardStepper } from "@/components/ui/BookingWizardStepper";
 import { format } from "date-fns";
@@ -95,7 +94,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   const [createdBooking, setCreatedBooking] = useState<{ id: string; booking_id: number; hotel_name: string } | null>(null);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
-  const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false);
   const [customPrice, setCustomPrice] = useState<string>("");
   const [customDuration, setCustomDuration] = useState<string>("");
@@ -265,7 +263,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         const ct = form.getValues("clientType");
         const byVoucher = form.getValues("payByVoucher");
         const skipStripe = ct !== "external" || byVoucher;
-        if (skipStripe) {
+        if (skipStripe || isConcierge) {
           setIsNotificationDialogOpen(true);
         } else {
           setActiveTab("payment");
@@ -430,6 +428,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}
+            hidePayment={isConcierge}
           />
         </DialogHeader>
 
@@ -516,7 +515,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                     clientLastName={clientLastName}
                     finalPrice={finalPriceWithSurcharge}
                     currency={selectedHotel?.currency || 'EUR'}
-                    onSendPaymentLink={() => setIsPaymentLinkDialogOpen(true)}
+                    clientType={clientType}
+                    onSendPaymentLink={() => setIsNotificationDialogOpen(true)}
                     onClose={handleClose}
                   />
                 )}
@@ -526,35 +526,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
         </Form>
       </DialogContent>
     </Dialog>
-
-    {createdBooking && (
-      <SendPaymentLinkDialog
-        open={isPaymentLinkDialogOpen}
-        onOpenChange={setIsPaymentLinkDialogOpen}
-        booking={{
-          id: createdBooking.id,
-          booking_id: createdBooking.booking_id,
-          client_first_name: clientFirstName,
-          client_last_name: clientLastName,
-          client_email: clientEmail || undefined,
-          phone: `${countryCode} ${phone}`,
-          room_number: roomNumber || undefined,
-          booking_date: date ? format(date, "yyyy-MM-dd") : "",
-          booking_time: time,
-          total_price: finalPriceWithSurcharge,
-          hotel_name: createdBooking.hotel_name,
-          treatments: cartDetails.map(item => ({
-            name: item.treatment?.name || 'Service',
-            price: (item.treatment?.price || 0) * item.quantity,
-          })),
-          currency: selectedHotel?.currency || 'EUR',
-        }}
-        onSuccess={() => {
-          setIsPaymentLinkDialogOpen(false);
-          handleClose();
-        }}
-      />
-    )}
 
     {createdBooking && (
       <SendBookingNotificationDialog

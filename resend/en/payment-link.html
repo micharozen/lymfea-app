@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<title>Complete your booking</title>
+</head>
+<body style="margin:0;padding:0;background-color:#FBF7F2;color:#2C2622;-webkit-font-smoothing:antialiased;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#FBF7F2;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+
+        <table role="presentation" width="600" border="0" cellspacing="0" cellpadding="0" style="width:600px;max-width:600px;background-color:#FFFFFF;border:1px solid #E8DFD2;border-radius:4px;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="padding:36px 48px 0;">
+              <span style="display:inline-block;font-family:Georgia,'Times New Roman',serif;font-size:32px;line-height:1;letter-spacing:0.02em;color:#2C2622;font-style:italic;">Eïa</span>
+              <div style="margin-top:18px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#C96A43;font-weight:500;">Payment link</div>
+            </td>
+          </tr>
+
+          <!-- Title -->
+          <tr>
+            <td align="center" style="padding:28px 48px 0;">
+              <h1 style="margin:0;font-family:Georgia,'Times New Roman',serif;font-size:36px;font-weight:400;color:#2C2622;line-height:1.2;letter-spacing:-0.01em;">
+                One last <em style="color:#C96A43;">step</em> —<br />
+                your moment awaits.
+              </h1>
+              <p style="margin:18px auto 0;max-width:440px;font-family:Helvetica,Arial,sans-serif;font-size:14px;line-height:1.7;color:#8C827B;">
+                {{{intro_text}}}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Invoice block -->
+          <tr>
+            <td style="padding:32px 48px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border:1px solid #E8DFD2;border-radius:4px;border-collapse:separate;">
+
+                <!-- Invoice header bar -->
+                <tr>
+                  <td style="background-color:#F8F3EC;padding:18px 24px;border-bottom:1px solid #E8DFD2;border-top-left-radius:4px;border-top-right-radius:4px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="left" style="font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#C96A43;font-weight:500;">
+                          Your booking · #{{{booking_number}}}
+                        </td>
+                        <td align="right" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#8C827B;letter-spacing:0.1em;">
+                          {{{booking_date}}} · {{{booking_time}}}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Treatment line -->
+                <tr>
+                  <td style="padding:8px 24px 8px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td style="padding:14px 0;">
+                          <div style="font-family:Georgia,'Times New Roman',serif;font-size:15px;color:#2C2622;">{{{treatment_name}}}</div>
+                          <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#8C827B;margin-top:2px;letter-spacing:0.08em;">{{{treatment_duration}}}</div>
+                        </td>
+                        <td align="right" valign="top" style="padding:14px 0;font-family:Georgia,'Times New Roman',serif;font-size:15px;color:#2C2622;">
+                          {{{treatment_price}}} €
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Total bar -->
+                <tr>
+                  <td style="background-color:#F3E2D6;padding:18px 24px;border-top:1px solid #E8DFD2;border-bottom-left-radius:4px;border-bottom-right-radius:4px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="left" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#C96A43;letter-spacing:0.24em;text-transform:uppercase;font-weight:500;">
+                          Amount due
+                        </td>
+                        <td align="right" style="font-family:Georgia,'Times New Roman',serif;font-size:28px;color:#C96A43;font-weight:400;">
+                          {{{total_price}}} €
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td align="center" style="padding:28px 48px 0;">
+              <a href="{{{payment_url}}}" style="display:inline-block;background-color:#C96A43;color:#FFFFFF;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.24em;text-transform:uppercase;font-weight:500;padding:18px 36px;text-decoration:none;border-radius:2px;">
+                Pay {{{total_price}}} € securely
+              </a>
+              <div style="margin-top:14px;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.16em;color:#8C827B;text-transform:uppercase;">
+                Visa &nbsp;·&nbsp; Mastercard &nbsp;·&nbsp; Amex &nbsp;·&nbsp; Apple Pay
+              </div>
+            </td>
+          </tr>
+
+          <!-- Fallback URL -->
+          <tr>
+            <td align="center" style="padding:14px 48px 0;">
+              <div style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#8C827B;word-break:break-all;">
+                or copy&nbsp;: <span style="color:#2C2622;">{{{payment_url}}}</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Expiry note -->
+          <tr>
+            <td style="padding:28px 48px 0;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color:#F6F1EA;border-left:2px solid #C96A43;">
+                <tr>
+                  <td style="padding:18px 22px;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:13px;color:#2C2622;line-height:1.7;">
+                    This link is valid until <b style="font-style:normal;">{{{expiry_date}}}</b>. After that, your slot will be released to another guest.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Secure payment mention -->
+          <tr>
+            <td align="center" style="padding:22px 48px 0;font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:12px;color:#8C827B;line-height:1.6;">
+              Secure payment via Stripe. No card data is stored by Eïa.
+            </td>
+          </tr>
+
+          <tr><td style="padding:8px 48px 24px;">&nbsp;</td></tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 48px;">
+              <div style="height:1px;background:#EFE7DA;width:100%;"></div>
+            </td>
+          </tr>
+
+          <!-- Contact -->
+          <tr>
+            <td align="center" style="padding:28px 48px 20px;font-family:Georgia,'Times New Roman',serif;font-size:12px;font-style:italic;color:#8C827B;line-height:1.6;">
+              Any question?
+              <a href="mailto:booking@lymfea.com" style="color:#2C2622;text-decoration:none;">booking@lymfea.com</a>
+              &middot;
+              <a href="tel:+33674678293" style="color:#2C2622;text-decoration:none;">+33&nbsp;6&nbsp;74&nbsp;67&nbsp;82&nbsp;93</a>
+            </td>
+          </tr>
+
+          <!-- Legal line -->
+          <tr>
+            <td align="center" style="padding:0 48px 32px;font-family:Helvetica,Arial,sans-serif;font-size:9px;letter-spacing:0.28em;color:#8C827B;text-transform:uppercase;line-height:1.8;">
+              EÏA SAS · 38 rue de Grenelle, 75007 Paris · SIREN 900 979 592
+            </td>
+          </tr>
+
+        </table>
+
+        <div style="text-align:center;padding:20px 0 0;font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:0.22em;color:#8C827B;text-transform:uppercase;">
+          Eïa · Awaken Your Senses · <span style="color:#8C827B;">lymfea.fr</span>
+        </div>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

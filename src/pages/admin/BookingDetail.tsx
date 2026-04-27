@@ -28,6 +28,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
+import { useUser } from "@/contexts/UserContext";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import {
   computeTherapistEarnings,
@@ -59,6 +60,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
 
   const { t } = useTranslation('admin');
+  const { isConcierge } = useUser();
 
   const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -261,7 +263,7 @@ export default function BookingDetail() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* BOUTON SIGNATURE */}
-          {isSigned ? (
+          {!isConcierge && (isSigned ? (
             <Button 
               variant="outline" 
               size="sm" 
@@ -279,12 +281,12 @@ export default function BookingDetail() {
             >
               <PenTool className="h-4 w-4 mr-2" /> Signature
             </Button>
-          )}
+          ))}
 
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
-          {!isPartnerBilled && (
+          {!isConcierge && !isPartnerBilled && (
             <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
               <Send className="h-4 w-4 mr-2" /> Paiement
             </Button>

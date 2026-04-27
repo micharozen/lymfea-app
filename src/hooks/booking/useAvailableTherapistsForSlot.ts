@@ -9,6 +9,7 @@ export interface AvailableTherapist {
   profile_image: string | null;
   skills: string[] | null;
   status: string;
+  gender: string | null;
 }
 
 interface UseAvailableTherapistsForSlotParams {
@@ -64,7 +65,7 @@ export function useAvailableTherapistsForSlot({
       // 2. Récupérer les praticiens du lieu
       const { data: links, error: linksError } = await supabase
         .from("therapist_venues")
-        .select("therapist_id, therapists (id, first_name, last_name, profile_image, skills, status)")
+        .select("therapist_id, therapists (id, first_name, last_name, profile_image, skills, status, gender)")
         .eq("hotel_id", hotelId);
 
       if (linksError) throw linksError;

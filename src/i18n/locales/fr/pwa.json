@@ -358,6 +358,8 @@
     "noData": "Aucune prestation terminée sur cette période"
   },
   "payment": {
+    "cancellationPolicyTitle": "Politique d'annulation et modification :",
+    "cancellationPolicyText": "Pour toute annulation effectuée moins de 24 heures avant, 100% du soin sera facturé. Les modifications de rendez-vous dans ce délai seront possibles sous réserve de disponibilité.",
     "received": "Paiement reçu !",
     "serviceFinalized": "La prestation est finalisée",
     "linkActive": "Lien de paiement actif",

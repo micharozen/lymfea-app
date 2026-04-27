@@ -86,7 +86,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
       let finalTherapistId = primaryTherapist ? primaryTherapist.id : null;
       let finalTherapistName = primaryTherapist ? `${primaryTherapist.first_name} ${primaryTherapist.last_name}` : null;
 
-      // Logique de statut corrigée : on vérifie si on a assez de thérapeutes
+      // Logique de statut : Confirmé uniquement si l'équipe est au complet pour les admins
       if (d.isAdmin) {
         if (allTherapistIds.length >= guestCount) {
           status = "confirmed";
@@ -148,6 +148,7 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         _phone: normalizedPhone,
         _first_name: d.clientFirstName,
         _last_name: d.clientLastName,
+        _email: d.clientEmail?.trim() || null,
       });
 
       const { data: booking, error } = await supabase.from("bookings").insert({

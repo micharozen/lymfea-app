@@ -870,7 +870,9 @@
     "therapist": {
       "label": "Thérapeutes disponibles",
       "loading": "Recherche des thérapeutes disponibles...",
-      "empty": "Aucun thérapeute disponible pour ce créneau"
+      "empty": "Aucun thérapeute disponible pour ce créneau",
+      "broadcastTitle": "Ne pas sélectionner (broadcast)",
+      "broadcastDesc": "Proposer à tous les thérapeutes disponibles"
     },
     "client": {
       "firstName": "Prénom",

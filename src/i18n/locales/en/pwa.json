@@ -358,6 +358,8 @@
     "noData": "No completed bookings for this period"
   },
   "payment": {
+    "cancellationPolicyTitle": "Cancellation and modification policy:",
+    "cancellationPolicyText": "For any cancellation made less than 24 hours in advance, 100% of the treatment will be charged. Changes to appointments within this timeframe will be possible subject to availability.",
     "received": "Payment received!",
     "serviceFinalized": "The service is finalized",
     "linkActive": "Payment link active",
