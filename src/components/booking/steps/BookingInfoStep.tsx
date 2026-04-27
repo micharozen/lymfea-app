@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
@@ -98,6 +99,15 @@ export function BookingInfoStep({
   const { lookupGuest, guestData, isLoading: isLookingUpGuest } = usePmsGuestLookup(hotelId);
   const clientType = form.watch("clientType");
   const isHotelClient = clientType === "hotel";
+  const roomNumberLater = form.watch("roomNumberLater");
+
+  const handleRoomLaterChange = (checked: boolean) => {
+    form.setValue("roomNumberLater", checked, { shouldDirty: true });
+    if (checked) {
+      form.setValue("roomNumber", "");
+      form.clearErrors("roomNumber");
+    }
+  };
 
   const isDayUnavailableForCart = (date: Date) => {
     if (!cartAvailableDays || cartAvailableDays.length === 0) return false;
@@ -822,35 +832,47 @@ export function BookingInfoStep({
         </div>
       )}
       {pmsLookupEnabled && isHotelClient && (
-        <FormField
-          control={form.control}
-          name="roomNumber"
-          render={({ field }) => (
-            <FormItem className="space-y-1">
-              <FormLabel className="text-xs">N° de chambre *</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Input
-                    {...field}
-                    className="h-9 pr-8"
-                    placeholder="1002"
-                    onBlur={(e) => {
-                      field.onBlur();
-                      handleRoomNumberBlur(e.target.value);
-                    }}
-                  />
-                  {isLookingUpGuest && (
-                    <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                  {!isLookingUpGuest && guestData?.found && (
-                    <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-green-500" />
-                  )}
-                </div>
-              </FormControl>
-              <FormMessage className="text-xs" />
-            </FormItem>
-          )}
-        />
+        <div className="space-y-2">
+          <FormField
+            control={form.control}
+            name="roomNumber"
+            render={({ field }) => (
+              <FormItem className="space-y-1">
+                <FormLabel className="text-xs">
+                  N° de chambre {!roomNumberLater && "*"}
+                </FormLabel>
+                <FormControl>
+                  <div className="relative">
+                    <Input
+                      {...field}
+                      disabled={roomNumberLater}
+                      className="h-9 pr-8"
+                      placeholder={roomNumberLater ? "À renseigner plus tard" : "1002"}
+                      onBlur={(e) => {
+                        field.onBlur();
+                        handleRoomNumberBlur(e.target.value);
+                      }}
+                    />
+                    {isLookingUpGuest && (
+                      <Loader2 className="absolute right-2.5 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {!isLookingUpGuest && guestData?.found && (
+                      <Check className="absolute right-2.5 top-2.5 h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                </FormControl>
+                <FormMessage className="text-xs" />
+              </FormItem>
+            )}
+          />
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <Checkbox
+              checked={roomNumberLater}
+              onCheckedChange={(v) => handleRoomLaterChange(v === true)}
+            />
+            Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+          </label>
+        </div>
       )}
 
       {/* Customer search (existing clients) */}
@@ -970,29 +992,41 @@ export function BookingInfoStep({
 
         {/* Room number AFTER phone when PMS disabled and hotel client */}
         {!pmsLookupEnabled && isHotelClient && (
-          <FormField
-            control={form.control}
-            name="roomNumber"
-            render={({ field }) => (
-              <FormItem className="space-y-1">
-                <FormLabel className="text-xs">N° de chambre *</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      {...field}
-                      className="h-9 pr-8"
-                      placeholder="1002"
-                      onBlur={(e) => {
-                        field.onBlur();
-                        handleRoomNumberBlur(e.target.value);
-                      }}
-                    />
-                  </div>
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
+          <div className="space-y-2">
+            <FormField
+              control={form.control}
+              name="roomNumber"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs">
+                    N° de chambre {!roomNumberLater && "*"}
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        {...field}
+                        disabled={roomNumberLater}
+                        className="h-9 pr-8"
+                        placeholder={roomNumberLater ? "À renseigner plus tard" : "1002"}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          handleRoomNumberBlur(e.target.value);
+                        }}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              )}
+            />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+              <Checkbox
+                checked={roomNumberLater}
+                onCheckedChange={(v) => handleRoomLaterChange(v === true)}
+              />
+              Numéro de chambre à renseigner plus tard (client pas encore arrivé)
+            </label>
+          </div>
         )}
 
         <FormField

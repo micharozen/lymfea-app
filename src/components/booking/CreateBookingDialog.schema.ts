@@ -18,6 +18,7 @@ export const createFormSchema = (t: TFunction) => z.object({
   phone: z.string().min(1, t('errors.validation.phoneRequired')),
   countryCode: z.string().default("+33"),
   roomNumber: z.string().default(""),
+  roomNumberLater: z.boolean().default(false),
   clientNote: z.string().default(""),
   payByVoucher: z.boolean().default(false),
   voucherReference: z.string().default(""),
@@ -28,8 +29,8 @@ export const createFormSchema = (t: TFunction) => z.object({
   return true;
 }, { message: "Veuillez remplir la date et l'heure pour chaque créneau", path: ["slot2Date"] })
 .refine(data => {
-  // Room number required when clientType === 'hotel'
-  if (data.clientType === 'hotel' && !data.roomNumber.trim()) return false;
+  // Room number required when clientType === 'hotel' (unless deferred)
+  if (data.clientType === 'hotel' && !data.roomNumberLater && !data.roomNumber.trim()) return false;
   return true;
 }, { message: "Le numéro de chambre est requis pour un client hôtel", path: ["roomNumber"] });
 

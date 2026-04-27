@@ -102,7 +102,7 @@ export default function Dashboard() {
         <DashboardAlerts alerts={data.alerts} />
 
         {/* Stat Cards */}
-        <div className={`grid grid-cols-2 sm:grid-cols-3 ${isConcierge ? "lg:grid-cols-4" : "lg:grid-cols-6"} gap-3 mb-6`}>
+        <div className={`grid grid-cols-2 sm:grid-cols-3 ${isConcierge ? "lg:grid-cols-5" : "lg:grid-cols-7"} gap-3 mb-6`}>
           {!isConcierge && (
             <StatCard
               title="Ventes totales"
@@ -133,6 +133,7 @@ export default function Dashboard() {
           />
           <StatCard title="Aujourd'hui" value={stats.todayBookings} />
           <StatCard title="Attente paiement" value={stats.pendingPayment} />
+          <StatCard title="Chambres à renseigner" value={stats.missingRoomNumber} />
           <StatCard title="Taux annulation" value={`${stats.cancellationRate}%`} />
           {!isConcierge && (
             <StatCard
