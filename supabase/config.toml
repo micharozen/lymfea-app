@@ -127,6 +127,9 @@ verify_jwt = false
 [functions.pms-test-connection]
 verify_jwt = false
 
+[functions.payment-test-connection]
+verify_jwt = false
+
 [functions.pms-guest-lookup]
 verify_jwt = false
 

@@ -9,6 +9,7 @@ import {
   Clock,
   Users,
   Plug,
+  CreditCard,
 } from "lucide-react";
 
 export interface SectionDef {
@@ -27,6 +28,7 @@ export const VENUE_CONFIG_SECTIONS: SectionDef[] = [
   { id: "schedule", label: "Horaires", icon: Clock },
   { id: "team", label: "Équipe", icon: Users },
   { id: "pms", label: "PMS", icon: Plug },
+  { id: "payment", label: "Paiement", icon: CreditCard },
 ];
 
 function useActiveSection(sectionIds: string[]) {

@@ -54,6 +54,7 @@ import {
   Type,
   Users,
   Plug,
+  CreditCard,
   ChevronsUpDown,
   Check,
   Palette,
@@ -64,6 +65,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TimezoneSelectField } from "@/components/TimezoneSelector";
 import { getCountryDefaults, COUNTRY_OPTIONS } from "@/lib/timezones";
 import { PmsConfigDialog } from "@/components/admin/PmsConfigDialog";
+import { PaymentConfigDialog } from "@/components/admin/PaymentConfigDialog";
 import { VenueDeploymentStep, DeploymentScheduleState } from "@/components/admin/steps/VenueDeploymentStep";
 import { VenueBookingRulesTab } from "./VenueBookingRulesTab";
 import { VenueWizardFormValues, BlockedSlot } from "../VenueWizardDialog";
@@ -180,6 +182,7 @@ export function VenueGeneralTab({
 
   // PMS dialog state
   const [pmsDialogOpen, setPmsDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch PMS data for the venue
@@ -214,6 +217,30 @@ export function VenueGeneralTab({
   const handlePmsSaved = () => {
     queryClient.invalidateQueries({ queryKey: ["venue-pms-hotel", hotelId] });
     queryClient.invalidateQueries({ queryKey: ["venue-pms-status", hotelId] });
+  };
+
+  // Fetch payment config for the venue
+  const { data: paymentConfig } = useQuery({
+    queryKey: ["venue-payment-config", hotelId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hotel_payment_configs" as any)
+        .select("provider, connection_status, connection_verified_at, adyen_environment")
+        .eq("hotel_id", hotelId!)
+        .maybeSingle();
+      if (error) return null;
+      return data as {
+        provider: string;
+        connection_status: string | null;
+        connection_verified_at: string | null;
+        adyen_environment: string | null;
+      } | null;
+    },
+    enabled: !!hotelId,
+  });
+
+  const handlePaymentSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ["venue-payment-config", hotelId] });
   };
 
   // Fetch venue team members
@@ -1221,6 +1248,88 @@ export function VenueGeneralTab({
             hotelId={hotelId}
             hotelName={form.getValues('name')}
             onSaved={handlePmsSaved}
+          />
+        </>
+      )}
+
+      {/* Card H: Payment provider (any venue type, when venue is saved) */}
+      {hotelId && (
+        <>
+          <Card id="payment" className="scroll-mt-32">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-violet-500" />
+                  Méthode de paiement
+                </CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPaymentDialogOpen(true)}
+                >
+                  {paymentConfig?.provider && paymentConfig.provider !== 'none' ? (
+                    <>
+                      <Settings className="h-4 w-4 mr-2" />
+                      Modifier
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Configurer
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium">
+                    {paymentConfig?.provider === 'stripe'
+                      ? 'Stripe'
+                      : paymentConfig?.provider === 'adyen'
+                        ? 'Adyen'
+                        : 'Non configuré'}
+                  </p>
+                  {paymentConfig?.provider === 'adyen' && paymentConfig?.adyen_environment && (
+                    <Badge variant="outline" className="text-xs">
+                      {paymentConfig.adyen_environment === 'live' ? 'Live' : 'Test'}
+                    </Badge>
+                  )}
+                  {paymentConfig?.provider && paymentConfig.provider !== 'none' && (
+                    paymentConfig.connection_status === 'connected' ? (
+                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-700 border-green-200">
+                        Connecté
+                      </Badge>
+                    ) : paymentConfig.connection_status === 'failed' ? (
+                      <Badge variant="outline" className="text-xs bg-red-500/10 text-red-700 border-red-200">
+                        Échec connexion
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-700 border-yellow-200">
+                        Non testé
+                      </Badge>
+                    )
+                  )}
+                </div>
+                {paymentConfig?.provider && paymentConfig.provider !== 'none' && paymentConfig.connection_status === 'connected' && paymentConfig.connection_verified_at && (
+                  <p className="text-xs text-muted-foreground">
+                    Connecté depuis le {format(new Date(paymentConfig.connection_verified_at), "d MMMM yyyy", { locale: fr })}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Cette configuration est stockée et testable mais n'est pas encore branchée sur le flow de paiement client. La clé Stripe globale reste utilisée en attendant.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <PaymentConfigDialog
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
+            hotelId={hotelId}
+            hotelName={form.getValues('name')}
+            onSaved={handlePaymentSaved}
           />
         </>
       )}
