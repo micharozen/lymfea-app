@@ -5,8 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, Loader2, Clock, Ticket, Users, Bell, X } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -49,6 +48,7 @@ interface BookingPrestationsStepProps {
   finalPriceWithSurcharge?: number;
   isPending: boolean;
   onBack: () => void;
+  onNext?: () => void;
   // Amenity access
   venueAmenities?: VenueAmenity[];
   selectedAmenityIds?: string[];
@@ -59,14 +59,6 @@ interface BookingPrestationsStepProps {
   onPayByVoucherChange: (value: boolean) => void;
   voucherReference: string;
   onVoucherReferenceChange: (value: string) => void;
-  // Duo booking
-  requiredGuestCount?: number;
-  duoMode?: "assign" | "broadcast";
-  onDuoModeChange?: (mode: "assign" | "broadcast") => void;
-  additionalTherapistIds?: string[];
-  onAdditionalTherapistIdsChange?: (ids: string[]) => void;
-  therapists?: { id: string; first_name: string; last_name: string }[];
-  primaryTherapistId?: string;
 }
 
 export function BookingPrestationsStep({
@@ -93,6 +85,7 @@ export function BookingPrestationsStep({
   finalPriceWithSurcharge,
   isPending,
   onBack,
+  onNext,
   venueAmenities,
   selectedAmenityIds,
   onToggleAmenity,
@@ -101,13 +94,6 @@ export function BookingPrestationsStep({
   onPayByVoucherChange,
   voucherReference,
   onVoucherReferenceChange,
-  requiredGuestCount = 1,
-  duoMode = "broadcast",
-  onDuoModeChange,
-  additionalTherapistIds = [],
-  onAdditionalTherapistIdsChange,
-  therapists,
-  primaryTherapistId,
 }: BookingPrestationsStepProps) {
   const { t } = useTranslation('admin');
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
@@ -312,91 +298,6 @@ export function BookingPrestationsStep({
           </div>
         )}
 
-        {/* Duo booking — assignment mode selector */}
-        {isAdmin && requiredGuestCount > 1 && onDuoModeChange && (
-          <div className="relative rounded-md border border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 dark:border-violet-800 p-3 space-y-2.5">
-            {/* Fermer l'encart = retirer le soin duo du panier */}
-            <button
-              type="button"
-              aria-label="Retirer le soin duo"
-              onClick={() => {
-                cartDetails.forEach((item) => {
-                  const isDuo = (item.treatment as any)?.treatment_variants?.some(
-                    (v: any) => (v.guest_count ?? 1) > 1
-                  );
-                  if (isDuo) {
-                    for (let i = 0; i < item.quantity; i++) decrementCart(item.treatmentId);
-                  }
-                });
-                onAdditionalTherapistIdsChange?.([]);
-              }}
-              className="absolute top-2 right-2 text-violet-400 hover:text-violet-700 transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-            <p className="text-xs font-semibold text-violet-800 dark:text-violet-300 flex items-center gap-1.5 pr-5">
-              <Users className="h-3.5 w-3.5 flex-shrink-0" />
-              Soin duo — {requiredGuestCount} thérapeutes requis
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => onDuoModeChange("assign")}
-                className={cn(
-                  "text-left rounded-md border px-2.5 py-2 text-xs transition-colors",
-                  duoMode === "assign"
-                    ? "border-violet-500 bg-violet-100 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <span className="font-semibold block mb-0.5">Assigner</span>
-                <span className="text-[10px] opacity-70">Choisir le 2ème thérapeute</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onDuoModeChange("broadcast");
-                  onAdditionalTherapistIdsChange?.([]);
-                }}
-                className={cn(
-                  "text-left rounded-md border px-2.5 py-2 text-xs transition-colors",
-                  duoMode === "broadcast"
-                    ? "border-violet-500 bg-violet-100 text-violet-900 dark:bg-violet-900/30 dark:text-violet-200"
-                    : "border-border bg-background text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <Bell className="h-3 w-3 mb-0.5 opacity-60" />
-                <span className="font-semibold block mb-0.5">Diffuser</span>
-                <span className="text-[10px] opacity-70">Notifier les thérapeutes</span>
-              </button>
-            </div>
-            {duoMode === "assign" && (
-              <Select
-                value={additionalTherapistIds[0] || ""}
-                onValueChange={(v) => onAdditionalTherapistIdsChange?.(v ? [v] : [])}
-              >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue placeholder="Sélectionner le 2ème thérapeute…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {therapists
-                    ?.filter((t) => t.id !== primaryTherapistId)
-                    .map((t) => (
-                      <SelectItem key={t.id} value={t.id} className="text-xs">
-                        {t.first_name} {t.last_name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            )}
-            {duoMode === "broadcast" && (
-              <p className="text-[10px] text-violet-600 dark:text-violet-400">
-                Une notification sera envoyée à tous les thérapeutes disponibles de l'hôtel.
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Pay-by-voucher block (hotel + external only) */}
         {voucherSupported && (
           <div className="space-y-2 rounded-md border border-border px-2.5 py-2">
@@ -461,21 +362,28 @@ export function BookingPrestationsStep({
             )}
           </div>
 
-          {/* Submit */}
-          <Button
-            type="submit"
-            disabled={isPending || cart.length === 0}
-            size="sm"
-            className={cn(
-              "h-7 text-xs px-3 shrink-0",
-              isAdmin
-                ? "bg-foreground text-background hover:bg-foreground/90"
-                : "bg-emerald-600 text-white hover:bg-emerald-700"
-            )}
-          >
-            {isPending ? "Création..." : isAdmin ? "Créer" : "Envoyer la demande"}
-            {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-          </Button>
+          {/* Admin: go to therapist step — Concierge: submit directly */}
+          {isAdmin && onNext ? (
+            <Button
+              type="button"
+              disabled={cart.length === 0}
+              size="sm"
+              onClick={onNext}
+              className="h-7 text-xs px-3 shrink-0 bg-foreground text-background hover:bg-foreground/90"
+            >
+              Suivant →
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={isPending || cart.length === 0}
+              size="sm"
+              className="h-7 text-xs px-3 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isPending ? "Création..." : "Envoyer la demande"}
+              {isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            </Button>
+          )}
         </div>
       </div>
     </>
