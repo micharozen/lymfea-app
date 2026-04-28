@@ -1,8 +1,9 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddleware, type AuthUser } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
 import { stripe } from "../lib/stripe";
 import { sendEmail } from "../lib/email";
+import { computeOutOfHoursSurcharge } from "../lib/surcharge";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
@@ -275,13 +276,46 @@ payments.post("/finalize", async (c) => {
   });
 });
 
-/**
- * POST /payments/charge-card
- * Charge a saved Stripe card for a completed booking (off-session).
- */
 payments.post("/charge-card", async (c) => {
   try {
     const { bookingId, finalAmount } = await c.req.json();
+
+    if (!bookingId || typeof finalAmount !== "number" || finalAmount <= 0) {
+      return c.json({ success: false, error: "Paramètres invalides." }, 400);
+    }
+
+    const authUser = c.get("user") as AuthUser;
+
+    const { data: callerTherapist } = await supabaseAdmin
+      .from("therapists")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+    if (!callerTherapist) {
+      return c.json({ success: false, error: "Non autorisé." }, 403);
+    }
+
+    const { data: bookingCheck } = await supabaseAdmin
+      .from("bookings")
+      .select("therapist_id, status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (!bookingCheck) {
+      return c.json({ success: false, error: "Réservation introuvable." }, 404);
+    }
+
+    if (bookingCheck.therapist_id !== callerTherapist.id) {
+      const { data: btRow } = await supabaseAdmin
+        .from("booking_therapists")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("therapist_id", callerTherapist.id)
+        .eq("status", "accepted")
+        .maybeSingle();
+      if (!btRow) {
+        return c.json({ success: false, error: "Non autorisé : vous n'êtes pas assigné à ce soin." }, 403);
+      }
+    }
 
     const { data: paymentInfo, error: fetchError } = await supabaseAdmin
       .from("booking_payment_infos")
@@ -327,7 +361,7 @@ payments.post("/charge-card", async (c) => {
       .update({ payment_status: "paid" })
       .eq("id", bookingId);
 
-    return c.json({ success: true, paymentIntent });
+    return c.json({ success: true, paymentIntentId: paymentIntent.id });
   } catch (error: any) {
     console.error("Erreur charge-saved-card:", error);
     return c.json({ success: false, error: error.message }, 400);
@@ -776,11 +810,21 @@ payments.post("/confirm-setup", async (c) => {
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const basePrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
 
-    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+    const { data: hotel } = await supabaseAdmin
+      .from('hotels')
+      .select('name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .eq('id', meta.hotelId)
+      .maybeSingle();
 
+    // Recalcul serveur de la majoration hors horaires
+    const surcharge = computeOutOfHoursSurcharge(meta.bookingTime || '', basePrice, hotel || {});
+    const verifiedPrice = surcharge.totalWithSurcharge;
+
+    // 🌟 CORRECTION CRUCIALE : GESTION DU CLIENT STRIPE 🌟
+    // On récupère le client Stripe de la session et on le lie dans notre table Supabase 'customers'
     let customerId = null;
     const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
 
@@ -793,10 +837,12 @@ payments.post("/confirm-setup", async (c) => {
 
       if (existingCustomer) {
         customerId = existingCustomer.id;
+        // On met à jour son ID Stripe si on ne l'avait pas
         if (stripeCustomerId) {
           await supabaseAdmin.from('customers').update({ stripe_customer_id: stripeCustomerId }).eq('id', customerId);
         }
       } else {
+        // On crée le client s'il n'existe pas
         const { data: newCustomer } = await supabaseAdmin
           .from('customers')
           .insert({
@@ -827,6 +873,7 @@ payments.post("/confirm-setup", async (c) => {
 
       if (draftFetchError || !draftBooking) {
         console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
+        // Fall through to atomic reserve
         const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
           _booking_date: meta.bookingDate,
           _booking_time: meta.bookingTime,
@@ -873,6 +920,14 @@ payments.post("/confirm-setup", async (c) => {
         if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
         bookingId = meta.draftBookingId;
         console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+
+        await supabaseAdmin
+          .from('bookings')
+          .update({
+            is_out_of_hours: surcharge.isOutOfHours,
+            surcharge_amount: surcharge.surchargeAmount,
+          })
+          .eq('id', bookingId);
       }
     } else {
       // No hold — standard atomic reserve
@@ -905,7 +960,14 @@ payments.post("/confirm-setup", async (c) => {
       if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
 
       bookingId = newBookingId;
-      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
     }
 
     if (!bookingId) {
@@ -1003,6 +1065,7 @@ async function isInBlockedSlot(
 
 payments.post("/setup-intent", async (c) => {
   try {
+    const payload = await c.req.json();
     const {
       bookingData,
       clientData,
@@ -1013,54 +1076,98 @@ payments.post("/setup-intent", async (c) => {
       therapistGender,
       draftBookingId,
       giftAmountUsage,
-    } = await c.req.json();
+      guestCount,
+    } = payload;
 
     if (!bookingData || !clientData || !hotelId) {
       throw new Error("Missing required data");
     }
 
-    if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
-      throw new Error("Missing required client information (including email)");
-    }
+    // Uniformisation des payloads
+    const safeTreatmentsPayload = treatmentsPayload || (treatmentIds || []).map((id: string) => ({ treatmentId: id }));
 
-    const effectiveTreatmentIds: string[] = treatmentIds || (treatmentsPayload || []).map((t: any) => t.treatmentId);
+    const effectiveTreatmentIds = safeTreatmentsPayload
+      .map((t: any) => t.treatmentId || t.id)
+      .filter(Boolean);
 
-    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+    if (effectiveTreatmentIds.length === 0) {
       throw new Error("At least one treatment is required");
     }
 
+    // 1. Fetch treatments
     const { data: treatments, error: treatmentsError } = await supabaseAdmin
       .from('treatment_menus')
       .select('id, name, price, hotel_id, status, duration')
       .in('id', effectiveTreatmentIds);
 
     if (treatmentsError || !treatments || treatments.length === 0) {
-      throw new Error("Failed to fetch valid treatments");
+      throw new Error("Failed to fetch treatments from database. Your cart might contain outdated items.");
     }
 
+    // 2. All requested treatments must exist
+    const foundTreatmentIds = new Set(treatments.map(t => t.id));
+    const missingTreatments = effectiveTreatmentIds.filter((id: string) => !foundTreatmentIds.has(id));
+
+    if (missingTreatments.length > 0) {
+      throw new Error(`Some treatments are no longer available in our catalog. Please refresh your cart.`);
+    }
+
+    // 3. Hotel affiliation and active status check
+    const ACTIVE_STATUSES = ["Actif", "active", "Active"];
     const invalidTreatments = treatments.filter(t =>
-      (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== 'active'
+      (t.hotel_id !== null && t.hotel_id !== hotelId) || !ACTIVE_STATUSES.includes(t.status)
     );
 
     if (invalidTreatments.length > 0) {
-      throw new Error("Some treatments are not available for this hotel");
+      throw new Error("Some selected treatments are currently inactive or unavailable for this venue.");
     }
 
-    const rawTotalPrice = treatments.reduce((sum, t) => sum + (t.price || 0), 0);
-    const totalDuration = treatments.reduce((sum, t) => sum + (t.duration || 0), 0) || 30;
+    // 4. Fetch variants if present (Soins Duo, special duration, etc.)
+    const variantIds = safeTreatmentsPayload.map((t: any) => t.variantId).filter(Boolean);
+    let variants: any[] = [];
 
-    const giftDeductionEuros = giftAmountUsage?.amountCents
-      ? Math.round(giftAmountUsage.amountCents / 100)
-      : 0;
+    if (variantIds.length > 0) {
+      const { data: vData, error: vError } = await supabaseAdmin
+        .from('treatment_variants')
+        .select('id, price, duration')
+        .in('id', variantIds);
+
+      if (vError) throw new Error("Failed to fetch treatment variants.");
+      variants = vData || [];
+    }
+
+    // 5. Calculate price and duration
+    let rawTotalPrice = 0;
+    let totalDuration = 0;
+
+    for (const tPayload of safeTreatmentsPayload) {
+      const baseTreatment = treatments.find(t => t.id === (tPayload.treatmentId || tPayload.id));
+      if (!baseTreatment) continue;
+
+      if (tPayload.variantId) {
+        const variant = variants.find(v => v.id === tPayload.variantId);
+        if (!variant) {
+          throw new Error("A requested treatment variant is no longer available.");
+        }
+        rawTotalPrice += (variant.price ?? baseTreatment.price ?? 0);
+        totalDuration += (variant.duration ?? baseTreatment.duration ?? 30);
+      } else {
+        rawTotalPrice += (baseTreatment.price ?? 0);
+        totalDuration += (baseTreatment.duration ?? 30);
+      }
+    }
+
+    const giftDeductionEuros = giftAmountUsage?.amountCents ? Math.round(giftAmountUsage.amountCents / 100) : 0;
     const verifiedTotalPrice = Math.max(rawTotalPrice - giftDeductionEuros, 0);
 
     if (verifiedTotalPrice <= 0 && !giftAmountUsage) {
-      throw new Error("Invalid total price calculated");
+      throw new Error(`Invalid total price calculated (Total was ${rawTotalPrice}€).`);
     }
 
+    // 6. Hotel info and rules
     const { data: hotel, error: hotelError } = await supabaseAdmin
       .from('hotels')
-      .select('slug, currency, name, offert, opening_time, closing_time')
+      .select('slug, currency, name, offert, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
       .eq('id', hotelId)
       .maybeSingle();
 
@@ -1072,19 +1179,15 @@ payments.post("/setup-intent", async (c) => {
       throw new Error("Ce lieu propose actuellement des soins offerts.");
     }
 
-    if (hotel.opening_time && hotel.closing_time) {
-      const bookingMinutes = parseInt(bookingData.time.split(':')[0]) * 60 + parseInt(bookingData.time.split(':')[1]);
-      const openMinutes = parseInt(hotel.opening_time.split(':')[0]) * 60 + parseInt(hotel.opening_time.split(':')[1]);
-      const closeMinutes = parseInt(hotel.closing_time.split(':')[0]) * 60 + parseInt(hotel.closing_time.split(':')[1]);
-      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
-        return c.json({ error: 'BLOCKED_SLOT' }, 400);
-      }
-    }
+    // 7. Out-of-hours surcharge and blocked slot check
+    const surcharge = computeOutOfHoursSurcharge(bookingData.time, verifiedTotalPrice, hotel);
+    const finalTotalPrice = surcharge.totalWithSurcharge;
 
     if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return c.json({ error: 'BLOCKED_SLOT' }, 400);
     }
 
+    // Stripe customer upsert
     let stripeCustomerId: string;
     const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
 
@@ -1132,13 +1235,19 @@ payments.post("/setup-intent", async (c) => {
         roomNumber: clientData.roomNumber || '',
         note: clientData.note || '',
         treatmentIds: JSON.stringify(effectiveTreatmentIds),
+        treatmentsPayload: JSON.stringify(safeTreatmentsPayload),
         language: language || 'fr',
         therapistGender: therapistGender || '',
         draftBookingId: draftBookingId || '',
+        guestCount: guestCount ? String(guestCount) : '1',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
         } : {}),
+        isOutOfHours: surcharge.isOutOfHours ? '1' : '0',
+        surchargeAmount: String(surcharge.surchargeAmount),
+        surchargePercent: String(surcharge.surchargePercent),
+        verifiedTotalPrice: String(finalTotalPrice),
       },
     });
 
