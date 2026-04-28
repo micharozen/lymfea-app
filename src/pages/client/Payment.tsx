@@ -10,6 +10,7 @@ import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
@@ -128,8 +129,7 @@ export default function Payment() {
       if (!isBundleOnly) return;
       setIsProcessing(true);
       try {
-        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-bundle-payment', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -145,7 +145,6 @@ export default function Payment() {
               quantity: item.quantity,
             })),
             totalPrice: total,
-          },
         });
 
         if (error) throw error;
@@ -224,8 +223,7 @@ export default function Payment() {
           return;
         } else {
           // Partial coverage — pay remainder via Stripe
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+          const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
               hotelId,
               clientData: {
                 firstName: clientInfo.firstName,
@@ -250,7 +248,6 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            },
           });
 
           if (error) throw error;
@@ -318,8 +315,7 @@ export default function Payment() {
         // Le draft reste en DB — confirm-setup-intent le promouvra en 'pending'.
         // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
         setHoldExpiresAt(null);
-        const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -341,7 +337,6 @@ export default function Payment() {
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
-          },
         });
 
         if (error) throw error;

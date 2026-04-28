@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
 import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, Mail, DoorOpen, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -287,8 +287,11 @@ const PwaBookingDetail = () => {
     setSigningLoading(true);
     try {
       if (pendingRoomPayment) {
-        const { data, error } = await invokeEdgeFunction<any, any>('finalize-payment', {
-          body: { booking_id: booking.id, payment_method: 'room', final_amount: totalPrice, signature_data: signatureData },
+        const { data, error } = await invokeStripe<any>('finalize-payment', {
+          booking_id: booking.id,
+          payment_method: 'room',
+          final_amount: totalPrice,
+          signature_data: signatureData,
         });
         if (error || !data?.success) throw new Error(data?.error || "Erreur finalisation");
         toast.success("Prestation finalisée !");
@@ -314,8 +317,9 @@ const PwaBookingDetail = () => {
     isChargingRef.current = true;
     setUpdating(true);
     try {
-      const { data, error } = await invokeEdgeFunction('charge-saved-card', {
-        body: { bookingId: booking.id, finalAmount: amount },
+      const { data, error } = await invokeStripe('charge-saved-card', {
+        bookingId: booking.id,
+        finalAmount: amount,
       });
       if (error || !(data as any)?.success) throw new Error((data as any)?.error || "Échec débit");
       toast.success("Carte débitée avec succès !");

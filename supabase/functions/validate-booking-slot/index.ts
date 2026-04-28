@@ -137,8 +137,9 @@ serve(async (req) => {
 
     // Send payment link to client
     try {
-      await supabase.functions.invoke("send-payment-link", {
+      await supabase.functions.invoke("stripe-payment", {
         body: {
+          action: "send-payment-link",
           bookingId: booking.id,
           language: "en",
           channels: ["whatsapp"],

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Mail, Send, CheckCircle2, AlertCircle } from "lucide-react";
-import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
+import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -72,17 +72,18 @@ export function PaymentLinkForm({
     if (sendWhatsApp) channels.push("whatsapp");
 
     try {
-      const { data, error } = await invokeEdgeFunction<
-        { bookingId: string; language: string; channels: string[]; clientEmail?: string; clientPhone?: string },
-        { success: boolean; paymentLinkUrl: string; emailSent: boolean; whatsappSent: boolean; errors?: string[] }
-      >("send-payment-link", {
-        body: {
-          bookingId: booking.id,
-          language,
-          channels,
-          clientEmail: sendEmail ? clientEmail : undefined,
-          clientPhone: sendWhatsApp ? clientPhone : undefined,
-        },
+      const { data, error } = await invokeStripe<{
+        success: boolean;
+        paymentLinkUrl: string;
+        emailSent: boolean;
+        whatsappSent: boolean;
+        errors?: string[];
+      }>("send-payment-link", {
+        bookingId: booking.id,
+        language,
+        channels,
+        clientEmail: sendEmail ? clientEmail : undefined,
+        clientPhone: sendWhatsApp ? clientPhone : undefined,
       });
 
       if (error) {

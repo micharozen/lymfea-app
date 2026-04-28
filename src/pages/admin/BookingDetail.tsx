@@ -197,7 +197,16 @@ export default function BookingDetail() {
   const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
   const ratesComplete = hasCompleteRates(soloRates);
   const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
-  const paymentLabel = PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending;
+  const clientType = (booking as any).client_type || (booking.room_number ? "hotel" : "external");
+  const isExternal = clientType === "external";
+  const paymentInfos = booking.booking_payment_infos;
+  const hasSavedCard = !!paymentInfos
+    && paymentInfos.payment_status === "card_saved"
+    && !!paymentInfos.stripe_payment_method_id;
+  const cardSavedToCharge = isExternal && hasSavedCard && (booking.payment_status || "pending") === "pending";
+  const paymentLabel = cardSavedToCharge
+    ? "Carte enregistrée à débiter"
+    : (PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending);
 
   // Fonction pour enregistrer la signature depuis l'admin
   const handleSignatureConfirm = async (signatureData: string) => {
@@ -291,7 +300,7 @@ export default function BookingDetail() {
           <Button variant="outline" size="sm" onClick={() => setIsNotesOpen(true)}>
             <MessageSquare className="h-4 w-4 mr-2" /> Notes
           </Button>
-          {!isConcierge && !isPartnerBilled && (
+          {!isConcierge && !isPartnerBilled && !cardSavedToCharge && (
             <Button variant="outline" size="sm" onClick={() => setIsPaymentLinkOpen(true)}>
               <Send className="h-4 w-4 mr-2" /> Paiement
             </Button>

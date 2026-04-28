@@ -93,16 +93,19 @@ export function createAdyenProvider(config: AdyenProviderConfig): PaymentProvide
 // Factory
 // ============================================================
 
-export function buildPaymentConfigFromRow(
+// Build a provider config from a public row (non-sensitive metadata) plus a
+// decrypted secrets payload pulled from Vault.
+export function buildPaymentConfig(
   provider: PaymentProviderType,
   row: Record<string, any>,
+  secrets: Record<string, any> | null,
 ): StripeProviderConfig | AdyenProviderConfig {
   switch (provider) {
     case "stripe":
-      return { secretKey: row.stripe_secret_key } as StripeProviderConfig;
+      return { secretKey: secrets?.stripe_secret_key ?? "" } as StripeProviderConfig;
     case "adyen":
       return {
-        apiKey: row.adyen_api_key,
+        apiKey: secrets?.adyen_api_key ?? "",
         environment: (row.adyen_environment === "live" ? "live" : "test"),
       } as AdyenProviderConfig;
     default:

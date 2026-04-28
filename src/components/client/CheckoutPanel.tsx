@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { format, parse } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { useBundleTemplate } from '@/hooks/client/useBundleTemplate';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
@@ -135,8 +136,7 @@ export function CheckoutPanel({
       if (!isBundleOnly) return;
       setIsProcessing(true);
       try {
-        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-bundle-payment', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -162,7 +162,6 @@ export function CheckoutPanel({
                 giftMessage: giftInfo.giftMessage,
               },
             }),
-          },
         });
 
         if (error) throw error;
@@ -239,8 +238,7 @@ export function CheckoutPanel({
           return;
         } else {
           setHoldExpiresAt(null);
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+          const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
               hotelId,
               clientData: {
                 firstName: clientInfo.firstName,
@@ -266,7 +264,6 @@ export function CheckoutPanel({
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
-            },
           });
 
           if (error) throw error;
@@ -333,8 +330,7 @@ export function CheckoutPanel({
         // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
         // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
         setHoldExpiresAt(null);
-        const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -356,7 +352,6 @@ export function CheckoutPanel({
             totalPrice: total,
             ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
             ...(draftBookingId ? { draftBookingId } : {}),
-          },
         });
 
         if (error) throw error;

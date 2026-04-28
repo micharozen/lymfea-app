@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
-import { CreditCard, Loader2, CheckCircle2, XCircle, Plug } from "lucide-react";
+import { CreditCard, Loader2, CheckCircle2, XCircle, Plug, Copy } from "lucide-react";
 
 const paymentConfigSchema = z
   .object({
@@ -142,10 +142,14 @@ export function PaymentConfigDialog({
           adyen_client_key: config.adyen_client_key || "",
           adyen_hmac_key: "",
         });
-        setHasExistingStripeSecret(!!config.stripe_secret_key);
-        setHasExistingStripeWebhook(!!config.stripe_webhook_secret);
-        setHasExistingAdyenKey(!!config.adyen_api_key);
-        setHasExistingAdyenHmac(!!config.adyen_hmac_key);
+        // Sensitive fields are stored in Vault; we never load them back into
+        // the form. We only know whether a secret was previously configured.
+        const hasStripeVault = !!config.stripe_vault_secret_id;
+        const hasAdyenVault = !!config.adyen_vault_secret_id;
+        setHasExistingStripeSecret(hasStripeVault);
+        setHasExistingStripeWebhook(hasStripeVault);
+        setHasExistingAdyenKey(hasAdyenVault);
+        setHasExistingAdyenHmac(hasAdyenVault);
       } else {
         form.reset({
           provider: "none",
@@ -198,17 +202,57 @@ export function PaymentConfigDialog({
     setIsSaving(true);
 
     try {
+      const requestBody: {
+        hotelId: string;
+        provider: "none" | "stripe" | "adyen";
+        publicFields: Record<string, string | null>;
+        secrets: Record<string, string>;
+      } = {
+        hotelId,
+        provider: values.provider,
+        publicFields: {},
+        secrets: {},
+      };
+
+      if (values.provider === "stripe") {
+        requestBody.publicFields = {
+          stripe_publishable_key: values.stripe_publishable_key || null,
+          stripe_account_id: values.stripe_account_id || null,
+        };
+        if (values.stripe_secret_key) {
+          requestBody.secrets.stripe_secret_key = values.stripe_secret_key;
+        }
+        if (values.stripe_webhook_secret) {
+          requestBody.secrets.stripe_webhook_secret = values.stripe_webhook_secret;
+        }
+      }
+
+      if (values.provider === "adyen") {
+        requestBody.publicFields = {
+          adyen_merchant_account: values.adyen_merchant_account || null,
+          adyen_environment: values.adyen_environment || "test",
+          adyen_client_key: values.adyen_client_key || null,
+        };
+        if (values.adyen_api_key) {
+          requestBody.secrets.adyen_api_key = values.adyen_api_key;
+        }
+        if (values.adyen_hmac_key) {
+          requestBody.secrets.adyen_hmac_key = values.adyen_hmac_key;
+        }
+      }
+
+      const { error: invokeError } = await invokeEdgeFunction<
+        typeof requestBody,
+        { success: boolean; error?: string }
+      >("payment-config-upsert", { body: requestBody });
+
+      if (invokeError) {
+        console.error("Failed to save payment config:", invokeError);
+        toast.error(t("payment.saveFailed"));
+        return;
+      }
+
       if (values.provider === "none") {
-        await supabase
-          .from("hotel_payment_configs" as any)
-          .delete()
-          .eq("hotel_id", hotelId);
-
-        await supabase
-          .from("hotels")
-          .update({ payment_provider: null } as any)
-          .eq("id", hotelId);
-
         toast.success(t("payment.saved"));
         setHasExistingStripeSecret(false);
         setHasExistingStripeWebhook(false);
@@ -217,50 +261,6 @@ export function PaymentConfigDialog({
         onSaved?.();
         return;
       }
-
-      const configData: Record<string, any> = {
-        hotel_id: hotelId,
-        provider: values.provider,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (values.provider === "stripe") {
-        configData.stripe_publishable_key = values.stripe_publishable_key || null;
-        configData.stripe_account_id = values.stripe_account_id || null;
-        if (values.stripe_secret_key) {
-          configData.stripe_secret_key = values.stripe_secret_key;
-        }
-        if (values.stripe_webhook_secret) {
-          configData.stripe_webhook_secret = values.stripe_webhook_secret;
-        }
-      }
-
-      if (values.provider === "adyen") {
-        configData.adyen_merchant_account = values.adyen_merchant_account || null;
-        configData.adyen_environment = values.adyen_environment || "test";
-        configData.adyen_client_key = values.adyen_client_key || null;
-        if (values.adyen_api_key) {
-          configData.adyen_api_key = values.adyen_api_key;
-        }
-        if (values.adyen_hmac_key) {
-          configData.adyen_hmac_key = values.adyen_hmac_key;
-        }
-      }
-
-      const { error: upsertError } = await supabase
-        .from("hotel_payment_configs" as any)
-        .upsert(configData, { onConflict: "hotel_id" });
-
-      if (upsertError) {
-        console.error("Failed to save payment config:", upsertError);
-        toast.error(t("payment.saveFailed"));
-        return;
-      }
-
-      await supabase
-        .from("hotels")
-        .update({ payment_provider: values.provider } as any)
-        .eq("id", hotelId);
 
       toast.success(t("payment.saved"));
       onSaved?.();
@@ -429,6 +429,8 @@ export function PaymentConfigDialog({
                         </FormItem>
                       )}
                     />
+
+                    <StripeWebhookUrlField hotelId={hotelId} />
                   </div>
                 </>
               )}
@@ -624,5 +626,46 @@ export function PaymentConfigDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StripeWebhookUrlField({ hotelId }: { hotelId: string }) {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+  const webhookUrl = supabaseUrl
+    ? `${supabaseUrl}/functions/v1/stripe-webhook?hotel_id=${hotelId}`
+    : "";
+
+  const handleCopy = async () => {
+    if (!webhookUrl) return;
+    try {
+      await navigator.clipboard.writeText(webhookUrl);
+      toast.success("URL copiée");
+    } catch {
+      toast.error("Impossible de copier");
+    }
+  };
+
+  return (
+    <FormItem>
+      <FormLabel>Webhook URL Stripe</FormLabel>
+      <div className="flex gap-2">
+        <Input value={webhookUrl} readOnly className="font-mono text-xs" />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={handleCopy}
+          disabled={!webhookUrl}
+          aria-label="Copier l'URL"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+      </div>
+      <FormDescription className="text-xs">
+        Collez cette URL dans Stripe Dashboard → Developers → Webhooks → Add endpoint,
+        puis reportez le <code className="rounded bg-muted px-1">whsec_…</code> généré
+        dans le champ Webhook secret ci-dessus.
+      </FormDescription>
+    </FormItem>
   );
 }

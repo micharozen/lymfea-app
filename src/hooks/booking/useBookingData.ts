@@ -20,6 +20,7 @@ export interface BookingWithTreatments extends BookingRow {
   treatments: Treatment[];
   // Ajout pour que TypeScript connaisse la relation des soins duo
   booking_therapists?: { status: string; therapist_id: string }[];
+  booking_payment_infos?: { payment_status: string | null; stripe_payment_method_id: string | null } | null;
 }
 
 interface BookingTreatmentJoin {
@@ -52,7 +53,7 @@ export function useBookingData() {
       // CORRECTION ICI : On fetch booking_therapists en même temps !
       const { data: bookingsData, error: bookingsError } = await (supabase as any)
         .from("bookings")
-        .select("*, booking_therapists(status, therapist_id)")
+        .select("*, booking_therapists(status, therapist_id), booking_payment_infos(payment_status, stripe_payment_method_id)")
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
@@ -93,6 +94,10 @@ export function useBookingData() {
             })
             .filter((m): m is Treatment => m !== null) || [];
 
+          const paymentInfos = Array.isArray(booking.booking_payment_infos)
+            ? booking.booking_payment_infos[0] ?? null
+            : booking.booking_payment_infos ?? null;
+
           return {
             ...booking,
             totalDuration,
@@ -100,6 +105,7 @@ export function useBookingData() {
             treatmentsTotalPrice,
             treatments: treatmentsList,
             booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
+            booking_payment_infos: paymentInfos,
           } as BookingWithTreatments;
         }),
       );

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
-  buildPaymentConfigFromRow,
+  buildPaymentConfig,
   getPaymentProvider,
   type PaymentProviderType,
 } from "../_shared/payment-provider.ts";
@@ -54,7 +54,21 @@ serve(async (req) => {
       );
     }
 
-    const config = buildPaymentConfigFromRow(provider, paymentConfig);
+    const rpcName =
+      provider === "stripe" ? "get_payment_stripe_secrets" : "get_payment_adyen_secrets";
+    const { data: secrets, error: secretsError } = await supabase.rpc(rpcName, {
+      p_hotel_id: hotelId,
+    });
+
+    if (secretsError) {
+      console.error("[payment-test-connection] Failed to read Vault secrets:", secretsError);
+      return new Response(
+        JSON.stringify({ connected: false, error: "Failed to read credentials" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 },
+      );
+    }
+
+    const config = buildPaymentConfig(provider, paymentConfig, secrets as Record<string, any> | null);
     const client = getPaymentProvider(provider, config);
     const result = await client.testConnection();
 

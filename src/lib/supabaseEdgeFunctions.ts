@@ -74,6 +74,35 @@ export async function invokeEdgeFunction<TRequest = unknown, TResponse = unknown
   return invokeSupabase<TRequest, TResponse>(functionName, body, skipAuth);
 }
 
+// ─── Stripe payment helper ──────────────────────────────────────
+//
+// All Stripe operations are routed through a single edge function
+// (`stripe-payment`) which resolves the right Stripe key per venue
+// (Vault-backed) with fallback to the global key.
+
+export type StripeAction =
+  | "create-setup-intent"
+  | "confirm-setup-intent"
+  | "charge-saved-card"
+  | "create-bundle-payment"
+  | "purchase-bundle"
+  | "create-checkout-session"
+  | "handle-checkout-success"
+  | "finalize-payment"
+  | "send-payment-link"
+  | "check-expired-payment-links";
+
+export async function invokeStripe<TResponse = unknown>(
+  action: StripeAction,
+  payload: Record<string, unknown>,
+  options: { skipAuth?: boolean } = {},
+): Promise<InvokeResult<TResponse>> {
+  return invokeEdgeFunction<Record<string, unknown>, TResponse>("stripe-payment", {
+    body: { action, ...payload },
+    skipAuth: options.skipAuth,
+  });
+}
+
 // ─── Supabase Edge Function call (existing behavior) ────────────
 
 async function invokeSupabase<TRequest, TResponse>(
