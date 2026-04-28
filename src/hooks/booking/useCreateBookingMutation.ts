@@ -57,6 +57,8 @@ export interface CreateBookingPayload {
   clientType?: BookingClientType;
   payByVoucher?: boolean;
   voucherReference?: string | null;
+  paidInInstallments?: boolean;
+  installmentsCount?: number | null;
 }
 
 interface UseCreateBookingMutationOptions {
@@ -182,6 +184,8 @@ export function useCreateBookingMutation({ hotels, therapists, onSuccess }: UseC
         payment_method: paymentMethod,
         payment_status: paymentStatus,
         payment_reference: d.voucherReference || null,
+        paid_in_installments: !!d.paidInInstallments,
+        installments_count: d.paidInInstallments ? (d.installmentsCount ?? null) : null,
       } as any).select().single();
 
       if (error) throw error;

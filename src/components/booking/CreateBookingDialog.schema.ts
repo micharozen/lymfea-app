@@ -22,6 +22,8 @@ export const createFormSchema = (t: TFunction) => z.object({
   clientNote: z.string().default(""),
   payByVoucher: z.boolean().default(false),
   voucherReference: z.string().default(""),
+  paidInInstallments: z.boolean().default(false),
+  installmentsCount: z.number().int().min(2).max(24).optional(),
 }).refine(data => {
   // If slot 2 is partially filled, both date and time are required
   if ((data.slot2Date && !data.slot2Time) || (!data.slot2Date && data.slot2Time)) return false;
@@ -32,7 +34,12 @@ export const createFormSchema = (t: TFunction) => z.object({
   // Room number required when clientType === 'hotel' (unless deferred)
   if (data.clientType === 'hotel' && !data.roomNumberLater && !data.roomNumber.trim()) return false;
   return true;
-}, { message: "Le numéro de chambre est requis pour un client hôtel", path: ["roomNumber"] });
+}, { message: "Le numéro de chambre est requis pour un client hôtel", path: ["roomNumber"] })
+.refine(data => {
+  // installmentsCount is required (>=2) when paidInInstallments is true
+  if (data.paidInInstallments && (!data.installmentsCount || data.installmentsCount < 2)) return false;
+  return true;
+}, { message: "Indiquez le nombre d'échéances (minimum 2)", path: ["installmentsCount"] });
 
 export type BookingFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 

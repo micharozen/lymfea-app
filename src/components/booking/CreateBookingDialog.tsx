@@ -63,6 +63,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
+      paidInInstallments: false,
+      installmentsCount: undefined,
     },
   });
 
@@ -80,6 +82,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
   const clientType = form.watch("clientType");
   const payByVoucher = form.watch("payByVoucher");
   const voucherReference = form.watch("voucherReference");
+  const paidInInstallments = form.watch("paidInInstallments");
+  const installmentsCount = form.watch("installmentsCount");
 
   // Clear roomNumber when clientType switches away from 'hotel'
   // and reset voucher when moving to partner client types.
@@ -158,6 +162,22 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     getCartQuantity, flatIds, totalPrice, totalDuration,
     hasOnRequestService, cartDetails,
   } = useBookingCart(treatments);
+
+  // True when the cart contains at least one treatment flagged as a cure
+  // (treatment_menus.is_bundle = true). Drives the conditional installment
+  // payment UI in the prestations step.
+  const hasCureInCart = useMemo(() => {
+    return cartDetails.some((item) =>
+      (item.treatment as { is_bundle?: boolean | null } | undefined)?.is_bundle === true
+    );
+  }, [cartDetails]);
+
+  useEffect(() => {
+    if (!hasCureInCart && (paidInInstallments || installmentsCount)) {
+      form.setValue("paidInInstallments", false);
+      form.setValue("installmentsCount", undefined);
+    }
+  }, [hasCureInCart, paidInInstallments, installmentsCount, form]);
 
   // Detect max guest_count across cart items to drive multi-therapist picker.
   // A treatment with no variants defaults to 1 guest.
@@ -368,6 +388,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientType: values.clientType,
       payByVoucher: values.payByVoucher,
       voucherReference: values.voucherReference?.trim() || null,
+      paidInInstallments: hasCureInCart ? values.paidInInstallments : false,
+      installmentsCount: hasCureInCart && values.paidInInstallments ? values.installmentsCount ?? null : null,
       guestCount: requiredGuestCount,
       ...(requiredGuestCount > 1 && duoMode === "assign" && additionalTherapistIds.length > 0
         ? { therapistIds: [values.therapistId, ...additionalTherapistIds].filter(Boolean) }
@@ -410,6 +432,8 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       clientNote: "",
       payByVoucher: false,
       voucherReference: "",
+      paidInInstallments: false,
+      installmentsCount: undefined,
     });
     setCart([]);
     setCustomPrice("");
@@ -501,6 +525,15 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
+                  hasCureInCart={hasCureInCart}
+                  paidInInstallments={paidInInstallments}
+                  onPaidInInstallmentsChange={(v) => {
+                    form.setValue("paidInInstallments", v);
+                    if (!v) form.setValue("installmentsCount", undefined);
+                    else if (!installmentsCount) form.setValue("installmentsCount", 3);
+                  }}
+                  installmentsCount={installmentsCount}
+                  onInstallmentsCountChange={(v) => form.setValue("installmentsCount", v)}
                   requiredGuestCount={requiredGuestCount}
                   duoMode={duoMode}
                   onDuoModeChange={handleDuoModeChange}

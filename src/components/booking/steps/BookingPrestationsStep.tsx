@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Minus, Loader2, Clock, Ticket, Users, Bell, X } from "lucide-react";
+import { Plus, Minus, Loader2, Clock, Ticket, Users, Bell, X, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/formatPrice";
 import { getAmenityType, getAmenityLabel } from "@/lib/amenityTypes";
@@ -59,6 +59,12 @@ interface BookingPrestationsStepProps {
   onPayByVoucherChange: (value: boolean) => void;
   voucherReference: string;
   onVoucherReferenceChange: (value: string) => void;
+  // Installment payment (cure-only)
+  hasCureInCart?: boolean;
+  paidInInstallments?: boolean;
+  onPaidInInstallmentsChange?: (value: boolean) => void;
+  installmentsCount?: number;
+  onInstallmentsCountChange?: (value: number | undefined) => void;
   // Duo booking
   requiredGuestCount?: number;
   duoMode?: "assign" | "broadcast";
@@ -101,6 +107,11 @@ export function BookingPrestationsStep({
   onPayByVoucherChange,
   voucherReference,
   onVoucherReferenceChange,
+  hasCureInCart = false,
+  paidInInstallments = false,
+  onPaidInInstallmentsChange,
+  installmentsCount,
+  onInstallmentsCountChange,
   requiredGuestCount = 1,
   duoMode = "broadcast",
   onDuoModeChange,
@@ -425,6 +436,55 @@ export function BookingPrestationsStep({
                 placeholder={t('bookings.payByVoucher.referenceLabel')}
                 className="h-7 text-xs"
               />
+            )}
+          </div>
+        )}
+
+        {/* Installment payment — visible only when a cure (treatment.is_bundle) is in the cart */}
+        {hasCureInCart && onPaidInInstallmentsChange && (
+          <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800 px-2.5 py-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <Checkbox
+                checked={paidInInstallments}
+                onCheckedChange={(checked) => onPaidInInstallmentsChange(!!checked)}
+                className="mt-0.5"
+              />
+              <div className="flex-1 min-w-0">
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <CreditCard className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                  Paiement échelonné (cure)
+                </span>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Le client règle la cure en plusieurs fois.
+                </p>
+              </div>
+            </label>
+            {paidInInstallments && (
+              <div className="flex items-center gap-2 pl-6">
+                <Label className="text-[10px] text-muted-foreground shrink-0">
+                  Nombre d'échéances
+                </Label>
+                <Select
+                  value={installmentsCount ? String(installmentsCount) : ""}
+                  onValueChange={(v) => onInstallmentsCountChange?.(v ? Number(v) : undefined)}
+                >
+                  <SelectTrigger className="h-7 text-xs w-20">
+                    <SelectValue placeholder="3" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2, 3, 4, 6, 10, 12].map((n) => (
+                      <SelectItem key={n} value={String(n)} className="text-xs">
+                        {n}x
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {installmentsCount && installmentsCount >= 2 && (
+                  <span className="text-[10px] text-muted-foreground">
+                    ≈ {formatPrice((finalPriceWithSurcharge ?? finalPrice) / installmentsCount, selectedHotel?.currency || 'EUR')} / échéance
+                  </span>
+                )}
+              </div>
             )}
           </div>
         )}

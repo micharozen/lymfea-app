@@ -14,7 +14,8 @@ import {
   Loader2, ArrowLeft, User, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
-  PenTool, ChevronRight, Package, History, MessageSquare
+  PenTool, ChevronRight, Package, History, MessageSquare,
+  CreditCard
 } from "lucide-react";
 import { BookingHistoryTab } from "@/components/admin/booking/BookingHistoryTab";
 import { BookingStatusStepper } from "@/components/admin/booking/BookingStatusStepper";
@@ -262,6 +263,12 @@ export default function BookingDetail() {
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
               <Package className="w-3 h-3 mr-1" />
               {t('cures.bundleSession')} — {bundleInfo.bundleName} ({t('cures.remainingCount', { remaining: bundleInfo.remainingSessions, total: bundleInfo.totalSessions })})
+            </Badge>
+          )}
+          {(booking as any).paid_in_installments && (booking as any).installments_count >= 2 && (
+            <Badge className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+              <CreditCard className="w-3 h-3 mr-1" />
+              Paiement en {(booking as any).installments_count}x
             </Badge>
           )}
         </div>
@@ -536,6 +543,21 @@ export default function BookingDetail() {
                   </div>
                 )}
               </div>
+
+              {(booking as any).paid_in_installments && (booking as any).installments_count >= 2 && (
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-xs opacity-70 uppercase mb-1 flex items-center gap-1.5">
+                    <CreditCard className="h-3 w-3" />
+                    Paiement échelonné
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {(booking as any).installments_count} échéances
+                  </p>
+                  <p className="text-xs opacity-70">
+                    ≈ {formatPrice(displayPrice / (booking as any).installments_count, currency)} / échéance
+                  </p>
+                </div>
+              )}
             </section>
           </div>
         </div>
