@@ -1,3 +1,6 @@
+-- 0. Extension requise pour gen_random_bytes (Supabase la place dans le schéma `extensions`)
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 -- 1. Ajout de la colonne sécurisée pour le token
 ALTER TABLE bookings
 ADD COLUMN IF NOT EXISTS signature_token TEXT UNIQUE;
@@ -9,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_bookings_signature_token
 
 -- 3. [NOUVEAU] Génération d'un token pour les réservations EXISTANTES (Demandé par Michael)
 UPDATE bookings
-SET signature_token = encode(gen_random_bytes(32), 'hex')
+SET signature_token = encode(extensions.gen_random_bytes(32), 'hex')
 WHERE signature_token IS NULL
   AND status IN ('pending', 'confirmed');
 

@@ -19,6 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useCreateBookingMutation } from "@/hooks/booking/useCreateBookingMutation";
 import { SendBookingNotificationDialog } from "@/components/booking/SendBookingNotificationDialog";
@@ -37,7 +38,8 @@ import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities"
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
 
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
-  const { isConcierge, hotelIds, isAdmin } = useUserContext();
+  const { hotelIds, isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"info" | "prestations" | "therapist" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
