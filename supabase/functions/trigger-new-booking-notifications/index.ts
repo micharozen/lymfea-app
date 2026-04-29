@@ -50,7 +50,7 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from("bookings")
-      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type")
+      .select("*, hotel_id, booking_date, booking_time, hotel_name, client_type, therapist_gender_preference")
       .eq("id", bookingId)
       .single();
 
@@ -69,7 +69,7 @@ serve(async (req) => {
       proposedSlots = slots;
     }
 
-    // Get all therapists for this hotel
+    // Get all therapists for this hotel (with gender for preference filtering)
     const { data: therapists, error: therapistsError } = await supabaseClient
       .from("therapist_venues")
       .select(`
@@ -79,7 +79,8 @@ serve(async (req) => {
           user_id,
           status,
           first_name,
-          last_name
+          last_name,
+          gender
         )
       `)
       .eq("hotel_id", booking.hotel_id);
@@ -139,6 +140,20 @@ serve(async (req) => {
           const t = th.therapists as any;
           return !unavailableSet.has(t?.id);
         });
+      }
+    }
+
+    // Gender-based priority filtering (only for broadcast/notifyAll flows)
+    const genderPref = (booking as any).therapist_gender_preference as string | null;
+    if (notifyAll && genderPref) {
+      const priorityGroup = eligibleTherapists.filter(th => (th.therapists as any)?.gender === genderPref);
+      if (priorityGroup.length > 0) {
+        // Phase 1: matching gender therapists still available → notify only them
+        console.log(`[GENDER] Preference "${genderPref}": ${priorityGroup.length} priority therapist(s), ${eligibleTherapists.length - priorityGroup.length} fallback`);
+        eligibleTherapists = priorityGroup;
+      } else {
+        // Phase 2: all priority therapists declined (or none exist) → notify fallback group
+        console.log(`[GENDER] No priority therapists left for "${genderPref}", falling back to remaining ${eligibleTherapists.length} therapist(s)`);
       }
     }
 

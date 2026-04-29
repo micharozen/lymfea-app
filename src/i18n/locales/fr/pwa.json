@@ -74,7 +74,7 @@
     "pendingWillAppear": "Les nouvelles demandes de réservation apparaîtront ici",
     "paymentPaid": "Payé",
     "paymentRoom": "Chambre",
-    "paymentPending": "En attente",
+    "paymentPending": "Paiement dû",
     "paymentFailed": "Échoué",
     "bookingTakenByOther": "Réservation #{{id}} prise par un autre thérapeute",
     "profileNotFound": "Profil introuvable",

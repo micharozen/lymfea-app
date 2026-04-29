@@ -74,7 +74,7 @@
     "pendingWillAppear": "New booking requests will appear here",
     "paymentPaid": "Paid",
     "paymentRoom": "Room",
-    "paymentPending": "Pending",
+    "paymentPending": "Payment due",
     "paymentFailed": "Failed",
     "bookingTakenByOther": "Booking #{{id}} taken by another therapist",
     "profileNotFound": "Profile not found",
