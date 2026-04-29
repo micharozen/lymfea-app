@@ -7,6 +7,7 @@ import { sendEmail } from "../lib/email";
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
 import { isInBlockedSlot } from "../lib/blocked-slots";
+import { computeOutOfHoursSurcharge } from "../lib/surcharge";
 
 /**
  * Payment routes — authenticated (therapist or admin).
@@ -281,7 +282,41 @@ payments.post("/finalize", async (c) => {
  */
 payments.post("/charge-card", async (c) => {
   try {
-    const { bookingId, finalAmount } = await c.req.json();
+    const rawText = await c.req.text();
+    if (!rawText) throw new Error("Corps de la requête vide.");
+    const { bookingId, finalAmount } = JSON.parse(rawText);
+
+    if (!bookingId || typeof finalAmount !== "number" || finalAmount <= 0) {
+      throw new Error("Paramètres invalides.");
+    }
+
+    const authUser = c.get("user") as { id: string } | undefined;
+    if (!authUser) throw new Error("Non autorisé.");
+
+    const { data: callerTherapist } = await supabaseAdmin
+      .from("therapists")
+      .select("id")
+      .eq("user_id", authUser.id)
+      .maybeSingle();
+    if (!callerTherapist) throw new Error("Non autorisé.");
+
+    const { data: bookingCheck } = await supabaseAdmin
+      .from("bookings")
+      .select("therapist_id, status")
+      .eq("id", bookingId)
+      .maybeSingle();
+    if (!bookingCheck) throw new Error("Réservation introuvable.");
+
+    if (bookingCheck.therapist_id !== callerTherapist.id) {
+      const { data: btRow } = await supabaseAdmin
+        .from("booking_therapists")
+        .select("id")
+        .eq("booking_id", bookingId)
+        .eq("therapist_id", callerTherapist.id)
+        .eq("status", "accepted")
+        .maybeSingle();
+      if (!btRow) throw new Error("Non autorisé : vous n'êtes pas assigné à ce soin.");
+    }
 
     const { data: paymentInfo, error: fetchError } = await supabaseAdmin
       .from("booking_payment_infos")
@@ -327,7 +362,7 @@ payments.post("/charge-card", async (c) => {
       .update({ payment_status: "paid" })
       .eq("id", bookingId);
 
-    return c.json({ success: true, paymentIntent });
+    return c.json({ success: true, paymentIntentId: paymentIntent.id });
   } catch (error: any) {
     console.error("Erreur charge-saved-card:", error);
     return c.json({ success: false, error: error.message }, 400);
@@ -776,10 +811,17 @@ payments.post("/confirm-setup", async (c) => {
 
     // 2. Calcul prix/durée
     const { data: treatments } = await supabaseAdmin.from('treatment_menus').select('price, duration').in('id', treatmentIds);
-    const verifiedPrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
+    const basePrice = (treatments || []).reduce((sum: number, t: any) => sum + (t.price || 0), 0);
     const totalDuration = (treatments || []).reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
 
-    const { data: hotel } = await supabaseAdmin.from('hotels').select('name').eq('id', meta.hotelId).maybeSingle();
+    const { data: hotel } = await supabaseAdmin
+      .from('hotels')
+      .select('name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+      .eq('id', meta.hotelId)
+      .maybeSingle();
+
+    const surcharge = computeOutOfHoursSurcharge(meta.bookingTime || '', basePrice, hotel || {});
+    const verifiedPrice = surcharge.totalWithSurcharge;
 
     let customerId = null;
     const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
@@ -873,6 +915,14 @@ payments.post("/confirm-setup", async (c) => {
         if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
         bookingId = meta.draftBookingId;
         console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+
+        await supabaseAdmin
+          .from('bookings')
+          .update({
+            is_out_of_hours: surcharge.isOutOfHours,
+            surcharge_amount: surcharge.surchargeAmount,
+          })
+          .eq('id', bookingId);
       }
     } else {
       // No hold — standard atomic reserve
@@ -905,7 +955,14 @@ payments.post("/confirm-setup", async (c) => {
       if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
 
       bookingId = newBookingId;
-      await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
+      await supabaseAdmin
+        .from('bookings')
+        .update({
+          therapist_id: null,
+          is_out_of_hours: surcharge.isOutOfHours,
+          surcharge_amount: surcharge.surchargeAmount,
+        })
+        .eq('id', bookingId);
     }
 
     if (!bookingId) {
