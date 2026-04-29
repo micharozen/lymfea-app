@@ -55,6 +55,36 @@ interface MetaWebhookPayload {
   entry: MetaWebhookEntry[];
 }
 
+// Constant-time comparison to avoid timing attacks
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// Verify Meta's X-Hub-Signature-256 (HMAC-SHA256 of the raw body, hex-encoded)
+async function verifyMetaSignature(rawBody: string, headerValue: string | null, appSecret: string): Promise<boolean> {
+  if (!headerValue) return false;
+  const expectedPrefix = "sha256=";
+  if (!headerValue.startsWith(expectedPrefix)) return false;
+  const provided = headerValue.slice(expectedPrefix.length).trim().toLowerCase();
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(appSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+  const computed = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  return safeEqual(provided, computed);
+}
+
 serve(async (req) => {
   const url = new URL(req.url);
 
@@ -83,11 +113,26 @@ serve(async (req) => {
   // Handle incoming messages (POST request)
   if (req.method === "POST") {
     try {
+      // Verify Meta HMAC signature before parsing — body must be read as raw text once.
+      const appSecret = Deno.env.get("WHATSAPP_APP_SECRET");
+      if (!appSecret) {
+        console.error("WHATSAPP_APP_SECRET is not configured — refusing unsigned webhook");
+        return new Response("Server misconfigured", { status: 500 });
+      }
+
+      const rawBody = await req.text();
+      const signatureHeader = req.headers.get("x-hub-signature-256");
+      const signatureValid = await verifyMetaSignature(rawBody, signatureHeader, appSecret);
+      if (!signatureValid) {
+        console.error("Invalid X-Hub-Signature-256 — rejecting webhook");
+        return new Response("Invalid signature", { status: 401 });
+      }
+
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const payload: MetaWebhookPayload = await req.json();
+      const payload: MetaWebhookPayload = JSON.parse(rawBody);
       console.log("Received webhook payload:", JSON.stringify(payload, null, 2));
 
       // Validate payload structure

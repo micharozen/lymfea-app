@@ -22,35 +22,16 @@ const handler = async (req: Request): Promise<Response> => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }), 
+        JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Decode JWT manually
-    const token = authHeader.replace('Bearer ', '');
-    const parts = token.split('.');
-    if (parts.length !== 3) {
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Invalid token format' }), 
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    let payload;
-    try {
-      payload = JSON.parse(atob(parts[1]));
-    } catch (e) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid token payload' }), 
-        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const userId = payload.sub;
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }), 
+        JSON.stringify({ error: 'Invalid token format' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -61,6 +42,16 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Verify the JWT signature server-side via Supabase Auth
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const userId = user.id;
 
     // Verify admin role
     const { data: roles, error: roleError } = await supabaseAdmin

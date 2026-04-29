@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 type EnsureUserRoleRequest = {
-  userId: string;
+  userId?: string;
   email?: string;
 };
 
@@ -17,18 +17,36 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, email }: EnsureUserRoleRequest = await req.json();
-    if (!userId) {
-      return new Response(JSON.stringify({ error: "userId is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    // Authenticate caller — only the user themselves can sync their own role.
+    // The body-supplied userId/email is ignored in favor of the JWT's verified identity
+    // to prevent a privilege-escalation path where an attacker submits another user's id+email.
+    const authHeader = req.headers.get("Authorization");
+    const match = authHeader?.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Invalid authentication" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const userId = user.id;
+    const email = user.email ?? undefined;
+    // Body is parsed for backward compatibility but its values are ignored.
+    try { await req.json(); } catch (_) { /* body is optional */ }
 
     // Determine role by presence in domain tables
     let role: "admin" | "concierge" | "therapist" | null = null;

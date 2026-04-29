@@ -66,27 +66,19 @@ serve(async (req: Request): Promise<Response> => {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     console.log("Auth header present:", !!authHeader);
-    
+
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - No auth header' }), 
+        JSON.stringify({ error: 'Unauthorized - No auth header' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Extraire le user_id directement depuis le JWT pour éviter les erreurs d'appel Auth
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error('Malformed token');
-      const payload = JSON.parse(atob(parts[1]));
-      var userId: string | undefined = payload.sub;
-      console.log('Decoded user id:', userId);
-      if (!userId) throw new Error('No sub in token');
-    } catch (e: any) {
-      console.error('Failed to decode token:', e?.message);
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Invalid authentication', details: 'Invalid or malformed token' }), 
+        JSON.stringify({ error: 'Invalid authentication', details: 'Invalid Authorization header format' }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
@@ -97,11 +89,22 @@ serve(async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
+    // Verify the JWT signature server-side via Supabase Auth
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) {
+      console.error('Invalid authentication:', userError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication', details: 'Token verification failed' }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    const userId = user.id;
+
     // Verify admin role
     const { data: roles, error: roleError } = await supabaseAdmin
       .from('user_roles')
       .select('role')
-      .eq('user_id', userId as string)
+      .eq('user_id', userId)
       .eq('role', 'admin')
       .maybeSingle();
 

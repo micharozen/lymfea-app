@@ -39,18 +39,11 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
-    let userId: string;
-    try {
-      const parts = token.split(".");
-      if (parts.length !== 3) throw new Error("Malformed token - expected 3 parts");
-      const payload = JSON.parse(atob(parts[1]));
-      userId = payload.sub;
-      if (!userId) throw new Error("No sub in token - this may be an anon key, not a user session token");
-    } catch (e: any) {
-      console.error("Failed to decode token:", e?.message);
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: "Invalid authentication", details: e?.message || "Invalid or malformed token" }),
+        JSON.stringify({ error: "Invalid authentication", details: "Invalid Authorization header format" }),
         { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
       );
     }
@@ -60,6 +53,17 @@ serve(async (req: Request): Promise<Response> => {
     const supabaseAdmin = createClient(supabaseUrl ?? "", serviceRoleKey ?? "", {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // Verify the JWT signature server-side via Supabase Auth
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) {
+      console.error("Invalid authentication:", userError);
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication", details: "Token verification failed" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+    const userId = user.id;
 
     const { data: roles, error: roleError } = await supabaseAdmin
       .from("user_roles")

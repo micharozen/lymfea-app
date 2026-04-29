@@ -5,7 +5,7 @@ site_url = "http://localhost:8080"
 additional_redirect_urls = ["http://localhost:8080"]
 
 [functions.get-therapist-earnings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-therapist-invoices]
 verify_jwt = false
@@ -23,7 +23,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.finalize-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-client-booking]
 verify_jwt = false
@@ -32,7 +32,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.check-admin-exists]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-otp]
 verify_jwt = false
@@ -65,7 +65,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.trigger-new-booking-notifications]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-vapid-keys]
 verify_jwt = false
@@ -77,73 +77,73 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.notify-booking-confirmed]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-rating-email]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-concierge-booking]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-concierge-completion]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-concierge-room-payment]
-verify_jwt = false
+verify_jwt = true
 
 [functions.trigger-booking-cancelled-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.handle-booking-cancellation]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-admin-quote-pending]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-quote-email]
-verify_jwt = false
+verify_jwt = true
 
 [functions.handle-quote-response]
 verify_jwt = false
 
 [functions.invite-therapist]
-verify_jwt = false
+verify_jwt = true
 
 [functions.invite-concierge]
-verify_jwt = false
+verify_jwt = true
 
 [functions.invite-admin]
-verify_jwt = false
+verify_jwt = true
 
 [functions.resend-invite]
-verify_jwt = false
+verify_jwt = true
 
 [functions.validate-booking-slot]
-verify_jwt = false
+verify_jwt = true
 
 [functions.mark-tap-to-pay-paid]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pms-test-connection]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pms-guest-lookup]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pms-post-charge]
-verify_jwt = false
+verify_jwt = true
 
 [functions.pms-fetch-services]
-verify_jwt = false
+verify_jwt = true
 
 [functions.opera-cloud-test-connection]
-verify_jwt = false
+verify_jwt = true
 
 [functions.opera-cloud-guest-lookup]
-verify_jwt = false
+verify_jwt = true
 
 [functions.opera-cloud-post-charge]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-setup-intent]
 verify_jwt = false
@@ -152,10 +152,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.charge-saved-card]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-support-ticket]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notion-ticket-webhook]
 verify_jwt = false
@@ -174,13 +174,42 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-payment-link]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-noshow]
-verify_jwt = false
+verify_jwt = true
 
 [functions.notify-therapist-arrived]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-slack-notification]
 verify_jwt = false
+
+# --- Added for go-live security hardening (P1: require JWT) ---
+
+[functions.delete-admin]
+verify_jwt = true
+
+[functions.propose-alternative]
+verify_jwt = true
+
+[functions.notify-admin-new-booking]
+verify_jwt = true
+
+[functions.send-booking-confirmation]
+verify_jwt = true
+
+[functions.send-booking-notification]
+verify_jwt = true
+
+[functions.send-booking-whatsapp]
+verify_jwt = true
+
+[functions.send-treatment-request-email]
+verify_jwt = true
+
+[functions.generate-invoice]
+verify_jwt = true
+
+[functions.generate-stripe-login-link]
+verify_jwt = true

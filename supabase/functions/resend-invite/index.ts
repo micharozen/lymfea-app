@@ -21,10 +21,6 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email }: ResendInviteRequest = await req.json();
-
-    console.log(`Resending invitation to: ${email}`);
-
     // Initialize Supabase client with service role key
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -36,6 +32,44 @@ serve(async (req: Request): Promise<Response> => {
         },
       }
     );
+
+    // Verify caller is an authenticated admin — without this, anyone could trigger
+    // a recovery/invite link to be sent to any admin email and intercept it.
+    const authHeader = req.headers.get("Authorization");
+    const match = authHeader?.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { data: callerRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+
+    if (!callerRole) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden - Admin access required" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { email }: ResendInviteRequest = await req.json();
+
+    console.log(`Resending invitation to: ${email}`);
 
     // Get admin info from database
     const { data: admin, error: adminError } = await supabaseAdmin
