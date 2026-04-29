@@ -597,6 +597,10 @@ const PwaBookingDetail = () => {
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.time')}</div>
               <div className="text-sm font-semibold">{booking.booking_time.substring(0, 5)}</div>
             </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Réf.</div>
+              <div className="text-sm font-semibold text-muted-foreground">#{booking.booking_id}</div>
+            </div>
           </div>
         </div>
 
