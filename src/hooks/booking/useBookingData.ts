@@ -49,62 +49,53 @@ export function useBookingData() {
     refetchOnWindowFocus: true,
     staleTime: 30000,
     queryFn: async () => {
-      // CORRECTION ICI : On fetch booking_therapists en même temps !
       const { data: bookingsData, error: bookingsError } = await (supabase as any)
         .from("bookings")
-        .select("*, booking_therapists(status, therapist_id)")
+        .select(`
+          *,
+          booking_therapists(status, therapist_id),
+          booking_treatments(
+            treatment_id,
+            treatment_menus(name, duration, price)
+          )
+        `)
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
       if (bookingsError) throw bookingsError;
 
-      const bookingsWithDuration = await Promise.all(
-        (bookingsData || []).map(async (booking: any) => {
-          const { data: treatments } = await supabase
-            .from("booking_treatments")
-            .select(`
-              treatment_id,
-              treatment_menus (
-                name,
-                duration,
-                price
-              )
-            `)
-            .eq("booking_id", booking.id);
+      return (bookingsData || []).map((booking: any) => {
+        const treatments: any[] = booking.booking_treatments || [];
 
-          const treatmentsTotalDuration =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
+        const treatmentsTotalDuration = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.duration || 0),
+          0,
+        );
+        const treatmentsTotalPrice = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.price || 0),
+          0,
+        );
+        const totalDuration = booking.duration && booking.duration > 0
+          ? booking.duration
+          : treatmentsTotalDuration;
 
-          const treatmentsTotalPrice =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+        const treatmentsList: Treatment[] = treatments
+          .filter((t) => t.treatment_menus)
+          .map((t) => ({
+            ...t.treatment_menus,
+            id: t.treatment_id,
+            treatment_id: t.treatment_id,
+          }));
 
-          const totalDuration = booking.duration && booking.duration > 0
-            ? booking.duration
-            : treatmentsTotalDuration;
-
-          const treatmentsList = (treatments as any[] | null)
-            ?.map((t): Treatment | null => {
-              if (!t.treatment_menus) return null;
-              return {
-                ...t.treatment_menus,
-                id: t.treatment_id,
-                treatment_id: t.treatment_id
-              } as Treatment;
-            })
-            .filter((m): m is Treatment => m !== null) || [];
-
-          return {
-            ...booking,
-            totalDuration,
-            treatmentsTotalDuration,
-            treatmentsTotalPrice,
-            treatments: treatmentsList,
-            booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
-          } as BookingWithTreatments;
-        }),
-      );
-
-      return bookingsWithDuration;
+        return {
+          ...booking,
+          totalDuration,
+          treatmentsTotalDuration,
+          treatmentsTotalPrice,
+          treatments: treatmentsList,
+          booking_therapists: booking.booking_therapists || [],
+        } as BookingWithTreatments;
+      });
     },
   });
 

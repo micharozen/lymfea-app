@@ -12,7 +12,6 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
-import { useBookingData } from "@/hooks/booking";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
 
@@ -32,7 +31,6 @@ export function GlobalSearch() {
   const debouncedSearch = useDebounce(search, 300);
   const navigate = useNavigate();
   const { isAdmin, userVenueIds } = useUserContext() as any;
-  const { bookings = [] } = useBookingData();
 
   // Raccourci clavier Cmd+K ou Ctrl+K
   useEffect(() => {
@@ -57,8 +55,11 @@ export function GlobalSearch() {
     enabled: debouncedSearch.length >= 2 && open,
     queryFn: async () => {
       const searchTerm = `%${debouncedSearch}%`;
+      const numericMatch = /^\d+$/.test(debouncedSearch)
+        ? `,booking_id.eq.${debouncedSearch}`
+        : "";
 
-      const [custRes, therRes] = await Promise.all([
+      const [custRes, therRes, bookRes] = await Promise.all([
         supabase
           .from("customers")
           .select("*")
@@ -69,33 +70,25 @@ export function GlobalSearch() {
           .select("*")
           .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
           .limit(5),
+        supabase
+          .from("bookings")
+          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone")
+          .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
+          .order("booking_date", { ascending: false })
+          .limit(10),
       ]);
 
       return {
         customers: custRes.data || [],
         therapists: therRes.data || [],
+        bookings: bookRes.data || [],
       };
     },
   });
 
-  // Filtrage local pour les Réservations
-  const safeBookings = bookings || [];
-  const permittedBookings = isAdmin
-    ? safeBookings
-    : safeBookings.filter((b: any) => userVenueIds?.includes(b.hotel_id));
-
-  const filteredBookings = debouncedSearch.length >= 2
-    ? permittedBookings.filter((b: any) => {
-        const term = debouncedSearch.toLowerCase();
-        return (
-          b.client_first_name?.toLowerCase().includes(term) ||
-          b.client_last_name?.toLowerCase().includes(term) ||
-          b.booking_id?.toString().includes(term) ||
-          b.phone?.toLowerCase().includes(term) ||
-          b.client_email?.toLowerCase().includes(term)
-        );
-      }).slice(0, 5)
-    : [];
+  const filteredBookings = (searchResults?.bookings || [])
+    .filter((b: any) => isAdmin || userVenueIds?.includes(b.hotel_id))
+    .slice(0, 5);
 
   const onSelect = (path: string) => {
     setOpen(false);
