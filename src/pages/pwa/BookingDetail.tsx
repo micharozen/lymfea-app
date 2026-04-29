@@ -162,6 +162,7 @@ const PwaBookingDetail = () => {
 
   const [acceptedTherapistCount, setAcceptedTherapistCount] = useState(0);
   const [hasAlreadyAccepted, setHasAlreadyAccepted] = useState(false);
+  const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
 
@@ -234,6 +235,7 @@ const PwaBookingDetail = () => {
           .single();
         if (myT) {
           myTherapistId = myT.id;
+          setMyTherapistId(myT.id);
           rates = { hr: myT.hourly_rate, r45: myT.rate_45, r60: myT.rate_60, r90: myT.rate_90 };
         }
       }
@@ -843,7 +845,7 @@ const PwaBookingDetail = () => {
             </span>
           </div>
         )}
-        {(booking.status === "pending" && !booking.therapist_id) ||
+        {(booking.status === "pending" && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
          (booking.status === "awaiting_hairdresser_selection" && !hasAlreadyAccepted) ? (
           <div className="flex gap-2">
             <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
