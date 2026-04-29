@@ -89,9 +89,7 @@ serve(async (req) => {
       throw new Error("Missing required fields: booking_id, payment_method, final_amount");
     }
 
-    if (payment_method === 'room' && !signature_data) {
-      throw new Error("Signature is required for room payment method");
-    }
+    // signature_data is optional for room payments
 
     if (final_amount <= 0) {
       throw new Error("Final amount must be positive");
@@ -312,11 +310,6 @@ serve(async (req) => {
         throw new Error("L'email du client est requis pour le paiement sur chambre (génération de facture)");
       }
 
-      // Vérifier que la signature est présente
-      if (!signature_data) {
-        throw new Error("Signature is required for room payment");
-      }
-
       // Create or find Stripe customer for room payment (for invoice generation)
       let customerId: string | undefined;
 
@@ -385,7 +378,6 @@ serve(async (req) => {
       await supabase
         .from('bookings')
         .update({
-          client_signature: signature_data,
           stripe_invoice_url: paidInvoice.hosted_invoice_url,
           payment_method: 'room',
           total_price: totalTTC,
@@ -484,9 +476,9 @@ serve(async (req) => {
       await supabase
         .from('bookings')
         .update({
-          status: 'Terminé',
-          payment_status: 'paid',
-          signed_at: new Date().toISOString(),
+          status: 'completed',
+          payment_status: 'charged_to_room',
+          ...(signature_data ? { signed_at: new Date().toISOString(), client_signature: signature_data } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq('id', booking_id);

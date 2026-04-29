@@ -372,13 +372,16 @@ const PwaBookingDetail = () => {
         _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
         _total_price: finalPrice,
       });
-      if (rpcError) throw new Error(`Erreur RPC: ${rpcError.message}`);
+      if (rpcError) throw new Error(`rpc_error:${rpcError.message}`);
       if (!rpcResult?.success) {
         const err = rpcResult?.error;
-        if (err === 'already_taken') throw new Error("Ce créneau est déjà pris par un autre thérapeute.");
-        if (err === 'already_accepted') throw new Error("Vous avez déjà accepté ce soin.");
-        if (err === 'fully_staffed') throw new Error("Ce soin a déjà le nombre de thérapeutes requis.");
-        throw new Error("Impossible d'accepter ce soin.");
+        if (err === 'already_taken' || err === 'fully_staffed') {
+          toast.error(t('bookingDetail.alreadyTaken'));
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+          return;
+        }
+        if (err === 'already_accepted') throw new Error(t('bookingDetail.alreadyAccepted'));
+        throw new Error(t('bookingDetail.acceptError'));
       }
 
       // Send confirmation only when all therapists have accepted (booking is now confirmed)

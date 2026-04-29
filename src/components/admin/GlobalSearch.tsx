@@ -11,8 +11,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { DialogTitle } from "@/components/ui/dialog"; // FIX 1: Ajout du titre pour l'accessibilité
-import { useBookingData } from "@/hooks/booking";
+import { DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserContext } from "@/hooks/useUserContext";
 
@@ -32,7 +31,6 @@ export function GlobalSearch() {
   const debouncedSearch = useDebounce(search, 300);
   const navigate = useNavigate();
   const { isAdmin, userVenueIds } = useUserContext() as any;
-  const { bookings = [] } = useBookingData();
 
   // Raccourci clavier Cmd+K ou Ctrl+K
   useEffect(() => {
@@ -51,51 +49,56 @@ export function GlobalSearch() {
     if (!open) setSearch("");
   }, [open]);
 
-  // 1. Recherche dynamique Côté Serveur
+  // Recherche serveur — bookings + customers + therapists en une seule passe
+  // Déclenchée uniquement quand le dialog est ouvert et ≥2 caractères tapés
   const { data: searchResults, isFetching } = useQuery({
-    queryKey: ["global-search", debouncedSearch],
+    queryKey: ["global-search", debouncedSearch, isAdmin, userVenueIds],
     enabled: debouncedSearch.length >= 2 && open,
     queryFn: async () => {
       const searchTerm = `%${debouncedSearch}%`;
+      const searchNum = parseInt(debouncedSearch, 10);
+      const isNumeric = !isNaN(searchNum);
 
-      const [custRes, therRes] = await Promise.all([
+      let bookingQuery = supabase
+        .from("bookings")
+        .select("id, booking_id, client_first_name, client_last_name, client_email, phone, booking_date");
+
+      if (!isAdmin && userVenueIds?.length > 0) {
+        bookingQuery = bookingQuery.in("hotel_id", userVenueIds);
+      }
+
+      const bookingOrParts = [
+        `client_first_name.ilike.${searchTerm}`,
+        `client_last_name.ilike.${searchTerm}`,
+        `client_email.ilike.${searchTerm}`,
+        `phone.ilike.${searchTerm}`,
+        ...(isNumeric ? [`booking_id.eq.${searchNum}`] : []),
+      ];
+      bookingQuery = bookingQuery.or(bookingOrParts.join(",")).limit(5);
+
+      const [bookRes, custRes, therRes] = await Promise.all([
+        bookingQuery,
         supabase
           .from("customers")
-          .select("*")
+          .select("id, first_name, last_name, email, phone")
           .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
           .limit(5),
         supabase
           .from("therapists")
-          .select("*")
+          .select("id, first_name, last_name, email, status")
           .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
           .limit(5),
       ]);
 
       return {
+        bookings: bookRes.data || [],
         customers: custRes.data || [],
         therapists: therRes.data || [],
       };
     },
   });
 
-  // Filtrage local pour les Réservations
-  const safeBookings = bookings || [];
-  const permittedBookings = isAdmin
-    ? safeBookings
-    : safeBookings.filter((b: any) => userVenueIds?.includes(b.hotel_id));
-
-  const filteredBookings = debouncedSearch.length >= 2
-    ? permittedBookings.filter((b: any) => {
-        const term = debouncedSearch.toLowerCase();
-        return (
-          b.client_first_name?.toLowerCase().includes(term) ||
-          b.client_last_name?.toLowerCase().includes(term) ||
-          b.booking_id?.toString().includes(term) ||
-          b.phone?.toLowerCase().includes(term) ||
-          b.client_email?.toLowerCase().includes(term)
-        );
-      }).slice(0, 5)
-    : [];
+  const filteredBookings = searchResults?.bookings ?? [];
 
   const onSelect = (path: string) => {
     setOpen(false);
