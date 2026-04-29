@@ -28,7 +28,7 @@ import { formatPrice } from "@/lib/formatPrice";
 import { SendPaymentLinkDialog } from "@/components/booking/SendPaymentLinkDialog";
 import EditBookingDialog from "@/components/EditBookingDialog";
 import { useBookingData } from "@/hooks/booking/useBookingData";
-import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { InvoiceSignatureDialog } from "@/components/InvoiceSignatureDialog";
 import {
   computeTherapistEarnings,
@@ -60,7 +60,7 @@ export default function BookingDetail() {
   const navigate = useNavigate();
 
   const { t } = useTranslation('admin');
-  const { isConcierge } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
   const [activeTab, setActiveTab] = useState("details");
   const [isEditOpen, setIsEditOpen] = useState(false);

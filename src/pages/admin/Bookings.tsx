@@ -7,6 +7,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useOverflowControl } from "@/hooks/useOverflowControl";
 
@@ -36,7 +37,8 @@ import { useVenueAmenities } from "@/hooks/useVenueAmenities";
 
 export default function Booking() {
   const navigate = useNavigate();
-  const { isAdmin, isConcierge } = useUserContext();
+  const { isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
   const { i18n } = useTranslation();
   
