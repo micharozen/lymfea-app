@@ -372,7 +372,7 @@ const PwaBookingDetail = () => {
         _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
         _total_price: finalPrice,
       });
-      if (rpcError) throw new Error(`rpc_error:${rpcError.message}`);
+      if (rpcError) throw new Error(t('bookingDetail.acceptError'));
       if (!rpcResult?.success) {
         const err = rpcResult?.error;
         if (err === 'already_taken' || err === 'fully_staffed') {

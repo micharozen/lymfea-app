@@ -63,7 +63,8 @@ export function GlobalSearch() {
         .from("bookings")
         .select("id, booking_id, client_first_name, client_last_name, client_email, phone, booking_date");
 
-      if (!isAdmin && userVenueIds?.length > 0) {
+      if (!isAdmin) {
+        if (!userVenueIds?.length) return { bookings: [], customers: [], therapists: [] };
         bookingQuery = bookingQuery.in("hotel_id", userVenueIds);
       }
 

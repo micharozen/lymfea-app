@@ -146,7 +146,7 @@ serve(async (req) => {
     // Gender-based priority filtering (only for broadcast/notifyAll flows)
     const genderPref = (booking as any).therapist_gender_preference as string | null;
     if (notifyAll && genderPref) {
-      const priorityGroup = eligibleTherapists.filter(th => (th.therapists as any)?.gender === genderPref);
+      const priorityGroup = eligibleTherapists.filter(th => (th.therapists as any)?.gender?.toLowerCase() === genderPref?.toLowerCase());
       if (priorityGroup.length > 0) {
         // Phase 1: matching gender therapists still available → notify only them
         console.log(`[GENDER] Preference "${genderPref}": ${priorityGroup.length} priority therapist(s), ${eligibleTherapists.length - priorityGroup.length} fallback`);

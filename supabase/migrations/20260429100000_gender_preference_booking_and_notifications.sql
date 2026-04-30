@@ -47,6 +47,7 @@ CREATE FUNCTION public.reserve_trunk_atomically(
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $func$
 DECLARE
   _room_id               UUID;
@@ -199,3 +200,14 @@ BEGIN
   RETURN _booking_id;
 END;
 $func$;
+
+-- Client booking flow is public (anon) — function must be callable without auth
+DO $$
+DECLARE _sig text;
+BEGIN
+  SELECT pg_get_function_identity_arguments(oid) INTO _sig
+  FROM pg_proc
+  WHERE proname = 'reserve_trunk_atomically' AND pronamespace = 'public'::regnamespace
+  LIMIT 1;
+  EXECUTE format('GRANT EXECUTE ON FUNCTION public.reserve_trunk_atomically(%s) TO anon, authenticated', _sig);
+END $$;
