@@ -315,6 +315,41 @@ export default function Payment() {
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
+      } else if (!isOffert && scheduleMode === 'per_item' && bookingIds.length > 1 && !!groupId && selectedMethod === 'card') {
+        // Multi-time card: promote the N draft bookings directly.
+        // Stripe setup intent not yet supported for multi-time (V1).
+        setHoldExpiresAt(null);
+        const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItems = buildMultiBookingItems(baseItemsForMulti, perItemSchedule);
+        if (!multiItems?.length) throw new Error('No items to book');
+        const { data, error } = await supabase.functions.invoke('create-client-booking', {
+          body: {
+            hotelId,
+            clientData: {
+              firstName: clientInfo.firstName,
+              lastName: clientInfo.lastName,
+              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+              email: clientInfo.email,
+              roomNumber: clientInfo.roomNumber,
+              note: clientInfo.note || '',
+              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+            },
+            items: multiItems,
+            bookingIds,
+            groupId,
+            paymentMethod: 'card',
+            totalPrice: fixedTotal,
+            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          },
+        });
+        if (error) throw error;
+        clearBasket();
+        clearFlow();
+        const navigateBookingId = Array.isArray(data?.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data?.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
         // Le draft reste en DB — confirm-setup-intent le promouvra en 'pending'.
         // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
@@ -358,6 +393,8 @@ export default function Payment() {
         }
       } else {
         const isMulti = scheduleMode === 'per_item' && bookingIds.length > 1 && !!groupId;
+        // Cut the hold timer so it can't expire and fire cancelHold mid-submission.
+        if (isMulti) setHoldExpiresAt(null);
         const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
         const multiItems = isMulti
           ? buildMultiBookingItems(baseItemsForMulti, perItemSchedule)
@@ -588,22 +625,39 @@ export default function Payment() {
             })}
             
             {!isBundleOnlyPurchase && (
-              <>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Date</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">Heure</span>
-                  <span className="font-medium text-gray-900 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
-                  </span>
-                </div>
-              </>
+              scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 0
+                ? items.filter(i => !i.isAddon && !i.isBundle).map((item) => {
+                    const key = item.variantId ? `${item.id}__${item.variantId}` : item.id;
+                    const slot = perItemSchedule[key];
+                    if (!slot?.date || !slot?.time) return null;
+                    return (
+                      <div key={key} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="text-gray-500 truncate">{item.name}</span>
+                        <span className="font-medium text-gray-900 flex items-center gap-1.5 shrink-0">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          {format(new Date(slot.date), 'd MMM yyyy', { locale: fr })}
+                          <span className="text-gray-400">·</span>
+                          {slot.time.substring(0, 5)}
+                        </span>
+                      </div>
+                    );
+                  })
+                : <>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Date</span>
+                      <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        {bookingDateTime?.date ? format(new Date(bookingDateTime.date), 'd MMMM yyyy', { locale: fr }) : '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-500">Heure</span>
+                      <span className="font-medium text-gray-900 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        {bookingDateTime?.time ? bookingDateTime.time.substring(0, 5) : '-'}
+                      </span>
+                    </div>
+                  </>
             )}
 
             {surcharge.isOutOfHours && surcharge.surchargeAmount > 0 && !isOffert && !hasPriceOnRequest && (

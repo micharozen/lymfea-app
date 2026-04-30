@@ -155,7 +155,7 @@ serve(async (req: Request) => {
         _language: 'fr',
         _payment_method: 'card',
         _status: 'awaiting_payment',
-        _payment_status: 'pending',
+        _payment_status: 'awaiting_payment',
         _client_note: '',
         _therapist_gender: therapistGender || null,
         _treatment_ids: treatmentIdsForRpc,
@@ -174,10 +174,11 @@ serve(async (req: Request) => {
       };
       if (groupId) updatePayload.booking_group_id = groupId;
 
-      await supabase
+      const { error: updateErr } = await supabase
         .from('bookings')
         .update(updatePayload)
         .eq('id', newBookingId);
+      if (updateErr) throw updateErr;
 
       const treatmentRows = legacy
         ? legacy.map((t) => ({
@@ -191,7 +192,8 @@ serve(async (req: Request) => {
             variant_id: item.variantId || null,
           }));
 
-      await supabase.from('booking_treatments').insert(treatmentRows);
+      const { error: btErr } = await supabase.from('booking_treatments').insert(treatmentRows);
+      if (btErr) throw btErr;
     }
 
     return new Response(

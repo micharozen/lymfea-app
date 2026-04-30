@@ -356,45 +356,51 @@ function ItemSlotCard({
         />
       </button>
 
-      {isOpen && (
-        <div className="px-4 pb-4 space-y-4">
-          <DatePillsRow
-            dateOptions={dateOptions}
-            selectedDate={currentSlot?.date ?? ''}
-            onSelectDate={handleDateSelect}
-            availableDates={availableDates}
-            cartAllowedDays={cartAllowedDays}
-            maxDaysAhead={maxDaysAhead}
-            loadingDates={loadingDaysWithSlots && !daysWithSlots}
-            embedded
-          />
-
-          {!currentSlot?.date ? (
-            <div className="text-center border border-dashed border-gray-200 rounded-lg bg-gray-50 py-6">
-              <Clock className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-400 text-xs">{t('datetime.selectDateFirst')}</p>
-            </div>
-          ) : loadingSlots ? (
-            <div className="flex justify-center py-6">
-              <ClientSpinner size="sm" />
-            </div>
-          ) : availableSlots.length === 0 ? (
-            <div className="text-center border border-dashed border-gray-200 rounded-lg bg-gray-50 py-6">
-              <Clock className="w-6 h-6 text-gray-300 mx-auto mb-2" />
-              <p className="text-gray-500 text-xs mb-1">{t('datetime.noSlots')}</p>
-              <p className="text-gray-400 text-[11px]">{t('datetime.tryAnotherDate')}</p>
-            </div>
-          ) : (
-            <TimePeriodSelector
-              availableSlots={availableSlots}
-              selectedTime={currentSlot?.time ?? ''}
-              onSelectTime={handleTimeSelect}
-              allTimeSlots={allTimeSlots}
-              surchargePercent={venueData?.surchargePercent ?? 0}
+      {/* Smooth expand/collapse via CSS grid animation — no layout jump */}
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-in-out"
+        style={{ gridTemplateRows: isOpen ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 space-y-4">
+            <DatePillsRow
+              dateOptions={dateOptions}
+              selectedDate={currentSlot?.date ?? ''}
+              onSelectDate={handleDateSelect}
+              availableDates={availableDates}
+              cartAllowedDays={cartAllowedDays}
+              maxDaysAhead={maxDaysAhead}
+              loadingDates={loadingDaysWithSlots && !daysWithSlots}
+              embedded
             />
-          )}
+
+            {!currentSlot?.date ? (
+              <div className="text-center border border-dashed border-gray-200 rounded-lg bg-gray-50 py-6">
+                <Clock className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-400 text-xs">{t('datetime.selectDateFirst')}</p>
+              </div>
+            ) : loadingSlots ? (
+              <div className="flex justify-center py-6">
+                <ClientSpinner size="sm" />
+              </div>
+            ) : availableSlots.length === 0 ? (
+              <div className="text-center border border-dashed border-gray-200 rounded-lg bg-gray-50 py-6">
+                <Clock className="w-6 h-6 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-xs mb-1">{t('datetime.noSlots')}</p>
+                <p className="text-gray-400 text-[11px]">{t('datetime.tryAnotherDate')}</p>
+              </div>
+            ) : (
+              <TimePeriodSelector
+                availableSlots={availableSlots}
+                selectedTime={currentSlot?.time ?? ''}
+                onSelectTime={handleTimeSelect}
+                allTimeSlots={allTimeSlots}
+                surchargePercent={venueData?.surchargePercent ?? 0}
+              />
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

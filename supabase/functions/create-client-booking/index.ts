@@ -146,17 +146,23 @@ async function handleMultiBookingConfirm(
     );
   }
 
-  // Verify every draft exists and is still awaiting payment.
+  // Verify every draft exists, belongs to this hotel, is still awaiting payment,
+  // and carries the expected booking_group_id (prevents a client from supplying
+  // someone else's groupId to trigger an unintended rollback).
   const { data: drafts, error: draftsErr } = await supabase
     .from('bookings')
-    .select('id, status, hotel_id')
+    .select('id, status, hotel_id, booking_group_id')
     .in('id', bookingIds);
 
   if (draftsErr || !drafts || drafts.length !== bookingIds.length ||
-      drafts.some((b: any) => b.hotel_id !== hotelId || b.status !== 'awaiting_payment')) {
-    // Rollback any drafts in this group still awaiting_payment.
+      drafts.some((b: any) =>
+        b.hotel_id !== hotelId ||
+        b.status !== 'awaiting_payment' ||
+        b.booking_group_id !== groupId
+      )) {
+    // Rollback only drafts we own (scoped by both bookingIds and groupId).
     await supabase.from('bookings').delete()
-      .eq('booking_group_id', groupId).eq('status', 'awaiting_payment');
+      .in('id', bookingIds).eq('status', 'awaiting_payment');
     return new Response(
       JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
@@ -240,14 +246,27 @@ async function handleMultiBookingConfirm(
     }
 
     // Re-insert booking_treatments for this item only.
-    await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+    const { error: btDelErr } = await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+    if (btDelErr) {
+      console.error(`booking_treatments delete error for ${bookingId}:`, btDelErr);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking treatments' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
     const treatmentRows = Array.from({ length: item.quantity }, () => ({
       booking_id: bookingId,
       treatment_id: item.treatmentId,
       variant_id: item.variantId || null,
     }));
     const { error: btErr } = await supabase.from('booking_treatments').insert(treatmentRows);
-    if (btErr) console.error('booking_treatments insert error:', btErr);
+    if (btErr) {
+      console.error(`booking_treatments insert error for ${bookingId}:`, btErr);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking treatments' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
   }
 
   // Fetch sequential booking numbers for response.
