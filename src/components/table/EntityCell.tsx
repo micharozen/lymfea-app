@@ -82,6 +82,7 @@ interface Hotel {
   id: string;
   name: string;
   image?: string | null;
+  calendar_color?: string | null;
 }
 
 interface HotelCellProps {
@@ -91,13 +92,17 @@ interface HotelCellProps {
 
 export function HotelCell({ hotel, className }: HotelCellProps) {
   if (!hotel) return <span className="text-foreground">-</span>;
-  
+
   return (
-    <EntityCell
-      image={hotel.image}
-      name={hotel.name}
-      className={className}
-    />
+    <div className={cn("flex items-center gap-1.5", className)}>
+      {hotel.calendar_color && (
+        <span
+          className="w-1 h-4 rounded-full flex-shrink-0"
+          style={{ backgroundColor: hotel.calendar_color }}
+        />
+      )}
+      <EntityCell image={hotel.image} name={hotel.name} />
+    </div>
   );
 }
 

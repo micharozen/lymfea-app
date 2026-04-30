@@ -418,14 +418,29 @@ export default function PhoneBookingDialog({
                   setTherapistChoiceMade(true);
                 }}
                 onPickTherapist={(id, index) => {
-                  if (index === 0) {
-                    setTherapistId(id);
+                  const currentId = index === 0 ? therapistId : (additionalTherapistIds[index - 1] ?? "");
+                  const isAlreadySelected = currentId === id;
+
+                  if (isAlreadySelected) {
+                    // Désélectionner en re-cliquant
+                    if (index === 0) {
+                      setTherapistId("");
+                    } else {
+                      const newIds = [...additionalTherapistIds];
+                      newIds[index - 1] = "";
+                      setAdditionalTherapistIds(newIds);
+                    }
+                    setTherapistChoiceMade(false);
                   } else {
-                    const newIds = [...additionalTherapistIds];
-                    newIds[index - 1] = id;
-                    setAdditionalTherapistIds(newIds);
+                    if (index === 0) {
+                      setTherapistId(id);
+                    } else {
+                      const newIds = [...additionalTherapistIds];
+                      newIds[index - 1] = id;
+                      setAdditionalTherapistIds(newIds);
+                    }
+                    setTherapistChoiceMade(true);
                   }
-                  setTherapistChoiceMade(true);
                 }}
               />
             )}
@@ -992,13 +1007,12 @@ function TherapistStep({
   );
 
   if (isDuo) {
-    const selectedIds = [therapistId, ...additionalTherapistIds].filter(Boolean);
     return (
       <div className="space-y-4">
         <div className="rounded-lg bg-violet-50 border border-violet-200 p-3 text-xs text-violet-800">
           Soin à plusieurs — {requiredGuestCount} praticiens requis. Vous pouvez diffuser la demande à toute l'équipe, ou assigner manuellement.
         </div>
-        
+
         <button
           type="button"
           onClick={onPickBroadcast}
@@ -1023,7 +1037,9 @@ function TherapistStep({
 
         {!broadcast && Array.from({ length: requiredGuestCount }).map((_, idx) => {
           const currentId = idx === 0 ? therapistId : (additionalTherapistIds[idx - 1] ?? "");
-          const otherIds = selectedIds.filter((_, i) => i !== idx);
+          const otherIds = Array.from({ length: requiredGuestCount }, (_, i) =>
+            i === 0 ? therapistId : (additionalTherapistIds[i - 1] ?? "")
+          ).filter((id, i) => i !== idx && id !== "");
           return (
             <div key={idx} className="space-y-1">
               <Label className="text-xs">Praticien {idx + 1}</Label>
