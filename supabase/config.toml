@@ -1,8 +1,5 @@
 project_id = "xfkujlgettlxdgrnqluw"
 
-[db.migrations]
-schema_paths = ["./schemas/*.sql"]
-
 [auth]
 site_url = "http://localhost:8080"
 additional_redirect_urls = ["http://localhost:8080"]
