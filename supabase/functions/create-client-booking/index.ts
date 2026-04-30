@@ -55,6 +55,27 @@ const bundleUsageSchema = z.object({
   treatmentId: z.string().uuid('Invalid treatment ID format'),
 });
 
+const multiItemSchema = z.object({
+  treatmentId: z.string().uuid('Invalid treatment ID format'),
+  variantId: z.string().uuid('Invalid variant ID format').nullable().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format'),
+  time: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Invalid time format'),
+  duration: z.number().int().min(0).max(1000).optional(),
+  quantity: z.number().int().min(1).max(10),
+  guestCount: z.number().int().min(1).max(20).optional(),
+});
+
+const multiRequestSchema = z.object({
+  hotelId: z.string().min(1),
+  clientData: clientDataSchema,
+  items: z.array(multiItemSchema).min(2, 'Multi-mode requires at least 2 items').max(10),
+  bookingIds: z.array(z.string().uuid()).min(2).max(10),
+  groupId: z.string().uuid(),
+  paymentMethod: z.enum(['room', 'card', 'cash', 'offert', 'gift_amount']).optional().default('room'),
+  totalPrice: z.number().min(0).max(100000),
+  therapistGender: z.enum(['female', 'male']).optional(),
+});
+
 const requestSchema = z.object({
   hotelId: z.string().min(1, 'Hotel ID is required'),
   clientData: clientDataSchema,
@@ -82,6 +103,193 @@ function sanitizeString(str: string): string {
     .trim();
 }
 
+async function handleMultiBookingConfirm(
+  supabase: any,
+  data: z.infer<typeof multiRequestSchema>,
+): Promise<Response> {
+  const { hotelId, clientData, items, bookingIds, groupId, paymentMethod, therapistGender } = data;
+
+  if (items.length !== bookingIds.length) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'items and bookingIds length mismatch' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  const sanitizedClientData = {
+    firstName: sanitizeString(clientData.firstName),
+    lastName: sanitizeString(clientData.lastName),
+    email: clientData.email ? sanitizeString(clientData.email) : null,
+    phone: sanitizeString(clientData.phone),
+    roomNumber: clientData.roomNumber ? sanitizeString(clientData.roomNumber) : null,
+    note: clientData.note ? sanitizeString(clientData.note) : null,
+  };
+
+  // Hotel info for surcharge + email
+  const { data: hotel, error: hotelError } = await supabase
+    .from('hotels')
+    .select('name, venue_type, auto_validate_bookings, currency, offert, company_offered, opening_time, closing_time, timezone, allow_out_of_hours_booking, out_of_hours_surcharge_percent')
+    .eq('id', hotelId)
+    .single();
+
+  if (hotelError || !hotel) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Hotel not found' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+    );
+  }
+
+  if (paymentMethod === 'room' && hotel.venue_type === 'coworking') {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Room payment is not available for coworking spaces' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  // Verify every draft exists and is still awaiting payment.
+  const { data: drafts, error: draftsErr } = await supabase
+    .from('bookings')
+    .select('id, status, hotel_id')
+    .in('id', bookingIds);
+
+  if (draftsErr || !drafts || drafts.length !== bookingIds.length ||
+      drafts.some((b: any) => b.hotel_id !== hotelId || b.status !== 'awaiting_payment')) {
+    // Rollback any drafts in this group still awaiting_payment.
+    await supabase.from('bookings').delete()
+      .eq('booking_group_id', groupId).eq('status', 'awaiting_payment');
+    return new Response(
+      JSON.stringify({ success: false, error: 'SLOT_TAKEN' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+    );
+  }
+
+  // Pre-fetch treatments referenced by all items, for price/duration recomputation.
+  const treatmentIds = Array.from(new Set(items.map(i => i.treatmentId)));
+  const variantIds = items.map(i => i.variantId).filter(Boolean) as string[];
+
+  const [menusRes, variantsRes] = await Promise.all([
+    supabase.from('treatment_menus').select('id, name, price, duration, lead_time, is_bundle, price_on_request').in('id', treatmentIds),
+    variantIds.length
+      ? supabase.from('treatment_variants').select('id, price, duration').in('id', variantIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+  const menuMap = new Map((menusRes.data ?? []).map((m: any) => [m.id, m]));
+  const variantMap = new Map((variantsRes.data ?? []).map((v: any) => [v.id, v]));
+
+  // Reject bundle/quote treatments in multi mode (V2 territory).
+  if (Array.from(menuMap.values()).some((m: any) => m.is_bundle || m.price_on_request)) {
+    await supabase.from('bookings').delete()
+      .eq('booking_group_id', groupId).eq('status', 'awaiting_payment');
+    return new Response(
+      JSON.stringify({ success: false, error: 'Bundles and price-on-request are not supported in multi-time mode.' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
+  }
+
+  // Find/create customer once.
+  const { data: customerId } = await supabase.rpc('find_or_create_customer', {
+    _phone: sanitizedClientData.phone,
+    _first_name: sanitizedClientData.firstName,
+    _last_name: sanitizedClientData.lastName,
+    _email: sanitizedClientData.email,
+  });
+
+  const isOffert = !!hotel.offert || !!hotel.company_offered;
+  const isDuoBooking = items.some(i => (i.guestCount ?? 1) > 1);
+  const bookingStatus = isDuoBooking ? 'awaiting_hairdresser_selection' : 'pending';
+  const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
+  const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : 'pending');
+
+  // Update each draft with real client data + per-item recomputed totals.
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const bookingId = bookingIds[i];
+    const variant: any = item.variantId ? variantMap.get(item.variantId) : null;
+    const menu: any = menuMap.get(item.treatmentId);
+    const unitPrice = (variant?.price ?? menu?.price ?? 0);
+    const itemBasePrice = isOffert ? 0 : unitPrice * item.quantity;
+    const surcharge = computeOutOfHoursSurcharge(item.time, itemBasePrice, hotel);
+    const itemTotal = itemBasePrice + surcharge.surchargeAmount;
+
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({
+        client_first_name: sanitizedClientData.firstName,
+        client_last_name: sanitizedClientData.lastName,
+        client_email: sanitizedClientData.email,
+        phone: sanitizedClientData.phone,
+        room_number: sanitizedClientData.roomNumber,
+        client_note: sanitizedClientData.note,
+        status: bookingStatus,
+        payment_method: effectivePaymentMethod,
+        payment_status: effectivePaymentStatus,
+        total_price: itemTotal,
+        customer_id: customerId || null,
+        guest_count: Math.max(1, item.guestCount ?? 1),
+        booking_group_id: groupId,
+        is_out_of_hours: surcharge.isOutOfHours,
+        surcharge_amount: surcharge.surchargeAmount,
+      })
+      .eq('id', bookingId);
+    if (updateError) {
+      console.error(`Failed to update draft ${bookingId}:`, updateError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to update booking' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    // Re-insert booking_treatments for this item only.
+    await supabase.from('booking_treatments').delete().eq('booking_id', bookingId);
+    const treatmentRows = Array.from({ length: item.quantity }, () => ({
+      booking_id: bookingId,
+      treatment_id: item.treatmentId,
+      variant_id: item.variantId || null,
+    }));
+    const { error: btErr } = await supabase.from('booking_treatments').insert(treatmentRows);
+    if (btErr) console.error('booking_treatments insert error:', btErr);
+  }
+
+  // Fetch sequential booking numbers for response.
+  const { data: numbered } = await supabase
+    .from('bookings')
+    .select('id, booking_id')
+    .in('id', bookingIds);
+  const idToNumber = new Map<string, number | null>(
+    (numbered ?? []).map((b: any) => [b.id, b.booking_id ?? null])
+  );
+  const bookingNumbers = bookingIds.map(id => idToNumber.get(id) ?? null);
+
+  // Notifications: pass groupId — emails handlers detect and aggregate.
+  // Single admin email for the whole group.
+  try {
+    await supabase.functions.invoke('notify-admin-new-booking', {
+      body: { bookingId: bookingIds[0], groupId },
+    });
+  } catch (err) {
+    console.error('notify-admin-new-booking error:', err);
+  }
+
+  // Smart dispatch: send 1 dispatch per booking (each may need a different therapist).
+  for (const bookingId of bookingIds) {
+    try {
+      await supabase.functions.invoke('dispatch-booking-therapist', { body: { bookingId } });
+    } catch (err) {
+      console.error('dispatch-booking-therapist error:', err);
+    }
+  }
+
+  // Single client confirmation email when applicable (here: pending state ⇒ no
+  // confirmation yet — same rule as single-mode; quote_pending is not allowed
+  // in multi). We skip sending here; therapist acceptance triggers
+  // notify-booking-confirmed which will aggregate the group.
+
+  return new Response(
+    JSON.stringify({ success: true, groupId, bookingIds, bookingNumbers }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+  );
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -107,6 +315,28 @@ try {
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
   );
 }
+
+    // -------- Multi-mode short-circuit --------
+    // When groupId + bookingIds + items are present, batch-confirm N drafts
+    // sharing a booking_group_id. Bundles & gift_amount are not supported in
+    // multi mode (V2). Falls through to legacy single-mode otherwise.
+    if (rawBody && Array.isArray(rawBody.items) && Array.isArray(rawBody.bookingIds) && rawBody.groupId) {
+      if (rawBody.bundleUsage || rawBody.giftAmountUsage) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Bundles and gift amounts are not supported for multi-time bookings yet.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      const multi = multiRequestSchema.safeParse(rawBody);
+      if (!multi.success) {
+        console.error('Multi validation error:', multi.error.issues);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Validation failed', details: multi.error.issues.map(i => i.message) }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      return await handleMultiBookingConfirm(supabase, multi.data);
+    }
 
     const validationResult = requestSchema.safeParse(rawBody);
     if (!validationResult.success) {

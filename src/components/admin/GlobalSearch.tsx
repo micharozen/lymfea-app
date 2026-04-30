@@ -51,55 +51,46 @@ export function GlobalSearch() {
 
   // Recherche serveur — bookings + customers + therapists en une seule passe
   // Déclenchée uniquement quand le dialog est ouvert et ≥2 caractères tapés
-  const { data: searchResults, isFetching } = useQuery({
-    queryKey: ["global-search", debouncedSearch, isAdmin, userVenueIds],
+   // 1. Recherche dynamique Côté Serveur
+   const { data: searchResults, isFetching } = useQuery({
+    queryKey: ["global-search", debouncedSearch],
     enabled: debouncedSearch.length >= 2 && open,
     queryFn: async () => {
       const searchTerm = `%${debouncedSearch}%`;
-      const searchNum = parseInt(debouncedSearch, 10);
-      const isNumeric = !isNaN(searchNum);
+      const numericMatch = /^\d+$/.test(debouncedSearch)
+        ? `,booking_id.eq.${debouncedSearch}`
+        : "";
 
-      let bookingQuery = supabase
-        .from("bookings")
-        .select("id, booking_id, client_first_name, client_last_name, client_email, phone, booking_date");
-
-      if (!isAdmin) {
-        if (!userVenueIds?.length) return { bookings: [], customers: [], therapists: [] };
-        bookingQuery = bookingQuery.in("hotel_id", userVenueIds);
-      }
-
-      const bookingOrParts = [
-        `client_first_name.ilike.${searchTerm}`,
-        `client_last_name.ilike.${searchTerm}`,
-        `client_email.ilike.${searchTerm}`,
-        `phone.ilike.${searchTerm}`,
-        ...(isNumeric ? [`booking_id.eq.${searchNum}`] : []),
-      ];
-      bookingQuery = bookingQuery.or(bookingOrParts.join(",")).limit(5);
-
-      const [bookRes, custRes, therRes] = await Promise.all([
-        bookingQuery,
+      const [custRes, therRes, bookRes] = await Promise.all([
         supabase
           .from("customers")
-          .select("id, first_name, last_name, email, phone")
+          .select("*")
           .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},phone.ilike.${searchTerm}`)
           .limit(5),
         supabase
           .from("therapists")
-          .select("id, first_name, last_name, email, status")
+          .select("*")
           .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
           .limit(5),
+        supabase
+          .from("bookings")
+          .select("id, booking_id, booking_date, hotel_id, client_first_name, client_last_name, client_email, phone")
+          .or(`client_first_name.ilike.${searchTerm},client_last_name.ilike.${searchTerm},client_email.ilike.${searchTerm},phone.ilike.${searchTerm}${numericMatch}`)
+          .order("booking_date", { ascending: false })
+          .limit(10),
       ]);
 
       return {
-        bookings: bookRes.data || [],
         customers: custRes.data || [],
         therapists: therRes.data || [],
+        bookings: bookRes.data || [],
       };
     },
   });
 
-  const filteredBookings = searchResults?.bookings ?? [];
+  const filteredBookings = (searchResults?.bookings || [])
+    .filter((b: any) => isAdmin || userVenueIds?.includes(b.hotel_id))
+    .slice(0, 5);
 
   const onSelect = (path: string) => {
     setOpen(false);

@@ -49,67 +49,58 @@ export function useBookingData() {
     refetchOnWindowFocus: true,
     staleTime: 30000,
     queryFn: async () => {
-      // CORRECTION ICI : On fetch booking_therapists en même temps !
       const { data: bookingsData, error: bookingsError } = await (supabase as any)
         .from("bookings")
-        .select("*, booking_therapists(status, therapist_id)")
+        .select(`
+          *,
+          booking_therapists(status, therapist_id),
+          booking_treatments(
+            treatment_id,
+            treatment_menus(name, duration, price)
+          )
+        `)
         .order("booking_date", { ascending: true })
         .order("booking_time", { ascending: true });
 
       if (bookingsError) throw bookingsError;
 
-      const bookingsWithDuration = await Promise.all(
-        (bookingsData || []).map(async (booking: any) => {
-          const { data: treatments } = await supabase
-            .from("booking_treatments")
-            .select(`
-              treatment_id,
-              treatment_menus (
-                name,
-                duration,
-                price
-              )
-            `)
-            .eq("booking_id", booking.id);
+      return (bookingsData || []).map((booking: any) => {
+        const treatments: any[] = booking.booking_treatments || [];
 
-          const treatmentsTotalDuration =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.duration || 0), 0) || 0;
+        const treatmentsTotalDuration = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.duration || 0),
+          0,
+        );
+        const treatmentsTotalPrice = treatments.reduce(
+          (sum, t) => sum + (t.treatment_menus?.price || 0),
+          0,
+        );
+        const totalDuration = booking.duration && booking.duration > 0
+          ? booking.duration
+          : treatmentsTotalDuration;
 
-          const treatmentsTotalPrice =
-            treatments?.reduce((sum, t: any) => sum + (t.treatment_menus?.price || 0), 0) || 0;
+        const treatmentsList: Treatment[] = treatments
+          .filter((t) => t.treatment_menus)
+          .map((t) => ({
+            ...t.treatment_menus,
+            id: t.treatment_id,
+            treatment_id: t.treatment_id,
+          }));
 
-          const totalDuration = booking.duration && booking.duration > 0
-            ? booking.duration
-            : treatmentsTotalDuration;
-
-          const treatmentsList = (treatments as any[] | null)
-            ?.map((t): Treatment | null => {
-              if (!t.treatment_menus) return null;
-              return {
-                ...t.treatment_menus,
-                id: t.treatment_id,
-                treatment_id: t.treatment_id
-              } as Treatment;
-            })
-            .filter((m): m is Treatment => m !== null) || [];
-
-          return {
-            ...booking,
-            totalDuration,
-            treatmentsTotalDuration,
-            treatmentsTotalPrice,
-            treatments: treatmentsList,
-            booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
-          } as BookingWithTreatments;
-        }),
-      );
-
-      return bookingsWithDuration;
+        return {
+          ...booking,
+          totalDuration,
+          treatmentsTotalDuration,
+          treatmentsTotalPrice,
+          treatments: treatmentsList,
+          booking_therapists: booking.booking_therapists || [],
+        } as BookingWithTreatments;
+      });
     },
   });
 
-  const { data: hotels } = useQuery({
-    queryKey: ["hotels"],
+  const { data: hotels, refetch: refetchHotels } = useQuery({
+    queryKey: ["hotels", "booking-calendar"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
@@ -137,30 +128,26 @@ export function useBookingData() {
   useEffect(() => {
     const channelName = 'bookings-admin-realtime';
 
-    // 1. On nettoie tout ce qui pourrait traîner pour éviter les conflits de callbacks
-    supabase.removeAllChannels();
-
-    // 2. On crée le canal
     const channel = supabase.channel(channelName);
 
-    // 3. On attache l'écouteur AVANT de souscrire (ordre crucial pour Supabase)
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'bookings' },
-      () => {
-        // Point 10 Review Michael : Suppression du console.log
-        refetchBookings();
-      }
+      () => { refetchBookings(); }
     );
 
-    // 4. On lance la souscription
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'hotels' },
+      () => { refetchHotels(); }
+    );
+
     channel.subscribe();
 
-    // 5. Nettoyage propre au démontage
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refetchBookings]);
+  }, [refetchBookings, refetchHotels]);
 
   const getHotelInfo = (hotelId: string | null): Hotel | null => {
     if (!hotelId || !hotels) return null;
