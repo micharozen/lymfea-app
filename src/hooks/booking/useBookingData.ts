@@ -108,8 +108,8 @@ export function useBookingData() {
     },
   });
 
-  const { data: hotels, refetch: refetchHotels } = useQuery({
-    queryKey: ["hotels", "booking-calendar"],
+  const { data: hotels } = useQuery({
+    queryKey: ["hotels"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hotels")
@@ -137,26 +137,30 @@ export function useBookingData() {
   useEffect(() => {
     const channelName = 'bookings-admin-realtime';
 
+    // 1. On nettoie tout ce qui pourrait traîner pour éviter les conflits de callbacks
+    supabase.removeAllChannels();
+
+    // 2. On crée le canal
     const channel = supabase.channel(channelName);
 
+    // 3. On attache l'écouteur AVANT de souscrire (ordre crucial pour Supabase)
     channel.on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'bookings' },
-      () => { refetchBookings(); }
+      () => {
+        // Point 10 Review Michael : Suppression du console.log
+        refetchBookings();
+      }
     );
 
-    channel.on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'hotels' },
-      () => { refetchHotels(); }
-    );
-
+    // 4. On lance la souscription
     channel.subscribe();
 
+    // 5. Nettoyage propre au démontage
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refetchBookings, refetchHotels]);
+  }, [refetchBookings]);
 
   const getHotelInfo = (hotelId: string | null): Hotel | null => {
     if (!hotelId || !hotels) return null;

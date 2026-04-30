@@ -31,7 +31,6 @@ import { createFormSchema, BookingFormValues, CreateBookingDialogProps } from ".
 import { BookingInfoStep } from "./steps/BookingInfoStep";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import { BookingPrestationsStep } from "./steps/BookingPrestationsStep";
-import { BookingTherapistStep } from "./steps/BookingTherapistStep";
 import { BookingPaymentStep } from "./steps/BookingPaymentStep";
 import { useVenueAmenities, type VenueAmenity } from "@/hooks/useVenueAmenities";
 import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutation";
@@ -39,7 +38,7 @@ import type { AmenityAccessPayload } from "@/hooks/booking/useCreateBookingMutat
 export default function CreateBookingDialog({ open, onOpenChange, selectedDate, selectedTime, presetHotelId }: CreateBookingDialogProps) {
   const { isConcierge, hotelIds, isAdmin } = useUserContext();
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<"info" | "prestations" | "therapist" | "payment">("info");
+  const [activeTab, setActiveTab] = useState<"info" | "prestations" | "payment">("info");
   const [visibleSlots, setVisibleSlots] = useState(1);
 
   const formSchema = useMemo(() => createFormSchema(t), [t]);
@@ -131,10 +130,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     queryKey: ["therapists-for-hotel", hotelId],
     queryFn: async () => {
       if (!hotelId) {
-        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status, profile_image, skills, gender").in("status", ["Actif", "active", "Active"]).order("first_name");
+        const { data } = await supabase.from("therapists").select("id, first_name, last_name, status").in("status", ["Actif", "active", "Active"]).order("first_name");
         return data || [];
       }
-      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status, profile_image, skills, gender)`).eq("hotel_id", hotelId);
+      const { data } = await supabase.from("therapist_venues").select(`therapist_id, therapists (id, first_name, last_name, status)`).eq("hotel_id", hotelId);
       return data?.map((hh: any) => hh.therapists).filter((h: any) => h && ["Actif", "active", "Active"].includes(h.status)).sort((a: any, b: any) => a.first_name.localeCompare(b.first_name)) || [];
     },
   });
@@ -176,12 +175,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
   // Additional therapist IDs for duo/trio bookings (index 0 = therapist 2, etc.)
   const [additionalTherapistIds, setAdditionalTherapistIds] = useState<string[]>([]);
-  const [duoMode, setDuoMode] = useState<"assign" | "broadcast">("assign");
+  const [duoMode, setDuoMode] = useState<"assign" | "broadcast">("broadcast");
 
-  // Clear additional therapists when no longer a duo booking
+  // Reset duo state when required count drops back to 1
   useEffect(() => {
     if (requiredGuestCount <= 1) {
       setAdditionalTherapistIds([]);
+      setDuoMode("broadcast");
     }
   }, [requiredGuestCount]);
 
@@ -283,6 +283,10 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       "hotelId", "clientFirstName", "clientLastName", "phone", "date", "time", "roomNumber",
     ];
     const result = await form.trigger(fields);
+    if (isAdmin && !form.getValues("therapistId")) {
+      form.setError("therapistId", { message: "Veuillez sélectionner un thérapeute" });
+      return false;
+    }
     const now = new Date();
     const values = form.getValues();
     if (values.date && values.time) {
@@ -338,10 +342,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       return;
     }
     const values = form.getValues();
-    if (isAdmin && !values.therapistId && duoMode !== "broadcast") {
-      toast({ title: "Veuillez sélectionner un thérapeute ou diffuser", variant: "destructive" });
-      return;
-    }
     mutation.mutate({
       hotelId: values.hotelId,
       clientFirstName: values.clientFirstName,
@@ -415,8 +415,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
     setCustomPrice("");
     setCustomDuration("");
     setSelectedAmenityIds([]);
-    setAdditionalTherapistIds([]);
-    setDuoMode("broadcast");
     setCreatedBooking(null);
     onOpenChange(false);
   };
@@ -441,7 +439,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
 
         <Form {...form}>
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "therapist" | "payment")} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "info" | "prestations" | "payment")} className="flex-1 flex flex-col min-h-0">
               <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                 <BookingInfoStep
                   form={form}
@@ -449,6 +447,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isConcierge={isConcierge}
                   hotelIds={hotelIds}
                   hotels={hotels}
+                  therapists={therapists}
                   hotelTimezone={hotelTimezone}
                   hotelId={hotelId}
                   countryCode={countryCode}
@@ -461,6 +460,9 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   isAvailabilityLoading={isAvailabilityLoading}
                   slotInterval={venueSlotInterval}
                   cartAvailableDays={cartAvailableDays}
+                  requiredGuestCount={requiredGuestCount}
+                  additionalTherapistIds={additionalTherapistIds}
+                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
                   onValidateAndNext={async () => { if (await validateInfo()) setActiveTab("prestations"); }}
                   onCancel={handleClose}
                 />
@@ -491,13 +493,6 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   finalPriceWithSurcharge={finalPriceWithSurcharge}
                   isPending={mutation.isPending}
                   onBack={() => setActiveTab("info")}
-                  onNext={isAdmin ? () => {
-                    if (!cart.length) {
-                      toast({ title: "Sélectionnez une prestation", variant: "destructive" });
-                      return;
-                    }
-                    setActiveTab("therapist");
-                  } : undefined}
                   venueAmenities={venueAmenities}
                   selectedAmenityIds={selectedAmenityIds}
                   onToggleAmenity={handleToggleAmenity}
@@ -506,26 +501,13 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
                   onPayByVoucherChange={(v) => form.setValue("payByVoucher", v)}
                   voucherReference={voucherReference}
                   onVoucherReferenceChange={(v) => form.setValue("voucherReference", v)}
-                />
-            </TabsContent>
-
-            <TabsContent value="therapist" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
-                <BookingTherapistStep
-                  therapists={therapists}
-                  therapistId={form.watch("therapistId")}
-                  onTherapistChange={(id) => form.setValue("therapistId", id)}
                   requiredGuestCount={requiredGuestCount}
-                  additionalTherapistIds={additionalTherapistIds}
-                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
                   duoMode={duoMode}
                   onDuoModeChange={handleDuoModeChange}
-                  isAdmin={isAdmin}
-                  isPending={mutation.isPending}
-                  onBack={() => setActiveTab("prestations")}
-                  cart={cart}
-                  cartDetails={cartDetails}
-                  finalPriceWithSurcharge={finalPriceWithSurcharge}
-                  currency={selectedHotel?.currency || 'EUR'}
+                  additionalTherapistIds={additionalTherapistIds}
+                  onAdditionalTherapistIdsChange={setAdditionalTherapistIds}
+                  therapists={therapists}
+                  primaryTherapistId={form.watch("therapistId")}
                 />
             </TabsContent>
 

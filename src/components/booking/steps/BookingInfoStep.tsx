@@ -22,11 +22,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PhoneNumberField } from "@/components/PhoneNumberField";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { AlertTriangle, CalendarIcon, Check, ChevronDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
+import { AlertTriangle, CalendarIcon, Check, ChevronDown, ChevronsUpDown, Clock, Globe, Info, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentOffset } from "@/lib/timezones";
 import { countries, formatPhoneNumber } from "@/lib/phone";
@@ -42,6 +50,7 @@ interface BookingInfoStepProps {
   isConcierge: boolean;
   hotelIds: string[];
   hotels: Array<{ id: string; name: string; timezone?: string | null; currency?: string | null }> | undefined;
+  therapists: Array<{ id: string; first_name: string; last_name: string; status?: string }> | undefined;
   hotelTimezone: string;
   hotelId: string;
   countryCode: string;
@@ -54,6 +63,9 @@ interface BookingInfoStepProps {
   isAvailabilityLoading?: (date: Date | undefined) => boolean;
   slotInterval?: number;
   cartAvailableDays?: number[] | null;
+  requiredGuestCount?: number;
+  additionalTherapistIds?: string[];
+  onAdditionalTherapistIdsChange?: (ids: string[]) => void;
   onValidateAndNext: () => Promise<void>;
   onCancel: () => void;
 }
@@ -64,6 +76,7 @@ export function BookingInfoStep({
   isConcierge,
   hotelIds,
   hotels,
+  therapists,
   hotelTimezone,
   hotelId,
   countryCode,
@@ -76,6 +89,9 @@ export function BookingInfoStep({
   isAvailabilityLoading,
   slotInterval = 30,
   cartAvailableDays,
+  requiredGuestCount = 1,
+  additionalTherapistIds = [],
+  onAdditionalTherapistIdsChange,
   onValidateAndNext,
   onCancel,
 }: BookingInfoStepProps) {
@@ -175,6 +191,9 @@ export function BookingInfoStep({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
+  const [therapistOpen, setTherapistOpen] = useState(false);
+  // Additional therapist picker open states (index 0 = therapist 2)
+  const [additionalTherapistOpen, setAdditionalTherapistOpen] = useState<boolean[]>([]);
   const [slot2CalendarOpen, setSlot2CalendarOpen] = useState(false);
   const [slot2HourOpen, setSlot2HourOpen] = useState(false);
   const [slot2MinuteOpen, setSlot2MinuteOpen] = useState(false);
@@ -212,33 +231,165 @@ export function BookingInfoStep({
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="flex-1 overflow-y-auto space-y-3 px-4 py-4">
-      <FormField
-        control={form.control}
-        name="hotelId"
-        render={({ field }) => (
-          <FormItem className="space-y-1">
-            <FormLabel className="text-xs">Hôtel *</FormLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <FormControl>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Sélectionner un hôtel" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(isConcierge && hotelIds.length > 0
-                  ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
-                  : hotels
-                )?.map((hotel) => (
-                  <SelectItem key={hotel.id} value={hotel.id}>
-                    {hotel.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage className="text-xs" />
-          </FormItem>
+      <div className={cn("grid gap-2", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
+        <FormField
+          control={form.control}
+          name="hotelId"
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormLabel className="text-xs">Hôtel *</FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Sélectionner un hôtel" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {(isConcierge && hotelIds.length > 0
+                    ? hotels?.filter(hotel => hotelIds.includes(hotel.id))
+                    : hotels
+                  )?.map((hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id}>
+                      {hotel.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage className="text-xs" />
+            </FormItem>
+          )}
+        />
+
+        {isAdmin && (
+          <FormField
+            control={form.control}
+            name="therapistId"
+            render={({ field }) => {
+              const selected = therapists?.find((t) => t.id === field.value);
+              return (
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-xs">Thérapeute / Prestataire *</FormLabel>
+                  <Popover open={therapistOpen} onOpenChange={setTherapistOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={therapistOpen}
+                          className={cn(
+                            "w-full h-9 justify-between font-normal hover:bg-background hover:text-foreground",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          {selected
+                            ? `${selected.first_name} ${selected.last_name}`
+                            : "Sélectionner un thérapeute"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Rechercher un thérapeute..." />
+                        <CommandList>
+                          <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                          <CommandGroup>
+                            {therapists?.map((therapist) => (
+                              <CommandItem
+                                key={therapist.id}
+                                value={`${therapist.first_name} ${therapist.last_name}`}
+                                onSelect={() => {
+                                  field.onChange(therapist.id);
+                                  setTherapistOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    field.value === therapist.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {therapist.first_name} {therapist.last_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage className="text-xs" />
+                </FormItem>
+              );
+            }}
+          />
         )}
-      />
+
+        {/* Additional therapist pickers for duo/multi-guest bookings */}
+        {isAdmin && requiredGuestCount > 1 && Array.from({ length: requiredGuestCount - 1 }).map((_, idx) => {
+          const pickerLabel = `Thérapeute ${idx + 2} *`;
+          const selectedId = additionalTherapistIds[idx] ?? '';
+          const selected = therapists?.find(t => t.id === selectedId);
+          const isOpen = additionalTherapistOpen[idx] ?? false;
+
+          const setOpen = (open: boolean) => {
+            setAdditionalTherapistOpen(prev => {
+              const next = [...prev];
+              next[idx] = open;
+              return next;
+            });
+          };
+
+          const handleSelect = (therapistId: string) => {
+            const next = [...additionalTherapistIds];
+            next[idx] = therapistId;
+            onAdditionalTherapistIdsChange?.(next);
+            setOpen(false);
+          };
+
+          return (
+            <div key={idx} className="space-y-1">
+              <p className="text-xs font-medium leading-none">{pickerLabel}</p>
+              <Popover open={isOpen} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={isOpen}
+                    className={cn(
+                      "w-full h-9 justify-between font-normal hover:bg-background hover:text-foreground",
+                      !selectedId && "text-muted-foreground"
+                    )}
+                  >
+                    {selected ? `${selected.first_name} ${selected.last_name}` : "Sélectionner un thérapeute"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un thérapeute..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun thérapeute trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {therapists?.map(therapist => (
+                          <CommandItem
+                            key={therapist.id}
+                            value={`${therapist.first_name} ${therapist.last_name}`}
+                            onSelect={() => handleSelect(therapist.id)}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedId === therapist.id ? "opacity-100" : "opacity-0")} />
+                            {therapist.first_name} {therapist.last_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Client type */}
       <FormField

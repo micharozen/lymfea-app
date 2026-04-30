@@ -6,20 +6,14 @@ interface BookingWizardStepperProps {
   hidePayment?: boolean;
 }
 
-const ADMIN_STEPS = [
+const ALL_STEPS = [
   { id: 1, label: "Informations" },
   { id: 2, label: "Prestations" },
-  { id: 3, label: "Affectation" },
-];
-
-const CONCIERGE_STEPS = [
-  { id: 1, label: "Informations" },
-  { id: 2, label: "Prestations" },
+  { id: 3, label: "Paiement" },
 ];
 
 export function BookingWizardStepper({ currentStep, hidePayment }: BookingWizardStepperProps) {
-  const STEPS = hidePayment ? CONCIERGE_STEPS : ADMIN_STEPS;
-
+  const STEPS = hidePayment ? ALL_STEPS.slice(0, 2) : ALL_STEPS;
   return (
     <div className="flex items-center justify-center gap-2 py-4">
       {STEPS.map((step, index) => {

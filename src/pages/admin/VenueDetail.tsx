@@ -81,7 +81,7 @@ const createFormSchema = (t: TFunction) => z.object({
   name_en: z.string().optional(),
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
-  calendar_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
+  calendar_color: z.string().default('#3b82f6'),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -206,7 +206,7 @@ export default function VenueDetail() {
       offert: false,
       company_offered: false,
       landing_subtitle: "",
-      calendar_color: "",
+      calendar_color: "#3b82f6",
     },
   });
 
@@ -262,7 +262,7 @@ export default function VenueDetail() {
           name_en: (hotel as any).name_en || "",
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
-          calendar_color: hotel.calendar_color ?? "",
+          calendar_color: hotel.calendar_color || "#3b82f6",
         });
 
         setHotelImage(hotel.image || "");
@@ -492,7 +492,7 @@ export default function VenueDetail() {
         name_en: values.name_en || null,
         landing_subtitle_en: values.landing_subtitle_en || null,
         description_en: values.description_en || null,
-        calendar_color: values.calendar_color || null,
+        calendar_color: values.calendar_color || '#3b82f6',
       };
 
       if (isNewMode && !savedHotelId) {

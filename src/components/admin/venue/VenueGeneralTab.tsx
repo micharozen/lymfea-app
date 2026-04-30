@@ -518,11 +518,8 @@ export function VenueGeneralTab({
                           )}
                         >
                           <span
-                            className={cn(
-                              "block w-4 h-4 rounded-full border shadow-sm transition-all hover:scale-110",
-                              field.value ? "border-foreground/20" : "border-dashed border-muted-foreground/40"
-                            )}
-                            style={field.value ? { backgroundColor: field.value } : {}}
+                            className="block w-4 h-4 rounded-full border border-foreground/20 shadow-sm transition-all hover:scale-110"
+                            style={{ backgroundColor: field.value || '#3b82f6' }}
                           />
                         </button>
                       </PopoverTrigger>
@@ -550,16 +547,6 @@ export function VenueGeneralTab({
                             />
                           ))}
                         </div>
-                        <button
-                          type="button"
-                          className="mt-2 w-full text-xs text-muted-foreground hover:text-foreground transition-colors text-left"
-                          onClick={() => {
-                            field.onChange("");
-                            setColorOpen(false);
-                          }}
-                        >
-                          Aucune couleur
-                        </button>
                       </PopoverContent>
                     </Popover>
                   </div>
