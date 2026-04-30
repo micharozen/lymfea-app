@@ -123,7 +123,7 @@
     },
     {
       "name": "charge-saved-card",
-      "status": "migrated",
+      "status": "failed",
       "route": "/payments/charge-card",
       "target": "src/routes/payments.ts",
       "priority": 1,
@@ -131,7 +131,8 @@
       "auth": true,
       "deps": [],
       "migratedAt": "2026-04-18T07:08:23.459Z",
-      "sourceHash": "218db55a40f89961"
+      "sourceHash": "218db55a40f89961",
+      "error": "Claude Code returned non-zero exit code"
     },
     {
       "name": "send-payment-link",
@@ -185,7 +186,7 @@
     },
     {
       "name": "confirm-setup-intent",
-      "status": "migrated",
+      "status": "failed",
       "route": "/payments/confirm-setup",
       "target": "src/routes/payments.ts",
       "priority": 2,
@@ -193,11 +194,12 @@
       "auth": true,
       "deps": [],
       "migratedAt": "2026-04-23T03:14:10.362Z",
-      "sourceHash": "ec73890d192fdea9"
+      "sourceHash": "ec73890d192fdea9",
+      "error": "Claude Code returned non-zero exit code"
     },
     {
       "name": "create-setup-intent",
-      "status": "migrated",
+      "status": "failed",
       "route": "/payments/setup-intent",
       "target": "src/routes/payments.ts",
       "priority": 2,
@@ -205,7 +207,8 @@
       "auth": true,
       "deps": [],
       "migratedAt": "2026-04-23T03:14:40.731Z",
-      "sourceHash": "4fa1246c516111c1"
+      "sourceHash": "4fa1246c516111c1",
+      "error": "Claude Code returned non-zero exit code"
     },
     {
       "name": "handle-checkout-success",
