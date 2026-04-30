@@ -52,6 +52,7 @@ const createFormSchema = (t: TFunction) =>
     variants: z
       .array(
         z.object({
+          id: z.string().uuid().optional(),
           label: z.string().optional(),
           label_en: z.string().optional(),
           duration: z.string().min(1, "Durée requise"),
@@ -156,6 +157,7 @@ export default function TreatmentDetail() {
           const variantsData =
             existingVariants && existingVariants.length > 0
               ? existingVariants.map((v) => ({
+                  id: v.id,
                   label: v.label || "",
                   label_en: (v as any).label_en || "",
                   duration: v.duration?.toString() || "0",
@@ -332,31 +334,78 @@ export default function TreatmentDetail() {
 
         if (error) throw error;
 
-        // Delete old variants and re-insert
-        const { error: deleteError } = await supabase
+        // Diff variants: update existing, insert new, delete only those removed
+        const { data: existing, error: fetchErr } = await supabase
           .from("treatment_variants")
-          .delete()
+          .select("id")
           .eq("treatment_id", targetId);
 
-        if (deleteError) throw deleteError;
+        if (fetchErr) throw fetchErr;
 
-        const variantsToInsert = values.variants.map((v, index) => ({
-          treatment_id: targetId,
-          label: v.label || `${v.duration} min`,
-          label_en: v.label_en || null,
-          duration: parseInt(v.duration),
-          guest_count: parseInt(v.guest_count) || 1,
-          price: parseFloat(v.price),
-          price_on_request: v.price_on_request,
-          is_default: v.is_default,
-          sort_order: index,
-        }));
+        const existingIds = new Set((existing ?? []).map((v) => v.id));
+        const submittedIds = new Set(
+          values.variants
+            .map((v) => v.id)
+            .filter((vid): vid is string => !!vid)
+        );
 
-        const { error: variantsError } = await supabase
-          .from("treatment_variants")
-          .insert(variantsToInsert);
+        const idsToDelete = [...existingIds].filter(
+          (vid) => !submittedIds.has(vid)
+        );
+        if (idsToDelete.length > 0) {
+          const { error: delErr } = await supabase
+            .from("treatment_variants")
+            .delete()
+            .in("id", idsToDelete);
 
-        if (variantsError) throw variantsError;
+          if (delErr?.code === "23503") {
+            toast.error(
+              "Une variante supprimée est utilisée dans des réservations existantes. Modifiez-la au lieu de la supprimer."
+            );
+            return;
+          }
+          if (delErr) throw delErr;
+        }
+
+        for (const [index, v] of values.variants.entries()) {
+          if (!v.id) continue;
+          const { error: updErr } = await supabase
+            .from("treatment_variants")
+            .update({
+              label: v.label || `${v.duration} min`,
+              label_en: v.label_en || null,
+              duration: parseInt(v.duration),
+              guest_count: parseInt(v.guest_count) || 1,
+              price: parseFloat(v.price),
+              price_on_request: v.price_on_request,
+              is_default: v.is_default,
+              sort_order: index,
+            })
+            .eq("id", v.id);
+          if (updErr) throw updErr;
+        }
+
+        const toInsert = values.variants
+          .map((v, index) => ({ v, index }))
+          .filter(({ v }) => !v.id)
+          .map(({ v, index }) => ({
+            treatment_id: targetId,
+            label: v.label || `${v.duration} min`,
+            label_en: v.label_en || null,
+            duration: parseInt(v.duration),
+            guest_count: parseInt(v.guest_count) || 1,
+            price: parseFloat(v.price),
+            price_on_request: v.price_on_request,
+            is_default: v.is_default,
+            sort_order: index,
+          }));
+
+        if (toInsert.length > 0) {
+          const { error: insErr } = await supabase
+            .from("treatment_variants")
+            .insert(toInsert);
+          if (insErr) throw insErr;
+        }
 
         // Sync addon links — delete then re-insert
         const { error: deleteAddonsError } = await supabase
