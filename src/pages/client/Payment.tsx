@@ -21,12 +21,13 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { HoldBanner } from '@/components/client/HoldBanner';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 
 export default function Payment() {
   const { slug, hotelId } = useClientVenue();
   const navigate = useNavigate();
   const { items, total, fixedTotal, hasPriceOnRequest, clearBasket, isBundleOnly } = useBasket();
-  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles } = useClientFlow();
+  const { bookingDateTime, clientInfo, therapistGenderPreference, selectedBundle, setSelectedBundle, setPendingCheckoutSession, clearFlow, canProceedToStep, isBundleOnlyPurchase, draftBookingId, setHoldExpiresAt, authBundles, scheduleMode, perItemSchedule, groupId, bookingIds } = useClientFlow();
   const [selectedMethod, setSelectedMethod] = useState<'room' | 'card'>('card');
 
   useEffect(() => {
@@ -356,43 +357,63 @@ export default function Payment() {
           window.location.href = data.url;
         }
       } else {
+        const isMulti = scheduleMode === 'per_item' && bookingIds.length > 1 && !!groupId;
+        const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItems = isMulti
+          ? buildMultiBookingItems(baseItemsForMulti, perItemSchedule)
+          : null;
+
+        const clientDataPayload = {
+          firstName: clientInfo.firstName,
+          lastName: clientInfo.lastName,
+          phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+          email: clientInfo.email,
+          roomNumber: clientInfo.roomNumber,
+          note: clientInfo.note || '',
+          pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+          pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+        };
+
+        const body = isMulti && multiItems
+          ? {
+              hotelId,
+              clientData: clientDataPayload,
+              items: multiItems,
+              bookingIds,
+              groupId,
+              paymentMethod: 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            }
+          : {
+              hotelId,
+              clientData: clientDataPayload,
+              bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                note: item.note,
+              })),
+              paymentMethod: 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
+              ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+            };
+
         const { data, error } = await supabase.functions.invoke('create-client-booking', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
-              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            paymentMethod: 'room',
-            totalPrice: fixedTotal,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            ...(draftBookingId ? { draftBookingId } : {}),
-            ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
-          },
+          body,
         });
 
         if (error) throw error;
 
         clearBasket();
         clearFlow();
-        // Redirection vers la page dynamique
-        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
+        const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);

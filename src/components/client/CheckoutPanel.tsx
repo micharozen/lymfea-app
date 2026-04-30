@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { GiftCardSelector } from '@/components/client/GiftCardSelector';
 import { computeOutOfHoursSurcharge } from '@/lib/surcharge';
+import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
 
 interface CheckoutPanelProps {
   hotelId: string;
@@ -44,6 +45,7 @@ export function CheckoutPanel({
     bookingDateTime, clientInfo, therapistGenderPreference,
     setPendingCheckoutSession, clearFlow, isBundleOnlyPurchase,
     selectedBundle, setSelectedBundle, giftInfo, authBundles, draftBookingId, setHoldExpiresAt,
+    scheduleMode, perItemSchedule, groupId, bookingIds,
   } = useClientFlow();
   const { createOffertBooking, isCreating: isOffertProcessing } = useCreateOffertBooking(hotelId);
 
@@ -371,42 +373,62 @@ export function CheckoutPanel({
           window.location.href = data.url;
         }
       } else {
-        // Room payment or quote request
+        const isMulti = scheduleMode === 'per_item' && bookingIds.length > 1 && !!groupId && !hasPriceOnRequest;
+        const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItems = isMulti
+          ? buildMultiBookingItems(baseItemsForMulti, perItemSchedule)
+          : null;
+
+        const clientDataPayload = {
+          firstName: clientInfo.firstName,
+          lastName: clientInfo.lastName,
+          phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+          email: clientInfo.email,
+          roomNumber: clientInfo.roomNumber,
+          note: clientInfo.note || '',
+          pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+          pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+        };
+
+        const body = isMulti && multiItems
+          ? {
+              hotelId,
+              clientData: clientDataPayload,
+              items: multiItems,
+              bookingIds,
+              groupId,
+              paymentMethod: 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            }
+          : {
+              hotelId,
+              clientData: clientDataPayload,
+              bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+              treatments: items.map(item => ({
+                treatmentId: item.id,
+                variantId: item.variantId,
+                quantity: item.quantity,
+                note: item.note,
+              })),
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+              ...(draftBookingId ? { draftBookingId } : {}),
+            };
+
         const { data, error } = await supabase.functions.invoke('create-client-booking', {
-          body: {
-            hotelId,
-            clientData: {
-              firstName: clientInfo.firstName,
-              lastName: clientInfo.lastName,
-              phone: `${clientInfo.countryCode}${clientInfo.phone}`,
-              email: clientInfo.email,
-              roomNumber: clientInfo.roomNumber,
-              note: clientInfo.note || '',
-              pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
-              pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
-            },
-            bookingData: {
-              date: bookingDateTime.date,
-              time: bookingDateTime.time,
-            },
-            treatments: items.map(item => ({
-              treatmentId: item.id,
-              variantId: item.variantId,
-              quantity: item.quantity,
-              note: item.note,
-            })),
-            paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
-            totalPrice: fixedTotal,
-            ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            ...(draftBookingId ? { draftBookingId } : {}),
-          },
+          body,
         });
 
         if (error) throw error;
 
         clearBasket();
         clearFlow();
-        navigate(`/client/${slug}/confirmation/${data.bookingId}`);
+        const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);

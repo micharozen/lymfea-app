@@ -184,3 +184,6 @@ verify_jwt = false
 
 [functions.send-slack-notification]
 verify_jwt = false
+
+[functions.create-draft-booking]
+verify_jwt= false
