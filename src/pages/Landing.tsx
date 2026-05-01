@@ -14,13 +14,13 @@ const Landing = () => {
   useEffect(() => {
     const isFr = i18n.language.startsWith("fr");
     document.title = isFr
-      ? "Eïa — La plateforme de gestion spa pour hôtels"
-      : "Eïa — The spa management platform for hotels";
+      ? "Holispa — La plateforme de gestion spa pour hôtels"
+      : "Holispa — The spa management platform for hotels";
 
     const metaDesc = document.querySelector('meta[name="description"]');
     const descContent = isFr
-      ? "La plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS Opera & Mews, app thérapeute, booking client sans friction."
-      : "The all-in-one platform to run your hotel spa: unified schedule, Opera & Mews PMS, therapist app, frictionless client booking.";
+      ? "Holispa, la plateforme tout-en-un pour gérer le spa de votre hôtel : agenda unifié, PMS Opera & Mews, app thérapeute, booking client sans friction."
+      : "Holispa, the all-in-one platform to run your hotel spa: unified schedule, Opera & Mews PMS, therapist app, frictionless client booking.";
     if (metaDesc) metaDesc.setAttribute("content", descContent);
 
     document.documentElement.lang = isFr ? "fr" : "en";

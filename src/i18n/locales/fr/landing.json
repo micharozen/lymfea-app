@@ -90,10 +90,11 @@
     "title": "Prêt à moderniser votre spa ?",
     "subtitle": "Planifiez une démo personnalisée de 30 minutes avec notre équipe. Nous vous montrons la plateforme avec vos soins et votre organisation.",
     "button": "Réserver ma démo",
-    "secondary": "Ou écrivez-nous à hello@lymfea.fr"
+    "secondary": "Ou écrivez-nous à hello@holispa.fr"
   },
   "footer": {
-    "tagline": "La plateforme de gestion spa pour hôtels & day spas.",
+    "tagline": "Holispa — la plateforme de gestion spa pour hôtels & day spas.",
+    "signature": "L'art du spa, simplifié.",
     "product": "Produit",
     "company": "Société",
     "legal": "Légal",
@@ -109,6 +110,6 @@
       "privacy": "Politique de confidentialité",
       "legalMentions": "Mentions légales"
     },
-    "copyright": "© {{year}} Eïa. Tous droits réservés."
+    "copyright": "© {{year}} Holispa. Tous droits réservés."
   }
 }

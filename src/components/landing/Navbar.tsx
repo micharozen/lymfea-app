@@ -3,10 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Menu, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { brandLogos } from "@/config/brand";
 import { cn } from "@/lib/utils";
-
-const DEMO_CTA = "mailto:hello@lymfea.fr?subject=Demo%20Ei%CC%88a";
+import { HOLISPA_DEMO_CTA, HOLISPA_NAME } from "./constants";
+import { Wordmark } from "./Wordmark";
 
 export const Navbar = () => {
   const { t, i18n } = useTranslation("landing");
@@ -46,8 +45,8 @@ export const Navbar = () => {
       )}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:h-20 md:px-6">
-        <a href="#top" className="flex items-center gap-2">
-          <img src={brandLogos.primary} alt="Eïa" className="h-7 md:h-8" />
+        <a href="#top" className="flex items-center gap-2" aria-label={HOLISPA_NAME}>
+          <Wordmark />
         </a>
 
         <nav className="hidden items-center gap-8 md:flex">
@@ -77,7 +76,7 @@ export const Navbar = () => {
             {t("nav.login")}
           </a>
           <Button asChild size="default" className="bg-foreground text-background hover:bg-foreground/90">
-            <a href={DEMO_CTA}>{t("nav.cta")}</a>
+            <a href={HOLISPA_DEMO_CTA}>{t("nav.cta")}</a>
           </Button>
         </div>
 
@@ -127,7 +126,7 @@ export const Navbar = () => {
                 {i18n.language.startsWith("fr") ? "English" : "Français"}
               </button>
               <Button asChild size="lg" className="mt-2 bg-foreground text-background hover:bg-foreground/90">
-                <a href={DEMO_CTA} onClick={() => setMobileOpen(false)}>
+                <a href={HOLISPA_DEMO_CTA} onClick={() => setMobileOpen(false)}>
                   {t("nav.cta")}
                 </a>
               </Button>

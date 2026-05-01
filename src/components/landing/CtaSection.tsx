@@ -2,8 +2,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const DEMO_CTA = "mailto:hello@lymfea.fr?subject=Demo%20Ei%CC%88a";
+import { HOLISPA_DEMO_CTA } from "./constants";
 
 export const CtaSection = () => {
   const { t } = useTranslation("landing");
@@ -35,7 +34,7 @@ export const CtaSection = () => {
                 size="lg"
                 className="group h-12 bg-foreground px-7 text-base text-background hover:bg-foreground/90"
               >
-                <a href={DEMO_CTA}>
+                <a href={HOLISPA_DEMO_CTA}>
                   {t("cta.button")}
                   <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </a>
