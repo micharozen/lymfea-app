@@ -8,8 +8,7 @@ import { useUrlBookingState } from '@/pages/client/hooks/useUrlBookingState';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { toast } from 'sonner';
-import { format, addDays, parse } from 'date-fns';
-import { fr, enUS } from 'date-fns/locale';
+import { format, addDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import TimePeriodSelector from '@/components/client/TimePeriodSelector';
@@ -18,8 +17,12 @@ import { AddonProposalDrawer } from '@/components/client/AddonProposalDrawer';
 import { useFeasibleAddons } from '@/hooks/client/useFeasibleAddons';
 import { useQuery } from '@tanstack/react-query';
 import { useClientAnalytics } from '@/hooks/useClientAnalytics';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { PerItemScheduler } from '@/components/client/PerItemScheduler';
+import { buildMultiBookingItems } from '@/lib/multiTimeBooking';
+import { DatePillsRow } from '@/components/client/scheduler/DatePillsRow';
+import { useDateOptions } from '@/components/client/scheduler/useDateOptions';
+import { useTimeSlots } from '@/components/client/scheduler/useTimeSlots';
 
 interface SchedulePanelProps {
   hotelId: string;
@@ -51,9 +54,15 @@ export function SchedulePanel({
     draftBookingId,
     setDraftBookingId,
     setHoldExpiresAt,
+    scheduleMode,
+    setScheduleMode,
+    perItemSchedule,
+    setItemSchedule,
+    bookingIds,
+    setBookingIds,
+    setGroupId,
   } = useClientFlow();
-  const { t, i18n } = useTranslation('client');
-  const locale = i18n.language === 'fr' ? fr : enUS;
+  const { t } = useTranslation('client');
 
   const {
     date: urlDate,
@@ -78,7 +87,6 @@ export function SchedulePanel({
   );
   const { trackAction, trackPageView } = useClientAnalytics(hotelId);
   const hasTrackedPageView = useRef(false);
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isAddonDrawerOpen, setIsAddonDrawerOpen] = useState(false);
   const [pendingContinueTime, setPendingContinueTime] = useState<string | null>(null);
   const [addonCheckArmed, setAddonCheckArmed] = useState(false);
@@ -110,19 +118,6 @@ export function SchedulePanel({
       baseItems,
       enabled: addonCheckArmed && !!pendingContinueTime,
     });
-  const dateScrollRef = useRef<HTMLDivElement>(null);
-  const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  // Scroll the horizontal date strip to the selected date
-  useEffect(() => {
-    if (selectedDate && dateButtonRefs.current[selectedDate] && dateScrollRef.current) {
-      const button = dateButtonRefs.current[selectedDate];
-      const container = dateScrollRef.current;
-      const scrollLeft = button!.offsetLeft - container.offsetWidth / 2 + button!.offsetWidth / 2;
-      container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-    }
-  }, [selectedDate]);
-
   // Track page view once (only for standalone page, not embedded)
   useEffect(() => {
     if (!embedded && !hasTrackedPageView.current) {
@@ -230,38 +225,12 @@ export function SchedulePanel({
   });
 
   // Generate date options (all venue-deployed dates) with a flag for per-day availability
-  const dateOptions = useMemo(() => {
-    if (!availableDates) return [];
-
-    const dates = [];
-    const today = new Date();
-
-    for (let i = 0; i < maxDaysAhead; i++) {
-      const date = addDays(today, i);
-      const dateStr = format(date, 'yyyy-MM-dd');
-
-      if (!availableDates.has(dateStr)) continue;
-      
-      const isAllowedByCart = cartAllowedDays.includes(date.getDay());
-      const actuallyHasSlots = daysWithSlots ? daysWithSlots.has(dateStr) : true;
-
-      let label = format(date, 'd MMM', { locale });
-      if (i === 0) label = t('common:dates.today');
-      else if (i === 1) label = t('common:dates.tomorrow');
-
-      dates.push({
-        value: dateStr,
-        label,
-        dayLabel: format(date, 'EEE', { locale }).toUpperCase(),
-        fullLabel: format(date, 'd MMM', { locale }),
-        isSpecial: i === 0 || i === 1,
-        hasSlots: actuallyHasSlots,
-        isAllowedByCart,
-      });
-    }
-
-    return dates;
-  }, [locale, t, availableDates, maxDaysAhead, daysWithSlots, cartAllowedDays]);
+  const dateOptions = useDateOptions({
+    availableDates,
+    daysWithSlots,
+    cartAllowedDays,
+    maxDaysAhead,
+  });
 
   // Auto-select the first deployed day (usually today) so the slot grid is
   // populated without an extra click. If the day ends up being fully booked,
@@ -277,53 +246,10 @@ export function SchedulePanel({
   }, [dateOptions, selectedDate, takenDate, setUrlDateTime]);
 
   // Generate time slots based on venue hours, filtering out past times for today
-  const timeSlots = useMemo(() => {
-    const slots = [];
-    const now = new Date();
-    const todayStr = format(now, 'yyyy-MM-dd');
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
-    const openingMinutes = venueData?.openingMinutes ?? 10 * 60;
-    const closingMinutes = venueData?.closingMinutes ?? 20 * 60;
-    const slotInterval = venueData?.slotInterval ?? 30;
-
-    for (let minutes = openingMinutes; minutes < closingMinutes; minutes += slotInterval) {
-      const hour = Math.floor(minutes / 60);
-      const minute = minutes % 60;
-
-      if (selectedDate === todayStr) {
-        if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
-          continue;
-        }
-      }
-
-      const time24 = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
-      const minuteStr = minute.toString().padStart(2, '0');
-
-      let timeLabel: string;
-      if (i18n.language === 'fr') {
-        timeLabel = `${hour.toString().padStart(2, '0')}:${minuteStr}`;
-      } else {
-        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const period = hour >= 12 ? 'PM' : 'AM';
-        timeLabel = `${hour12}:${minuteStr}${period}`;
-      }
-
-      const slotMinutes = hour * 60 + minute;
-      const baseOpen = venueData?.baseOpeningMinutes ?? openingMinutes;
-      const baseClose = venueData?.baseClosingMinutes ?? closingMinutes;
-      const slotIsOutOfHours = !!venueData?.allowOutOfHours && (slotMinutes < baseOpen || slotMinutes >= baseClose);
-
-      slots.push({
-        value: time24,
-        label: timeLabel,
-        hour,
-        isOutOfHours: slotIsOutOfHours,
-      });
-    }
-    return slots;
-  }, [selectedDate, venueData]);
+  const timeSlots = useTimeSlots({
+    selectedDate,
+    venueData,
+  });
 
   // Fetch available slots when date or gender preference changes
   useEffect(() => {
@@ -414,6 +340,8 @@ export function SchedulePanel({
 
       flushSync(() => {
         setDraftBookingId(data.bookingId);
+        setBookingIds([data.bookingId]);
+        setGroupId(null);
         setHoldExpiresAt(Date.now() + holdMinutes * 60 * 1000);
         setBookingDateTime({ date, time });
       });
@@ -421,6 +349,81 @@ export function SchedulePanel({
     } catch (err: unknown) {
       console.error('Hold error:', err);
       setSelectedTime('');
+      setShowSlotTakenBanner(true);
+      toast.error(t('datetime.slotTakenBanner', 'Ce créneau vient d\'être pris. Veuillez en choisir un autre.'));
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  /**
+   * Multi-time variant: holds N slots in one shot, sharing a booking_group_id.
+   * Used when scheduleMode === 'per_item' and the client picked distinct slots
+   * for each base item.
+   */
+  const executeHoldAndContinueMulti = async () => {
+    const items = buildMultiBookingItems(baseItems, perItemSchedule);
+    if (!items || items.length === 0) {
+      toast.error(t('datetime.selectTime'));
+      return;
+    }
+
+    const holdEnabled = venueData?.holdEnabled ?? true;
+    const holdMinutes = venueData?.holdDurationMinutes ?? 5;
+
+    setIsHolding(true);
+    try {
+      // Drop any prior drafts (single or multi) before re-holding.
+      const priorIds = bookingIds.length > 0
+        ? bookingIds
+        : (draftBookingId ? [draftBookingId] : []);
+      if (priorIds.length > 0) {
+        await supabase.from('bookings').delete()
+          .in('id', priorIds)
+          .eq('status', 'awaiting_payment');
+        setDraftBookingId(null);
+        setBookingIds([]);
+        setGroupId(null);
+        setHoldExpiresAt(null);
+      }
+
+      const firstSlot = { date: items[0].date, time: items[0].time };
+
+      if (!holdEnabled) {
+        flushSync(() => {
+          setDraftBookingId(null);
+          setBookingIds([]);
+          setGroupId(null);
+          setHoldExpiresAt(null);
+          setBookingDateTime(firstSlot);
+        });
+        onContinue();
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-draft-booking', {
+        body: {
+          hotelId,
+          items,
+          therapistGender: therapistGenderPreference || null,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.bookingIds || data.bookingIds.length === 0) {
+        throw new Error('No booking IDs returned');
+      }
+
+      flushSync(() => {
+        setDraftBookingId(null);
+        setBookingIds(data.bookingIds);
+        setGroupId(data.groupId ?? null);
+        setHoldExpiresAt(Date.now() + holdMinutes * 60 * 1000);
+        setBookingDateTime(firstSlot);
+      });
+      onContinue();
+    } catch (err: unknown) {
+      console.error('Multi-hold error:', err);
       setShowSlotTakenBanner(true);
       toast.error(t('datetime.slotTakenBanner', 'Ce créneau vient d\'être pris. Veuillez en choisir un autre.'));
     } finally {
@@ -461,6 +464,15 @@ export function SchedulePanel({
   };
 
   const handleContinue = () => {
+    if (scheduleMode === 'per_item') {
+      if (!allItemsScheduled) {
+        toast.error(t('datetime.selectTime'));
+        return;
+      }
+      executeHoldAndContinueMulti();
+      return;
+    }
+
     if (!selectedDate) {
       toast.error(t('datetime.selectDate'));
       return;
@@ -485,6 +497,18 @@ export function SchedulePanel({
 
     executeHoldAndContinue(selectedDate, selectedTime);
   };
+
+  // In per_item mode (PR1), enable the Continue button only after every base
+  // item has a complete date+time, so the visual flow exercises the full UI.
+  // The handler still shows a "coming soon" toast — payment lands in PR2.
+  const allItemsScheduled = useMemo(() => {
+    if (scheduleMode !== 'per_item') return true;
+    return baseItems.every((it) => {
+      const k = it.variantId ? `${it.id}__${it.variantId}` : it.id;
+      const slot = perItemSchedule[k];
+      return !!slot?.date && !!slot?.time;
+    });
+  }, [scheduleMode, baseItems, perItemSchedule]);
 
   const isBusy = loadingAvailability || isHolding || (addonCheckArmed && !addonsReady);
 
@@ -552,6 +576,29 @@ export function SchedulePanel({
         />
       </div>
 
+      {/* Multi-time toggle: only visible when 2+ base treatments are in cart */}
+      {baseItems.length > 1 && (
+        <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-900">
+              {t('datetime.multiTime.toggle', 'Horaires différents par soin')}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {t(
+                'datetime.multiTime.helper',
+                'Choisissez un créneau distinct pour chaque soin du panier.',
+              )}
+            </p>
+          </div>
+          <Switch
+            checked={scheduleMode === 'per_item'}
+            onCheckedChange={(checked) =>
+              setScheduleMode(checked ? 'per_item' : 'shared')
+            }
+          />
+        </div>
+      )}
+
       {/* Day constraint info banner */}
       {hasCartDayConstraint && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2.5">
@@ -562,140 +609,41 @@ export function SchedulePanel({
         </div>
       )}
 
-      {/* Date Selection */}
+      {/* Per-item scheduler: one date+time picker per cart item (multi-time mode) */}
+      {scheduleMode === 'per_item' && baseItems.length > 1 && (
+        <>
+          <PerItemScheduler
+            hotelId={hotelId}
+            baseItems={baseItems}
+            perItemSchedule={perItemSchedule}
+            setItemSchedule={setItemSchedule}
+            therapistGender={therapistGenderPreference}
+            venueData={venueData}
+            availableDates={availableDates}
+            cartAllowedDays={cartAllowedDays}
+            maxDaysAhead={maxDaysAhead}
+          />
+        </>
+      )}
+
+      {/* Date Selection (shared single-slot mode) */}
+      {scheduleMode === 'shared' && (
+      <>
       <div className={cn("space-y-4", !embedded && "animate-fade-in")} style={embedded ? undefined : { animationDelay: '0.2s' }}>
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs uppercase tracking-widest text-gray-500 font-medium">
-            {t('checkout.dateTime').split('&')[0].trim()}
-          </h4>
-
-          {/* Calendar picker button */}
-          {availableDates && dateOptions.length > 0 && (
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all duration-200",
-                    isCalendarOpen || selectedDate
-                      ? "border-gold-500 bg-gold-500/10 text-gold-600"
-                      : "border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300"
-                  )}
-                >
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  {selectedDate
-                    ? format(parse(selectedDate, 'yyyy-MM-dd', new Date()), 'd MMM', { locale })
-                    : t('datetime.pickDate', 'Calendrier')
-                  }
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate ? parse(selectedDate, 'yyyy-MM-dd', new Date()) : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      const value = format(date, 'yyyy-MM-dd');
-                      setSelectedDate(value);
-                      setUrlDateTime(value, '');
-                      setIsCalendarOpen(false);
-                    }
-                  }}
-                  disabled={(date) => {
-                    const dateStr = format(date, 'yyyy-MM-dd');
-                    if (!availableDates.has(dateStr)) return true;
-                    if (!cartAllowedDays.includes(date.getDay())) return true;
-                    return false;
-                  }}
-                  showOutsideDays={false}
-                  fromDate={new Date()}
-                  toDate={addDays(new Date(), maxDaysAhead)}
-                  locale={locale}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-        <div className="relative">
-          {(loadingAvailableDates || !availableDates) ? (
-            <div className="flex justify-center py-8">
-              <ClientSpinner size="md" />
-            </div>
-          ) : dateOptions.length === 0 ? (
-            <div className="text-center py-8 border border-gray-200 rounded-lg bg-gray-50">
-              <CalendarIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-200 mx-auto mb-4" />
-              <p className="text-gray-500 text-sm mb-2">{t('datetime.noDatesAvailable') || 'Aucune date disponible'}</p>
-              <p className="text-gray-400 text-xs">{t('datetime.contactVenue') || 'Veuillez contacter le lieu'}</p>
-            </div>
-          ) : (
-            <div
-              ref={dateScrollRef}
-              className={cn(
-                "flex gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory",
-                embedded ? "gap-1.5" : "sm:gap-3"
-              )}
-            >
-              {dateOptions.map(({ value, label, dayLabel, fullLabel, isSpecial, hasSlots, isAllowedByCart }) => {
-                // Un jour est cliquable s'il a des créneaux ET qu'il est autorisé par les soins du panier
-                const isClickable = hasSlots && isAllowedByCart;
-
-                return (
-                  <button
-                    key={value}
-                    ref={el => { dateButtonRefs.current[value] = el; }}
-                    type="button"
-                    disabled={!isClickable} // 🔒 LE VERROU EST ICI
-                    onClick={() => {
-                      if (!isClickable) return; // Double sécurité
-                      setSelectedDate(value);
-                      setUrlDateTime(value, '');
-                    }}
-                    aria-disabled={!isClickable}
-                    className={cn(
-                      "flex-shrink-0 snap-start rounded-lg border transition-all duration-200",
-                      embedded
-                        ? "px-2.5 py-2.5 min-w-[60px]"
-                        : "px-3 py-3 sm:px-5 sm:py-4 min-w-[70px] sm:min-w-[90px]",
-                      selectedDate === value
-                        ? "border-gold-500 bg-gold-500/10"
-                        : !isClickable
-                          ? "border-gray-200 bg-gray-100/60 opacity-60 cursor-not-allowed" // Rend le bouton visiblement inactif
-                          : "border-gray-200 bg-gray-50 hover:border-gray-300"
-                    )}
-                  >
-                    <div className="text-center">
-                      {!isSpecial && (
-                        <div className={cn(
-                          "text-[10px] mb-1 tracking-wider",
-                          !isClickable && selectedDate !== value ? "text-gray-300" : "text-gray-400"
-                        )}>
-                          {dayLabel}
-                        </div>
-                      )}
-                      <div className={cn(
-                        "whitespace-nowrap",
-                        embedded ? "text-xs" : "text-sm",
-                        selectedDate === value
-                          ? "text-gold-600 font-medium"
-                          : !isClickable
-                            ? "text-gray-400 font-light line-through" // Barre le texte du jour
-                            : "text-gray-900 font-light"
-                      )}>
-                        {isSpecial ? label : fullLabel}
-                      </div>
-                      {!isClickable && (
-                        <div className="text-[9px] uppercase tracking-wider text-gray-400 mt-0.5">
-                          {!isAllowedByCart ? t('datetime.dayRestricted') : t('datetime.dayFull')}
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <DatePillsRow
+          dateOptions={dateOptions}
+          selectedDate={selectedDate}
+          onSelectDate={(value) => {
+            setSelectedDate(value);
+            setUrlDateTime(value, '');
+          }}
+          availableDates={availableDates}
+          cartAllowedDays={cartAllowedDays}
+          maxDaysAhead={maxDaysAhead}
+          loadingDates={loadingAvailableDates}
+          embedded={embedded}
+          headerLabel={t('checkout.dateTime').split('&')[0].trim()}
+        />
       </div>
 
       {/* Time Selection */}
@@ -729,13 +677,19 @@ export function SchedulePanel({
           />
         )}
       </div>
+      </>
+      )}
 
       {/* Continue button — sticky for embedded, fixed for standalone */}
       {embedded ? (
         <div className="sticky bottom-0 z-10 p-4 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent">
           <Button
             onClick={handleContinue}
-            disabled={!selectedDate || !selectedTime || isBusy}
+            disabled={
+              scheduleMode === 'per_item'
+                ? !allItemsScheduled || isBusy
+                : !selectedDate || !selectedTime || isBusy
+            }
             className="w-full h-12 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
           >
             {isHolding ? (
@@ -759,7 +713,11 @@ export function SchedulePanel({
           <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pb-safe z-30">
             <Button
               onClick={handleContinue}
-              disabled={!selectedDate || !selectedTime || isBusy}
+              disabled={
+              scheduleMode === 'per_item'
+                ? !allItemsScheduled || isBusy
+                : !selectedDate || !selectedTime || isBusy
+            }
               className="w-full h-12 sm:h-14 md:h-16 bg-gray-900 text-white hover:bg-gray-800 font-medium tracking-widest text-base transition-all duration-300 disabled:bg-gray-200 disabled:text-gray-400"
             >
               {isHolding ? (

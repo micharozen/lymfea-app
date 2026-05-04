@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useAdminWelcome } from "@/hooks/useAdminWelcome";
 import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
@@ -23,7 +24,8 @@ import { DashboardRankings } from "@/components/admin/dashboard/DashboardRanking
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
 
 export default function Dashboard() {
-  const { isConcierge, hotelIds } = useUser();
+  const { hotelIds } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const currentVenueId = useCurrentVenueId();
   const welcome = useAdminWelcome();
   const [startDate, setStartDate] = useState<Date>(

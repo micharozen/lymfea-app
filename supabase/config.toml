@@ -185,8 +185,6 @@ verify_jwt = true
 [functions.send-slack-notification]
 verify_jwt = false
 
-# --- Added for go-live security hardening (P1: require JWT) ---
-
 [functions.delete-admin]
 verify_jwt = true
 
