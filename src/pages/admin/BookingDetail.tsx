@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Loader2, ArrowLeft, User, Phone,
+  Loader2, ArrowLeft, User, Users, Phone,
   Calendar, Clock, Building2, HandHeart,
   CheckCircle2, AlertCircle, Send, Pencil,
   PenTool, ChevronRight, Package, History, MessageSquare
@@ -77,7 +77,7 @@ export default function BookingDetail() {
   const [hotelCommission, setHotelCommission] = useState<{ therapist_commission: number; global_therapist_commission: boolean } | null>(null);
   const [acceptedTherapists, setAcceptedTherapists] = useState<Array<{ id: string; first_name: string; last_name: string }>>([]);
 
-  const { bookings, getHotelInfo, refetch } = useBookingData(); // <-- Ajout de refetch ici
+  const { bookings, getHotelInfo, refetch } = useBookingData();
   const isLoading = !bookings; 
   
   const booking = bookings?.find((b) => b.id === id);
@@ -177,10 +177,9 @@ export default function BookingDetail() {
   if (isLoading) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   if (!booking) return <div className="p-10 text-center text-muted-foreground">Réservation introuvable.</div>;
 
-  // États logiques
   const isPaid = booking.payment_status === 'paid' || booking.payment_status === 'charged_to_room';
   const isPartnerBilled = booking.payment_status === 'pending_partner_billing';
-  const isSigned = !!booking.signed_at; // Vérifie si la date de signature existe
+  const isSigned = !!booking.signed_at;
 
   const hotelInfo = getHotelInfo(booking.hotel_id);
   const currency = hotelInfo?.currency || 'EUR';
@@ -192,14 +191,12 @@ export default function BookingDetail() {
   const totalDuration = booking.totalDuration || booking.treatmentsTotalDuration || 0;
   const guestCount = (booking as any)?.guest_count ?? 1;
   const isDuo = guestCount > 1;
-  // Solo path (unchanged behaviour for non-duo bookings)
   const soloRates = !isDuo && booking.therapist_id ? (therapistRatesMap[booking.therapist_id] ?? null) : null;
   const therapistEarnings = computeTherapistEarnings(soloRates, totalDuration);
   const ratesComplete = hasCompleteRates(soloRates);
   const showEarnings = !isDuo && !!booking.therapist_id && Object.keys(therapistRatesMap).length > 0;
   const paymentLabel = PAYMENT_LABELS[booking.payment_status || "pending"] ?? PAYMENT_LABELS.pending;
 
-  // Fonction pour enregistrer la signature depuis l'admin
   const handleSignatureConfirm = async (signatureData: string) => {
     setSigningLoading(true);
     try {
@@ -208,7 +205,6 @@ export default function BookingDetail() {
         .update({
           client_signature: signatureData,
           signed_at: new Date().toISOString(),
-          // On peut aussi passer le statut à 'completed' si l'admin veut clôturer la resa
           status: booking.status === 'confirmed' ? 'completed' : booking.status 
         })
         .eq("id", booking.id);
@@ -218,7 +214,6 @@ export default function BookingDetail() {
       toast.success("Signature ajoutée avec succès au dossier !");
       setIsSignatureOpen(false);
       
-      // LA LIGNE MAGIQUE : Force le rechargement invisible des données instantanément 🪄
       refetch();
       
     } catch (err: any) {
@@ -258,6 +253,12 @@ export default function BookingDetail() {
             type="payment"
             customLabel={paymentLabel}
           />
+          {isDuo && (
+            <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
+              <Users className="w-3 h-3 mr-1" />
+              Duo
+            </Badge>
+          )}
           {bundleInfo && (
             <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-xs">
               <Package className="w-3 h-3 mr-1" />
@@ -267,7 +268,6 @@ export default function BookingDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* BOUTON SIGNATURE */}
           {!isConcierge && (isSigned ? (
             <Button 
               variant="outline" 
@@ -314,7 +314,6 @@ export default function BookingDetail() {
           </TabsList>
 
           <TabsContent value="details" className="space-y-4 mt-4">
-        {/* ALERTES DE STATUT (PAIEMENT) */}
         {isPaid ? (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -332,7 +331,6 @@ export default function BookingDetail() {
           </div>
         )}
 
-        {/* ALERTES DE STATUT (SIGNATURE) */}
         {isSigned ? (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between text-blue-800">
             <div className="flex items-center gap-3">
@@ -352,10 +350,8 @@ export default function BookingDetail() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
           
-          {/* COLONNE GAUCHE (Client + Soins) */}
           <div className="md:col-span-2 space-y-6">
             
-            {/* SECTION CLIENT (Cliquable) */}
             <section 
               onClick={() => (booking as any).customer_id && navigate(`/admin/customers/${(booking as any).customer_id}`)}
               className={`bg-white rounded-xl border p-6 shadow-sm transition-all duration-200 ${(booking as any).customer_id ? 'cursor-pointer hover:border-primary/50 hover:shadow-md group' : ''}`}
@@ -386,17 +382,15 @@ export default function BookingDetail() {
               )}
             </section>
 
-            {/* SECTION SOINS & PRATICIEN */}
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4 flex items-center gap-2">
                 <HandHeart className="h-4 w-4" /> Soins & Praticien
               </h3>
               
-              {/* ENCART THERAPEUTE(S) */}
-              {(booking as any).guest_count > 1 ? (
+              {isDuo ? (
                 <div className="mb-4 space-y-2">
                   <p className="text-xs text-gray-500">
-                    Thérapeutes assignés ({acceptedTherapists.length}/{(booking as any).guest_count})
+                    Thérapeutes assignés ({acceptedTherapists.length}/{guestCount})
                   </p>
                   {acceptedTherapists.length > 0 ? acceptedTherapists.map((therapist) => (
                     <div
@@ -415,9 +409,9 @@ export default function BookingDetail() {
                   )) : (
                     <p className="text-sm text-muted-foreground">Aucun thérapeute n'a encore rejoint ce soin</p>
                   )}
-                  {acceptedTherapists.length > 0 && acceptedTherapists.length < ((booking as any).guest_count ?? 2) && (
+                  {acceptedTherapists.length > 0 && acceptedTherapists.length < guestCount && (
                     <p className="text-xs text-violet-600">
-                      En attente de {(booking as any).guest_count - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
+                      En attente de {guestCount - acceptedTherapists.length} thérapeute(s) supplémentaire(s)…
                     </p>
                   )}
                 </div>
@@ -441,7 +435,6 @@ export default function BookingDetail() {
                 </div>
               )}
               
-              {/* LISTE DES SOINS */}
               <div className="space-y-3">
                 {booking.treatments?.map((t, i) => (
                   <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -453,7 +446,6 @@ export default function BookingDetail() {
             </section>
           </div>
 
-          {/* COLONNE DROITE (Organisation + Prix) */}
           <div className="space-y-6">
             <section className="bg-white rounded-xl border p-6 shadow-sm">
               <h3 className="text-sm font-bold text-muted-foreground uppercase mb-4">Organisation</h3>
@@ -477,7 +469,6 @@ export default function BookingDetail() {
               <p className="text-xs opacity-70 uppercase mb-1">Montant Total</p>
               <p className="text-3xl font-bold">{formatPrice(displayPrice, currency)}</p>
 
-              {/* Gains — soin solo */}
               {showEarnings && (
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs opacity-70 uppercase mb-1">Gain thérapeute</p>
@@ -489,7 +480,6 @@ export default function BookingDetail() {
                 </div>
               )}
 
-              {/* Gains — soin duo : répartition par thérapeute */}
               {isDuo && acceptedTherapists.length > 0 && hotelCommission && (
                 <div className="mt-4 pt-4 border-t border-white/10">
                   <p className="text-xs opacity-70 uppercase mb-2">Répartition des gains</p>
@@ -548,7 +538,6 @@ export default function BookingDetail() {
         </Tabs>
       </main>
 
-      {/* MODALES */}
       <EditBookingDialog 
         open={isEditOpen} 
         onOpenChange={setIsEditOpen} 
@@ -562,7 +551,6 @@ export default function BookingDetail() {
         booking={booking} 
       />
 
-      {/* Modale de Signature commune avec la PWA */}
       <InvoiceSignatureDialog
         open={isSignatureOpen}
         onOpenChange={setIsSignatureOpen}
@@ -574,7 +562,7 @@ export default function BookingDetail() {
           duration: t.duration || 0,
           price: t.price || 0
         }))}
-        vatRate={20} // Valeur par défaut
+        vatRate={20}
         totalPrice={displayPrice}
         isAlreadyPaid={isPaid}
         currency={currency}

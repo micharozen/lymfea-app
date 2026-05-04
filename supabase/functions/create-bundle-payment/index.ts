@@ -13,7 +13,8 @@ serve(async (req) => {
   }
 
   try {
-    const { hotelId, clientData, bundleItems, totalPrice, giftData } = await req.json();
+    const { hotelId, clientData, bundleItems, totalPrice, giftData, language } = await req.json();
+    const recipientLanguage: string = giftData?.recipientLanguage || '';
 
     // --- Validation ---
     if (!hotelId || !clientData || !bundleItems || !Array.isArray(bundleItems) || bundleItems.length === 0) {
@@ -133,6 +134,8 @@ serve(async (req) => {
         recipientName: giftData?.recipientName || '',
         recipientEmail: giftData?.recipientEmail || '',
         giftMessage: giftData?.giftMessage || '',
+        language: language || 'fr',
+        recipientLanguage: recipientLanguage,
       },
     });
 

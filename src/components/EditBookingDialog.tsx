@@ -153,7 +153,7 @@ interface EditBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   booking: Booking | null;
-  initialMode?: "view" | "edit" | "quote"; // On garde la logique demandée
+  initialMode?: "view" | "edit" | "quote";
 }
 
 export default function EditBookingDialog({
@@ -181,21 +181,16 @@ export default function EditBookingDialog({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [viewMode, setViewMode] = useState<"view" | "edit" | "quote">("view");
-  const [showAssignTherapist, setShowAssignTherapist] = useState(false);
-  const [selectedTherapistId, setSelectedTherapistId] = useState("");
   const [treatmentFilter, setTreatmentFilter] = useState<"female" | "male">("female");
+  const [therapistIds, setTherapistIds] = useState<string[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [hourOpen, setHourOpen] = useState(false);
   const [minuteOpen, setMinuteOpen] = useState(false);
   
-  // Quote pending states
   const [quotePrice, setQuotePrice] = useState<string>("");
   const [quoteDuration, setQuoteDuration] = useState<string>("");
-
-  // Payment link dialog state
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   
-  // LE COEUR DU PROBLÈME RÉSOLU : On réagit à l'ouverture ET au changement de réservation
   useEffect(() => {
     if (booking && open) {
       setViewMode(initialMode);
@@ -217,11 +212,10 @@ export default function EditBookingDialog({
       setDate(booking.booking_date ? new Date(booking.booking_date) : undefined);
       setTime(booking.booking_time || "");
       setStatus(booking.status || "En attente");
-     // On ne pré-sélectionne le thérapeute que s'il a bien un ID ET un nom valide
-setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapist_id : "");
-      
-      // On s'assure que le petit menu déroulant des thérapeutes est fermé
-      setShowAssignTherapist(false);
+      setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapist_id : "");
+
+      const guestCount = booking.guest_count ?? 1;
+      setTherapistIds(guestCount > 1 ? Array(guestCount).fill('') : []);
     }
   }, [booking, open, initialMode]);
 
@@ -245,9 +239,9 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
   const isAdmin = userRole === "admin";
   const isConcierge = userRole === "concierge";
   const canCancelBooking = isAdmin || isConcierge;
+  const isDuo = (booking?.guest_count ?? 1) > 1;
+  const therapistCount = booking?.guest_count ?? 1;
 
-  // Concierge restrictions: only the slot (date/time) and treatments can be modified.
-  // The slot is locked once the therapist has confirmed (or the booking is in a terminal state).
   const SLOT_LOCKED_STATUSES = ["confirmed", "ongoing", "completed", "cancelled"];
   const TREATMENTS_LOCKED_STATUSES = ["ongoing", "completed", "cancelled"];
   const bookingStatus = booking?.status || "";
@@ -283,8 +277,6 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
   const selectedHotel = useMemo(() => hotels?.find(h => h.id === hotelId), [hotels, hotelId]);
   const hotelTimezone = selectedHotel?.timezone || "Europe/Paris";
 
-  
-  // REQUÊTE DES THÉRAPEUTES : Filtre intelligent (gère "active" et "Actif")
   const queryHotelId = hotelId || booking?.hotel_id;
   
   const { data: therapists } = useQuery({
@@ -310,9 +302,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
         ?.map((hh: any) => Array.isArray(hh.therapists) ? hh.therapists[0] : hh.therapists)
         .filter((h: any) => {
           if (!h) return false;
-          // On met tout en minuscule pour comparer facilement
           const statut = h.status?.toLowerCase() || "";
-          // On accepte les deux orthographes !
           return statut === "active" || statut === "actif"; 
         })
         .sort((a: any, b: any) => a.first_name?.localeCompare(b.first_name)) || [];
@@ -469,7 +459,6 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
   const fixedTreatments = bookingTreatments?.filter((t: any) => !t.price_on_request) || [];
   const variableTreatments = bookingTreatments?.filter((t: any) => t.price_on_request) || [];
   const fixedTreatmentsTotal = fixedTreatments.reduce((sum: number, t: any) => sum + (t?.price || 0), 0);
-  const hasVariableTreatments = variableTreatments.length > 0;
 
   useEffect(() => {
     if (existingTreatments) {
@@ -499,6 +488,15 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       setTotalDuration(0);
     }
   }, [cart, treatments]);
+
+  useEffect(() => {
+    if ((booking?.guest_count ?? 1) > 1 && acceptedTherapists) {
+      const n = booking?.guest_count ?? 2;
+      setTherapistIds(
+        Array.from({ length: n }, (_, i) => acceptedTherapists[i]?.therapist_id ?? '')
+      );
+    }
+  }, [acceptedTherapists, booking?.guest_count]);
 
   useEffect(() => {
     if (bookingTreatments && bookingTreatments.length > 0 && viewMode === "view") {
@@ -579,7 +577,22 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
 
         if (treatmentsError) throw treatmentsError;
       }
-      
+
+      if (bookingData.therapistIds) {
+        const validIds: string[] = bookingData.therapistIds.filter(Boolean);
+        await supabase.from("booking_therapists").delete().eq("booking_id", booking.id);
+        if (validIds.length > 0) {
+          const { error: btError } = await supabase.from("booking_therapists").insert(
+            validIds.map((tid: string) => ({
+              booking_id: booking.id,
+              therapist_id: tid,
+              status: 'accepted',
+            }))
+          );
+          if (btError) throw btError;
+        }
+      }
+
       return { wasAssigned, therapistChanged, wasCancelled };
     },
     onSuccess: async (result) => {
@@ -606,6 +619,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       await queryClient.invalidateQueries({ queryKey: ["bookings"] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking?.id] });
       await queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["booking-therapists", booking?.id] });
       
       await new Promise(resolve => setTimeout(resolve, 100));
       
@@ -836,7 +850,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
     const timeChanged = time !== booking?.booking_time;
     const dateChanged = date && format(date, "yyyy-MM-dd") !== booking?.booking_date;
 
-    if (therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
+    if (!isDuo && therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
         const treatment = treatments?.find(t => t.id === item.treatmentId);
         return sum + (treatment?.duration || 0) * item.quantity;
@@ -890,8 +904,6 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       }
     }
 
-    // Concierges can only modify the slot (if not yet confirmed) and treatments (if not completed/ongoing/cancelled).
-    // Force all other fields back to the booking's original values as a safeguard.
     const submittedDate = isConcierge && !conciergeCanEditSlot
       ? (booking?.booking_date || "")
       : (date ? format(date, "yyyy-MM-dd") : "");
@@ -902,6 +914,12 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       ? (existingTreatments?.map(t => t.treatment_id) || [])
       : cart.flatMap(item => Array(item.quantity).fill(item.treatmentId));
 
+    const primaryTherapistId = isConcierge
+      ? (booking?.therapist_id || null)
+      : isDuo
+        ? (therapistIds.find(id => !!id) || null)
+        : (therapistId === "none" ? null : therapistId);
+
     updateMutation.mutate({
       hotel_id: isConcierge ? (booking?.hotel_id || "") : hotelId,
       client_first_name: isConcierge ? (booking?.client_first_name || "") : clientFirstName,
@@ -910,15 +928,14 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
       room_number: isConcierge ? (booking?.room_number || "") : roomNumber,
       booking_date: submittedDate,
       booking_time: submittedTime,
-      therapist_id: isConcierge
-        ? (booking?.therapist_id || null)
-        : (therapistId === "none" ? null : therapistId),
+      therapist_id: primaryTherapistId,
       total_price: totalPrice,
       treatments: submittedTreatments,
       status: status,
       client_note: isConcierge
         ? (booking?.client_note ?? null)
         : (clientNote.trim() ? clientNote.trim() : null),
+      therapistIds: isDuo ? therapistIds : undefined,
     });
   };
 
@@ -983,43 +1000,11 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                   )}
                 </div>
               </div>
-              {!showAssignTherapist && (
-                <ButtonGroup className="pr-10">
-                  {booking?.payment_status !== 'paid' &&
-                   booking?.payment_status !== 'charged_to_room' &&
-                   booking?.payment_method === 'card' &&
-                   booking?.status !== 'cancelled' && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => setIsPaymentLinkDialogOpen(true)}
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Lien paiement</TooltipContent>
-                    </Tooltip>
-                  )}
-                  {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => setShowDeleteDialog(true)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom">Annuler</TooltipContent>
-                    </Tooltip>
-                  )}
+              <ButtonGroup className="pr-10">
+                {booking?.payment_status !== 'paid' &&
+                 booking?.payment_status !== 'charged_to_room' &&
+                 booking?.payment_method === 'card' &&
+                 booking?.status !== 'cancelled' && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -1027,15 +1012,45 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                         variant="outline"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
+                        onClick={() => setIsPaymentLinkDialogOpen(true)}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Send className="h-4 w-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom">Modifier</TooltipContent>
+                    <TooltipContent side="bottom">Lien paiement</TooltipContent>
                   </Tooltip>
-                </ButtonGroup>
-              )}
+                )}
+                {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Annuler</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Modifier</TooltipContent>
+                </Tooltip>
+              </ButtonGroup>
             </div>
           ) : (
             <DialogTitle className="text-lg font-semibold">
@@ -1218,9 +1233,21 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
               })()}
 
               <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">
-                  Thérapeute{(booking?.guest_count ?? 1) > 1 ? `s (${booking?.guest_count} requis)` : ""}
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-muted-foreground">
+                    Thérapeute{(booking?.guest_count ?? 1) > 1 ? `s (${booking?.guest_count} requis)` : ""}
+                  </p>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => { setViewMode("edit"); setActiveTab("info"); }}
+                      className="h-6 text-[10px] px-2"
+                    >
+                      Assigner
+                    </Button>
+                  )}
+                </div>
                 {(booking?.guest_count ?? 1) > 1 && acceptedTherapists && acceptedTherapists.length > 0 ? (
                   <div className="space-y-1.5">
                     {acceptedTherapists.map((bt: any) => {
@@ -1243,94 +1270,6 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                     <User className="w-4 h-4 text-muted-foreground shrink-0" />
                     <p className="font-medium text-sm">{booking.therapist_name}</p>
                   </div>
-                ) : isAdmin ? (
-                  showAssignTherapist ? (
-                    <div className="space-y-2">
-                      <Select value={selectedTherapistId || "none"} onValueChange={setSelectedTherapistId}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Sélectionner un thérapeute" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Aucun thérapeute</SelectItem>
-                          {therapists?.map((therapist) => (
-                            <SelectItem key={therapist.id} value={therapist.id}>
-                              {therapist.first_name} {therapist.last_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={async () => {
-                            const therapistId = selectedTherapistId === "none" ? null : selectedTherapistId;
-                            const therapist = therapists?.find(h => h.id === therapistId);
-
-                            let assignedAt = booking!.assigned_at;
-
-                            if (therapistId) {
-                              assignedAt = new Date().toISOString();
-                            } else {
-                              assignedAt = null;
-                            }
-
-                            const newStatus = therapistId && booking!.status === "pending"
-                              ? "confirmed"
-                              : !therapistId && booking!.status === "confirmed"
-                                ? "pending"
-                                : booking!.status;
-
-                            const { error } = await supabase
-                              .from("bookings")
-                              .update({
-                                therapist_id: therapistId,
-                                therapist_name: therapist ? `${therapist.first_name} ${therapist.last_name}` : null,
-                                assigned_at: assignedAt,
-                                status: newStatus,
-                              })
-                              .eq("id", booking!.id);
-
-                            if (error) {
-                              toast({ title: "Erreur", description: "Impossible d'assigner le thérapeute", variant: "destructive" });
-                            } else {
-                              const wasAssigned = therapistId && !booking!.therapist_id;
-                              const therapistChanged = therapistId && booking!.therapist_id && therapistId !== booking!.therapist_id;
-
-                              if (wasAssigned || therapistChanged) {
-                                try {
-                                  await invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking!.id } });
-                                } catch (e) { console.error(e); }
-                              }
-
-                              toast({ title: "Succès", description: therapistId ? "Thérapeute assigné" : "Thérapeute retiré" });
-                              await queryClient.invalidateQueries({ queryKey: ["bookings"] });
-                              setShowAssignTherapist(false);
-                            }
-                          }}
-                          className="flex-1"
-                        >
-                          Confirmer
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setShowAssignTherapist(false); setSelectedTherapistId(booking?.therapist_id || ""); }}
-                          className="flex-1"
-                        >
-                          Annuler
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => { setShowAssignTherapist(true); setSelectedTherapistId(""); }}
-                      className="h-8 text-xs"
-                    >
-                      Assigner un thérapeute
-                    </Button>
-                  )
                 ) : (
                   <p className="text-sm text-muted-foreground">Aucun thérapeute assigné</p>
                 )}
@@ -1378,7 +1317,11 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                   {approveQuoteMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                 </Button>
               ) : (
-                <div className="flex-1 flex justify-end">
+                <div className="flex-1 flex justify-between">
+                  <Button type="button" variant="default" onClick={() => { setViewMode("edit"); setActiveTab("info"); }}>
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Modifier la réservation
+                  </Button>
                   <Button type="button" variant="outline" onClick={handleClose}>
                     Fermer
                   </Button>
@@ -1417,6 +1360,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                   </Select>
                 </div>
 
+                {!isDuo && (
                 <div className="space-y-1">
                   <Label htmlFor="edit-therapist" className="text-xs">Thérapeute / Prestataire</Label>
                   <Select
@@ -1441,8 +1385,7 @@ setTherapistId(booking.therapist_id && booking.therapist_name ? booking.therapis
                       {therapists?.map((therapist) => {
                         const availability = therapistAvailability?.[therapist.id];
                         const isUnavailable = availability && !availability.available;
-                        // On s'assure que le thérapeute est vraiment le "vrai" thérapeute actuel
-const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.therapist_name;
+                        const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.therapist_name;
 
                         return (
                           <SelectItem
@@ -1462,7 +1405,45 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                     Seuls les thérapeutes disponibles pour ce créneau sont sélectionnables.
                   </p>
                 </div>
+                )}
               </div>
+
+              {isDuo && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Thérapeutes ({therapistCount} requis)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Array.from({ length: therapistCount }, (_, i) => (
+                      <div key={i} className="space-y-1">
+                        <p className="text-[10px] text-muted-foreground">Thérapeute {i + 1}</p>
+                        <Select
+                          value={therapistIds[i] || "none"}
+                          onValueChange={(val) => {
+                            const newIds = [...therapistIds];
+                            newIds[i] = val === "none" ? "" : val;
+                            setTherapistIds(newIds);
+                          }}
+                          disabled={clientFieldsDisabled}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Sélectionner" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background border shadow-lg">
+                            <SelectItem value="none">Aucun thérapeute</SelectItem>
+                            {therapists?.map((therapist) => (
+                              <SelectItem key={therapist.id} value={therapist.id}>
+                                {therapist.first_name} {therapist.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[9px] leading-tight text-muted-foreground mt-0.5">
+                    Sélectionnez un thérapeute par créneau du soin duo.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
@@ -1648,7 +1629,7 @@ const isCurrentTherapist = therapist.id === booking?.therapist_id && !!booking?.
                   </Button>
                 ) : <div />}
                 <Button type="button" onClick={() => setActiveTab("prestations")}>
-                  Suivant
+                  Suivant (Prestations) ➔
                 </Button>
               </div>
             </TabsContent>

@@ -71,6 +71,7 @@ interface Booking {
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
+  gift_amount_applied_cents?: number | null;
 }
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
@@ -521,7 +522,9 @@ const PwaBookingDetail = () => {
   if (!booking) return <div className="flex h-screen items-center justify-center">RDV non trouvé</div>;
 
   const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
-  const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
+  const grossPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
+  const giftAppliedCents = booking.gift_amount_applied_cents || 0;
+  const totalPrice = Math.max(0, grossPrice - giftAppliedCents / 100);
   const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
   // Mode taux fixes (global_therapist_commission = false) : chaque thérapeute
@@ -642,6 +645,11 @@ const PwaBookingDetail = () => {
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('bookingDetail.price')}</div>
                 <div className="text-sm font-semibold truncate">{formatPrice(totalPrice, booking.hotel_currency)}</div>
+                {giftAppliedCents > 0 && (
+                  <div className="text-[10px] text-amber-600 mt-0.5">
+                    -{formatPrice(giftAppliedCents / 100, booking.hotel_currency)} carte cadeau
+                  </div>
+                )}
               </div>
             </div>
           </div>

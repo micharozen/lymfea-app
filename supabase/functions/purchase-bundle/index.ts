@@ -4,6 +4,95 @@ import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 import { brand, EMAIL_LOGO_URL } from "../_shared/brand.ts";
 import { sendEmail } from "../_shared/send-email.ts";
 
+function getGiftCardEmailHtml(opts: {
+  lang: 'fr' | 'en';
+  logoUrl: string;
+  venueName: string;
+  recipientName: string;
+  bundleName: string;
+  valueDisplay: string;
+  expiryDate: string;
+  activateUrl: string;
+  senderName: string;
+  giftMessage: string;
+}): string {
+  const t = opts.lang === 'en' ? {
+    greeting: opts.recipientName ? `Hello ${opts.recipientName},` : 'Hello,',
+    intro: `${opts.senderName || 'Someone'} has sent you a gift card for ${opts.venueName}.`,
+    value: 'Value',
+    validUntil: 'Valid until',
+    messageFrom: `A message from ${opts.senderName}`,
+    cta: 'Activate my gift card',
+    footer: 'Click the button above to create your account and use your gift card.',
+  } : {
+    greeting: opts.recipientName ? `Bonjour ${opts.recipientName},` : 'Bonjour,',
+    intro: `${opts.senderName || 'Quelqu\'un'} vous offre une carte cadeau pour ${opts.venueName}.`,
+    value: 'Valeur',
+    validUntil: 'Valable jusqu\'au',
+    messageFrom: `Un message de ${opts.senderName}`,
+    cta: 'Activer ma carte cadeau',
+    footer: 'Cliquez sur le bouton ci-dessus pour créer votre espace et utiliser votre carte cadeau.',
+  };
+
+  const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;font-family:${fontFamily};background:#f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+        <!-- Header -->
+        <tr><td style="background:#000;padding:32px;text-align:center;">
+          ${opts.logoUrl ? `<img src="${opts.logoUrl}" alt="${opts.venueName}" style="max-height:48px;max-width:160px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">` : ''}
+          <p style="margin:0;color:#fff;font-size:18px;font-weight:600;">${opts.venueName}</p>
+        </td></tr>
+        <!-- Gift badge -->
+        <tr><td style="padding:32px 32px 0;text-align:center;">
+          <span style="display:inline-block;background:#fef3c7;color:#92400e;padding:8px 20px;border-radius:24px;font-size:13px;font-weight:600;">🎁 ${opts.bundleName}</span>
+        </td></tr>
+        <!-- Greeting -->
+        <tr><td style="padding:24px 32px 0;">
+          <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111;">${t.greeting}</p>
+          <p style="margin:0;font-size:15px;color:#6b7280;">${t.intro}</p>
+        </td></tr>
+        <!-- Value card -->
+        <tr><td style="padding:24px 32px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;">
+            <tr><td style="padding:24px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;font-weight:600;">${t.value}</p>
+              <p style="margin:0;font-size:48px;font-weight:700;color:#000;line-height:1.1;">${opts.valueDisplay}</p>
+              ${opts.expiryDate ? `<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">${t.validUntil} ${opts.expiryDate}</p>` : ''}
+            </td></tr>
+          </table>
+        </td></tr>
+        <!-- Gift message -->
+        ${opts.giftMessage ? `
+        <tr><td style="padding:0 32px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#fffbeb;border-radius:12px;border-left:3px solid #f59e0b;">
+            <tr><td style="padding:16px 20px;">
+              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#92400e;">${t.messageFrom}</p>
+              <p style="margin:0;font-size:15px;color:#78350f;font-style:italic;">"${opts.giftMessage}"</p>
+            </td></tr>
+          </table>
+        </td></tr>` : ''}
+        <!-- CTA -->
+        <tr><td style="padding:0 32px 32px;text-align:center;">
+          <a href="${opts.activateUrl}" style="display:inline-block;background:#000;color:#fff;padding:16px 40px;border-radius:10px;font-size:16px;font-weight:600;text-decoration:none;">${t.cta}</a>
+          <p style="margin:16px 0 0;font-size:13px;color:#9ca3af;">${t.footer}</p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="padding:24px;background:#fafafa;border-top:1px solid #f0f0f0;text-align:center;">
+          <p style="margin:0;font-size:13px;color:#6b7280;">${brand.name} — ${opts.venueName}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -83,7 +172,12 @@ serve(async (req) => {
       recipientName,
       recipientEmail,
       giftMessage,
+      language: languageMeta,
+      recipientLanguage: recipientLanguageMeta,
     } = session.metadata!;
+
+    const lang: 'fr' | 'en' = languageMeta === 'en' ? 'en' : 'fr';
+    const recipientLang: 'fr' | 'en' = recipientLanguageMeta === 'en' ? 'en' : recipientLanguageMeta === 'fr' ? 'fr' : lang;
 
     const bundleItems = JSON.parse(bundleItemsJson);
 
@@ -209,53 +303,49 @@ serve(async (req) => {
     const venueSlug = venue?.slug || hotelId;
     const logoUrl = venue?.image || EMAIL_LOGO_URL;
 
-    // --- Send gift card email to recipient via Resend template ---
+    // --- Send gift card email to recipient (inline HTML, FR/EN) ---
     const isGift = isGiftMeta === 'true';
-    console.log('[PURCHASE-BUNDLE] Gift email check — isGift:', isGift, 'recipientEmail:', recipientEmail, 'deliveryMode:', giftDeliveryMode);
-    console.log('[PURCHASE-BUNDLE] Condition result:', isGift && recipientEmail && giftDeliveryMode === 'email');
     if (isGift && recipientEmail && giftDeliveryMode === 'email') {
       try {
-        // Build template variables from the first gift bundle
-        console.log('[PURCHASE-BUNDLE] bundleDetails raw:', JSON.stringify(bundleDetails, null, 2));
         const giftBundle = bundleDetails?.[0];
-        const bundleName = giftBundle?.treatment_bundles?.name ?? 'Carte Cadeau';
+        const bundleName = (recipientLang === 'en' && giftBundle?.treatment_bundles?.name_en)
+          ? giftBundle.treatment_bundles.name_en
+          : (giftBundle?.treatment_bundles?.name ?? (recipientLang === 'en' ? 'Gift Card' : 'Carte Cadeau'));
         const amountCents = giftBundle?.total_amount_cents ?? giftBundle?.treatment_bundles?.amount_cents ?? 0;
-        const valueDisplay = `${(amountCents / 100).toFixed(0)} EUR`;
+        const valueDisplay = `${(amountCents / 100).toFixed(0)} €`;
+        const dateLocale = recipientLang === 'en' ? 'en-GB' : 'fr-FR';
         const expiryDate = giftBundle?.expires_at
-          ? new Date(giftBundle.expires_at).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+          ? new Date(giftBundle.expires_at).toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })
           : '';
-
         const activateUrl = `https://apptest.eiaspa.fr/portal/redeem?token=${encodeURIComponent(giftBundle?.redemption_code ?? '')}`;
+        const effectiveSenderName = senderName || firstName || '';
 
-        const templateVars = {
-          logo_url: logoUrl,
-          recipient_name: recipientName || '',
-          recipient_email: recipientEmail,
-          venue_name: venueName,
-          bundle_title: bundleName,
-          value_display: valueDisplay,
-          expiry_date: expiryDate,
-          activate_url: activateUrl,
-          sender_name: senderName || firstName || '',
-          gift_message: giftMessage || '',
-          redemption_code: '',
-        };
-        console.log('[PURCHASE-BUNDLE] Gift email template variables:', JSON.stringify(templateVars, null, 2));
+        const subject = recipientLang === 'en'
+          ? `You've received a gift card — ${venueName}`
+          : `Vous avez reçu une carte cadeau — ${venueName}`;
 
-        const result = await sendEmail({
-          to: recipientEmail,
-          subject: `You've received a gift card — ${venueName}`,
-          templateId: '1b1674f1-5145-4bb5-8fce-b8b9f2c405ac',
-          templateVariables: templateVars,
+        const html = getGiftCardEmailHtml({
+          lang: recipientLang,
+          logoUrl,
+          venueName,
+          recipientName: recipientName || '',
+          bundleName,
+          valueDisplay,
+          expiryDate,
+          activateUrl,
+          senderName: effectiveSenderName,
+          giftMessage: giftMessage || '',
         });
 
+        const result = await sendEmail({ to: recipientEmail, subject, html });
+
         if (result.error) {
-          console.error('[PURCHASE-BUNDLE] Resend API error for gift email:', result.error);
+          console.error('[PURCHASE-BUNDLE] Gift email error:', result.error);
         } else {
-          console.log('[PURCHASE-BUNDLE] Gift recipient email sent to:', recipientEmail, 'id:', result.id);
+          console.log('[PURCHASE-BUNDLE] Gift email sent to:', recipientEmail, 'id:', result.id);
         }
       } catch (giftEmailError) {
-        console.error('[PURCHASE-BUNDLE] Gift recipient email failed (non-blocking):', giftEmailError);
+        console.error('[PURCHASE-BUNDLE] Gift email failed (non-blocking):', giftEmailError);
       }
     }
 

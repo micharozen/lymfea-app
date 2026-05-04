@@ -41,6 +41,7 @@ export interface GiftInfo {
   recipientEmail?: string;
   senderName: string;
   giftMessage?: string;
+  recipientLanguage?: 'fr' | 'en';
 }
 
 interface ClientFlowState {

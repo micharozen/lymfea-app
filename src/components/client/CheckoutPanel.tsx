@@ -160,8 +160,10 @@ export function CheckoutPanel({
                 recipientEmail: giftInfo.recipientEmail,
                 senderName: giftInfo.senderName,
                 giftMessage: giftInfo.giftMessage,
+                recipientLanguage: giftInfo.recipientLanguage,
               },
             }),
+            language: i18n.language === 'en' ? 'en' : 'fr',
           },
         });
 

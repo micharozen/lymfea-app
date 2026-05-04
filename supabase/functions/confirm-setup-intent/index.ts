@@ -232,21 +232,40 @@ serve(async (req) => {
       }
     }
 
-    // 4. Sauvegarde de la carte dans la nouvelle table
+    // 4. Apply gift card deduction if present in metadata
+    const giftAmountCents = meta.giftAmountCents ? parseInt(meta.giftAmountCents, 10) : 0;
+    const giftCustomerBundleId = meta.giftAmountCustomerBundleId || null;
+    let netPrice = verifiedPrice;
+
+    if (giftAmountCents > 0 && giftCustomerBundleId) {
+      const { error: giftError } = await supabaseAdmin.rpc('use_gift_amount', {
+        _customer_bundle_id: giftCustomerBundleId,
+        _booking_id: bookingId,
+        _amount_cents: giftAmountCents,
+      });
+      if (giftError) {
+        console.error('[CONFIRM-SETUP] use_gift_amount failed (non-blocking):', giftError.message);
+      } else {
+        netPrice = Math.max(0, verifiedPrice - giftAmountCents / 100);
+        console.log('[CONFIRM-SETUP] Gift applied:', giftAmountCents, 'cents. Net price:', netPrice);
+      }
+    }
+
+    // 5. Sauvegarde de la carte dans la nouvelle table
     const setupIntent = session.setup_intent as Stripe.SetupIntent;
     const paymentMethodId = typeof setupIntent?.payment_method === 'string' ? setupIntent.payment_method : (setupIntent?.payment_method as Stripe.PaymentMethod)?.id;
     const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card : null;
-    
+
     if (paymentMethodId && setupIntent) {
       await supabaseAdmin.from('booking_payment_infos').insert({
         booking_id: bookingId,
-        customer_id: customerId, // <--- Et on relie le paiement au client
+        customer_id: customerId,
         stripe_payment_method_id: paymentMethodId,
         stripe_setup_intent_id: setupIntent.id,
         stripe_session_id: sessionId,
         card_brand: paymentMethodCard?.brand || null,
         card_last4: paymentMethodCard?.last4 || null,
-        estimated_price: verifiedPrice,
+        estimated_price: netPrice,
         payment_status: 'card_saved'
       });
     }
