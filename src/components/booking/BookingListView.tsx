@@ -145,7 +145,7 @@ export function BookingListView({
   return (
     <div className="h-full flex flex-col min-w-0">
       {/* ── Mobile card view (<md) ─────────────────────────── */}
-      <div className="flex flex-col md:hidden flex-1 overflow-y-auto divide-y divide-border">
+      <div className="flex flex-col lg:hidden flex-1 overflow-y-auto divide-y divide-border">
         {paginatedBookings.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-8">Aucune réservation trouvée</p>
         )}
@@ -262,7 +262,7 @@ export function BookingListView({
       </div>
 
       {/* ── Desktop table view (≥md) ────────────────────────── */}
-      <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden bg-card flex-col">
+      <div className="hidden lg:flex flex-1 overflow-x-auto overflow-y-hidden bg-card flex-col">
         <Table className="text-xs w-full min-w-[960px] table-fixed">
           <colgroup>
             <col className="w-[6%]" />

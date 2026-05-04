@@ -40,6 +40,7 @@ import { usePagination } from "@/hooks/usePagination";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useTableSort } from "@/hooks/useTableSort";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsTabletOrBelow } from "@/hooks/use-tablet";
 import { HotelCard } from "@/components/table/cards/HotelCard";
 
 interface Concierge {
@@ -114,6 +115,8 @@ export default function Hotels() {
   } = useDialogState<string>();
   const { sortConfig, toggleSort, getSortDirection, sortItems } = useTableSort<string>();
   const isMobile = useIsMobile();
+  const isTabletOrBelow = useIsTabletOrBelow();
+  const useCardView = isTabletOrBelow;
 
   // Apply sorting to filtered hotels
   const sortedHotels = useMemo(() => {
@@ -392,8 +395,8 @@ export default function Hotels() {
           </div>
 
           <div className={cn("flex-1", needsPagination ? "min-h-0 overflow-hidden" : "")}>
-            {/* Mobile: Card View */}
-            {isMobile ? (
+            {/* Mobile/Tablet: Card View */}
+            {useCardView ? (
               <div className="p-4 space-y-3 overflow-y-auto h-full">
                 {loading ? (
                   <div className="space-y-3">

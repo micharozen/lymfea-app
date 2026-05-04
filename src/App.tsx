@@ -1,5 +1,5 @@
 import Signature from "./pages/client/Signature";
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, type ComponentProps } from "react";
 
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { useIsTabletOrBelow } from "@/hooks/use-tablet";
 import { useOneSignal } from "@/hooks/useOneSignal";
 import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 import { TimezoneProvider } from "@/contexts/TimezoneContext";
@@ -159,6 +160,15 @@ const ClientPageLoader = () => (
 const AuthLanguageSync = () => {
   useLanguagePreference();
   return null;
+};
+
+const AdminSidebarShell = ({ children, ...props }: ComponentProps<typeof SidebarProvider>) => {
+  const isTabletOrBelow = useIsTabletOrBelow();
+  return (
+    <SidebarProvider key={isTabletOrBelow ? "tablet" : "desktop"} defaultOpen={!isTabletOrBelow} {...props}>
+      {children}
+    </SidebarProvider>
+  );
 };
 
 const App = () => {
@@ -462,7 +472,7 @@ const App = () => {
                   {(window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true)
                     ? <Navigate to="/admin-pwa/accueil" replace />
                     : (
-                  <SidebarProvider className="min-h-0 h-screen overflow-hidden" style={{ minHeight: 0 }}>
+                  <AdminSidebarShell className="min-h-0 h-screen overflow-hidden" style={{ minHeight: 0 }}>
                     <div className="flex h-full w-full">
                       <AppSidebar />
                       <div className="flex-1 flex flex-col min-h-0 min-w-0">
@@ -521,7 +531,7 @@ const App = () => {
                       </div>
                     </div>
                     <PhoneBookingFab />
-                  </SidebarProvider>
+                  </AdminSidebarShell>
                     )}
                 </AdminProtectedRoute>
               }
