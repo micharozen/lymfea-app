@@ -22,10 +22,13 @@ serve(async (req) => {
   }
 
   try {
-    const { code, email, password, firstName } = await req.json();
+    const { code, email, password, firstName, phone } = await req.json();
 
     if (!code || !email || !password) {
       throw new Error("Missing required fields: code, email, password");
+    }
+    if (!phone || !phone.trim()) {
+      throw new Error("Phone number is required");
     }
 
     if (password.length < 6) {
@@ -34,6 +37,7 @@ serve(async (req) => {
 
     const cleanCode = code.toUpperCase().replace(/\s/g, '');
     const cleanEmail = email.trim().toLowerCase();
+    const cleanPhone = phone.trim().replace(/\s/g, '');
 
     // 1. Validate the redemption code
     const { data: bundle, error: bundleError } = await supabaseAdmin
@@ -98,6 +102,7 @@ serve(async (req) => {
             .from('customers')
             .insert({
               email: cleanEmail,
+              phone: cleanPhone,
               first_name: firstName || null,
               auth_user_id: existingUser.id,
               profile_completed: true,
@@ -107,6 +112,15 @@ serve(async (req) => {
           if (createErr) throw createErr;
           customerId = newCustomer.id;
         }
+      }
+
+      // Update phone on existing customer if missing
+      if (customerId && cleanPhone) {
+        await supabaseAdmin
+          .from('customers')
+          .update({ phone: cleanPhone })
+          .eq('id', customerId)
+          .or('phone.is.null,phone.eq.');
       }
 
       // Claim the bundle
@@ -163,6 +177,7 @@ serve(async (req) => {
       await supabaseAdmin
         .from('customers')
         .update({
+          phone: cleanPhone,
           auth_user_id: authUserId,
           first_name: firstName || undefined,
           profile_completed: true,
@@ -173,6 +188,7 @@ serve(async (req) => {
         .from('customers')
         .insert({
           email: cleanEmail,
+          phone: cleanPhone,
           first_name: firstName || null,
           auth_user_id: authUserId,
           profile_completed: true,
