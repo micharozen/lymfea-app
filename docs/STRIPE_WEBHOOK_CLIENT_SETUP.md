@@ -1,68 +1,111 @@
-# Configurer le webhook Stripe pour Eïa
+# Configurer le paiement Stripe pour votre établissement
 
-> Cette procédure permet à Eïa de recevoir en temps réel les notifications de paiement depuis votre compte Stripe (paiements clients, échecs, lien de paiement, etc.). Sans cette configuration, vos réservations ne basculent pas automatiquement en statut **payé**.
+> Cette procédure connecte votre **propre compte Stripe** à Eïa. Une fois terminée, vos paiements clients arrivent directement sur votre compte et leur statut se met à jour automatiquement dans Eïa.
 
-**Durée estimée :** 5 minutes
-**Prérequis :** un compte Stripe actif (mode Live) avec accès aux paramètres développeur.
+**Durée estimée :** 10 minutes
+**Prérequis :**
+- Un compte Stripe actif en mode **Live** ([dashboard.stripe.com](https://dashboard.stripe.com))
+- Un accès **administrateur** à votre tableau de bord Eïa
 
 ---
 
-## 1. Accéder aux webhooks
+## Vue d'ensemble
 
-1. Connectez-vous à [dashboard.stripe.com](https://dashboard.stripe.com).
-2. Vérifiez en haut à gauche que vous êtes bien sur le **bon compte** et en mode **Live** (pas Test).
-3. Dans le menu latéral, cliquez sur **Développeurs** → **Webhooks**.
-4. Cliquez sur **+ Ajouter un endpoint** (en haut à droite).
+Vous allez :
 
-## 2. Renseigner l'endpoint Eïa
+1. Récupérer **3 informations** depuis votre compte Stripe (clé secrète, clé publique, identifiant de compte)
+2. Créer un **webhook** dans Stripe avec une URL **unique à votre établissement** (générée par Eïa)
+3. Récupérer la **clé de signature** du webhook
+4. Renseigner ces 4 valeurs dans Eïa, puis tester la connexion
 
-Dans le formulaire :
+---
 
-| Champ | Valeur à saisir |
+## Étape 1 — Ouvrir la configuration paiement dans Eïa
+
+1. Connectez-vous à votre tableau de bord Eïa.
+2. Allez dans **Lieux** → ouvrez votre établissement.
+3. Onglet **Général** → section **Méthode de paiement** → cliquez sur **Configurer**.
+4. Dans le champ **Fournisseur**, sélectionnez **Stripe**.
+
+Vous voyez maintenant un formulaire avec plusieurs champs et, en bas, un champ **Webhook URL Stripe** déjà pré-rempli — gardez cette page ouverte, vous allez y revenir.
+
+## Étape 2 — Récupérer vos clés API Stripe
+
+Dans un nouvel onglet, ouvrez [dashboard.stripe.com](https://dashboard.stripe.com) et vérifiez en haut à gauche que vous êtes bien en mode **Live** (interrupteur "Mode test" désactivé).
+
+### Clé secrète et clé publique
+
+1. Menu **Développeurs** → **Clés API**.
+2. Sous **Clés standard** :
+   - Copiez la **Clé publiable** (commence par `pk_live_...`)
+   - Cliquez sur **Révéler la clé secrète live** puis copiez-la (commence par `sk_live_...`)
+
+### Identifiant de compte
+
+1. Cliquez sur votre nom de compte en haut à droite → **Paramètres du compte**.
+2. Dans **Détails du compte**, copiez l'**Identifiant de compte** (commence par `acct_...`).
+
+> Conservez ces 3 valeurs de côté pour la fin.
+
+## Étape 3 — Créer le webhook dans Stripe
+
+Toujours dans Stripe :
+
+1. **Développeurs** → **Webhooks** → **+ Ajouter un endpoint**.
+2. **URL du endpoint** : retournez sur la page Eïa (étape 1), cliquez sur l'icône **Copier** à droite du champ **Webhook URL Stripe**, puis collez la valeur dans Stripe.
+
+   L'URL ressemble à :
+   ```
+   https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/stripe-webhook?hotel_id=<UUID-de-votre-établissement>
+   ```
+   > ⚠️ Le paramètre `?hotel_id=...` est **essentiel** : c'est ce qui permet à Eïa d'identifier votre établissement. Ne modifiez pas l'URL, copiez-la telle quelle depuis Eïa.
+
+3. **Description** (optionnel) : `Eïa — paiements`.
+4. **Version de l'API** : laissez la version par défaut.
+5. Cliquez sur **Sélectionner des évènements** et cochez exactement ces 4 évènements :
+   - `checkout.session.completed`
+   - `checkout.session.async_payment_failed`
+   - `payment_intent.payment_failed`
+   - `invoice.payment_succeeded`
+6. Cliquez sur **Ajouter des évènements**, puis **Ajouter un endpoint**.
+
+## Étape 4 — Récupérer la clé de signature du webhook
+
+Stripe affiche maintenant la page de détail de votre nouveau webhook.
+
+1. Dans la section **Secret de signature** (ou *Signing secret*), cliquez sur **Révéler**.
+2. Copiez la valeur complète (commence par `whsec_...`).
+
+## Étape 5 — Renseigner les 4 valeurs dans Eïa
+
+Retournez dans le dialog **Méthode de paiement** d'Eïa et remplissez :
+
+| Champ Eïa | Valeur à coller |
 |---|---|
-| **URL du endpoint** | `https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/stripe-webhook` |
-| **Description** | `Eïa — notifications de paiement` |
-| **Version de l'API** | Laissez la version par défaut |
+| **Clé secrète Stripe** | `sk_live_...` |
+| **Clé publique Stripe** | `pk_live_...` |
+| **Identifiant compte Stripe** | `acct_...` |
+| **Webhook secret** | `whsec_...` |
 
-## 3. Sélectionner les évènements à écouter
+Cliquez sur **Enregistrer**.
 
-Cliquez sur **Sélectionner des évènements**, puis cochez exactement les 4 évènements suivants :
+## Étape 6 — Tester la connexion
 
-- `checkout.session.completed` — paiement réussi via lien Stripe
-- `checkout.session.async_payment_failed` — paiement asynchrone échoué (SEPA, virements, etc.)
-- `payment_intent.payment_failed` — paiement par carte refusé
-- `invoice.payment_succeeded` — facture Stripe payée
+Dans le même dialog, cliquez sur **Tester la connexion**.
 
-> Astuce : utilisez la barre de recherche en haut de la liste pour retrouver chaque évènement plus vite.
+- ✅ **Connexion réussie** → la configuration est terminée, les prochains paiements basculeront automatiquement.
+- ❌ **Échec** → vérifiez d'abord que vous êtes en mode **Live** côté Stripe et que la clé secrète a bien été copiée en entier.
 
-Cliquez sur **Ajouter des évènements**, puis sur **Ajouter un endpoint** pour valider.
+---
 
-## 4. Récupérer la clé de signature
+## Vérifier qu'un paiement réel fonctionne
 
-Une fois le endpoint créé, Stripe affiche sa page de détail.
+Après une première vraie réservation payée :
 
-1. Repérez la section **Secret de signature** (ou *Signing secret*).
-2. Cliquez sur **Révéler**.
-3. Copiez la valeur complète, qui commence par `whsec_...`.
+1. Dans Stripe → **Développeurs** → **Webhooks** → votre endpoint Eïa.
+2. Onglet **Tentatives** : la dernière ligne doit être en **vert (`200 OK`)**.
 
-> ⚠️ Cette clé est confidentielle — ne la partagez qu'avec l'équipe Eïa via un canal sécurisé (et jamais par e-mail simple).
-
-## 5. Transmettre la clé à Eïa
-
-Envoyez la clé `whsec_...` à votre interlocuteur Eïa, accompagnée :
-
-- du **nom de votre établissement** ;
-- de l'**identifiant de compte Stripe** (visible dans Stripe → Paramètres → Compte, format `acct_...`).
-
-Eïa branche la clé en moins de 24 h ouvrées et vous confirme l'activation.
-
-## 6. Vérifier que tout fonctionne
-
-Après confirmation par Eïa :
-
-1. Retournez sur **Développeurs** → **Webhooks** → votre endpoint Eïa.
-2. Onglet **Tentatives** : vous devez voir des lignes en vert (`200 OK`) après chaque paiement réel.
-3. En cas de paiement test, vous pouvez aussi cliquer sur **Envoyer un évènement de test** et choisir `checkout.session.completed` — Eïa renverra un `200`.
+Vous pouvez aussi déclencher un envoi de test depuis Stripe (bouton **Envoyer un évènement de test**, choisir `checkout.session.completed`) — Eïa doit répondre `200`.
 
 ---
 
@@ -70,11 +113,19 @@ Après confirmation par Eïa :
 
 | Symptôme | Cause probable | Action |
 |---|---|---|
-| Tentatives en `400 No signature` | Clé de signature non transmise ou mal copiée | Renvoyez la clé `whsec_...` complète à Eïa |
-| Tentatives en `400 Bad signature` | Mauvaise clé associée à votre compte | Vérifiez que vous êtes en mode **Live** côté Stripe et renvoyez la clé |
-| Aucune tentative ne s'affiche | Évènements non cochés | Cliquez sur **Mettre à jour les évènements** et cochez les 4 évènements ci-dessus |
-| Une réservation reste en `en attente` après paiement | Webhook non reçu ou en erreur | Vérifiez l'onglet **Tentatives** ; sinon contactez le support Eïa |
+| Tentative `400 No signature` | Pas de clé `whsec_...` enregistrée côté Eïa | Recopiez le webhook secret dans le dialog **Méthode de paiement** |
+| Tentative `400 Bad signature` | `whsec_...` ne correspond pas à cet endpoint | Régénérez la clé dans Stripe (bouton **Roll secret**) et recopiez-la dans Eïa |
+| Tentative `400 Webhook secret not configured` | Le paramètre `?hotel_id=...` est manquant ou incorrect dans l'URL | Recopiez l'URL **complète** depuis Eïa (champ **Webhook URL Stripe**) |
+| Aucune tentative ne s'affiche | Évènements non cochés | Sur l'endpoint Stripe, **Mettre à jour les évènements** et cocher les 4 |
+| Paiement encaissé mais réservation reste **en attente** | Webhook non reçu | Vérifiez l'onglet **Tentatives** côté Stripe ; si tout est vert, contactez le support Eïa avec l'`event_id` |
+
+## Sécurité
+
+- Vos clés (`sk_live_...`, `whsec_...`) sont stockées **chiffrées** côté Eïa (Supabase Vault) et ne ressortent jamais en clair.
+- Vous pouvez à tout moment **révoquer** une clé dans Stripe → **Développeurs** → **Clés API** ; elle deviendra invalide pour Eïa, et il suffira de remettre une nouvelle clé dans le dialog.
 
 ## Support
 
-Une question ? Contactez **support@lymfea.com** en précisant le nom de votre établissement et, si possible, l'`event_id` Stripe concerné (visible dans l'onglet *Tentatives*).
+Une question ? Contactez **support@lymfea.com** en précisant :
+- le nom de votre établissement,
+- l'`event_id` Stripe concerné si applicable (visible dans l'onglet *Tentatives*).
