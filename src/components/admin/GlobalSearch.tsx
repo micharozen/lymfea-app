@@ -49,8 +49,10 @@ export function GlobalSearch() {
     if (!open) setSearch("");
   }, [open]);
 
-  // 1. Recherche dynamique Côté Serveur
-  const { data: searchResults, isFetching } = useQuery({
+  // Recherche serveur — bookings + customers + therapists en une seule passe
+  // Déclenchée uniquement quand le dialog est ouvert et ≥2 caractères tapés
+   // 1. Recherche dynamique Côté Serveur
+   const { data: searchResults, isFetching } = useQuery({
     queryKey: ["global-search", debouncedSearch],
     enabled: debouncedSearch.length >= 2 && open,
     queryFn: async () => {

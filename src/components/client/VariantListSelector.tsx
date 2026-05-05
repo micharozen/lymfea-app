@@ -52,39 +52,34 @@ export function VariantListSelector({
               onSelect(variant);
             }}
             className={cn(
-              'w-full flex items-center justify-between gap-4 px-4 py-4 rounded-xl border-2 text-left transition-all duration-200',
+              'w-full flex items-center gap-4 px-4 py-3 rounded-xl border-2 text-left transition-all duration-200',
               isSelected
                 ? 'border-gold-500 bg-gold-50 shadow-sm'
                 : 'border-gray-200 bg-white hover:border-gray-300'
             )}
           >
-            <div className="flex flex-col min-w-0">
-              <span
-                className={cn(
-                  'text-sm font-medium',
-                  isSelected ? 'text-gold-700' : 'text-gray-900'
+            {/* Gauche : Nom (ligne 1) + Prix (ligne 2) */}
+            <div className="flex flex-col flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'text-sm font-medium truncate',
+                    isSelected ? 'text-gold-700' : 'text-gray-900'
+                  )}
+                >
+                  {customLabel || '—'}
+                </span>
+                {variant.is_default && (
+                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-gold-600 bg-gold-50 border border-gold-200 rounded-full px-1.5 py-0.5 font-medium">
+                    {t('menu.popular')}
+                  </span>
                 )}
-              >
-                {variant.duration} {t('treatmentDetail.minutes', { defaultValue: 'minutes' })}
-              </span>
-              {customLabel && (
-                <span className="text-xs text-gray-400 mt-0.5 truncate">
-                  {customLabel}
-                </span>
-              )}
-              {variant.is_default && (
-                <span className="inline-flex self-start text-[9px] uppercase tracking-wider text-gold-600 bg-gold-50 border border-gold-200 rounded-full px-1.5 py-0.5 mt-1.5 font-medium">
-                  {t('menu.popular')}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
+              </div>
               {!isCompanyOffered && (
                 <span
                   className={cn(
-                    'text-sm font-medium',
-                    isSelected ? 'text-gold-700' : 'text-gray-700'
+                    'text-sm mt-0.5',
+                    isSelected ? 'text-gold-600' : 'text-gray-500'
                   )}
                 >
                   {variant.price_on_request
@@ -94,6 +89,18 @@ export function VariantListSelector({
                       : formatPrice(variant.price, currency, { decimals: 0 })}
                 </span>
               )}
+            </div>
+
+            {/* Droite : Durée + Check */}
+            <div className="flex items-center gap-2 shrink-0">
+              <span
+                className={cn(
+                  'text-sm',
+                  isSelected ? 'text-gold-600' : 'text-gray-500'
+                )}
+              >
+                {variant.duration} min
+              </span>
               {isSelected && (
                 <span className="bg-gold-600 rounded-full p-0.5">
                   <Check className="w-3 h-3 text-white" strokeWidth={3} />

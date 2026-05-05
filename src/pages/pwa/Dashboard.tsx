@@ -22,6 +22,7 @@ interface Therapist {
   last_name: string;
   profile_image: string | null;
   email: string;
+  gender: string | null;
 }
 
 interface Booking {
@@ -37,6 +38,7 @@ interface Booking {
   status: string;
   total_price: number | null;
   therapist_id: string | null;
+  therapist_gender_preference?: string | null;
   declined_by?: string[];
   payment_status?: string | null;
   guest_count?: number; 
@@ -432,7 +434,7 @@ const PwaDashboard = () => {
         );
         return !alreadyAccepted;
       }
-      // Solo pending bookings: must be unassigned
+      // Solo pending bookings: must be unassigned (assigned ones come from myBookings)
       if (b.status === "pending") {
         if (b.therapist_id !== null) return false;
         if (therapistRoomIds.length === 0) return true;
@@ -543,9 +545,10 @@ const PwaDashboard = () => {
       const isActiveStatus = activeStatuses.includes(booking.status);
       
       if (activeTab === "upcoming") {
-        // Show all bookings assigned to me that are not completed or cancelled
-        return isAssignedToMe && 
-               booking.status !== "completed" && 
+        // Pending bookings appear in the pending requests section, not here
+        return isAssignedToMe &&
+               booking.status !== "pending" &&
+               booking.status !== "completed" &&
                booking.status !== "cancelled" &&
                bookingDate >= today;
       } else if (activeTab === "history") {
@@ -575,7 +578,12 @@ const PwaDashboard = () => {
       const result = data as { success: boolean; error?: string; data?: { status?: string } } | null;
 
       if (result && !result.success) {
-        toast.error(t('dashboard.bookingAlreadyTaken'));
+        const errCode = result.error;
+        if (errCode === 'already_taken' || errCode === 'fully_staffed') {
+          toast.error(t('dashboard.bookingAlreadyTaken'));
+        } else {
+          toast.error(t('dashboard.acceptError'));
+        }
         fetchAllBookings(therapist.id);
         return;
       }
@@ -593,7 +601,13 @@ const PwaDashboard = () => {
       fetchAllBookings(therapist.id, true); // Force refresh to get updated data
     } catch (error) {
       console.error("Error accepting booking:", error);
-      toast.error(t('dashboard.acceptError'));
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('already_taken') || msg.includes('already assigned') || msg.includes('déjà assignée')) {
+        toast.error(t('dashboard.bookingAlreadyTaken'));
+        fetchAllBookings(therapist.id);
+      } else {
+        toast.error(t('dashboard.acceptError'));
+      }
     }
   };
 
@@ -665,7 +679,27 @@ const PwaDashboard = () => {
       }
 
       if (b.status === "pending") {
-        return b.therapist_id === null;
+        const myId = therapist?.id ?? '';
+        const myGender = therapist?.gender ?? null;
+        const genderPref = b.therapist_gender_preference ?? null;
+        const iDeclined = (b.declined_by ?? []).includes(myId);
+
+        // Assigned to me specifically
+        if (b.therapist_id === myId) return true;
+        // Assigned to someone else
+        if (b.therapist_id !== null) return false;
+
+        // Unassigned — I already declined, never show again
+        if (iDeclined) return false;
+
+        // No gender preference → visible to all
+        if (!genderPref) return true;
+
+        // Phase 1: only matching-gender therapists see it
+        if (myGender === genderPref) return true;
+
+        // Phase 2 fallback: non-matching gender sees it only after ≥1 priority decline
+        return (b.declined_by?.length ?? 0) > 0;
       }
 
       return false;
