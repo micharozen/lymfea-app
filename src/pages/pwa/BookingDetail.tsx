@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeEdgeFunction, invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import { formatPrice } from "@/lib/formatPrice";
-import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, Mail, DoorOpen, Users } from "lucide-react";
+import { Calendar, Clock, Timer, Euro, Phone, MoreVertical, Trash2, Navigation, X, User, Hotel, MessageCircle, Pen, MessageSquare, Wallet, Loader2, Package, CalendarDays, ShieldCheck, FileCheck, UserX, Hourglass, Plus, MapPin, Mail, DoorOpen, Users, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -71,6 +71,33 @@ interface Booking {
   duration?: number | null;
   therapist_checked_in_at?: string | null;
   guest_count?: number | null;
+  venue_type?: 'hotel' | 'spa' | null;
+  card_brand?: string | null;
+  card_last4?: string | null;
+  client_type?: string | null;
+  bundle_usage_id?: string | null;
+}
+
+interface PaymentInfoResult {
+  payment_status: string | null;
+  card_brand: string | null;
+  card_last4: string | null;
+}
+
+interface CustomerResult {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+interface BundleUsageResult {
+  customer_bundle_id: string;
+  customer_treatment_bundles: {
+    total_sessions: number;
+    used_sessions: number;
+    treatment_bundles: { name: string } | null;
+  } | null;
 }
 
 const getPaymentStatusBadge = (paymentStatus?: string | null) => {
@@ -118,7 +145,6 @@ const PwaBookingDetail = () => {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [signingLoading, setSigningLoading] = useState(false);
   const [showPaymentSelection, setShowPaymentSelection] = useState(false);
-  const [pendingRoomPayment, setPendingRoomPayment] = useState(false);
   const [showTapToPayDialog, setShowTapToPayDialog] = useState(false);
   const [tapToPayLoading, setTapToPayLoading] = useState(false);
   const [showHealthFormDialog, setShowHealthFormDialog] = useState(false);
@@ -136,6 +162,7 @@ const PwaBookingDetail = () => {
 
   const [acceptedTherapistCount, setAcceptedTherapistCount] = useState(0);
   const [hasAlreadyAccepted, setHasAlreadyAccepted] = useState(false);
+  const [myTherapistId, setMyTherapistId] = useState<string | null>(null);
   const isAcceptingRef = useRef(false);
   const isChargingRef = useRef(false);
 
@@ -187,7 +214,7 @@ const PwaBookingDetail = () => {
     try {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
-        .select("*, booking_therapists(status), booking_payment_infos(payment_status), customers(first_name, last_name, email, phone)")
+        .select("*, booking_therapists(status), booking_payment_infos(payment_status, card_brand, card_last4), customers(first_name, last_name, email, phone)")
         .eq("id", id)
         .single();
         
@@ -208,19 +235,21 @@ const PwaBookingDetail = () => {
           .single();
         if (myT) {
           myTherapistId = myT.id;
+          setMyTherapistId(myT.id);
           rates = { hr: myT.hourly_rate, r45: myT.rate_45, r60: myT.rate_60, r90: myT.rate_90 };
         }
       }
 
-      const infosStatus = Array.isArray(bookingData.booking_payment_infos) 
-        ? bookingData.booking_payment_infos[0]?.payment_status 
-        : (bookingData.booking_payment_infos as any)?.payment_status;
-        
-      const effectivePaymentStatus = bookingData.payment_status === 'paid' 
-        ? 'paid' 
-        : (infosStatus || bookingData.payment_status);
+      const rawPaymentInfos = bookingData.booking_payment_infos as unknown as PaymentInfoResult | PaymentInfoResult[] | null;
+      const paymentInfo: PaymentInfoResult | null = Array.isArray(rawPaymentInfos)
+        ? (rawPaymentInfos[0] ?? null)
+        : rawPaymentInfos;
 
-      const customer = (bookingData as any).customers;
+      const effectivePaymentStatus = bookingData.payment_status === 'paid'
+        ? 'paid'
+        : (paymentInfo?.payment_status || bookingData.payment_status);
+
+      const customer = (bookingData as unknown as { customers: CustomerResult | null }).customers;
       setBooking({
         ...bookingData,
         client_first_name: customer?.first_name || bookingData.client_first_name,
@@ -238,11 +267,14 @@ const PwaBookingDetail = () => {
         therapist_rate_60: rates.r60,
         therapist_rate_90: rates.r90,
         hotel_currency: hotelData?.currency || 'EUR',
+        venue_type: hotelData?.venue_type || null,
+        card_brand: paymentInfo?.card_brand || null,
+        card_last4: paymentInfo?.card_last4 || null,
         effective_payment_status: effectivePaymentStatus
       });
 
       const { data: trData } = await supabase.from("booking_treatments").select("*, treatment_menus(*)").eq("booking_id", id);
-      if (trData) setTreatments(trData as any);
+      if (trData) setTreatments(trData as Treatment[]);
 
       const { data: btData } = await supabase
         .from("booking_therapists")
@@ -255,7 +287,7 @@ const PwaBookingDetail = () => {
       );
 
       // Fetch bundle info if booking has a bundle_usage_id
-      const bundleUsageId = (bookingData as any).bundle_usage_id;
+      const bundleUsageId = bookingData.bundle_usage_id;
       if (bundleUsageId) {
         const { data: usageData } = await supabase
           .from("bundle_session_usages")
@@ -264,7 +296,7 @@ const PwaBookingDetail = () => {
           .single();
 
         if (usageData) {
-          const customerBundle = (usageData as any).customer_treatment_bundles;
+          const customerBundle = (usageData as unknown as BundleUsageResult).customer_treatment_bundles;
           const bundleName = customerBundle?.treatment_bundles?.name || "";
           const total = customerBundle?.total_sessions || 0;
           const used = customerBundle?.used_sessions || 0;
@@ -296,17 +328,17 @@ const PwaBookingDetail = () => {
         if (error || !data?.success) throw new Error(data?.error || "Erreur finalisation");
         toast.success("Prestation finalisée !");
       } else {
-        const { error } = await supabase.from("bookings").update({ 
-          client_signature: signatureData, 
-          signed_at: new Date().toISOString(), 
-          status: "completed" 
+        const { error } = await supabase.from("bookings").update({
+          client_signature: signatureData,
+          signed_at: new Date().toISOString(),
+          status: "completed",
         }).eq("id", booking.id);
         if (error) throw error;
         toast.success(t('bookingDetail.completed'));
       }
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error: any) {
-      toast.error(error.message || t('common:errors.generic'));
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : t('common:errors.generic'));
     } finally {
       setSigningLoading(false);
     }
@@ -317,15 +349,15 @@ const PwaBookingDetail = () => {
     isChargingRef.current = true;
     setUpdating(true);
     try {
-      const { data, error } = await invokeStripe('charge-saved-card', {
+      const { data, error } = await invokeStripe<{ success?: boolean; error?: string }>('charge-saved-card', {
         bookingId: booking.id,
         finalAmount: amount,
       });
-      if (error || !(data as any)?.success) throw new Error((data as any)?.error || "Échec débit");
+      if (error || !data?.success) throw new Error(data?.error || "Échec débit");
       toast.success("Carte débitée avec succès !");
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error: any) {
-      toast.error(error.message || "Erreur débit");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erreur débit");
     } finally {
       isChargingRef.current = false;
       setUpdating(false);
@@ -352,13 +384,16 @@ const PwaBookingDetail = () => {
         _hairdresser_name: `${tData.first_name} ${tData.last_name}`,
         _total_price: finalPrice,
       });
-      if (rpcError) throw new Error(`Erreur RPC: ${rpcError.message}`);
+      if (rpcError) throw new Error(t('bookingDetail.acceptError'));
       if (!rpcResult?.success) {
         const err = rpcResult?.error;
-        if (err === 'already_taken') throw new Error("Ce créneau est déjà pris par un autre thérapeute.");
-        if (err === 'already_accepted') throw new Error("Vous avez déjà accepté ce soin.");
-        if (err === 'fully_staffed') throw new Error("Ce soin a déjà le nombre de thérapeutes requis.");
-        throw new Error("Impossible d'accepter ce soin.");
+        if (err === 'already_taken' || err === 'fully_staffed') {
+          toast.error(t('bookingDetail.alreadyTaken'));
+          navigate("/pwa/dashboard", { state: { forceRefresh: true } });
+          return;
+        }
+        if (err === 'already_accepted') throw new Error(t('bookingDetail.alreadyAccepted'));
+        throw new Error(t('bookingDetail.acceptError'));
       }
 
       // Send confirmation only when all therapists have accepted (booking is now confirmed)
@@ -368,9 +403,9 @@ const PwaBookingDetail = () => {
       
       toast.success(t('bookingDetail.accepted'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-      
-    } catch (error: any) {
-      toast.error(error.message || t('common:errors.generic'));
+
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : t('common:errors.generic'));
     } finally {
       isAcceptingRef.current = false;
       setUpdating(false);
@@ -391,8 +426,8 @@ const PwaBookingDetail = () => {
       toast.success(t('bookingDetail.treatmentDeleted'));
       setTreatmentToDelete(null);
       fetchBookingDetail();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : t('common:errors.generic'));
     } finally {
       setUpdating(false);
     }
@@ -425,12 +460,14 @@ const PwaBookingDetail = () => {
       });
       
       if (error) throw error;
-      
+
+      // Re-trigger notifications so the fallback gender group gets notified if all priority therapists have declined
+      invokeEdgeFunction('trigger-new-booking-notifications', { body: { bookingId: booking.id, notifyAll: true } }).catch(() => {});
+
       toast.success("Réservation refusée.");
-      // On retourne au dashboard en forçant le rafraîchissement
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
-    } catch (error: any) {
-      toast.error(error.message || "Erreur lors du refus");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Erreur lors du refus");
     } finally {
       setUpdating(false);
       setShowDeclineDialog(false);
@@ -526,7 +563,7 @@ const PwaBookingDetail = () => {
 
   const treatmentsTotalPrice = treatments.reduce((sum, t) => sum + (t.treatment_menus?.price || 0), 0);
   const totalPrice = Math.max(booking.total_price || 0, treatmentsTotalPrice);
-  const totalDuration = (booking as any).duration > 0 ? (booking as any).duration : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
+  const totalDuration = (booking.duration ?? 0) > 0 ? booking.duration! : (treatments.reduce((s, t) => s + (t.treatment_menus?.duration || 0), 0) || 60);
   const totalHT = totalPrice / (1 + (booking.hotel_vat || 20) / 100);
   // Mode taux fixes (global_therapist_commission = false) : chaque thérapeute
   // gagne son propre taux pour sa durée de travail, indépendamment du prix total.
@@ -601,6 +638,10 @@ const PwaBookingDetail = () => {
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{t('booking.time')}</div>
               <div className="text-sm font-semibold">{booking.booking_time.substring(0, 5)}</div>
             </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Réf.</div>
+              <div className="text-sm font-semibold text-muted-foreground">#{booking.booking_id}</div>
+            </div>
           </div>
         </div>
 
@@ -655,8 +696,8 @@ const PwaBookingDetail = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <User className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs font-medium">{booking.client_first_name} {booking.client_last_name || ''}</span>
-              {(booking as any).client_type && (
-                <ClientTypeBadge clientType={(booking as any).client_type} size="sm" />
+              {booking.client_type && (
+                <ClientTypeBadge clientType={booking.client_type} size="sm" />
               )}
             </div>
             {booking.phone && (
@@ -698,6 +739,24 @@ const PwaBookingDetail = () => {
               {formatPrice(estimatedEarnings, booking.hotel_currency)}
             </span>
           </div>
+
+          {booking.effective_payment_status === 'card_saved' && (
+            <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-900/40 dark:bg-purple-900/10 p-3 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4 text-purple-700 dark:text-purple-400" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs font-medium text-purple-900 dark:text-purple-100 block">
+                  Carte pré-enregistrée
+                </span>
+                <span className="text-[10px] text-purple-700/70 dark:text-purple-400/70">
+                  {booking.card_brand && booking.card_last4
+                    ? `${booking.card_brand.charAt(0).toUpperCase() + booking.card_brand.slice(1)} •••• ${booking.card_last4} — sera débitée à la finalisation`
+                    : 'Sera débitée à la finalisation de la prestation'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Health Form / Waiver Status */}
@@ -801,7 +860,7 @@ const PwaBookingDetail = () => {
             </span>
           </div>
         )}
-        {(booking.status === "pending" && !booking.therapist_id) ||
+        {(booking.status === "pending" && (!booking.therapist_id || booking.therapist_id === myTherapistId)) ||
          (booking.status === "awaiting_hairdresser_selection" && !hasAlreadyAccepted) ? (
           <div className="flex gap-2">
             <button onClick={() => setShowDeclineDialog(true)} className="w-12 h-12 rounded-full border-2 border-destructive flex items-center justify-center"><X className="text-destructive"/></button>
@@ -814,22 +873,24 @@ const PwaBookingDetail = () => {
             <span className="text-sm font-medium text-violet-700">{t('bookingDetail.duoWaiting')}</span>
           </div>
         ) : (
-          <div>
-            {booking.effective_payment_status === 'card_saved' && !booking.client_signature ? (
-              <button
-                onClick={() => handleChargeSavedCard(totalPrice)}
-                disabled={updating}
-                className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 h-12 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
-              >
-                {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>}
-                Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
-              </button>
-            ) : booking.effective_payment_status !== 'paid' && !booking.client_signature ? (
-              <button onClick={() => setShowPaymentSelection(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Finaliser la prestation</button>
-            ) : !booking.client_signature && (
-              <button onClick={() => setShowSignatureDialog(true)} className="w-full h-12 bg-green-600 text-white rounded-full font-bold flex items-center justify-center gap-2"><Pen className="w-4 h-4"/> Signature client</button>
+          <>
+            {['confirmed', 'ongoing'].includes(booking.status) && (
+              <div>
+                {booking.effective_payment_status === 'card_saved' ? (
+                  <button
+                    onClick={() => handleChargeSavedCard(totalPrice)}
+                    disabled={updating}
+                    className="w-full bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-full font-bold flex items-center justify-center gap-2 h-12 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                  >
+                    {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <Wallet className="w-4 h-4"/>}
+                    Finaliser la prestation ({formatPrice(totalPrice, booking.hotel_currency)})
+                  </button>
+                ) : !['paid', 'charged_to_room', 'pending_partner_billing'].includes(booking.effective_payment_status || '') ? (
+                  <button onClick={() => setShowPaymentSelection(true)} className="w-full h-12 bg-primary text-white rounded-full font-bold">Finaliser la prestation</button>
+                ) : null}
+              </div>
             )}
-          </div>
+          </>
         )}
         
       </div>
@@ -880,7 +941,7 @@ const PwaBookingDetail = () => {
         totalPrice={totalPrice} 
         isAlreadyPaid={booking.effective_payment_status === 'paid' || booking.effective_payment_status === 'card_saved'} 
       />
-      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} onSignatureRequired={() => { setPendingRoomPayment(true); setShowSignatureDialog(true); }} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
+      <PaymentSelectionDrawer open={showPaymentSelection} onOpenChange={setShowPaymentSelection} bookingId={booking.id} bookingNumber={booking.booking_id} totalPrice={totalPrice} currency={booking.hotel_currency} treatments={treatments.map(t => ({ name: t.treatment_menus?.name || "", duration: t.treatment_menus?.duration || 0, price: t.treatment_menus?.price || 0 }))} vatRate={booking.hotel_vat || 20} venueType={booking.venue_type} roomNumber={booking.room_number} onPaymentComplete={fetchBookingDetail} onTapToPayRequested={() => { setShowPaymentSelection(false); setShowTapToPayDialog(true); }} hasSavedCard={booking.effective_payment_status === 'card_saved'} />
       
       <AlertDialog open={!!treatmentToDelete} onOpenChange={() => setTreatmentToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={() => treatmentToDelete && handleDeleteTreatment(treatmentToDelete)}>Oui</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
       <AlertDialog open={showUnassignDialog} onOpenChange={setShowUnassignDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Désassigner ?</AlertDialogTitle></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Non</AlertDialogCancel><AlertDialogAction onClick={handleUnassignBooking}>Confirmer</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>

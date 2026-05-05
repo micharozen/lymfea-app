@@ -8,7 +8,7 @@ import { TFunction } from "i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useFileUpload } from "@/hooks/useFileUpload";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,7 @@ const createFormSchema = (t: TFunction) => z.object({
   name_en: z.string().optional(),
   landing_subtitle_en: z.string().optional(),
   description_en: z.string().optional(),
-  calendar_color: z.string().default('#3b82f6'),
+  calendar_color: z.union([z.literal(""), z.string().regex(/^#[0-9a-fA-F]{6}$/)]).default(""),
 }).refine((data) => {
   if (!data.global_therapist_commission) return true;
   const hotelComm = parseFloat(data.hotel_commission) || 0;
@@ -100,6 +100,7 @@ const createFormSchema = (t: TFunction) => z.object({
 export default function VenueDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useTranslation('common');
   const formSchema = useMemo(() => createFormSchema(t), [t]);
@@ -205,7 +206,7 @@ export default function VenueDetail() {
       offert: false,
       company_offered: false,
       landing_subtitle: "",
-      calendar_color: "#3b82f6",
+      calendar_color: "",
     },
   });
 
@@ -261,7 +262,7 @@ export default function VenueDetail() {
           name_en: (hotel as any).name_en || "",
           landing_subtitle_en: (hotel as any).landing_subtitle_en || "",
           description_en: (hotel as any).description_en || "",
-          calendar_color: hotel.calendar_color || "#3b82f6",
+          calendar_color: hotel.calendar_color ?? "",
         });
 
         setHotelImage(hotel.image || "");
@@ -491,7 +492,7 @@ export default function VenueDetail() {
         name_en: values.name_en || null,
         landing_subtitle_en: values.landing_subtitle_en || null,
         description_en: values.description_en || null,
-        calendar_color: values.calendar_color || '#3b82f6',
+        calendar_color: values.calendar_color || null,
       };
 
       if (isNewMode && !savedHotelId) {
@@ -515,6 +516,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(newId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu créé avec succès");
 
         // Redirect to edit mode
@@ -539,6 +541,7 @@ export default function VenueDetail() {
         // Save blocked slots
         await saveBlockedSlots(targetId);
 
+        queryClient.invalidateQueries({ queryKey: ["hotels"] });
         toast.success("Lieu mis à jour avec succès");
         setIsEditingState(false);
       }

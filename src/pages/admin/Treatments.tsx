@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,8 +84,9 @@ export default function TreatmentMenus() {
     fetchUserRole();
   }, []);
 
-  const isAdmin = userRole === "admin";
-  const isConcierge = userRole === "concierge";
+  const { isVenueManagerView } = useEffectiveRole();
+  const isAdmin = userRole === "admin" && !isVenueManagerView;
+  const isConcierge = userRole === "concierge" || isVenueManagerView;
 
   const { data: menus, refetch, isLoading } = useQuery({
     queryKey: ["treatment-menus"],
@@ -410,20 +412,7 @@ export default function TreatmentMenus() {
                             onClick={isConcierge ? undefined : () => navigate(`/admin/treatments/${menu.id}`)}
                           >
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden">
-                              <div className="flex items-center gap-2 whitespace-nowrap">
-                                {menu.image ? (
-                                  <img
-                                    src={menu.image}
-                                    alt={menu.name}
-                                    className="w-6 h-6 rounded object-cover flex-shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-6 h-6 rounded bg-muted flex items-center justify-center text-muted-foreground flex-shrink-0 text-xs">
-                                    💆
-                                  </div>
-                                )}
-                                <span className="truncate font-medium text-foreground">{menu.name}</span>
-                              </div>
+                              <span className="truncate font-medium text-foreground whitespace-nowrap">{menu.name}</span>
                             </TableCell>
                             <TableCell className="py-0 px-2 h-10 max-h-10 overflow-hidden text-center">
                               <span className="truncate block text-foreground">

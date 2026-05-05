@@ -1,11 +1,20 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Mail, Send, CheckCircle2, AlertCircle } from "lucide-react";
-import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
+import {
+  Loader2,
+  Mail,
+  MessageSquare,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+} from "lucide-react";
+import { invokeEdgeFunction } from "@/lib/supabaseEdgeFunctions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/formatPrice";
 
@@ -37,29 +46,109 @@ interface PaymentLinkFormProps {
   showSkipButton?: boolean;
 }
 
+type Language = "fr" | "en";
+
+interface SendResult {
+  success: boolean;
+  emailSent?: boolean;
+  smsSent?: boolean;
+  paymentLinkUrl?: string;
+  error?: string;
+}
+
+function buildDefaultSmsBody(language: Language, booking: BookingData): string {
+  const formattedDate = new Date(booking.booking_date).toLocaleDateString(
+    language === "fr" ? "fr-FR" : "en-US",
+    { day: "numeric", month: "long" }
+  );
+  const time = booking.booking_time?.substring(0, 5) ?? "";
+  const total = formatPrice(booking.total_price, booking.currency || "EUR");
+  const venue = booking.hotel_name || (language === "fr" ? "votre établissement" : "your venue");
+
+  if (language === "fr") {
+    return `Bonjour ${booking.client_first_name}, votre réservation chez ${venue} le ${formattedDate} à ${time} (${total}). Merci de régler via le lien ci-dessous :`;
+  }
+  return `Hello ${booking.client_first_name}, your booking at ${venue} on ${formattedDate} at ${time} (${total}). Please pay via the link below:`;
+}
+
 export function PaymentLinkForm({
   booking,
   onSuccess,
   onSkip,
   showSkipButton = false,
 }: PaymentLinkFormProps) {
-  const [language, setLanguage] = useState<"fr" | "en">("fr");
+  const [language, setLanguage] = useState<Language>("fr");
   const [sendEmail, setSendEmail] = useState(true);
-  const [sendWhatsApp, setSendWhatsApp] = useState(false);
+  const [sendSms, setSendSms] = useState(false);
   const [clientEmail, setClientEmail] = useState(booking.client_email || "");
   const [clientPhone, setClientPhone] = useState(booking.phone || "");
+  const [smsBody, setSmsBody] = useState(() => buildDefaultSmsBody("fr", booking));
+  const smsEditedRef = useRef(false);
   const [isSending, setIsSending] = useState(false);
-  const [result, setResult] = useState<{
-    success: boolean;
-    emailSent?: boolean;
-    whatsappSent?: boolean;
-    paymentLinkUrl?: string;
-    error?: string;
-  } | null>(null);
+  const [result, setResult] = useState<SendResult | null>(null);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(true);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const canSend = (sendEmail || sendWhatsApp) &&
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsGenerating(true);
+      setGenerateError(null);
+      try {
+        const { data, error } = await invokeEdgeFunction<
+          { bookingId: string; language: Language; mode: 'generate' },
+          { success: boolean; paymentLinkUrl: string }
+        >("send-payment-link", {
+          body: { bookingId: booking.id, language: 'fr', mode: 'generate' },
+        });
+        if (cancelled) return;
+        if (error) {
+          setGenerateError(error.message || "Erreur lors de la génération du lien");
+        } else if (data?.paymentLinkUrl) {
+          setPaymentLinkUrl(data.paymentLinkUrl);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setGenerateError(err instanceof Error ? err.message : "Erreur inconnue");
+        }
+      } finally {
+        if (!cancelled) setIsGenerating(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [booking.id]);
+
+  const handleCopyGeneratedLink = async () => {
+    if (!paymentLinkUrl) return;
+    try {
+      await navigator.clipboard.writeText(paymentLinkUrl);
+      toast({ title: "Lien copié", description: "Le lien de paiement a été copié dans le presse-papiers." });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de copier le lien", variant: "destructive" });
+    }
+  };
+
+  useEffect(() => {
+    if (!smsEditedRef.current) {
+      setSmsBody(buildDefaultSmsBody(language, booking));
+    }
+  }, [language, booking]);
+
+  const handleSmsBodyChange = (value: string) => {
+    smsEditedRef.current = true;
+    setSmsBody(value);
+  };
+
+  const canSend = (sendEmail || sendSms) &&
     (!sendEmail || clientEmail) &&
-    (!sendWhatsApp || clientPhone);
+    (!sendSms || clientPhone);
+
+  const smsSegments = useMemo(() => {
+    const approxLength = smsBody.length + 30;
+    if (approxLength <= 160) return 1;
+    return Math.ceil(approxLength / 153);
+  }, [smsBody]);
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -67,9 +156,9 @@ export function PaymentLinkForm({
     setIsSending(true);
     setResult(null);
 
-    const channels: ("email" | "whatsapp")[] = [];
+    const channels: ("email" | "sms")[] = [];
     if (sendEmail) channels.push("email");
-    if (sendWhatsApp) channels.push("whatsapp");
+    if (sendSms) channels.push("sms");
 
     try {
       const { data, error } = await invokeStripe<{
@@ -83,7 +172,7 @@ export function PaymentLinkForm({
         language,
         channels,
         clientEmail: sendEmail ? clientEmail : undefined,
-        clientPhone: sendWhatsApp ? clientPhone : undefined,
+        clientPhone: sendSms ? clientPhone : undefined,
       });
 
       if (error) {
@@ -97,7 +186,7 @@ export function PaymentLinkForm({
         setResult({
           success: true,
           emailSent: data.emailSent,
-          whatsappSent: data.whatsappSent,
+          smsSent: data.smsSent,
           paymentLinkUrl: data.paymentLinkUrl,
         });
         toast({
@@ -118,14 +207,22 @@ export function PaymentLinkForm({
     }
   };
 
-  // Format date for preview
+  const handleCopyLink = async () => {
+    if (!result?.paymentLinkUrl) return;
+    try {
+      await navigator.clipboard.writeText(result.paymentLinkUrl);
+      toast({ title: "Lien copié", description: "Le lien de paiement a été copié dans le presse-papiers." });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de copier le lien", variant: "destructive" });
+    }
+  };
+
   const formattedDate = new Date(booking.booking_date).toLocaleDateString(
     language === "fr" ? "fr-FR" : "en-US",
     { weekday: "long", day: "numeric", month: "long", year: "numeric" }
   );
 
-  // Preview message based on language
-  const getPreviewMessage = () => {
+  const getEmailPreview = (): string => {
     const clientName = `${booking.client_first_name} ${booking.client_last_name}`;
     const treatmentsList = booking.treatments?.map(t => `• ${t.name} - ${formatPrice(t.price, booking.currency || 'EUR')}`).join("\n") || "";
 
@@ -134,7 +231,7 @@ export function PaymentLinkForm({
 
 Votre réservation bien-être est confirmée.
 
-Un professionnel viendra directement dans votre chambre ${booking.room_number || "-"} à ${booking.hotel_name || "l'hôtel"}. Vous n'avez rien à faire, juste profiter !
+${booking.room_number ? `Un professionnel viendra directement dans votre chambre ${booking.room_number} à ${booking.hotel_name || "l'hôtel"}.` : `Rendez-vous chez ${booking.hotel_name || "l'établissement"}.`}
 
 ${formattedDate} à ${booking.booking_time}
 Réservation #${booking.booking_id}
@@ -150,7 +247,7 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
 
 Your wellness booking is confirmed.
 
-A professional will come directly to your room ${booking.room_number || "-"} at ${booking.hotel_name || "the hotel"}. You don't have to do anything, just relax and enjoy!
+${booking.room_number ? `A professional will come directly to your room ${booking.room_number} at ${booking.hotel_name || "the hotel"}.` : `See you at ${booking.hotel_name || "the venue"}.`}
 
 ${formattedDate} at ${booking.booking_time}
 Booking #${booking.booking_id}
@@ -169,11 +266,11 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
         <h3 className="text-lg font-semibold mb-2">Lien envoyé avec succès !</h3>
         <div className="text-sm text-muted-foreground space-y-1">
           {result.emailSent && <p>Email envoyé à {clientEmail}</p>}
-          {result.whatsappSent && <p>WhatsApp envoyé à {clientPhone}</p>}
+          {result.smsSent && <p>SMS envoyé à {clientPhone}</p>}
         </div>
         {result.paymentLinkUrl && (
           <div className="mt-4 p-3 bg-muted rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Lien de paiement :</p>
+            <p className="text-xs text-muted-foreground mb-2">Lien de paiement :</p>
             <a
               href={result.paymentLinkUrl}
               target="_blank"
@@ -182,6 +279,12 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
             >
               {result.paymentLinkUrl}
             </a>
+            <div className="mt-3">
+              <Button variant="outline" size="sm" onClick={handleCopyLink}>
+                <Copy className="h-3.5 w-3.5 mr-2" />
+                Copier le lien
+              </Button>
+            </div>
           </div>
         )}
         <Button className="mt-6" onClick={onSuccess}>
@@ -211,13 +314,11 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <Send className="h-5 w-5" />
         <h3 className="text-lg font-semibold">Envoyer le lien de paiement</h3>
       </div>
 
-      {/* Booking summary */}
       <div className="p-3 bg-muted/50 rounded-lg text-sm">
         <p className="font-medium">Réservation #{booking.booking_id}</p>
         <p className="text-muted-foreground">
@@ -225,7 +326,35 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
         </p>
       </div>
 
-      {/* Language selection */}
+      <div className="p-3 border rounded-lg bg-muted/30 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs uppercase tracking-wide text-muted-foreground">Lien de paiement</Label>
+          {paymentLinkUrl && (
+            <Button variant="ghost" size="sm" onClick={handleCopyGeneratedLink} className="h-7 px-2">
+              <Copy className="h-3.5 w-3.5 mr-1.5" />
+              Copier
+            </Button>
+          )}
+        </div>
+        {isGenerating ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Génération du lien…
+          </div>
+        ) : generateError ? (
+          <p className="text-sm text-destructive">{generateError}</p>
+        ) : paymentLinkUrl ? (
+          <a
+            href={paymentLinkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-primary hover:underline break-all"
+          >
+            {paymentLinkUrl}
+          </a>
+        ) : null}
+      </div>
+
       <div className="space-y-2">
         <Label>Langue du message</Label>
         <div className="flex gap-2">
@@ -256,11 +385,9 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
         </div>
       </div>
 
-      {/* Channel selection */}
       <div className="space-y-3">
         <Label>Envoyer par</Label>
 
-        {/* Email */}
         <div className="p-3 border rounded-lg space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="send-email" className="flex items-center gap-2 cursor-pointer font-medium">
@@ -283,43 +410,64 @@ Total: ${formatPrice(booking.total_price, booking.currency || 'EUR')}
           )}
         </div>
 
-        {/* WhatsApp */}
         <div className="p-3 border rounded-lg space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="send-whatsapp" className="flex items-center gap-2 cursor-pointer font-medium">
-              <svg className="h-4 w-4 text-[#25D366]" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-              </svg>
-              WhatsApp
+            <Label htmlFor="send-sms" className="flex items-center gap-2 cursor-pointer font-medium">
+              <MessageSquare className="h-4 w-4 text-emerald-500" />
+              SMS
             </Label>
             <Switch
-              id="send-whatsapp"
-              checked={sendWhatsApp}
-              onCheckedChange={setSendWhatsApp}
+              id="send-sms"
+              checked={sendSms}
+              onCheckedChange={setSendSms}
             />
           </div>
-          {sendWhatsApp && (
-            <Input
-              type="tel"
-              placeholder="+33612345678"
-              value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
-            />
+          {sendSms && (
+            <div className="space-y-2">
+              <Input
+                type="tel"
+                placeholder="+33612345678"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
+              />
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="sms-body" className="text-xs text-muted-foreground">
+                    Contenu du SMS
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    {smsBody.length} car. · {smsSegments} SMS
+                  </span>
+                </div>
+                <Textarea
+                  id="sms-body"
+                  rows={4}
+                  value={smsBody}
+                  onChange={(e) => handleSmsBodyChange(e.target.value)}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Le lien Stripe sera ajouté automatiquement à la fin du message.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Preview */}
-      <div className="space-y-2">
-        <Label>Aperçu du message</Label>
-        <ScrollArea className="h-40 border rounded-lg p-3 bg-muted/30">
-          <pre className="text-xs whitespace-pre-wrap font-sans">
-            {getPreviewMessage()}
-          </pre>
-        </ScrollArea>
-      </div>
+      {sendEmail && (
+        <div className="space-y-2">
+          <Label>Aperçu du message email</Label>
+          <ScrollArea className="h-40 border rounded-lg p-3 bg-muted/30">
+            <pre className="text-xs whitespace-pre-wrap font-sans">
+              {getEmailPreview()}
+            </pre>
+          </ScrollArea>
+          <p className="text-[11px] text-muted-foreground">
+            Aperçu indicatif — le mail final utilise un template HTML.
+          </p>
+        </div>
+      )}
 
-      {/* Actions */}
       <div className="flex gap-2 justify-end">
         {showSkipButton && (
           <Button variant="outline" onClick={onSkip} disabled={isSending}>

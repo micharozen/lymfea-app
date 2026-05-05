@@ -54,8 +54,11 @@ export function TherapistAssignmentsTab({
 
   useEffect(() => {
     fetchHotels();
-    fetchRooms();
   }, []);
+
+  useEffect(() => {
+    fetchRooms(selectedHotels);
+  }, [selectedHotels]);
 
   const fetchHotels = async () => {
     const { data } = await supabase
@@ -65,11 +68,10 @@ export function TherapistAssignmentsTab({
     setHotels(data || []);
   };
 
-  const fetchRooms = async () => {
-    const { data } = await supabase
-      .from("treatment_rooms")
-      .select("id, name")
-      .order("name");
+  const fetchRooms = async (hotelIds: string[]) => {
+    let q = supabase.from("treatment_rooms").select("id, name").order("name");
+    if (hotelIds.length > 0) q = q.in("hotel_id", hotelIds);
+    const { data } = await q;
     setRooms(data || []);
   };
 

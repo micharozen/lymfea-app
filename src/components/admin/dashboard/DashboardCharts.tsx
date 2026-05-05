@@ -12,9 +12,15 @@ import {
   BarChart,
   Bar,
   Legend,
+  ReferenceArea,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ChartPoint, StatusSlice, ForecastPoint } from "@/hooks/useDashboardData";
+import type {
+  ChartPoint,
+  StatusSlice,
+  ForecastPoint,
+  HourlyOccupancyPoint,
+} from "@/hooks/useDashboardData";
 
 // ── Sales Area Chart ────────────────────────────────────────────────
 
@@ -68,6 +74,109 @@ export function SalesChart({ data }: SalesChartProps) {
               fill="url(#salesGradient)"
               dot={{ fill: "hsl(18, 55%, 52%)", strokeWidth: 2, r: 3 }}
               activeDot={{ r: 5, fill: "hsl(18, 55%, 52%)" }}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Room Occupancy Hourly Chart ────────────────────────────────────
+
+interface RoomOccupancyChartProps {
+  data: HourlyOccupancyPoint[];
+  openingHour: number;
+  closingHour: number;
+}
+
+export function RoomOccupancyChart({ data, openingHour, closingHour }: RoomOccupancyChartProps) {
+  const totalRooms = data[0]?.total ?? 0;
+
+  if (totalRooms === 0) {
+    return (
+      <Card className="border border-border bg-card shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base font-medium text-foreground">
+            Occupation salles — aujourd'hui
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="py-12 text-center">
+          <p className="text-muted-foreground">Aucune salle active</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const startHour = data[0]?.hourIndex ?? openingHour;
+  const endHour = (data[data.length - 1]?.hourIndex ?? closingHour) + 1;
+  const leftBufferEnd = `${String(openingHour).padStart(2, "0")}h`;
+  const rightBufferStart = `${String(closingHour).padStart(2, "0")}h`;
+  const hasLeftBuffer = startHour < openingHour;
+  const hasRightBuffer = endHour > closingHour;
+
+  return (
+    <Card className="border border-border bg-card shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-base font-medium text-foreground">
+          Occupation salles — aujourd'hui
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={280}>
+          <AreaChart data={data}>
+            <defs>
+              <linearGradient id="roomOccupancyGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="hsl(180, 45%, 45%)" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="hsl(180, 45%, 45%)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+            <XAxis dataKey="hour" tick={{ fontSize: 12 }} stroke="#666" />
+            <YAxis
+              tick={{ fontSize: 12 }}
+              stroke="#666"
+              domain={[0, 100]}
+              tickFormatter={(v) => `${v}%`}
+            />
+            {hasLeftBuffer && (
+              <ReferenceArea
+                x1={`${String(startHour).padStart(2, "0")}h`}
+                x2={leftBufferEnd}
+                fill="#9ca3af"
+                fillOpacity={0.08}
+              />
+            )}
+            {hasRightBuffer && (
+              <ReferenceArea
+                x1={rightBufferStart}
+                x2={`${String(endHour - 1).padStart(2, "0")}h`}
+                fill="#9ca3af"
+                fillOpacity={0.08}
+              />
+            )}
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+              labelStyle={{ fontWeight: "bold", marginBottom: "4px" }}
+              formatter={(_value: number, _name: string, item: { payload: HourlyOccupancyPoint }) => {
+                const p = item.payload;
+                const label = `${p.used}/${p.total} salles (${p.rate}%)${p.outOfHours ? " · Hors horaires" : ""}`;
+                return [label, "Occupation"];
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="rate"
+              stroke="hsl(180, 45%, 45%)"
+              strokeWidth={2}
+              fill="url(#roomOccupancyGradient)"
+              dot={{ fill: "hsl(180, 45%, 45%)", strokeWidth: 2, r: 3 }}
+              activeDot={{ r: 5, fill: "hsl(180, 45%, 45%)" }}
             />
           </AreaChart>
         </ResponsiveContainer>

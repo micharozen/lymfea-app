@@ -14,16 +14,18 @@ import {
 } from "@/components/ui/select";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useCurrentVenueId } from "@/hooks/useCurrentVenueId";
 import { useAdminWelcome } from "@/hooks/useAdminWelcome";
 import { WelcomeDialog } from "@/components/admin/WelcomeDialog";
 import { DashboardAlerts } from "@/components/admin/dashboard/DashboardAlerts";
-import { SalesChart, StatusDonut, WeekForecast } from "@/components/admin/dashboard/DashboardCharts";
+import { SalesChart, StatusDonut, WeekForecast, RoomOccupancyChart } from "@/components/admin/dashboard/DashboardCharts";
 import { DashboardRankings } from "@/components/admin/dashboard/DashboardRankings";
 import { DashboardOverview } from "@/components/admin/dashboard/DashboardOverview";
 
 export default function Dashboard() {
-  const { isConcierge, hotelIds } = useUser();
+  const { hotelIds } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const currentVenueId = useCurrentVenueId();
   const welcome = useAdminWelcome();
   const [startDate, setStartDate] = useState<Date>(
@@ -197,6 +199,15 @@ export default function Dashboard() {
           <div className="lg:col-span-2">
             <StatusDonut data={data.statusDistribution} />
           </div>
+        </div>
+
+        {/* Room occupancy hourly */}
+        <div className="mb-6">
+          <RoomOccupancyChart
+            data={data.roomOccupancyHourly}
+            openingHour={data.roomOccupancyHourlyMeta.openingHour}
+            closingHour={data.roomOccupancyHourlyMeta.closingHour}
+          />
         </div>
 
         {/* Week forecast */}

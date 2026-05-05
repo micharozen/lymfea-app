@@ -24,6 +24,7 @@ import {
   Pencil, Timer, Send, X, Loader2, AlertTriangle, FileText, ExternalLink // <- Ajout de ExternalLink
 } from "lucide-react";
 import type { BookingWithTreatments, Hotel } from "@/hooks/booking";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 
 interface BookingDetailDialogProps {
   open: boolean;
@@ -52,7 +53,8 @@ export function BookingDetailDialog({
     },
   });
 
-  const isConcierge = userRole === 'concierge';
+  const { isVenueManagerView } = useEffectiveRole();
+  const isConcierge = userRole === 'concierge' || isVenueManagerView;
 
   const canCancel =
     booking?.payment_status !== 'paid' && booking?.payment_status !== 'charged_to_room' &&

@@ -137,10 +137,10 @@ interface PaymentSelectionDrawerProps {
   totalPrice: number;
   treatments: Treatment[];
   vatRate: number;
-  venueType?: 'hotel' | 'coworking' | 'enterprise' | null;
+  venueType?: string | null;
+  roomNumber?: string | null;
   currency?: string;
   hasSavedCard?: boolean;
-  onSignatureRequired: () => void;
   onPaymentComplete: () => void;
   onTapToPayRequested: () => void;
 }
@@ -156,13 +156,13 @@ export const PaymentSelectionDrawer = ({
   treatments,
   vatRate,
   venueType,
+  roomNumber,
   currency = 'EUR',
   hasSavedCard = false,
-  onSignatureRequired,
   onPaymentComplete,
   onTapToPayRequested,
 }: PaymentSelectionDrawerProps) => {
-  const supportsRoomPayment = venueType !== 'coworking';
+  const supportsRoomPayment = venueType === 'hotel' && !!roomNumber;
   const { t } = useTranslation('pwa');
   const [step, setStep] = useState<PaymentStep>('selection');
   const [processing, setProcessing] = useState(false);
@@ -256,7 +256,27 @@ export const PaymentSelectionDrawer = ({
     }
   };
 
-  const handleRoomPayment = () => { onOpenChange(false); onSignatureRequired(); };
+  const handleRoomPayment = async () => {
+    if (processing) return;
+    setProcessing(true);
+    setStep('room-processing');
+    try {
+      const { data, error } = await invokeEdgeFunction<unknown, { success?: boolean; error?: string }>('finalize-payment', {
+        body: { booking_id: bookingId, payment_method: 'room', final_amount: totalPrice },
+      });
+      if (error) throw error;
+      if ((data as any)?.success) {
+        setStep('success');
+      } else {
+        throw new Error((data as any)?.error || t('payment.errorCreating'));
+      }
+    } catch (error: any) {
+      toast.error(error.message || t('payment.errorCreating'));
+      setStep('selection');
+    } finally {
+      setProcessing(false);
+    }
+  };
   const handleOpenPaymentLink = () => { if (paymentUrl) window.open(paymentUrl, '_blank'); };
   const handleCancelPaymentRequest = () => { setShowCancelDialog(true); };
 
@@ -386,10 +406,12 @@ export const PaymentSelectionDrawer = ({
               </div>
             )}
 
-            {step === 'card-processing' && (
+            {(step === 'card-processing' || step === 'room-processing') && (
               <div className="flex flex-col items-center justify-center py-12">
                 <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">{t('payment.creatingLink')}</p>
+                <p className="text-muted-foreground font-medium">
+                  {step === 'room-processing' ? t('payment.processing') : t('payment.creatingLink')}
+                </p>
                 <p className="text-xs text-muted-foreground mt-2">{t('payment.pleaseWait')}</p>
               </div>
             )}
