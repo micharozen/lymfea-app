@@ -52,6 +52,19 @@ export async function handleConfirmSetupIntent(
       "[CONFIRM-SETUP] Réservation déjà existante pour cette session :",
       existingPaymentInfo.booking_id,
     );
+    // For multi-booking, return all sibling bookings sharing the same group.
+    if (meta.isMulti === "1" && meta.groupId) {
+      const { data: groupBookings } = await supabase
+        .from("bookings")
+        .select("id")
+        .eq("booking_group_id", meta.groupId);
+      const ids = (groupBookings || []).map((b: any) => b.id);
+      return jsonResponse({
+        success: true,
+        bookingId: existingPaymentInfo.booking_id,
+        bookingIds: ids,
+      });
+    }
     return jsonResponse({
       success: true,
       bookingId: existingPaymentInfo.booking_id,
@@ -60,6 +73,113 @@ export async function handleConfirmSetupIntent(
 
   if (!meta.hotelId) {
     throw new Error("Données de réservation introuvables dans la session Stripe.");
+  }
+
+  // ── MULTI-BOOKING PATH ───────────────────────────────────────────
+  // N drafts already exist (created by create-draft-booking, status
+  // 'awaiting_payment'). We just promote them to 'pending' + 'card_saved'.
+  if (meta.isMulti === "1") {
+    let multiBookingIds: string[] = [];
+    try {
+      multiBookingIds = JSON.parse(meta.bookingIds || "[]");
+    } catch {
+      throw new Error("bookingIds metadata invalide");
+    }
+    if (!multiBookingIds.length) {
+      throw new Error("Aucun bookingId dans les metadata multi.");
+    }
+
+    let multiCustomerId: string | null = null;
+    const multiStripeCustomerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer?.id;
+
+    if (meta.clientEmail) {
+      const { data: existing } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("email", meta.clientEmail)
+        .maybeSingle();
+      if (existing) {
+        multiCustomerId = existing.id;
+        if (multiStripeCustomerId) {
+          await supabase
+            .from("customers")
+            .update({ stripe_customer_id: multiStripeCustomerId })
+            .eq("id", multiCustomerId);
+        }
+      } else {
+        const { data: created } = await supabase
+          .from("customers")
+          .insert({
+            first_name: meta.firstName,
+            last_name: meta.lastName,
+            email: meta.clientEmail,
+            phone: meta.phone,
+            stripe_customer_id: multiStripeCustomerId,
+          })
+          .select("id")
+          .single();
+        if (created) multiCustomerId = created.id;
+      }
+    }
+
+    const { error: updErr } = await supabase
+      .from("bookings")
+      .update({
+        client_first_name: meta.firstName,
+        client_last_name: meta.lastName,
+        client_email: meta.clientEmail || null,
+        phone: meta.phone,
+        room_number: meta.roomNumber || null,
+        client_note: meta.note || null,
+        status: "pending",
+        payment_method: "card",
+        payment_status: "pending",
+        customer_id: multiCustomerId,
+      })
+      .in("id", multiBookingIds)
+      .eq("hotel_id", meta.hotelId)
+      .eq("status", "awaiting_payment");
+
+    if (updErr) {
+      throw new Error(
+        `Erreur lors de la promotion des drafts multi : ${updErr.message}`,
+      );
+    }
+
+    const multiSetupIntent = session.setup_intent as Stripe.SetupIntent;
+    const multiPaymentMethodId =
+      typeof multiSetupIntent?.payment_method === "string"
+        ? multiSetupIntent.payment_method
+        : (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.id;
+    const multiCard =
+      typeof multiSetupIntent?.payment_method !== "string"
+        ? (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.card
+        : null;
+
+    // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
+    // attach the row to the first booking only. Sibling bookings of the group
+    // are linked via booking_group_id.
+    if (multiPaymentMethodId && multiSetupIntent) {
+      await supabase.from("booking_payment_infos").insert({
+        booking_id: multiBookingIds[0],
+        customer_id: multiCustomerId,
+        stripe_payment_method_id: multiPaymentMethodId,
+        stripe_setup_intent_id: multiSetupIntent.id,
+        stripe_session_id: sessionId,
+        card_brand: multiCard?.brand || null,
+        card_last4: multiCard?.last4 || null,
+        payment_status: "card_saved",
+      });
+    }
+
+    return jsonResponse({
+      success: true,
+      bookingId: multiBookingIds[0],
+      bookingIds: multiBookingIds,
+    });
   }
 
   const treatmentIds = JSON.parse(meta.treatmentIds || "[]");

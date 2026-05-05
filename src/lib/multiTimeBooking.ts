@@ -32,7 +32,7 @@ export function buildMultiBookingItems(
       variantId: item.variantId ?? null,
       date: slot.date,
       time: slot.time,
-      duration: (item.duration || 0) * (item.quantity || 1),
+      duration: (item.duration || 30) * (item.quantity || 1),
       quantity: item.quantity,
       guestCount: item.guestCount,
     });

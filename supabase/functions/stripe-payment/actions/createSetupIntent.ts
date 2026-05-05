@@ -30,7 +30,12 @@ export async function handleCreateSetupIntent(
     draftBookingId,
     giftAmountUsage,
     guestCount,
+    isMulti,
+    groupId,
+    bookingIds,
   } = body as Record<string, any>;
+
+  const isMultiBooking = !!isMulti && Array.isArray(bookingIds) && bookingIds.length > 1;
 
   if (!bookingData || !clientData || !hotelId) {
     throw new Error("Missing required data");
@@ -144,7 +149,10 @@ export async function handleCreateSetupIntent(
   );
   const finalTotalPrice = surcharge.totalWithSurcharge;
 
+  // Multi-booking: drafts already exist and hold the slots; skip the blocked-slot
+  // check (which is for the single bookingData.date/time only).
   if (
+    !isMultiBooking &&
     await isInBlockedSlot(
       supabase,
       hotelId,
@@ -220,6 +228,9 @@ export async function handleCreateSetupIntent(
       surchargeAmount: String(surcharge.surchargeAmount),
       surchargePercent: String(surcharge.surchargePercent),
       verifiedTotalPrice: String(finalTotalPrice),
+      isMulti: isMultiBooking ? "1" : "0",
+      groupId: isMultiBooking ? String(groupId || "") : "",
+      bookingIds: isMultiBooking ? JSON.stringify(bookingIds) : "",
     },
   });
 
