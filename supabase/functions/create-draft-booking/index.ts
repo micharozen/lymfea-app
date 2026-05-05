@@ -72,7 +72,10 @@ serve(async (req: Request) => {
       .eq('id', hotelId)
       .single();
 
-    if (hotelData && hotelData.booking_hold_enabled === false) {
+    // Multi-slot bookings (items.length > 1) must always create drafts:
+    // confirm-setup-intent requires bookingIds[] to confirm each slot.
+    // Only reject for single-item bookings when the venue has hold disabled.
+    if (hotelData && hotelData.booking_hold_enabled === false && items.length <= 1) {
       return new Response(
         JSON.stringify({ success: false, reason: 'hold_disabled' }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
