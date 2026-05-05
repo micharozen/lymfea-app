@@ -192,6 +192,14 @@ export default function EditBookingDialog({
   const [isPaymentLinkDialogOpen, setIsPaymentLinkDialogOpen] = useState(false);
   
   useEffect(() => {
+    if (open && booking?.id) {
+      queryClient.invalidateQueries({ queryKey: ["booking-therapists", booking.id] });
+      queryClient.invalidateQueries({ queryKey: ["booking_treatments", booking.id] });
+      queryClient.invalidateQueries({ queryKey: ["booking_treatments_details", booking.id] });
+    }
+  }, [open, booking?.id, queryClient]);
+
+  useEffect(() => {
     if (booking && open) {
       setViewMode(initialMode);
       setHotelId(booking.hotel_id || "");
@@ -496,7 +504,7 @@ export default function EditBookingDialog({
         Array.from({ length: n }, (_, i) => acceptedTherapists[i]?.therapist_id ?? '')
       );
     }
-  }, [acceptedTherapists, booking?.guest_count]);
+  }, [acceptedTherapists, booking?.guest_count, open]);
 
   useEffect(() => {
     if (bookingTreatments && bookingTreatments.length > 0 && viewMode === "view") {
@@ -624,7 +632,16 @@ export default function EditBookingDialog({
       await new Promise(resolve => setTimeout(resolve, 100));
       
       let description = "La réservation a été modifiée avec succès";
-      if (result?.therapistChanged && therapists) {
+      if (isDuo && therapists) {
+        const names = therapistIds
+          .filter(Boolean)
+          .map(id => therapists.find(h => h.id === id))
+          .filter(Boolean)
+          .map(h => `${h!.first_name} ${h!.last_name}`);
+        if (names.length > 0) {
+          description = `${names.length} thérapeute(s) assigné(s) : ${names.join(", ")}`;
+        }
+      } else if (result?.therapistChanged && therapists) {
         const newTherapist = therapists.find(h => h.id === therapistId);
         if (newTherapist) {
           description = `Réservation réassignée à ${newTherapist.first_name} ${newTherapist.last_name}`;
@@ -849,6 +866,19 @@ export default function EditBookingDialog({
     const therapistChanged = therapistId !== booking?.therapist_id;
     const timeChanged = time !== booking?.booking_time;
     const dateChanged = date && format(date, "yyyy-MM-dd") !== booking?.booking_date;
+
+    if (isDuo) {
+      const filledIds = therapistIds.filter(Boolean);
+      const uniqueIds = new Set(filledIds);
+      if (uniqueIds.size < filledIds.length) {
+        toast({
+          title: "Thérapeutes en double",
+          description: "Le même thérapeute ne peut pas être assigné à deux rôles pour ce soin.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
 
     if (!isDuo && therapistId && cart.length > 0 && (therapistChanged || timeChanged || dateChanged)) {
       const calcDuration = cart.reduce((sum, item) => {
@@ -1332,7 +1362,8 @@ export default function EditBookingDialog({
         ) : (
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="info" className="flex-1 px-4 py-3 space-y-2 mt-0 data-[state=inactive]:hidden">
+            <TabsContent value="info" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden overflow-hidden">
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
               {isConcierge && (
                 <Alert className="py-2">
                   <AlertTriangle className="h-4 w-4" />
@@ -1429,11 +1460,25 @@ export default function EditBookingDialog({
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-lg">
                             <SelectItem value="none">Aucun thérapeute</SelectItem>
-                            {therapists?.map((therapist) => (
-                              <SelectItem key={therapist.id} value={therapist.id}>
-                                {therapist.first_name} {therapist.last_name}
-                              </SelectItem>
-                            ))}
+                            {therapists?.map((therapist) => {
+                              const availability = therapistAvailability?.[therapist.id];
+                              const isUnavailable = availability && !availability.available;
+                              const isAlreadyPicked = therapistIds.some(
+                                (id, j) => j !== i && id === therapist.id
+                              );
+                              const isCurrentForSlot = therapistIds[i] === therapist.id;
+                              return (
+                                <SelectItem
+                                  key={therapist.id}
+                                  value={therapist.id}
+                                  disabled={(isUnavailable || isAlreadyPicked) && !isCurrentForSlot}
+                                >
+                                  {therapist.first_name} {therapist.last_name}
+                                  {isAlreadyPicked && !isCurrentForSlot && " — déjà sélectionné"}
+                                  {isUnavailable && !isAlreadyPicked && !isCurrentForSlot && " — Occupé"}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1616,7 +1661,8 @@ export default function EditBookingDialog({
                 />
               </div>
 
-              <div className="flex justify-between gap-3 pt-4 mt-4 border-t shrink-0">
+              </div>
+              <div className="shrink-0 px-4 py-3 border-t bg-background flex justify-between gap-3">
                 {booking?.status !== "cancelled" && booking?.status !== "completed" && canCancelBooking ? (
                   <Button
                     type="button"
