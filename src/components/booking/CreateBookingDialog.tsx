@@ -433,7 +433,7 @@ export default function CreateBookingDialog({ open, onOpenChange, selectedDate, 
       >
         <DialogHeader className="px-4 py-3 border-b shrink-0">
           <DialogTitle className="text-lg font-semibold">
-            Nouvelle réservation
+            {isConcierge ? "Nouvelle demande" : "Nouvelle réservation"}
           </DialogTitle>
           <BookingWizardStepper
             currentStep={activeTab === "info" ? 1 : activeTab === "prestations" ? 2 : 3}

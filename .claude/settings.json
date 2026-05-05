@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r 'if (.tool_input.file_path // \"\") | test(\"supabase/schemas/\") then \"{\\\"hookSpecificOutput\\\":{\\\"hookEventName\\\":\\\"PostToolUse\\\",\\\"additionalContext\\\":\\\"⚠️ supabase/schemas/ was modified. Run: supabase db diff --local --schema public -f <migration_name> to generate the migration, then commit both the schema file and the generated migration.\\\"}}\" else empty end'"
+          }
+        ]
+      }
+    ]
+  }
+}

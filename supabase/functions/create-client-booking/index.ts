@@ -542,7 +542,7 @@ try {
     const surcharge = computeOutOfHoursSurcharge(bookingData.time, basePrice, hotel);
     const effectiveTotalPrice = basePrice + surcharge.surchargeAmount;
     const effectivePaymentMethod = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'gift_amount' : paymentMethod);
-    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'room' ? 'charged_to_room' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending'));
+    const effectivePaymentStatus = isOffert ? 'offert' : (paymentMethod === 'gift_amount' ? 'paid' : 'pending');
     console.log('Booking status:', bookingStatus, '| Has price on request:', hasPriceOnRequest, '| Is offert:', isOffert);
 
     // Find or create customer by phone
@@ -1002,21 +1002,21 @@ try {
         console.error('Error sending booking confirmed notifications:', confirmError);
       }
     } else {
-      // Regular pending booking: smart dispatch to top-ranked therapists
+      // Broadcast to therapists with gender-preference filtering
       try {
-        console.log('Dispatching booking to ranked therapists:', bookingId);
-        const dispatchResponse = await supabase.functions.invoke('dispatch-booking-therapist', {
-          body: { bookingId: bookingId }
+        console.log('Broadcasting booking notifications (gender-aware):', bookingId);
+        const notifResponse = await supabase.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bookingId, notifyAll: true },
+          headers: { Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}` },
         });
 
-        if (dispatchResponse.error) {
-          console.error('Failed to dispatch booking:', dispatchResponse.error);
+        if (notifResponse.error) {
+          console.error('Failed to broadcast notifications:', notifResponse.error);
         } else {
-          console.log('Smart dispatch result:', dispatchResponse.data);
+          console.log('Broadcast result:', notifResponse.data);
         }
-      } catch (dispatchError) {
-        console.error('Error dispatching booking:', dispatchError);
-        // Continue even if dispatch fails
+      } catch (notifError) {
+        console.error('Error broadcasting notifications:', notifError);
       }
 
       // Trigger email notification to admins
