@@ -89,78 +89,95 @@ serve(async (req) => {
     }
 
     // 3. Création/mise à jour de la réservation
-    let bookingId: string;
+    const isMulti = meta.is_multi === 'true';
+    let targetBookingIds: string[] = [];
 
-    if (meta.draftBookingId) {
-      // The slot is already held — update the draft booking with real client data
-      const { data: draftBooking, error: draftFetchError } = await supabaseAdmin
-        .from('bookings')
-        .select('id')
-        .eq('id', meta.draftBookingId)
-        .eq('hotel_id', meta.hotelId)
-        .eq('status', 'awaiting_payment')
-        .single();
+    // Récupération des IDs (Soit le tableau Multi, soit l'ID Solo unique)
+    if (isMulti && meta.booking_ids) {
+      try { targetBookingIds = JSON.parse(meta.booking_ids); } catch (e) {}
+    } else if (meta.draftBookingId) {
+      targetBookingIds = [meta.draftBookingId];
+    }
 
-      if (draftFetchError || !draftBooking) {
-        console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
-        // Fall through to atomic reserve
-        const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
-          _booking_date: meta.bookingDate,
-          _booking_time: meta.bookingTime,
-          _client_email: meta.clientEmail || null,
-          _client_first_name: meta.firstName,
-          _client_last_name: meta.lastName,
-          _client_note: meta.note || null,
-          _customer_id: customerId,
-          _duration: totalDuration,
-          _hotel_id: meta.hotelId,
-          _hotel_name: hotel?.name || 'Hotel',
-          _language: meta.language || 'fr',
-          _payment_method: 'card',
-          _payment_status: 'pending',
-          _phone: meta.phone,
-          _room_number: meta.roomNumber || null,
-          _status: 'pending',
-          _therapist_gender: meta.therapistGender || null,
-          _total_price: verifiedPrice,
-          _treatment_ids: treatmentIds
-        });
-        if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
-        if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
-        bookingId = fallbackId;
-      } else {
-        const { error: updateError } = await supabaseAdmin
+    const confirmedBookingIds: string[] = [];
+
+    if (targetBookingIds.length > 0) {
+      for (const bId of targetBookingIds) {
+        // Vérifie si le draft est toujours en attente
+        const { data: draftBooking, error: draftFetchError } = await supabaseAdmin
           .from('bookings')
-          .update({
-            client_first_name: meta.firstName,
-            client_last_name: meta.lastName,
-            client_email: meta.clientEmail || null,
-            phone: meta.phone,
-            room_number: meta.roomNumber || null,
-            client_note: meta.note || null,
-            status: 'pending',
-            payment_method: 'card',
-            payment_status: 'pending',
-            total_price: verifiedPrice,
-            customer_id: customerId,
-            therapist_id: null,
-          })
-          .eq('id', meta.draftBookingId);
+          .select('id')
+          .eq('id', bId)
+          .eq('hotel_id', meta.hotelId)
+          .eq('status', 'awaiting_payment')
+          .maybeSingle();
 
-        if (updateError) throw new Error(`Erreur lors de la mise à jour de la réservation : ${updateError.message}`);
-        bookingId = meta.draftBookingId;
-        console.log("[CONFIRM-SETUP] Draft booking updated:", bookingId);
+        if (draftBooking) {
+          const { error: updateError } = await supabaseAdmin
+            .from('bookings')
+            .update({
+              client_first_name: meta.firstName,
+              client_last_name: meta.lastName,
+              client_email: meta.clientEmail || null,
+              phone: meta.phone,
+              room_number: meta.roomNumber || null,
+              client_note: meta.note || null,
+              status: 'pending',
+              payment_method: 'card',
+              payment_status: 'pending',
+              // On met à jour le prix total uniquement en Solo (en Multi, le draft a déjà le prix spécifique de son soin)
+              ...(!isMulti ? { total_price: verifiedPrice } : {}),
+              customer_id: customerId,
+              therapist_id: null,
+            })
+            .eq('id', bId);
 
-        await supabaseAdmin
-          .from('bookings')
-          .update({
-            is_out_of_hours: surcharge.isOutOfHours,
-            surcharge_amount: surcharge.surchargeAmount,
-          })
-          .eq('id', bookingId);
+          if (updateError) throw new Error(`Erreur mise à jour réservation : ${updateError.message}`);
+          
+          if (!isMulti) {
+            await supabaseAdmin.from('bookings').update({
+              is_out_of_hours: surcharge.isOutOfHours,
+              surcharge_amount: surcharge.surchargeAmount,
+            }).eq('id', bId);
+          }
+
+          confirmedBookingIds.push(bId);
+        } else {
+          // GESTION FALLBACK (si le draft a expiré)
+          if (isMulti) {
+            throw new Error("Un des créneaux a expiré pendant le paiement.");
+          } else {
+            console.warn("[CONFIRM-SETUP] Draft expired, falling back to atomic reserve");
+            const { data: fallbackId, error: fallbackError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+              _booking_date: meta.bookingDate,
+              _booking_time: meta.bookingTime,
+              _client_email: meta.clientEmail || null,
+              _client_first_name: meta.firstName,
+              _client_last_name: meta.lastName,
+              _client_note: meta.note || null,
+              _customer_id: customerId,
+              _duration: totalDuration,
+              _hotel_id: meta.hotelId,
+              _hotel_name: hotel?.name || 'Hotel',
+              _language: meta.language || 'fr',
+              _payment_method: 'card',
+              _payment_status: 'pending',
+              _phone: meta.phone,
+              _room_number: meta.roomNumber || null,
+              _status: 'pending',
+              _therapist_gender: meta.therapistGender || null,
+              _total_price: verifiedPrice,
+              _treatment_ids: treatmentIds
+            });
+            if (fallbackError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${fallbackError.message})`);
+            if (!fallbackId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+            
+            confirmedBookingIds.push(fallbackId);
+          }
+        }
       }
     } else {
-      // No hold — standard atomic reserve
+      // Cas sans draft du tout (Solo Atomic reserve direct)
       const { data: newBookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
         _booking_date: meta.bookingDate,
         _booking_time: meta.bookingTime,
@@ -183,52 +200,35 @@ serve(async (req) => {
         _treatment_ids: treatmentIds
       });
 
-      if (rpcError) {
-        console.error("[CONFIRM-SETUP] Erreur RPC lors de la réservation :", rpcError);
-        throw new Error(`Désolé, ce créneau vient tout juste d'être réservé ou une erreur est survenue (${rpcError.message})`);
-      }
-      if (!newBookingId) throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+      if (rpcError) throw new Error(`Désolé, ce créneau vient tout juste d'être réservé (${rpcError.message})`);
+      if (!newBookingId) throw new Error("Impossible de sécuriser le créneau.");
 
-      bookingId = newBookingId;
-      await supabaseAdmin
-        .from('bookings')
-        .update({
-          therapist_id: null,
-          is_out_of_hours: surcharge.isOutOfHours,
-          surcharge_amount: surcharge.surchargeAmount,
-        })
-        .eq('id', bookingId);
+      await supabaseAdmin.from('bookings').update({
+        therapist_id: null,
+        is_out_of_hours: surcharge.isOutOfHours,
+        surcharge_amount: surcharge.surchargeAmount,
+      }).eq('id', newBookingId);
+
+      confirmedBookingIds.push(newBookingId);
     }
 
-    if (!bookingId) {
-      throw new Error("Impossible de sécuriser le créneau. Veuillez réessayer avec un autre horaire.");
+    if (confirmedBookingIds.length === 0) {
+      throw new Error("Aucune réservation n'a pu être confirmée.");
     }
 
-    await supabaseAdmin.from('bookings').update({ therapist_id: null }).eq('id', bookingId);
-
-    // Attacher les soins — nettoyage préalable si c'était un draft pour éviter les doublons
-    if (treatmentIds && treatmentIds.length > 0) {
-      if (meta.draftBookingId) {
-        await supabaseAdmin
-          .from('booking_treatments')
-          .delete()
-          .eq('booking_id', bookingId);
-      }
-
+    // Attacher les soins (Uniquement en SOLO, car en MULTI la création des drafts s'en est déjà chargé)
+    if (!isMulti && treatmentIds && treatmentIds.length > 0) {
+      const bId = confirmedBookingIds[0];
+      await supabaseAdmin.from('booking_treatments').delete().eq('booking_id', bId);
+      
       const treatmentInserts = treatmentIds.map((id: string) => ({
-        booking_id: bookingId,
+        booking_id: bId,
         treatment_id: id,
         variant_id: null,
       }));
 
       if (treatmentInserts.length > 0) {
-        const { error: treatmentsError } = await supabaseAdmin
-          .from('booking_treatments')
-          .insert(treatmentInserts);
-
-        if (treatmentsError) {
-          console.error('[CONFIRM-SETUP] booking_treatments insert error:', treatmentsError);
-        }
+        await supabaseAdmin.from('booking_treatments').insert(treatmentInserts);
       }
     }
 
@@ -238,24 +238,45 @@ serve(async (req) => {
     const paymentMethodCard = typeof setupIntent?.payment_method !== 'string' ? (setupIntent?.payment_method as Stripe.PaymentMethod)?.card : null;
     
     if (paymentMethodId && setupIntent) {
-      await supabaseAdmin.from('booking_payment_infos').insert({
-        booking_id: bookingId,
-        customer_id: customerId, // <--- Et on relie le paiement au client
-        stripe_payment_method_id: paymentMethodId,
-        stripe_setup_intent_id: setupIntent.id,
-        stripe_session_id: sessionId,
-        card_brand: paymentMethodCard?.brand || null,
-        card_last4: paymentMethodCard?.last4 || null,
-        estimated_price: verifiedPrice,
-        payment_status: 'card_saved'
-      });
+      // On insère l'empreinte bancaire pour CHAQUE réservation confirmée
+      for (const bId of confirmedBookingIds) {
+        
+        // CORRECTION : On récupère le VRAI prix du soin depuis la table bookings
+        const { data: bData } = await supabaseAdmin
+          .from('bookings')
+          .select('total_price')
+          .eq('id', bId)
+          .single();
+
+        await supabaseAdmin.from('booking_payment_infos').insert({
+          booking_id: bId,
+          customer_id: customerId, 
+          stripe_payment_method_id: paymentMethodId,
+          stripe_setup_intent_id: setupIntent.id,
+          stripe_session_id: sessionId,
+          card_brand: paymentMethodCard?.brand || null,
+          card_last4: paymentMethodCard?.last4 || null,
+          estimated_price: bData?.total_price || verifiedPrice, // <- Le bon prix est ici !
+          payment_status: 'card_saved'
+        });
+      }
     }
 
-    return new Response(JSON.stringify({ success: true, bookingId }), {
+    // 5. Déclenchement des notifications push pour chaque réservation validée !
+    for (const bId of confirmedBookingIds) {
+      try {
+        await supabaseAdmin.functions.invoke('trigger-new-booking-notifications', {
+          body: { bookingId: bId, notifyAll: true }
+        });
+      } catch (notifError) {
+        console.error(`[CONFIRM-SETUP] Erreur push notif pour ${bId}:`, notifError);
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, bookingId: confirmedBookingIds[0] }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
-
   } catch (error: any) {
     console.error("[CONFIRM-SETUP] Erreur :", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
