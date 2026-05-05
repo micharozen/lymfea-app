@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, User, Phone, Euro, Building2, Users, ExternalLink, Layers } from "lucide-react";
 import { formatPrice } from "@/lib/formatPrice";
 import { decodeHtmlEntities, cn } from "@/lib/utils";
 import { AvailabilityOverlay } from "./AvailabilityOverlay";
@@ -652,6 +652,15 @@ function BookingCard({
                     >
                       <ExternalLink className="h-2.5 w-2.5" />
                     </button>
+                  )}
+                  {/* Grouped booking indicator */}
+                  {(booking as any).booking_group_id && (
+                    <div
+                      className="w-4 h-4 flex items-center justify-center flex-shrink-0 rounded-sm bg-indigo-100 text-indigo-600"
+                      title="Réservation groupée"
+                    >
+                      <Layers className="h-2.5 w-2.5" />
+                    </div>
                   )}
                   {/* Therapist badge OR "À assigner" alert */}
                   {hasTherapist ? (
