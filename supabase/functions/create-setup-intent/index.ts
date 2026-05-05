@@ -26,7 +26,10 @@ serve(async (req) => {
       therapistGender,
       draftBookingId,
       giftAmountUsage,
-      guestCount
+      guestCount,
+      isMulti,
+      groupId,
+      bookingIds
       // On retire complètement clientTotalPrice pour des raisons de sécurité (Ne jamais truster le front pour les prix)
     } = payload;
 
@@ -203,6 +206,9 @@ serve(async (req) => {
         therapistGender: therapistGender || '',
         draftBookingId: draftBookingId || '',
         guestCount: guestCount ? String(guestCount) : '1',
+        is_multi: isMulti ? 'true' : 'false',
+        group_id: groupId || '',
+        booking_ids: isMulti && bookingIds ? JSON.stringify(bookingIds) : '',
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),
