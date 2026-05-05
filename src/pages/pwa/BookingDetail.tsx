@@ -318,24 +318,13 @@ const PwaBookingDetail = () => {
     if (!booking) return;
     setSigningLoading(true);
     try {
-      if (pendingRoomPayment) {
-        const { data, error } = await invokeStripe<any>('finalize-payment', {
-          booking_id: booking.id,
-          payment_method: 'room',
-          final_amount: totalPrice,
-          signature_data: signatureData,
-        });
-        if (error || !data?.success) throw new Error(data?.error || "Erreur finalisation");
-        toast.success("Prestation finalisée !");
-      } else {
-        const { error } = await supabase.from("bookings").update({
-          client_signature: signatureData,
-          signed_at: new Date().toISOString(),
-          status: "completed",
-        }).eq("id", booking.id);
-        if (error) throw error;
-        toast.success(t('bookingDetail.completed'));
-      }
+      const { error } = await supabase.from("bookings").update({
+        client_signature: signatureData,
+        signed_at: new Date().toISOString(),
+        status: "completed",
+      }).eq("id", booking.id);
+      if (error) throw error;
+      toast.success(t('bookingDetail.completed'));
       navigate("/pwa/dashboard", { state: { forceRefresh: true } });
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : t('common:errors.generic'));

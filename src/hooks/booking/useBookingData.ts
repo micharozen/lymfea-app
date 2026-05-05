@@ -106,10 +106,7 @@ export function useBookingData() {
             booking_therapists: booking.booking_therapists || [], // On s'assure de bien le passer à l'UI
             booking_payment_infos: paymentInfos,
           } as BookingWithTreatments;
-        }),
-      );
-
-      return bookingsWithDuration;
+      });
     },
   });
 

@@ -34,7 +34,7 @@ serve(async (req) => {
 
     const { data: paymentConfig, error: configError } = await supabase
       .from("hotel_payment_configs")
-      .select("*")
+      .select("provider, adyen_environment")
       .eq("hotel_id", hotelId)
       .single();
 
@@ -70,6 +70,7 @@ serve(async (req) => {
 
     const config = buildPaymentConfig(provider, paymentConfig, secrets as Record<string, any> | null);
     const client = getPaymentProvider(provider, config);
+    console.log("[payment-test-connection] Config:", config);
     const result = await client.testConnection();
 
     console.log("[payment-test-connection] Result:", result);
