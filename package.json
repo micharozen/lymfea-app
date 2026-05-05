@@ -21,6 +21,7 @@
     "sup:open": "supabase open",
     "sync:brand": "cp src/config/brand.json supabase/functions/_shared/brand.json",
     "generate:manifests": "node scripts/generate-manifests.js",
+    "og:generate": "node scripts/generate-og-image.mjs",
     "rebrand": "npm run sync:brand && npm run generate:manifests"
   },
   "dependencies": {
@@ -102,6 +103,7 @@
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.8",
+    "sharp": "^0.34.5",
     "supabase": "^2.91.3",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",
@@ -111,6 +113,7 @@
   "trustedDependencies": [
     "@swc/core",
     "core-js",
+    "sharp",
     "supabase"
   ]
 }
