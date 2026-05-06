@@ -320,6 +320,9 @@ export default function Payment() {
         const isMulti = (bookingIds && bookingIds.length > 1)
           || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
 
+        const baseItemsForCardMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItemsForCard = isMulti ? buildMultiBookingItems(baseItemsForCardMulti, perItemSchedule) : null;
+
         const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
           hotelId,
           clientData: {
@@ -341,6 +344,8 @@ export default function Payment() {
           ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
           isMulti,
           ...(isMulti ? { groupId, bookingIds } : {}),
+          // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
+          ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
         });
 
         if (error) throw error;
