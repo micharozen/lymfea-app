@@ -1,12 +1,27 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
+import type Stripe from "stripe";
 import { authMiddleware } from "../middleware/auth";
 import { supabaseAdmin } from "../lib/supabase";
-import { stripe } from "../lib/stripe";
+import { getStripeForVenue } from "../lib/stripe-resolver";
 import { sendEmail } from "../lib/email";
+import { isInBlockedSlot } from "../lib/blocked-slots";
 
 const EMAIL_LOGO_URL = 'https://xfkujlgettlxdgrnqluw.supabase.co/storage/v1/object/public/assets/brand-logo-email.png';
 const BRAND_WEBSITE = 'https://lymfea.fr';
-import { isInBlockedSlot } from "../lib/blocked-slots";
+
+async function resolveStripeFromBody(c: Context): Promise<{ body: Record<string, unknown>; stripe: Stripe; hotelId: string | null }> {
+  const raw = await c.req.json().catch(() => ({}));
+  const body = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const hotelId = typeof body.hotelId === "string" && body.hotelId ? body.hotelId : null;
+  const resolved = await getStripeForVenue(supabaseAdmin, hotelId);
+  return { body, stripe: resolved.client, hotelId };
+}
+
+async function resolveStripeFromHotelId(hotelId: string | null | undefined): Promise<Stripe> {
+  const resolved = await getStripeForVenue(supabaseAdmin, hotelId ?? null);
+  return resolved.client;
+}
 
 /**
  * Payment routes — authenticated (therapist or admin).
@@ -24,13 +39,26 @@ payments.post("/checkout-success", async (c) => {
   try {
     console.log("[CHECKOUT-SUCCESS] Processing checkout success");
 
-    const { sessionId } = await c.req.json();
+    const raw = await c.req.json().catch(() => ({}));
+    const { sessionId, hotelId: bodyHotelId } = (raw || {}) as { sessionId?: string; hotelId?: string };
 
     if (!sessionId) {
       throw new Error("Missing session ID");
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // If session was created on a venue Stripe account but caller didn't pass hotelId,
+    // re-resolve via metadata.hotel_id and retry once.
+    const metadataHotelId = session.metadata?.hotel_id;
+    if (!bodyHotelId && metadataHotelId) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metadataHotelId);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId);
+      }
+    }
 
     if (session.payment_status !== 'paid') {
       throw new Error("Payment not completed");
@@ -281,11 +309,11 @@ payments.post("/finalize", async (c) => {
  */
 payments.post("/charge-card", async (c) => {
   try {
-    const { bookingId, finalAmount } = await c.req.json();
+    const { bookingId, finalAmount, hotelId: bodyHotelId } = await c.req.json();
 
     const { data: paymentInfo, error: fetchError } = await supabaseAdmin
       .from("booking_payment_infos")
-      .select("*, customers(stripe_customer_id)")
+      .select("*, customers(stripe_customer_id), bookings(hotel_id)")
       .eq("booking_id", bookingId)
       .maybeSingle();
 
@@ -302,6 +330,9 @@ payments.post("/charge-card", async (c) => {
     if (!stripeCustomerId || !paymentInfo.stripe_payment_method_id) {
       throw new Error("Moyen de paiement ou client Stripe manquant.");
     }
+
+    const hotelId: string | null = bodyHotelId || (paymentInfo as any).bookings?.hotel_id || null;
+    const stripe = await resolveStripeFromHotelId(hotelId);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(finalAmount * 100),
@@ -342,6 +373,8 @@ payments.post("/bundle", async (c) => {
     if (!hotelId || !clientData || !bundleItems || !Array.isArray(bundleItems) || bundleItems.length === 0) {
       throw new Error("Missing required data");
     }
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
     if (!clientData.firstName || !clientData.lastName || !clientData.phone || !clientData.email) {
       throw new Error("Missing required client information");
     }
@@ -470,14 +503,24 @@ payments.post("/bundle", async (c) => {
 
 payments.post("/purchase-bundle", async (c) => {
   try {
-    const { sessionId } = await c.req.json();
+    const { sessionId, hotelId: bodyHotelId } = await c.req.json();
 
     if (!sessionId) {
       throw new Error("Missing session ID");
     }
 
-    // --- Retrieve Stripe session ---
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Re-resolve via metadata if hotelId not passed and session belongs to a venue Stripe account
+    const metaHotelId = (session.metadata as Record<string, string> | null)?.hotelId;
+    if (!bodyHotelId && metaHotelId) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metaHotelId);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId);
+      }
+    }
 
     if (session.payment_status !== 'paid') {
       throw new Error("Payment not completed");
@@ -752,10 +795,21 @@ payments.post("/purchase-bundle", async (c) => {
 
 payments.post("/confirm-setup", async (c) => {
   try {
-    const { sessionId } = await c.req.json();
+    const { sessionId, hotelId: bodyHotelId } = await c.req.json();
 
     // 1. Récupération de la session et des metadata
-    const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
+    let stripe = await resolveStripeFromHotelId(bodyHotelId);
+    let session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
+
+    // Re-resolve via metadata.hotelId when caller didn't pass it
+    const metaHotelIdEarly = (session.metadata as Record<string, string> | null)?.hotelId;
+    if (!bodyHotelId && metaHotelIdEarly) {
+      const resolved = await getStripeForVenue(supabaseAdmin, metaHotelIdEarly);
+      if (resolved.source === "venue") {
+        stripe = resolved.client;
+        session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['setup_intent', 'setup_intent.payment_method'] });
+      }
+    }
     const meta = session.metadata || {};
 
     // On regarde dans booking_payment_infos si la session existe déjà
@@ -966,41 +1020,6 @@ payments.post("/confirm-setup", async (c) => {
   }
 });
 
-function timeToMinutes(time: string): number {
-  const parts = time.split(':');
-  return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-}
-
-async function isInBlockedSlot(
-  hotelId: string,
-  bookingDate: string,
-  bookingTime: string,
-  durationMinutes: number
-): Promise<boolean> {
-  const { data: blockedSlots, error } = await supabaseAdmin
-    .from('venue_blocked_slots')
-    .select('start_time, end_time, days_of_week')
-    .eq('hotel_id', hotelId)
-    .eq('is_active', true);
-
-  if (error || !blockedSlots || blockedSlots.length === 0) {
-    return false;
-  }
-
-  const dayOfWeek = new Date(bookingDate + 'T00:00:00').getDay();
-  const bookingStartMinutes = timeToMinutes(bookingTime);
-  const bookingEndMinutes = bookingStartMinutes + durationMinutes;
-
-  return blockedSlots.some((block: any) => {
-    if (block.days_of_week !== null && !block.days_of_week.includes(dayOfWeek)) {
-      return false;
-    }
-    const blockStartMinutes = timeToMinutes(block.start_time);
-    const blockEndMinutes = timeToMinutes(block.end_time);
-    return bookingStartMinutes < blockEndMinutes && bookingEndMinutes > blockStartMinutes;
-  });
-}
-
 payments.post("/setup-intent", async (c) => {
   try {
     const {
@@ -1081,9 +1100,11 @@ payments.post("/setup-intent", async (c) => {
       }
     }
 
-    if (await isInBlockedSlot(hotelId, bookingData.date, bookingData.time, totalDuration)) {
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
       return c.json({ error: 'BLOCKED_SLOT' }, 400);
     }
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
 
     let stripeCustomerId: string;
     const existingCustomers = await stripe.customers.list({ email: clientData.email, limit: 1 });
@@ -1148,6 +1169,277 @@ payments.post("/setup-intent", async (c) => {
     console.error("[CREATE-SETUP-INTENT] Error:", errorMessage);
     return c.json({ error: errorMessage }, 500);
   }
+});
+
+/**
+ * POST /payments/checkout
+ * Creates a Stripe Checkout Session in `payment` mode for a booking.
+ * Migrated from: supabase/functions/stripe-payment/actions/createCheckoutSession.ts
+ */
+payments.post("/checkout", async (c) => {
+  try {
+    console.log("[CREATE-CHECKOUT] Starting checkout session creation");
+
+    const {
+      bookingData,
+      clientData,
+      treatmentIds,
+      treatments: treatmentsPayload,
+      hotelId,
+      language,
+      therapistGender,
+    } = await c.req.json() as {
+      bookingData?: { date: string; time: string };
+      clientData?: {
+        firstName: string;
+        lastName: string;
+        phone: string;
+        email?: string;
+        roomNumber?: string;
+        note?: string;
+      };
+      treatmentIds?: string[];
+      treatments?: { treatmentId: string; variantId?: string }[];
+      hotelId?: string;
+      language?: string;
+      therapistGender?: string | null;
+    };
+
+    if (!bookingData || !clientData || !hotelId) {
+      throw new Error("Missing required data");
+    }
+
+    const effectiveTreatmentIds: string[] =
+      treatmentIds ?? (treatmentsPayload ?? []).map((t) => t.treatmentId);
+    const variantMap: Record<string, string> = {};
+    if (treatmentsPayload) {
+      for (const t of treatmentsPayload) {
+        if (t.variantId) variantMap[t.treatmentId] = t.variantId;
+      }
+    }
+
+    if (!Array.isArray(effectiveTreatmentIds) || effectiveTreatmentIds.length === 0) {
+      throw new Error("At least one treatment is required");
+    }
+
+    if (!clientData.firstName || !clientData.lastName || !clientData.phone) {
+      throw new Error("Missing required client information");
+    }
+
+    const { data: treatments, error: treatmentsError } = await supabaseAdmin
+      .from("treatment_menus")
+      .select("id, name, price, hotel_id, status, duration")
+      .in("id", effectiveTreatmentIds);
+
+    if (treatmentsError) throw new Error("Failed to fetch treatments");
+    if (!treatments || treatments.length === 0) {
+      throw new Error("No valid treatments found");
+    }
+
+    const invalidTreatments = treatments.filter(
+      (t: any) =>
+        (t.hotel_id !== null && t.hotel_id !== hotelId) || t.status !== "active",
+    );
+    if (invalidTreatments.length > 0) {
+      throw new Error("Some treatments are not available for this hotel");
+    }
+
+    const verifiedTotalPrice = treatments.reduce(
+      (sum: number, t: any) => sum + (t.price || 0),
+      0,
+    );
+    if (verifiedTotalPrice <= 0) {
+      throw new Error("Invalid total price calculated");
+    }
+
+    const totalDuration =
+      treatments.reduce((sum: number, t: any) => sum + (t.duration || 0), 0) || 30;
+
+    const { data: hotel, error: hotelError } = await supabaseAdmin
+      .from("hotels")
+      .select("slug, currency, name, offert, opening_time, closing_time")
+      .eq("id", hotelId)
+      .maybeSingle();
+
+    if (hotelError) throw hotelError;
+    if (!hotel) throw new Error("Hotel not found");
+
+    if ((hotel as any).offert) {
+      return c.json(
+        { error: "Ce lieu propose actuellement des soins offerts. Utilisez la réservation directe." },
+        400,
+      );
+    }
+
+    if ((hotel as any).opening_time && (hotel as any).closing_time) {
+      const [bh, bm] = bookingData.time.split(":").map(Number);
+      const [oh, om] = (hotel as any).opening_time.split(":").map(Number);
+      const [ch, cm] = (hotel as any).closing_time.split(":").map(Number);
+      const bookingMinutes = bh * 60 + bm;
+      const openMinutes = oh * 60 + om;
+      const closeMinutes = ch * 60 + cm;
+      if (bookingMinutes < openMinutes || bookingMinutes >= closeMinutes) {
+        return c.json({ error: "BLOCKED_SLOT" }, 400);
+      }
+    }
+
+    if (await isInBlockedSlot(supabaseAdmin, hotelId, bookingData.date, bookingData.time, totalDuration)) {
+      return c.json({ error: "BLOCKED_SLOT" }, 400);
+    }
+
+    const currency = (hotel as any).currency?.toLowerCase() || "eur";
+
+    const { data: bookingId, error: rpcError } = await supabaseAdmin.rpc(
+      "reserve_trunk_atomically",
+      {
+        _hotel_id: hotelId,
+        _booking_date: bookingData.date,
+        _booking_time: bookingData.time,
+        _duration: totalDuration,
+        _hotel_name: (hotel as any).name,
+        _client_first_name: clientData.firstName,
+        _client_last_name: clientData.lastName,
+        _client_email: clientData.email || null,
+        _phone: clientData.phone,
+        _room_number: clientData.roomNumber || null,
+        _client_note: clientData.note || null,
+        _status: "pending",
+        _payment_method: "card",
+        _payment_status: "awaiting_payment",
+        _total_price: verifiedTotalPrice,
+        _language: language || "fr",
+        _treatment_ids: effectiveTreatmentIds,
+        _therapist_gender: therapistGender || null,
+      },
+    );
+
+    if (rpcError) {
+      if (rpcError.message?.includes("NO_TRUNK_AVAILABLE")) {
+        return c.json({ error: "SLOT_TAKEN" }, 409);
+      }
+      throw rpcError;
+    }
+
+    for (const treatmentId of effectiveTreatmentIds) {
+      await supabaseAdmin.from("booking_treatments").insert({
+        booking_id: bookingId,
+        treatment_id: treatmentId,
+        variant_id: variantMap[treatmentId] || null,
+      });
+    }
+
+    const treatmentNames = treatments.map((t: any) => t.name).join(", ");
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmail =
+      clientData.email && emailRegex.test(clientData.email) ? clientData.email : undefined;
+
+    const stripe = await resolveStripeFromHotelId(hotelId);
+    const origin = c.req.header("origin") || "http://localhost:5173";
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer_email: validEmail,
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: "Prestations bien-être",
+              description: `${treatmentNames} - ${clientData.firstName} ${clientData.lastName}`,
+            },
+            unit_amount: Math.round(verifiedTotalPrice * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/confirmation/${bookingId}`,
+      cancel_url: `${origin}/client/${(hotel as any).slug ?? hotelId}/payment`,
+      metadata: {
+        booking_id: bookingId as string,
+        hotel_id: hotelId,
+        site_url: origin,
+      },
+    });
+
+    await supabaseAdmin
+      .from("bookings")
+      .update({ stripe_invoice_url: session.id })
+      .eq("id", bookingId);
+
+    return c.json({ url: session.url, sessionId: session.id });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[CREATE-CHECKOUT] Error:", errorMessage);
+    return c.json({ error: errorMessage }, 500);
+  }
+});
+
+// ─── Unified Stripe action dispatcher ────────────────────────────
+//
+// Mirrors the consolidated `stripe-payment` Edge Function contract so
+// the frontend's `invokeStripe('action', payload)` helper can be routed
+// transparently here. Each action is forwarded to the matching route
+// handler by re-dispatching through Hono's internal fetch.
+//
+// Public actions (no auth) are routed to /payments/<route>.
+// Authenticated actions go through /payments/<route> too — auth is
+// enforced by the route's own middleware.
+const ACTION_ROUTES: Record<string, string> = {
+  "create-setup-intent": "/setup-intent",
+  "confirm-setup-intent": "/confirm-setup",
+  "charge-saved-card": "/charge-card",
+  "create-bundle-payment": "/bundle",
+  "purchase-bundle": "/purchase-bundle",
+  "create-checkout-session": "/checkout",
+  "handle-checkout-success": "/checkout-success",
+  // The following are not yet migrated — will fall back to 501.
+  // "finalize-payment": "/finalize",
+  // "send-payment-link": "/send-link",
+  // "check-expired-payment-links": "/check-expired-payment-links",
+};
+
+payments.all("/stripe", async (c) => {
+  if (c.req.method === "OPTIONS") {
+    return c.body(null, 204);
+  }
+  if (c.req.method !== "POST") {
+    return c.json({ error: "Method not allowed" }, 405);
+  }
+
+  let raw: any = {};
+  try {
+    raw = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const body = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const action = typeof body.action === "string" ? body.action : null;
+  if (!action) {
+    return c.json({ error: "Missing 'action' in body" }, 400);
+  }
+
+  const target = ACTION_ROUTES[action];
+  if (!target) {
+    return c.json({ error: `Action not yet migrated: ${action}` }, 501);
+  }
+
+  // Drop the `action` field; downstream routes don't expect it.
+  const { action: _, ...payload } = body;
+
+  // Re-dispatch through Hono — preserves auth headers and middleware.
+  // The sub-app sees inner paths (without the `/payments` mount prefix).
+  const url = new URL(c.req.url);
+  url.pathname = target;
+
+  const forwarded = new Request(url.toString(), {
+    method: "POST",
+    headers: c.req.raw.headers,
+    body: JSON.stringify(payload),
+  });
+
+  return payments.fetch(forwarded);
 });
 
 export default payments;
