@@ -17,7 +17,7 @@ import { brand, brandLogos } from "@/config/brand";
 export default function Confirmation() {
   const navigate = useNavigate();
   const { bookingId: paramBookingId } = useParams<{ bookingId?: string }>();
-  const { slug } = useClientVenue();
+  const { slug, hotelId } = useClientVenue();
   const [searchParams] = useSearchParams();
   const { t, i18n } = useTranslation('client');
   const { changeLanguage, language: currentLanguage } = i18n;
@@ -48,7 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -73,7 +73,7 @@ export default function Confirmation() {
 
         if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
-          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId });
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId, hotelId });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
           if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }
