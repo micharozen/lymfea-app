@@ -161,31 +161,18 @@ export function PaymentLinkForm({
     if (sendSms) channels.push("sms");
 
     try {
-      const { data, error } = await invokeEdgeFunction<
-        {
-          bookingId: string;
-          language: Language;
-          channels: ("email" | "sms")[];
-          clientEmail?: string;
-          clientPhone?: string;
-          smsBody?: string;
-        },
-        {
-          success: boolean;
-          paymentLinkUrl: string;
-          emailSent: boolean;
-          smsSent: boolean;
-          errors?: string[];
-        }
-      >("send-payment-link", {
-        body: {
-          bookingId: booking.id,
-          language,
-          channels,
-          clientEmail: sendEmail ? clientEmail : undefined,
-          clientPhone: sendSms ? clientPhone : undefined,
-          smsBody: sendSms ? smsBody : undefined,
-        },
+      const { data, error } = await invokeStripe<{
+        success: boolean;
+        paymentLinkUrl: string;
+        emailSent: boolean;
+        whatsappSent: boolean;
+        errors?: string[];
+      }>("send-payment-link", {
+        bookingId: booking.id,
+        language,
+        channels,
+        clientEmail: sendEmail ? clientEmail : undefined,
+        clientPhone: sendSms ? clientPhone : undefined,
       });
 
       if (error) {
