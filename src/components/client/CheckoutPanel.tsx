@@ -372,6 +372,8 @@ const requiredGuestCount = Math.max(1, ...items.map(i => i.guestCount ?? 1));
               isMulti: isMulti,
               groupId: isMulti ? groupId : undefined,
               bookingIds: isMulti ? bookingIds : undefined,
+              // Multi sans hold : passer les créneaux pour confirm-setup-intent
+              ...(isMulti && multiItems && bookingIds.length === 0 ? { slots: multiItems } : {}),
             },
           });
 

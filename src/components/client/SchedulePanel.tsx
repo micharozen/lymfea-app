@@ -389,9 +389,18 @@ export function SchedulePanel({
 
       const firstSlot = { date: items[0].date, time: items[0].time };
 
-      // Multi-slot bookings always need drafts regardless of holdEnabled:
-      // confirm-setup-intent loops over bookingIds to confirm each slot atomically.
-      // Without bookingIds, only the first slot would be reserved.
+      if (!holdEnabled) {
+        flushSync(() => {
+          setDraftBookingId(null);
+          setBookingIds([]);
+          setGroupId(null);
+          setHoldExpiresAt(null);
+          setBookingDateTime(firstSlot);
+        });
+        onContinue();
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('create-draft-booking', {
         body: {
           hotelId,

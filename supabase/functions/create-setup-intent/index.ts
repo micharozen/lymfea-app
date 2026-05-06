@@ -29,7 +29,8 @@ serve(async (req) => {
       guestCount,
       isMulti,
       groupId,
-      bookingIds
+      bookingIds,
+      slots,
       // On retire complètement clientTotalPrice pour des raisons de sécurité (Ne jamais truster le front pour les prix)
     } = payload;
 
@@ -184,6 +185,13 @@ serve(async (req) => {
     
     const origin = req.headers.get("origin") || "http://localhost:5173";
 
+    // Pour le multi sans hold, générer un group_id côté serveur (le front n'en a pas créé)
+    type SlotPayload = { date: string; time: string; treatmentId: string; variantId?: string | null; duration?: number; quantity?: number; guestCount?: number };
+    const slotsArr: SlotPayload[] = Array.isArray(slots) ? (slots as SlotPayload[]) : [];
+    const effectiveGroupId = (isMulti && !groupId && slotsArr.length > 0)
+      ? crypto.randomUUID()
+      : (groupId || '');
+
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       customer: stripeCustomerId,
@@ -207,8 +215,17 @@ serve(async (req) => {
         draftBookingId: draftBookingId || '',
         guestCount: guestCount ? String(guestCount) : '1',
         is_multi: isMulti ? 'true' : 'false',
-        group_id: groupId || '',
+        group_id: effectiveGroupId,
         booking_ids: isMulti && bookingIds ? JSON.stringify(bookingIds) : '',
+        ...(isMulti && slotsArr.length > 0 && (!bookingIds || bookingIds.length === 0) ? {
+          booking_dates: JSON.stringify(slotsArr.map(s => s.date)),
+          booking_times: JSON.stringify(slotsArr.map(s => s.time)),
+          treatment_ids_per_slot: JSON.stringify(slotsArr.map(s => s.treatmentId)),
+          variant_ids_per_slot: JSON.stringify(slotsArr.map(s => s.variantId || '')),
+          durations_per_slot: JSON.stringify(slotsArr.map(s => s.duration || 60)),
+          quantities_per_slot: JSON.stringify(slotsArr.map(s => s.quantity || 1)),
+          guest_counts_per_slot: JSON.stringify(slotsArr.map(s => s.guestCount || 1)),
+        } : {}),
         ...(giftAmountUsage ? {
           giftAmountCustomerBundleId: giftAmountUsage.customerBundleId,
           giftAmountCents: String(giftAmountUsage.amountCents),

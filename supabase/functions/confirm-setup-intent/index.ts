@@ -176,6 +176,89 @@ serve(async (req) => {
           }
         }
       }
+    } else if (isMulti && meta.booking_dates) {
+      // Multi sans hold : créer N réservations atomiques d'après les tableaux de créneaux
+      const dates = JSON.parse(meta.booking_dates) as string[];
+      const times = JSON.parse(meta.booking_times || '[]') as string[];
+      const slotTreatmentIds = JSON.parse(meta.treatment_ids_per_slot || '[]') as string[];
+      const slotVariantIds = JSON.parse(meta.variant_ids_per_slot || '[]') as string[];
+      const slotDurations = JSON.parse(meta.durations_per_slot || '[]') as number[];
+      const slotQuantities = JSON.parse(meta.quantities_per_slot || '[]') as number[];
+      const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || '[]') as number[];
+      const multiGroupId = meta.group_id || crypto.randomUUID();
+
+      const uniqueTreatmentIds = [...new Set(slotTreatmentIds.filter(Boolean))];
+      const uniqueVariantIds = [...new Set(slotVariantIds.filter((v: string) => v))];
+
+      const [{ data: slotTreatmentsData }, { data: slotVariantsData }] = await Promise.all([
+        uniqueTreatmentIds.length > 0
+          ? supabaseAdmin.from('treatment_menus').select('id, price').in('id', uniqueTreatmentIds)
+          : Promise.resolve({ data: [] as { id: string; price: number }[] }),
+        uniqueVariantIds.length > 0
+          ? supabaseAdmin.from('treatment_variants').select('id, price').in('id', uniqueVariantIds)
+          : Promise.resolve({ data: [] as { id: string; price: number }[] }),
+      ]);
+
+      const txPriceMap = new Map((slotTreatmentsData || []).map((t: { id: string; price: number }) => [t.id, t.price]));
+      const varPriceMap = new Map((slotVariantsData || []).map((v: { id: string; price: number }) => [v.id, v.price]));
+
+      const slotCreatedIds: string[] = [];
+
+      for (let i = 0; i < dates.length; i++) {
+        const slotVariantId = slotVariantIds[i] || null;
+        const qty = slotQuantities[i] || 1;
+        const baseUnitPrice = slotVariantId
+          ? Number(varPriceMap.get(slotVariantId) ?? 0)
+          : Number(txPriceMap.get(slotTreatmentIds[i]) ?? 0);
+        const rawPrice = baseUnitPrice * qty;
+        const slotSurcharge = computeOutOfHoursSurcharge(times[i], rawPrice, hotel || {});
+
+        const { data: newId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {
+          _booking_date: dates[i],
+          _booking_time: times[i],
+          _client_email: meta.clientEmail || null,
+          _client_first_name: meta.firstName,
+          _client_last_name: meta.lastName,
+          _client_note: meta.note || null,
+          _customer_id: customerId,
+          _duration: slotDurations[i] || 60,
+          _hotel_id: meta.hotelId,
+          _hotel_name: hotel?.name || 'Hotel',
+          _language: meta.language || 'fr',
+          _payment_method: 'card',
+          _payment_status: 'pending',
+          _phone: meta.phone,
+          _room_number: meta.roomNumber || null,
+          _status: 'pending',
+          _therapist_gender: meta.therapistGender || null,
+          _total_price: slotSurcharge.totalWithSurcharge,
+          _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
+          _guest_count: slotGuestCounts[i] || 1,
+        });
+
+        if (rpcError || !newId) {
+          if (slotCreatedIds.length > 0) {
+            await supabaseAdmin.from('bookings').delete().in('id', slotCreatedIds);
+          }
+          throw new Error(`Un créneau (${dates[i]} ${times[i]}) vient d'être pris. Veuillez choisir un autre horaire.`);
+        }
+
+        await supabaseAdmin.from('bookings').update({
+          booking_group_id: multiGroupId,
+          therapist_id: null,
+          is_out_of_hours: slotSurcharge.isOutOfHours,
+          surcharge_amount: slotSurcharge.surchargeAmount,
+        }).eq('id', newId);
+
+        await supabaseAdmin.from('booking_treatments').insert({
+          booking_id: newId,
+          treatment_id: slotTreatmentIds[i],
+          variant_id: slotVariantId,
+        });
+
+        slotCreatedIds.push(newId);
+        confirmedBookingIds.push(newId);
+      }
     } else {
       // Cas sans draft du tout (Solo Atomic reserve direct)
       const { data: newBookingId, error: rpcError } = await supabaseAdmin.rpc('reserve_trunk_atomically', {

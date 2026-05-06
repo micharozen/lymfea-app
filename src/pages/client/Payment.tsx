@@ -322,7 +322,7 @@ export default function Payment() {
         
         // On rend la détection Multi indestructible !
         const isMulti = (bookingIds && bookingIds.length > 1) || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
-        
+
         setHoldExpiresAt(null);
 
         const baseItemsForMulti = items.filter(i => !i.isAddon && !i.isBundle);
@@ -356,6 +356,8 @@ export default function Payment() {
               isMulti: isMulti,
               groupId: isMulti ? groupId : undefined,
               bookingIds: isMulti ? bookingIds : undefined,
+              // Multi sans hold : passer les créneaux pour confirm-setup-intent
+              ...(isMulti && multiItems && bookingIds.length === 0 ? { slots: multiItems } : {}),
             },
           });
 
