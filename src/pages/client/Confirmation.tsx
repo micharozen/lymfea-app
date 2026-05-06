@@ -3,6 +3,7 @@ import { useClientVenue } from "./context/ClientVenueContext";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeStripe } from "@/lib/supabaseEdgeFunctions";
 import {
   CheckCircle, Calendar, MapPin, CreditCard,
   AlertCircle, Repeat, ShoppingBag, Package, Gift, Copy, Check, Sparkles,
@@ -47,9 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await supabase.functions.invoke('purchase-bundle', {
-          body: { sessionId },
-        });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
@@ -74,9 +73,7 @@ export default function Confirmation() {
 
         if (!isUUID && sessionId) {
           console.log("[Confirmation] Appel confirm-setup-intent...");
-          const { data: confirmData, error: confirmError } = await supabase.functions.invoke('confirm-setup-intent', {
-            body: { sessionId }
-          });
+          const { data: confirmData, error: confirmError } = await invokeStripe<{ bookingId?: string }>('confirm-setup-intent', { sessionId });
           if (confirmError) throw new Error("La validation de votre garantie bancaire a échoué.");
           if (confirmData?.bookingId) finalBookingId = confirmData.bookingId;
         }

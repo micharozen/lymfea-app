@@ -10,6 +10,7 @@ import { useVenueTerms, type VenueType } from '@/hooks/useVenueTerms';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeStripe } from '@/lib/supabaseEdgeFunctions';
 import { cn } from '@/lib/utils';
 import { formatPrice } from '@/lib/formatPrice';
 import { ProgressBar } from '@/components/client/ProgressBar';
@@ -129,8 +130,7 @@ export default function Payment() {
       if (!isBundleOnly) return;
       setIsProcessing(true);
       try {
-        const { data, error } = await supabase.functions.invoke('create-bundle-payment', {
-          body: {
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-bundle-payment', {
             hotelId,
             clientData: {
               firstName: clientInfo.firstName,
@@ -146,7 +146,6 @@ export default function Payment() {
               quantity: item.quantity,
             })),
             totalPrice: total,
-          },
         });
 
         if (error) throw error;
@@ -225,8 +224,7 @@ export default function Payment() {
           return;
         } else {
           // Partial coverage — pay remainder via Stripe
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+          const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
               hotelId,
               clientData: {
                 firstName: clientInfo.firstName,
@@ -251,7 +249,6 @@ export default function Payment() {
                 amountCents: selectedBundle.amountToUseCents,
               },
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-            },
           });
 
           if (error) throw error;
@@ -315,13 +312,57 @@ export default function Payment() {
       } else if (isOffert) {
         await createOffertBooking(clientInfo, bookingDateTime);
         return;
+      } else if (selectedMethod === 'card' && !hasPriceOnRequest) {
+        // Le draft reste vivant en DB — confirm-setup-intent le promouvra en 'pending'.
+        // On coupe seulement le timer pour ne pas expulser l'utilisateur pendant Stripe.
+        setHoldExpiresAt(null);
+
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+
+        const baseItemsForCardMulti = items.filter(i => !i.isAddon && !i.isBundle);
+        const multiItemsForCard = isMulti ? buildMultiBookingItems(baseItemsForCardMulti, perItemSchedule) : null;
+
+        const { data, error } = await invokeStripe<{ url?: string; sessionId?: string }>('create-setup-intent', {
+          hotelId,
+          clientData: {
+            firstName: clientInfo.firstName,
+            lastName: clientInfo.lastName,
+            phone: `${clientInfo.countryCode}${clientInfo.phone}`,
+            email: clientInfo.email,
+            roomNumber: clientInfo.roomNumber,
+            note: clientInfo.note || '',
+            pmsGuestCheckIn: clientInfo.pmsGuestCheckIn,
+            pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
+          },
+          bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
+          treatmentIds: items.map(item => item.id),
+          treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
+          totalPrice: total,
+          ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+          ...(draftBookingId ? { draftBookingId } : {}),
+          ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
+          isMulti,
+          ...(isMulti ? { groupId, bookingIds } : {}),
+          // Multi sans hold : passer les créneaux pour que confirm-setup-intent crée N réservations.
+          ...(isMulti && multiItemsForCard && bookingIds.length === 0 ? { slots: multiItemsForCard } : {}),
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          const url = new URL(data.url);
+          const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
+          if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
+            throw new Error('Invalid redirect URL');
+          }
+          setPendingCheckoutSession(data.sessionId);
+          window.location.href = data.url;
+        }
       } else {
-        // ==========================================
-        // FLUX UNIFIÉ : CARTE OU CHAMBRE (MULTI & SOLO)
-        // ==========================================
-        
-        // On rend la détection Multi indestructible !
-        const isMulti = (bookingIds && bookingIds.length > 1) || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
+        // --- FLUX CHAMBRE / SUR PLACE (multi & solo) ---
+        const isMulti = (bookingIds && bookingIds.length > 1)
+          || (scheduleMode === 'per_item' && Object.keys(perItemSchedule).length > 1);
 
         setHoldExpiresAt(null);
 
@@ -339,75 +380,39 @@ export default function Payment() {
           pmsGuestCheckOut: clientInfo.pmsGuestCheckOut,
         };
 
-        if (selectedMethod === 'card' && !hasPriceOnRequest) {
-          const { data, error } = await supabase.functions.invoke('create-setup-intent', {
-            body: {
+        const body = isMulti && multiItems
+          ? {
+              hotelId,
+              clientData: clientDataPayload,
+              items: multiItems,
+              bookingIds,
+              groupId,
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
+              ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
+            }
+          : {
               hotelId,
               clientData: clientDataPayload,
               bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
-              treatmentIds: items.map(item => item.id),
-              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId })),
-              totalPrice: total,
+              treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
+              paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
+              totalPrice: fixedTotal,
               ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
               ...(draftBookingId ? { draftBookingId } : {}),
               ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
-              
-              // Variables vitales pour le Multi
-              isMulti: isMulti,
-              groupId: isMulti ? groupId : undefined,
-              bookingIds: isMulti ? bookingIds : undefined,
-              // Multi sans hold : passer les créneaux pour confirm-setup-intent
-              ...(isMulti && multiItems && bookingIds.length === 0 ? { slots: multiItems } : {}),
-            },
-          });
+            };
 
-          if (error) throw error;
+        const { data, error } = await supabase.functions.invoke('create-client-booking', { body });
 
-          if (data?.url) {
-            const url = new URL(data.url);
-            const trustedDomains = ['checkout.stripe.com', 'stripe.com'];
-            if (!trustedDomains.some(domain => url.hostname.endsWith(domain))) {
-              throw new Error('Invalid redirect URL');
-            }
-            setPendingCheckoutSession(data.sessionId);
-            window.location.href = data.url;
-          }
-        } else {
-          // --- FLUX CHAMBRE / SUR PLACE ---
-          const body = isMulti && multiItems
-            ? {
-                hotelId,
-                clientData: clientDataPayload,
-                items: multiItems,
-                bookingIds,
-                groupId,
-                paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
-                totalPrice: fixedTotal,
-                ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-              }
-            : {
-                hotelId,
-                clientData: clientDataPayload,
-                bookingData: { date: bookingDateTime.date, time: bookingDateTime.time },
-                treatments: items.map(item => ({ treatmentId: item.id, variantId: item.variantId, quantity: item.quantity, note: item.note })),
-                paymentMethod: hasPriceOnRequest ? 'quote' : 'room',
-                totalPrice: fixedTotal,
-                ...(therapistGenderPreference ? { therapistGender: therapistGenderPreference } : {}),
-                ...(draftBookingId ? { draftBookingId } : {}),
-                ...(requiredGuestCount > 1 ? { guestCount: requiredGuestCount } : {}),
-              };
+        if (error) throw error;
 
-          const { data, error } = await supabase.functions.invoke('create-client-booking', { body });
-
-          if (error) throw error;
-
-          clearBasket();
-          clearFlow();
-          const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
-            ? data.bookingIds[0]
-            : data.bookingId;
-          navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
-        }
+        clearBasket();
+        clearFlow();
+        const navigateBookingId = isMulti && Array.isArray(data?.bookingIds) && data.bookingIds.length
+          ? data.bookingIds[0]
+          : data.bookingId;
+        navigate(`/client/${slug}/confirmation/${navigateBookingId}`);
       }
     } catch (error: any) {
       console.error('Payment error:', error);
