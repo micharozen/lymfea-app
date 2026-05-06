@@ -48,7 +48,7 @@ export default function Confirmation() {
       try {
         if (!sessionId) throw new Error("Identifiant de session manquant.");
 
-        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId });
+        const { data, error: fnError } = await invokeStripe<{ customerBundles?: unknown[] }>('purchase-bundle', { sessionId, hotelId });
 
         if (fnError) throw new Error("La confirmation de votre achat a échoué.");
         if (!data?.customerBundles || data.customerBundles.length === 0) {
