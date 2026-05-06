@@ -8,6 +8,7 @@ import EditBookingDialog from "@/components/EditBookingDialog";
 import { BookingDetailDialog } from "@/components/admin/details/BookingDetailDialog";
 import { useTimezone } from "@/contexts/TimezoneContext";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { CreateAmenityBookingDialog } from "@/components/booking/CreateAmenityBookingDialog";
 import { AmenityBookingDetailDialog } from "@/components/booking/AmenityBookingDetailDialog";
 
@@ -42,7 +43,8 @@ interface VenueBookingCalendarProps {
 }
 
 export function VenueBookingCalendar({ hotelId }: VenueBookingCalendarProps) {
-  const { isAdmin, isConcierge } = useUserContext();
+  const { isAdmin } = useUserContext();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
   const { activeTimezone } = useTimezone();
   const { t, i18n } = useTranslation("admin");
 

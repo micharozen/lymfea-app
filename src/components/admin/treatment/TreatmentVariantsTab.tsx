@@ -97,7 +97,7 @@ export function TreatmentVariantsTab({
             key={field.id}
             className="flex items-start gap-3 rounded-lg border p-3"
           >
-            <div className="grid grid-cols-5 gap-3 flex-1">
+            <div className="grid grid-cols-4 gap-3 flex-1">
               <FormField
                 control={form.control}
                 name={`variants.${index}.label`}
@@ -190,58 +190,61 @@ export function TreatmentVariantsTab({
                 )}
               />
 
-              <div className="space-y-2">
-                {index === 0 && (
-                  <FormLabel className="text-xs block">Options</FormLabel>
-                )}
-                <div className="flex items-center gap-3 h-10">
-                  <FormField
-                    control={form.control}
-                    name={`variants.${index}.price_on_request`}
-                    render={({ field }) => (
-                      <div className="flex items-center gap-1.5">
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          className="h-3.5 w-3.5"
-                          disabled={disabled}
-                        />
-                        <label className="text-xs cursor-pointer whitespace-nowrap">
-                          Sur demande
-                        </label>
-                      </div>
-                    )}
-                  />
-
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="radio"
-                      name="default_variant"
-                      checked={variants?.[index]?.is_default || false}
-                      onChange={() => handleSetDefault(index)}
-                      className="h-3.5 w-3.5 accent-primary cursor-pointer"
-                      disabled={disabled}
-                    />
-                    <label className="text-xs cursor-pointer whitespace-nowrap">
-                      Défaut
-                    </label>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {!disabled && fields.length > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0 text-destructive hover:text-destructive mt-0"
-                style={index === 0 ? { marginTop: "1.25rem" } : undefined}
-                onClick={() => handleRemoveVariant(index)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Options + trash — regroupés pour éviter tout chevauchement */}
+            <div className="flex flex-col gap-1 shrink-0">
+              {index === 0 && (
+                <FormLabel className="text-xs block">Options</FormLabel>
+              )}
+              <div className="flex items-center gap-3 h-10">
+                <FormField
+                  control={form.control}
+                  name={`variants.${index}.price_on_request`}
+                  render={({ field }) => (
+                    <div className="flex items-center gap-1.5">
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="h-3.5 w-3.5"
+                        disabled={disabled}
+                      />
+                      <label className="text-xs cursor-pointer whitespace-nowrap">
+                        Sur demande
+                      </label>
+                    </div>
+                  )}
+                />
+
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="default_variant"
+                    checked={variants?.[index]?.is_default || false}
+                    onChange={() => handleSetDefault(index)}
+                    className="h-3.5 w-3.5 accent-primary cursor-pointer"
+                    disabled={disabled}
+                  />
+                  <label className="text-xs cursor-pointer whitespace-nowrap">
+                    Défaut
+                  </label>
+                </div>
+
+                {!disabled && fields.length > 1 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    onClick={() => handleRemoveVariant(index)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  !disabled && <div className="w-7" />
+                )}
+              </div>
+            </div>
           </div>
         );
       })}

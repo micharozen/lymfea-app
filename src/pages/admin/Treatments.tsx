@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,8 +84,9 @@ export default function TreatmentMenus() {
     fetchUserRole();
   }, []);
 
-  const isAdmin = userRole === "admin";
-  const isConcierge = userRole === "concierge";
+  const { isVenueManagerView } = useEffectiveRole();
+  const isAdmin = userRole === "admin" && !isVenueManagerView;
+  const isConcierge = userRole === "concierge" || isVenueManagerView;
 
   const { data: menus, refetch, isLoading } = useQuery({
     queryKey: ["treatment-menus"],

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   Bell,
   BellOff,
   Check,
@@ -224,16 +225,18 @@ const PwaNotifications = ({ standalone = false }: PwaNotificationsProps) => {
   };
 
   const getNotificationIcon = (type: string) => {
-    const iconClass = "h-5 w-5 shrink-0";
     switch (type) {
       case "new_booking":
-        return <Bell className={iconClass} />;
+        return <Bell className="h-5 w-5 shrink-0 text-primary" />;
       case "booking_cancelled":
-        return <XCircle className={iconClass} />;
+        return <XCircle className="h-5 w-5 shrink-0 text-destructive" />;
       case "booking_taken":
-        return <CheckCircle className={iconClass} />;
+      case "booking_confirmed":
+        return <CheckCircle className="h-5 w-5 shrink-0 text-green-500" />;
+      case "payment_failed":
+        return <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />;
       default:
-        return <Mail className={iconClass} />;
+        return <Mail className="h-5 w-5 shrink-0 text-muted-foreground" />;
     }
   };
 

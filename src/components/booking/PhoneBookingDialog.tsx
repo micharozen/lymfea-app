@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUser } from "@/contexts/UserContext";
+import { useEffectiveRole } from "@/hooks/useEffectiveRole";
 import { useBookingCart } from "@/hooks/booking/useBookingCart";
 import { useSlotAvailability } from "@/hooks/booking/useSlotAvailability";
 import {
@@ -107,7 +108,8 @@ export default function PhoneBookingDialog({
   onOpenChange,
 }: PhoneBookingDialogProps) {
   const { t } = useTranslation("admin");
-  const { isConcierge, hotelIds } = useUser();
+  const { hotelIds } = useUser();
+  const { showsConciergeUx: isConcierge } = useEffectiveRole();
 
   const [step, setStep] = useState<Step>("venue");
   const [hotelId, setHotelId] = useState<string>(
