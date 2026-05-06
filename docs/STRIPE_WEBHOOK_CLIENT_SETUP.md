@@ -14,13 +14,19 @@
 Eïa expose **un seul endpoint webhook** pour tous ses clients :
 
 ```
-https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/stripe-webhook
+https://wvderlgzetpptehxndqf.supabase.co/functions/v1/stripe-webhook
 ```
 
 Pour distinguer les notifications de chaque établissement, Eïa génère pour vous une **URL personnalisée** qui ajoute votre identifiant unique en paramètre :
 
 ```
-https://xfkujlgettlxdgrnqluw.supabase.co/functions/v1/stripe-webhook?hotel_id=<votre-identifiant>
+https://wvderlgzetpptehxndqf.supabase.co/functions/v1/stripe-webhook?hotel_id=<votre-identifiant>
+```
+
+**Exemple — Cap d'Antine :**
+
+```
+https://wvderlgzetpptehxndqf.supabase.co/functions/v1/stripe-webhook?hotel_id=7a33f87a-5751-41ac-998d-0596d9eeda08
 ```
 
 C'est cette URL **personnalisée** que vous collerez dans Stripe — elle permet à Eïa de retrouver automatiquement votre compte et de valider la signature du webhook avec votre propre clé.
