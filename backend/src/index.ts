@@ -81,9 +81,16 @@ const port = parseInt(process.env.PORT || "3000", 10);
 // Start cron jobs
 startExpiredSlotsJob();
 
-console.log(`🚀 Eïa Backend running on port ${port}`);
-
-export default {
+// Bind explicitly on 0.0.0.0 so Railway / Docker can reach the service
+// from outside the container. The shorthand `export default { port, fetch }`
+// is supposed to do this too, but being explicit avoids surprises across
+// Bun versions and platforms.
+const server = Bun.serve({
   port,
+  hostname: "0.0.0.0",
   fetch: app.fetch,
-};
+});
+
+console.log(`🚀 Eïa Backend listening on http://${server.hostname}:${server.port}`);
+
+export default app;
