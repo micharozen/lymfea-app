@@ -2,55 +2,75 @@ import { Hono } from "hono";
 import Stripe from "stripe";
 import { stripe } from "../lib/stripe";
 import { supabaseAdmin } from "../lib/supabase";
+import { getStripeForVenue, getGlobalStripe } from "../lib/stripe-resolver";
 
 /**
  * Stripe webhook routes — no auth (verified via Stripe signature).
  *
  * Migrated from: supabase/functions/stripe-webhook/index.ts
  *
- * MIGRATION NOTE:
- * The key difference: instead of `supabase.functions.invoke('other-function')`,
- * we import and call the handler directly. No more inter-function HTTP calls.
+ * Per-venue webhook routing: each venue configures their endpoint URL
+ * with `?hotel_id=<uuid>` in their Stripe Dashboard. We resolve the
+ * matching Stripe client + webhook secret from Vault. Bookings made on
+ * the platform's global Stripe account fall back to STRIPE_WEBHOOK_SECRET
+ * if it exists (legacy).
  *
- * This is a SKELETON showing the pattern. The full webhook handler from
- * `supabase/functions/stripe-webhook/index.ts` should be ported here
- * with the same logic — it's a direct translation.
+ * MIGRATION NOTE:
+ * The full event handlers (checkout.session.completed, invoice.payment_succeeded,
+ * payment failures) are still skeletons — the bulk of the original handler
+ * logic from supabase/functions/stripe-webhook/index.ts (~500 lines) needs
+ * to be ported. The per-venue signature verification below already matches
+ * the original behavior.
  */
 const webhooks = new Hono();
 
-/**
- * Stripe Webhook handler.
- * Receives raw body for signature verification.
- */
 webhooks.post("/stripe", async (c) => {
   const signature = c.req.header("stripe-signature");
-
   if (!signature) {
     return c.json({ error: "No signature" }, 400);
   }
 
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!webhookSecret) {
-    return c.json({ error: "Webhook secret not configured" }, 500);
+  // Per-venue webhook routing via ?hotel_id=<uuid> query param.
+  const hotelIdParam = c.req.query("hotel_id") || null;
+
+  let stripeClient: Stripe;
+  let webhookSecret: string | null;
+
+  if (hotelIdParam) {
+    const resolved = await getStripeForVenue(supabaseAdmin, hotelIdParam);
+    stripeClient = resolved.client;
+    webhookSecret = resolved.webhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET ?? null;
+  } else {
+    // Legacy fallback for events posted to the global endpoint (no hotel_id).
+    // Will throw at this point if neither STRIPE_SECRET_KEY nor a venue key
+    // is configured — which is the desired behavior (no silent acceptance).
+    try {
+      stripeClient = getGlobalStripe().client;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Stripe not configured";
+      console.error(`[stripe-webhook] No global Stripe client: ${msg}`);
+      return c.json({ error: "Webhook endpoint requires ?hotel_id=<uuid> when no global Stripe key is configured" }, 400);
+    }
+    webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? null;
   }
 
-  // Hono gives access to the raw body for Stripe signature verification
+  if (!webhookSecret) {
+    console.error(`[stripe-webhook] No webhook secret for hotel_id=${hotelIdParam ?? "<none>"}`);
+    return c.json({ error: "Webhook secret not configured" }, 400);
+  }
+
   const body = await c.req.text();
 
-  let event;
+  let event: Stripe.Event;
   try {
-    event = await stripe.webhooks.constructEventAsync(
-      body,
-      signature,
-      webhookSecret
-    );
+    event = await stripeClient.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid signature";
     console.error("[stripe-webhook] Signature verification failed:", message);
     return c.json({ error: message }, 400);
   }
 
-  console.log(`[stripe-webhook] Event: ${event.type}`);
+  console.log(`[stripe-webhook] Event: ${event.type} (hotel=${hotelIdParam ?? "global"})`);
 
   try {
     switch (event.type) {
