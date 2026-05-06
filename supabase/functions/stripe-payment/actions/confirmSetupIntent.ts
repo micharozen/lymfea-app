@@ -76,8 +76,6 @@ export async function handleConfirmSetupIntent(
   }
 
   // ── MULTI-BOOKING PATH ───────────────────────────────────────────
-  // N drafts already exist (created by create-draft-booking, status
-  // 'awaiting_payment'). We just promote them to 'pending' + 'card_saved'.
   if (meta.isMulti === "1") {
     let multiBookingIds: string[] = [];
     try {
@@ -85,10 +83,8 @@ export async function handleConfirmSetupIntent(
     } catch {
       throw new Error("bookingIds metadata invalide");
     }
-    if (!multiBookingIds.length) {
-      throw new Error("Aucun bookingId dans les metadata multi.");
-    }
 
+    // Resolve/create customer (needed by both sub-paths below).
     let multiCustomerId: string | null = null;
     const multiStripeCustomerId =
       typeof session.customer === "string"
@@ -125,6 +121,132 @@ export async function handleConfirmSetupIntent(
       }
     }
 
+    const multiSetupIntent = session.setup_intent as Stripe.SetupIntent;
+    const multiPaymentMethodId =
+      typeof multiSetupIntent?.payment_method === "string"
+        ? multiSetupIntent.payment_method
+        : (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.id;
+    const multiCard =
+      typeof multiSetupIntent?.payment_method !== "string"
+        ? (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.card
+        : null;
+
+    // ── Multi-no-hold: hold was disabled — no draft bookings exist.
+    // Create N atomic reservations now using per-slot metadata arrays.
+    if (!multiBookingIds.length && meta.booking_dates) {
+      const dates = JSON.parse(meta.booking_dates) as string[];
+      const times = JSON.parse(meta.booking_times || "[]") as string[];
+      const slotTreatmentIds = JSON.parse(meta.treatment_ids_per_slot || "[]") as string[];
+      const slotVariantIds = JSON.parse(meta.variant_ids_per_slot || "[]") as string[];
+      const slotDurations = JSON.parse(meta.durations_per_slot || "[]") as number[];
+      const slotQuantities = JSON.parse(meta.quantities_per_slot || "[]") as number[];
+      const slotGuestCounts = JSON.parse(meta.guest_counts_per_slot || "[]") as number[];
+      const multiGroupId = meta.groupId || crypto.randomUUID();
+
+      const { data: noHoldHotel } = await supabase
+        .from("hotels")
+        .select("name, opening_time, closing_time, allow_out_of_hours_booking, out_of_hours_surcharge_percent")
+        .eq("id", meta.hotelId)
+        .maybeSingle();
+
+      const uniqueTreatmentIds = [...new Set(slotTreatmentIds.filter(Boolean))];
+      const uniqueVariantIds = [...new Set(slotVariantIds.filter((v: string) => v))];
+      const [{ data: slotTreatmentsData }, { data: slotVariantsData }] = await Promise.all([
+        uniqueTreatmentIds.length > 0
+          ? supabase.from("treatment_menus").select("id, price").in("id", uniqueTreatmentIds)
+          : Promise.resolve({ data: [] as { id: string; price: number }[] }),
+        uniqueVariantIds.length > 0
+          ? supabase.from("treatment_variants").select("id, price").in("id", uniqueVariantIds)
+          : Promise.resolve({ data: [] as { id: string; price: number }[] }),
+      ]);
+      const txPriceMap = new Map((slotTreatmentsData || []).map((t: { id: string; price: number }) => [t.id, t.price]));
+      const varPriceMap = new Map((slotVariantsData || []).map((v: { id: string; price: number }) => [v.id, v.price]));
+
+      const slotCreatedIds: string[] = [];
+      for (let i = 0; i < dates.length; i++) {
+        const slotVariantId = slotVariantIds[i] || null;
+        const qty = slotQuantities[i] || 1;
+        const baseUnitPrice = slotVariantId
+          ? Number(varPriceMap.get(slotVariantId) ?? 0)
+          : Number(txPriceMap.get(slotTreatmentIds[i]) ?? 0);
+        const slotSurcharge = computeOutOfHoursSurcharge(times[i], baseUnitPrice * qty, noHoldHotel || {});
+
+        const { data: newId, error: rpcError } = await supabase.rpc("reserve_trunk_atomically", {
+          _booking_date: dates[i],
+          _booking_time: times[i],
+          _client_email: meta.clientEmail || null,
+          _client_first_name: meta.firstName,
+          _client_last_name: meta.lastName,
+          _client_note: meta.note || null,
+          _customer_id: multiCustomerId,
+          _duration: slotDurations[i] || 60,
+          _hotel_id: meta.hotelId,
+          _hotel_name: noHoldHotel?.name || "Hotel",
+          _language: meta.language || "fr",
+          _payment_method: "card",
+          _payment_status: "pending",
+          _phone: meta.phone,
+          _room_number: meta.roomNumber || null,
+          _status: "pending",
+          _therapist_gender: meta.therapistGender || null,
+          _total_price: slotSurcharge.totalWithSurcharge,
+          _treatment_ids: [slotTreatmentIds[i]].filter(Boolean),
+          _guest_count: slotGuestCounts[i] || 1,
+        });
+
+        if (rpcError || !newId) {
+          if (slotCreatedIds.length > 0) {
+            await supabase.from("bookings").delete().in("id", slotCreatedIds);
+          }
+          throw new Error(`Un créneau (${dates[i]} ${times[i]}) vient d'être pris. Veuillez choisir un autre horaire.`);
+        }
+
+        await supabase.from("bookings").update({
+          booking_group_id: multiGroupId,
+          therapist_id: null,
+          is_out_of_hours: slotSurcharge.isOutOfHours,
+          surcharge_amount: slotSurcharge.surchargeAmount,
+        }).eq("id", newId);
+
+        await supabase.from("booking_treatments").insert({
+          booking_id: newId,
+          treatment_id: slotTreatmentIds[i],
+          variant_id: slotVariantId,
+        });
+
+        slotCreatedIds.push(newId);
+      }
+
+      // booking_payment_infos: UNIQUE constraint on stripe_session_id — attach to first booking only.
+      if (multiPaymentMethodId && multiSetupIntent) {
+        await supabase.from("booking_payment_infos").insert({
+          booking_id: slotCreatedIds[0],
+          customer_id: multiCustomerId,
+          stripe_payment_method_id: multiPaymentMethodId,
+          stripe_setup_intent_id: multiSetupIntent.id,
+          stripe_session_id: sessionId,
+          card_brand: multiCard?.brand || null,
+          card_last4: multiCard?.last4 || null,
+          payment_status: "card_saved",
+        });
+      }
+
+      for (const bId of slotCreatedIds) {
+        try {
+          await supabase.functions.invoke("trigger-new-booking-notifications", { body: { bookingId: bId, notifyAll: true } });
+        } catch (notifError) {
+          console.error(`[CONFIRM-SETUP] Push notif error for ${bId}:`, notifError);
+        }
+      }
+
+      return jsonResponse({ success: true, bookingId: slotCreatedIds[0], bookingIds: slotCreatedIds });
+    }
+
+    if (!multiBookingIds.length) {
+      throw new Error("Aucun bookingId dans les metadata multi.");
+    }
+
+    // ── Multi-with-hold: N drafts exist — promote them to 'pending'.
     const { error: updErr } = await supabase
       .from("bookings")
       .update({
@@ -148,16 +270,6 @@ export async function handleConfirmSetupIntent(
         `Erreur lors de la promotion des drafts multi : ${updErr.message}`,
       );
     }
-
-    const multiSetupIntent = session.setup_intent as Stripe.SetupIntent;
-    const multiPaymentMethodId =
-      typeof multiSetupIntent?.payment_method === "string"
-        ? multiSetupIntent.payment_method
-        : (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.id;
-    const multiCard =
-      typeof multiSetupIntent?.payment_method !== "string"
-        ? (multiSetupIntent?.payment_method as Stripe.PaymentMethod)?.card
-        : null;
 
     // booking_payment_infos.stripe_session_id has a UNIQUE constraint, so we
     // attach the row to the first booking only. Sibling bookings of the group

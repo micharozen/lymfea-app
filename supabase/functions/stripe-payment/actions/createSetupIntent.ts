@@ -33,9 +33,22 @@ export async function handleCreateSetupIntent(
     isMulti,
     groupId,
     bookingIds,
+    slots,
   } = body as Record<string, any>;
 
-  const isMultiBooking = !!isMulti && Array.isArray(bookingIds) && bookingIds.length > 1;
+  type SlotPayload = { date: string; time: string; treatmentId: string; variantId?: string | null; duration?: number; quantity?: number; guestCount?: number };
+  const slotsArr: SlotPayload[] = Array.isArray(slots) ? (slots as SlotPayload[]) : [];
+
+  // Multi-with-hold: bookingIds already created. Multi-no-hold: slotsArr carries the schedule.
+  const isMultiBooking = !!isMulti && (
+    (Array.isArray(bookingIds) && bookingIds.length > 1) ||
+    slotsArr.length > 1
+  );
+
+  // When hold is disabled the front has no groupId — generate one server-side.
+  const effectiveGroupId = isMultiBooking
+    ? (groupId || (slotsArr.length > 0 ? crypto.randomUUID() : ""))
+    : "";
 
   if (!bookingData || !clientData || !hotelId) {
     throw new Error("Missing required data");
@@ -229,8 +242,18 @@ export async function handleCreateSetupIntent(
       surchargePercent: String(surcharge.surchargePercent),
       verifiedTotalPrice: String(finalTotalPrice),
       isMulti: isMultiBooking ? "1" : "0",
-      groupId: isMultiBooking ? String(groupId || "") : "",
-      bookingIds: isMultiBooking ? JSON.stringify(bookingIds) : "",
+      groupId: effectiveGroupId,
+      bookingIds: isMultiBooking && Array.isArray(bookingIds) && bookingIds.length > 0 ? JSON.stringify(bookingIds) : "",
+      // Multi-no-hold: store per-slot data so confirm-setup-intent can create N bookings.
+      ...(isMultiBooking && slotsArr.length > 0 && (!bookingIds || bookingIds.length === 0) ? {
+        booking_dates: JSON.stringify(slotsArr.map((s: SlotPayload) => s.date)),
+        booking_times: JSON.stringify(slotsArr.map((s: SlotPayload) => s.time)),
+        treatment_ids_per_slot: JSON.stringify(slotsArr.map((s: SlotPayload) => s.treatmentId)),
+        variant_ids_per_slot: JSON.stringify(slotsArr.map((s: SlotPayload) => s.variantId || "")),
+        durations_per_slot: JSON.stringify(slotsArr.map((s: SlotPayload) => s.duration || 60)),
+        quantities_per_slot: JSON.stringify(slotsArr.map((s: SlotPayload) => s.quantity || 1)),
+        guest_counts_per_slot: JSON.stringify(slotsArr.map((s: SlotPayload) => s.guestCount || 1)),
+      } : {}),
     },
   });
 
