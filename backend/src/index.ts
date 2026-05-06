@@ -82,9 +82,12 @@ const port = parseInt(process.env.PORT || "3000", 10);
 startExpiredSlotsJob();
 
 // Bind explicitly on 0.0.0.0 so Railway / Docker can reach the service
-// from outside the container. The shorthand `export default { port, fetch }`
-// is supposed to do this too, but being explicit avoids surprises across
-// Bun versions and platforms.
+// from outside the container.
+//
+// IMPORTANT: do NOT add `export default app` (or any default export with a
+// `.fetch` method) at module level. Bun's loader auto-detects such default
+// exports as a server config and calls `Bun.serve(default)` AGAIN — which
+// triggers EADDRINUSE because we already bound the port here.
 const server = Bun.serve({
   port,
   hostname: "0.0.0.0",
@@ -92,5 +95,3 @@ const server = Bun.serve({
 });
 
 console.log(`🚀 Eïa Backend listening on http://${server.hostname}:${server.port}`);
-
-export default app;
