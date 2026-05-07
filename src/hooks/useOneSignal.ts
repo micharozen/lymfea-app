@@ -149,7 +149,6 @@ export const useOneSignal = () => {
         console.warn('[OneSignal] VITE_ONESIGNAL_APP_ID not set, skipping initialization');
         return;
       }
-      console.log('[OneSignal] App ID:', appId, '| Origin:', window.location.origin);
 
       // Start new initialization
       initializationPromise = (async () => {
