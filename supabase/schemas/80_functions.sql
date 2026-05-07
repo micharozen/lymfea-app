@@ -2420,7 +2420,7 @@ BEGIN
     AND booking_date = _booking.booking_date
     AND id != _booking_id
     AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-    AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
+    AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
   FOR UPDATE;
 
   _new_start := EXTRACT(HOUR FROM _booking.booking_time) * 60 + EXTRACT(MINUTE FROM _booking.booking_time);
@@ -2434,7 +2434,7 @@ BEGIN
       AND room_id = _booking.room_id
       AND id != _booking_id
       AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-      AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
+      AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
       AND (
         _new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30)
         AND _new_end > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time))
@@ -2487,7 +2487,7 @@ BEGIN
   WHERE hotel_id::text = _hotel_id
     AND booking_date = _booking_date
     AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-    AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
+    AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
   FOR UPDATE;
 
   _new_start := EXTRACT(HOUR FROM _booking_time) * 60 + EXTRACT(MINUTE FROM _booking_time);
@@ -2534,7 +2534,7 @@ BEGIN
       WHERE room_id = _room.id
         AND booking_date = _booking_date
         AND status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-        AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '4 minutes')
+        AND NOT (payment_status = 'awaiting_payment' AND created_at < NOW() - INTERVAL '10 minutes')
         AND (_new_start < (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)) + COALESCE(duration, 30) + _turnover_buffer
              AND _new_end + _turnover_buffer > (EXTRACT(HOUR FROM booking_time) * 60 + EXTRACT(MINUTE FROM booking_time)))
     ) INTO _has_conflict;
@@ -2566,7 +2566,7 @@ BEGIN
         WHERE b.therapist_id = _therapist_id
           AND b.booking_date = _booking_date
           AND b.status NOT IN ('Annulé', 'Terminé', 'cancelled', 'completed', 'noshow')
-          AND NOT (b.payment_status = 'awaiting_payment' AND b.created_at < NOW() - INTERVAL '4 minutes')
+          AND NOT (b.payment_status = 'awaiting_payment' AND b.created_at < NOW() - INTERVAL '10 minutes')
           AND (
             _new_start < (EXTRACT(HOUR FROM b.booking_time) * 60 + EXTRACT(MINUTE FROM b.booking_time))
                           + COALESCE(b.duration, 30)
@@ -2588,7 +2588,7 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  IF _room_id IS NULL THEN RAISE EXCEPTION 'NO_TRUNK_AVAILABLE'; END IF;
+  IF _room_id IS NULL THEN RAISE EXCEPTION 'NO_ROOM_AVAILABLE'; END IF;
 
   INSERT INTO bookings (
     hotel_id, hotel_name, client_first_name, client_last_name, client_email, phone,

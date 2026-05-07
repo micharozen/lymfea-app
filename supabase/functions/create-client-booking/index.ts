@@ -603,7 +603,7 @@ try {
           _guest_count: effectiveGuestCount,
         });
         if (fallbackError) {
-          if (fallbackError.message?.includes('NO_TRUNK_AVAILABLE')) {
+          if (fallbackError.message?.includes('NO_ROOM_AVAILABLE')) {
             return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
           }
           return new Response(JSON.stringify({ success: false, error: 'Failed to create booking' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 });
@@ -676,7 +676,7 @@ try {
       });
 
       if (rpcError) {
-        if (rpcError.message?.includes('NO_TRUNK_AVAILABLE')) {
+        if (rpcError.message?.includes('NO_ROOM_AVAILABLE')) {
           console.log('Slot taken (atomic check)');
           return new Response(JSON.stringify({ success: false, error: 'SLOT_TAKEN' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 });
         }

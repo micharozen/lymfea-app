@@ -180,41 +180,42 @@ serve(async (req) => {
     let notificationsSent = 0;
     let skippedDuplicates = 0;
 
-    for (const th of eligibleTherapists) {
-      const h = th.therapists as any;
-      if (!h || !h.user_id) continue;
+    const eligibleWithUserId = eligibleTherapists
+      .map(th => ({ th, h: th.therapists as any }))
+      .filter(({ h }) => h && h.user_id);
 
-      // Check if notification already sent for this booking+user
-      const { data: existingLog } = await supabaseClient
+    const allUserIds = eligibleWithUserId.map(({ h }) => h.user_id);
+
+    // Batch dedup check: one query for all therapists instead of one per therapist
+    let alreadyNotifiedSet = new Set<string>();
+    if (allUserIds.length > 0) {
+      const { data: existingLogs } = await supabaseClient
         .from("push_notification_logs")
-        .select("id")
+        .select("user_id")
         .eq("booking_id", bookingId)
-        .eq("user_id", h.user_id)
-        .single();
+        .in("user_id", allUserIds);
+      alreadyNotifiedSet = new Set((existingLogs || []).map((l: any) => l.user_id));
+    }
 
-      if (existingLog) {
-        console.log(`[DEDUP] Skipping duplicate for user ${h.first_name} - already notified`);
-        skippedDuplicates++;
-        continue;
-      }
+    const toNotify = eligibleWithUserId.filter(({ h }) => !alreadyNotifiedSet.has(h.user_id));
+    skippedDuplicates = eligibleWithUserId.length - toNotify.length;
+    if (skippedDuplicates > 0) {
+      console.log(`[DEDUP] Skipping ${skippedDuplicates} already-notified therapist(s)`);
+    }
 
-      // Insert log BEFORE sending to prevent race conditions
-      const { error: logError } = await supabaseClient
+    // Bulk insert logs before sending (unique constraint handles any remaining race conditions)
+    if (toNotify.length > 0) {
+      await supabaseClient
         .from("push_notification_logs")
-        .insert({
-          booking_id: bookingId,
-          user_id: h.user_id,
-        });
+        .upsert(
+          toNotify.map(({ h }) => ({ booking_id: bookingId, user_id: h.user_id })),
+          { onConflict: "booking_id,user_id", ignoreDuplicates: true }
+        );
+    }
 
-      if (logError) {
-        if (logError.code === "23505") {
-          console.log(`[DEDUP] Race condition caught for user ${h.first_name}`);
-          skippedDuplicates++;
-          continue;
-        }
-        console.error("Error logging notification:", logError);
-      }
-
+    // Send push notifications in parallel
+    const pushResults = await Promise.all(
+      toNotify.map(async ({ h }) => {
         try {
           const { error: pushError } = await supabaseClient.functions.invoke(
             "send-push-notification",
@@ -233,17 +234,19 @@ serve(async (req) => {
               },
             }
           );
-
-        if (pushError) {
-          console.error(`Error sending push to ${h.first_name}:`, pushError);
-        } else {
+          if (pushError) {
+            console.error(`Error sending push to ${h.first_name}:`, pushError);
+            return false;
+          }
           console.log(`✅ Push sent to ${h.first_name} ${h.last_name}`);
-          notificationsSent++;
+          return true;
+        } catch (error) {
+          console.error("Error sending notification:", error);
+          return false;
         }
-      } catch (error) {
-        console.error("Error sending notification:", error);
-      }
-    }
+      })
+    );
+    notificationsSent = pushResults.filter(Boolean).length;
 
     console.log(`Push notifications sent: ${notificationsSent}, skipped duplicates: ${skippedDuplicates}`);
 

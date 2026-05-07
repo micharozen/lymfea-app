@@ -232,46 +232,52 @@ serve(async (req) => {
     console.log(`Admin notification emails sent: ${emailsSent}/${admins.length}`);
 
     // Send push notifications and in-app notifications to admins
-    let pushSent = 0;
-    for (const admin of admins) {
-      if (!admin.user_id) continue;
+    const adminsWithUserId = admins.filter((a: any) => a.user_id);
 
-      // Create in-app notification
+    // Bulk insert all in-app notifications in one query
+    if (adminsWithUserId.length > 0) {
       try {
-        await supabaseClient.from("notifications").insert({
-          user_id: admin.user_id,
-          booking_id: booking.id,
-          type: "new_booking",
-          message: `🔔 Nouvelle réservation #${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
-        });
+        await supabaseClient.from("notifications").insert(
+          adminsWithUserId.map((admin: any) => ({
+            user_id: admin.user_id,
+            booking_id: booking.id,
+            type: "new_booking",
+            message: `🔔 Nouvelle réservation #${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+          }))
+        );
       } catch (e) {
-        console.error(`Error creating notification for admin ${admin.first_name}:`, e);
-      }
-
-      // Send push notification
-      try {
-        const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
-          body: {
-            userId: admin.user_id,
-            title: "🔔 Nouvelle réservation",
-            body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
-            data: {
-              bookingId: booking.id,
-              url: `/admin-pwa/booking/${booking.id}`,
-            },
-          },
-        });
-
-        if (!pushError) {
-          pushSent++;
-          console.log(`✅ Push sent to admin: ${admin.first_name}`);
-        } else {
-          console.error(`Push error for admin ${admin.first_name}:`, pushError);
-        }
-      } catch (e) {
-        console.error(`Push exception for admin ${admin.first_name}:`, e);
+        console.error("Error bulk inserting admin notifications:", e);
       }
     }
+
+    // Send push notifications in parallel
+    const pushResults = await Promise.all(
+      adminsWithUserId.map(async (admin: any) => {
+        try {
+          const { error: pushError } = await supabaseClient.functions.invoke("send-push-notification", {
+            body: {
+              userId: admin.user_id,
+              title: "🔔 Nouvelle réservation",
+              body: `#${booking.booking_id} · ${booking.client_first_name} ${booking.client_last_name} · ${booking.hotel_name || ""}`,
+              data: {
+                bookingId: booking.id,
+                url: `/admin-pwa/booking/${booking.id}`,
+              },
+            },
+          });
+          if (!pushError) {
+            console.log(`✅ Push sent to admin: ${admin.first_name}`);
+            return true;
+          }
+          console.error(`Push error for admin ${admin.first_name}:`, pushError);
+          return false;
+        } catch (e) {
+          console.error(`Push exception for admin ${admin.first_name}:`, e);
+          return false;
+        }
+      })
+    );
+    const pushSent = pushResults.filter(Boolean).length;
 
     console.log(`Admin push notifications sent: ${pushSent}/${admins.length}`);
 
