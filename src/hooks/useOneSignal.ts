@@ -102,6 +102,7 @@ export const useOneSignal = () => {
 
       // Check if we're on a supported domain for OneSignal
       const allowedDomains = [
+        'eiaspa.fr',
         'lymfea.fr',
         'localhost',
       ];
@@ -123,6 +124,19 @@ export const useOneSignal = () => {
       // Check if notifications are supported
       if (!('Notification' in window)) {
         console.warn('[OneSignal] Notifications not supported');
+        return;
+      }
+
+      // iOS Safari only supports web push when the PWA is installed to the
+      // home screen (display-mode: standalone). In a regular Safari tab the
+      // SDK can't register its service worker and init silently times out.
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as { standalone?: boolean }).standalone === true;
+
+      if (isIOS && !isStandalone) {
+        console.log('[OneSignal] iOS Safari without standalone mode — skipping init (install PWA to home screen first)');
         return;
       }
 
